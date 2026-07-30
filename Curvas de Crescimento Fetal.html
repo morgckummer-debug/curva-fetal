@@ -6403,6 +6403,7 @@ function confirmarGerarPDF() {
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
 <title>Relatório Curva Fetal — ${escapeHtml(patient.nome || patient.cpf)}</title>
 <style>
   /* Fontes locais */

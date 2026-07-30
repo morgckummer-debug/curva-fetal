@@ -6357,29 +6357,152 @@ function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 
+// ── Segurança: sanitiza string livre (remove caracteres de controle, limita tamanho) ──
+function sanitizeString(v, maxLen) {
+  if (v == null) return '';
+  let s = String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim();
+  if (maxLen && s.length > maxLen) s = s.slice(0, maxLen);
+  return s;
+}
+
+// ── Segurança: valida e sanitiza um backup importado campo a campo antes de aceitar
+//    qualquer registro — nunca confia direto num JSON externo. Ids inválidos, datas fora
+//    do formato, referências quebradas (gestação sem paciente, exame sem gestação) e
+//    valores fora do tipo esperado são descartados em vez de corromper a base atual. ──
+function validateImportedDB(raw) {
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.patients)) {
+    throw new Error('Arquivo de backup inválido: estrutura de dados não reconhecida.');
+  }
+
+  const db = { patients: [], gestacoes: [], exams: [], _patId: 1, _gestId: 1, _exId: 1 };
+  const skipped = { patients: 0, gestacoes: 0, exams: 0 };
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const numOrNull = v => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+
+  const patientIds = new Set();
+  raw.patients.forEach(p => {
+    const id = Number(p && p.id);
+    if (!p || typeof p !== 'object' || !Number.isFinite(id) || id <= 0 || patientIds.has(id)) { skipped.patients++; return; }
+    patientIds.add(id);
+    const cpfDigits = sanitizeString(p.cpf, 20).replace(/\D/g, '').slice(0, 11);
+    const cpf = cpfDigits.length === 11 ? formatCpf(cpfDigits) : sanitizeString(p.cpf, 20);
+    db.patients.push({ id, cpf, nome: sanitizeString(p.nome, 200) });
+  });
+
+  const STATUS_VALIDOS = new Set(['ativa', 'finalizada', 'aborto', 'ectopica', 'obito_fetal']);
+  const gestacaoIds = new Set();
+  (Array.isArray(raw.gestacoes) ? raw.gestacoes : []).forEach(g => {
+    const id = Number(g && g.id);
+    const pacienteId = Number(g && g.paciente_id);
+    if (!g || typeof g !== 'object' || !Number.isFinite(id) || id <= 0 || gestacaoIds.has(id) || !patientIds.has(pacienteId)) { skipped.gestacoes++; return; }
+    gestacaoIds.add(id);
+    db.gestacoes.push({
+      id, paciente_id: pacienteId,
+      dum:         DATE_RE.test(g.dum) ? g.dum : null,
+      dpp:         DATE_RE.test(g.dpp) ? g.dpp : null,
+      data_inicio: DATE_RE.test(g.data_inicio) ? g.data_inicio : null,
+      gestas:  numOrNull(g.gestas),
+      partos:  numOrNull(g.partos),
+      abortos: numOrNull(g.abortos),
+      antecedentes_obstetricos: sanitizeString(g.antecedentes_obstetricos, 2000),
+      status: STATUS_VALIDOS.has(g.status) ? g.status : 'ativa',
+      observacoes: sanitizeString(g.observacoes, 2000),
+      ig_base_data:  DATE_RE.test(g.ig_base_data) ? g.ig_base_data : null,
+      ig_base_valor: numOrNull(g.ig_base_valor),
+      ig_base_tipo:  (g.ig_base_tipo === 'DUM' || g.ig_base_tipo === 'US') ? g.ig_base_tipo : null,
+    });
+  });
+
+  const examIds = new Set();
+  (Array.isArray(raw.exams) ? raw.exams : []).forEach(e => {
+    const id = Number(e && e.id);
+    const gestacaoId = Number(e && e.gestacao_id);
+    if (!e || typeof e !== 'object' || !Number.isFinite(id) || id <= 0 || examIds.has(id) || !gestacaoIds.has(gestacaoId) || !DATE_RE.test(e.data_exame)) { skipped.exams++; return; }
+    examIds.add(id);
+    db.exams.push({
+      id, gestacao_id: gestacaoId, data_exame: e.data_exame,
+      ig_dias_manual: numOrNull(e.ig_dias_manual),
+      dbp: numOrNull(e.dbp), cc: numOrNull(e.cc), ca: numOrNull(e.ca), femur: numOrNull(e.femur),
+      dof: numOrNull(e.dof), ccn: numOrNull(e.ccn),
+      umero: numOrNull(e.umero), radio: numOrNull(e.radio), ulna: numOrNull(e.ulna),
+      tibia: numOrNull(e.tibia), fibula: numOrNull(e.fibula),
+      au_ip: numOrNull(e.au_ip), au_fluxo: sanitizeString(e.au_fluxo, 40) || null,
+      acm_ip: numOrNull(e.acm_ip), acm_psv: numOrNull(e.acm_psv),
+      aut_e: numOrNull(e.aut_e), aut_d: numOrNull(e.aut_d),
+      dv_ip: numOrNull(e.dv_ip), dv_onda: sanitizeString(e.dv_onda, 40) || null,
+      cpr: numOrNull(e.cpr), colo: numOrNull(e.colo), ila: numOrNull(e.ila), bolsao: numOrNull(e.bolsao),
+    });
+  });
+
+  if (db.patients.length === 0 && raw.patients.length > 0) {
+    throw new Error('Nenhum paciente válido encontrado no arquivo — importação cancelada.');
+  }
+
+  db._patId  = db.patients.reduce((m, p)  => Math.max(m, p.id), 0) + 1;
+  db._gestId = db.gestacoes.reduce((m, g) => Math.max(m, g.id), 0) + 1;
+  db._exId   = db.exams.reduce((m, e)     => Math.max(m, e.id), 0) + 1;
+
+  return {
+    db,
+    stats: {
+      patients: db.patients.length, gestacoes: db.gestacoes.length, exams: db.exams.length,
+      skippedPatients: skipped.patients, skippedGestacoes: skipped.gestacoes, skippedExams: skipped.exams,
+    },
+  };
+}
+
 function importData(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
+    let raw;
     try {
-      const imported = JSON.parse(e.target.result);
-      // Suporte a v1 e v2
-      let db;
-      if (imported.gestacoes) {
-        db = imported; // já é v2
-      } else if (imported.patients) {
-        db = migrateV1toV2(imported); // migrar v1
+      raw = JSON.parse(e.target.result);
+    } catch (err) {
+      alert('Erro ao importar: o arquivo não é um JSON válido.\n' + err.message);
+      input.value = '';
+      return;
+    }
+
+    try {
+      // Suporte a v1 e v2 — v1 é convertido para o formato atual antes de validar
+      let dbCandidate;
+      if (raw && raw.gestacoes) {
+        dbCandidate = raw;
+      } else if (raw && raw.patients) {
+        dbCandidate = migrateV1toV2(raw);
       } else {
-        alert('Arquivo de backup inválido.'); return;
+        alert('Arquivo de backup inválido: não parece ser um backup do Curva Fetal.');
+        input.value = '';
+        return;
       }
+
+      const { db, stats } = validateImportedDB(dbCandidate);
+
+      const avisos = [];
+      if (stats.skippedPatients)  avisos.push(`${stats.skippedPatients} paciente(s) inválido(s) ignorado(s)`);
+      if (stats.skippedGestacoes) avisos.push(`${stats.skippedGestacoes} gestação(ões) inválida(s) ignorada(s)`);
+      if (stats.skippedExams)     avisos.push(`${stats.skippedExams} exame(s) inválido(s) ignorado(s)`);
+
+      const resumo =
+        `Este arquivo contém:\n` +
+        `• ${stats.patients} paciente(s)\n` +
+        `• ${stats.gestacoes} gestação(ões)\n` +
+        `• ${stats.exams} exame(s)` +
+        (avisos.length ? `\n\n⚠ ${avisos.join(' · ')}` : '') +
+        `\n\nIsso vai SUBSTITUIR todos os dados atuais salvos neste navegador. Esta ação não pode ser desfeita.\n\nDeseja continuar?`;
+
+      if (!confirm(resumo)) { input.value = ''; return; }
+
       saveDB(db);
       DB = loadDB();
       alert('Dados importados com sucesso!');
       _doShowSearchScreen();
-    } catch(err) {
+    } catch (err) {
       alert('Erro ao importar: ' + err.message);
     }
+    input.value = '';
   };
   reader.readAsText(file);
 }

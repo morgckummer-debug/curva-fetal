@@ -742,6 +742,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <div class="search-box-btns">
           <button class="btn btn-primary" onclick="searchPatient()">Buscar</button>
           <button class="btn btn-secondary" onclick="openNewPatientModal()">Criar paciente</button>
+          <button class="btn btn-secondary" onclick="openLixeiraModal()" title="Pacientes e exames excluídos">🗑 Lixeira</button>
         </div>
       </div>
       <div class="recent-patients" id="recent-list"></div>
@@ -1300,6 +1301,26 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-confirm-delete')">Cancelar</button>
       <button class="btn btn-danger" id="confirm-delete-btn">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LIXEIRA -->
+<div class="modal-overlay" id="modal-lixeira">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🗑</div>
+        <h2 style="font-size:18px;">Lixeira</h2>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-lixeira')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted);font-size:13px;margin-bottom:14px;line-height:1.6;">Pacientes e exames excluídos ficam aqui até serem restaurados ou apagados em definitivo — nada some de vez sem confirmação.</p>
+      <div id="lixeira-content" style="max-height:50vh;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-lixeira')">Fechar</button>
     </div>
   </div>
 </div>
@@ -2174,15 +2195,17 @@ let DB = loadDB();
 
 // ── Accessors ───────────────────────────────────────────────
 
-function getPatientByCpf(cpf) { return DB.patients.find(p => p.cpf === cpf); }
-function getPatientById(id)    { return DB.patients.find(p => p.id === id); }
+// Registros com "excluido_em" preenchido estão na lixeira e ficam de fora de toda leitura normal.
+function getPatientByCpf(cpf) { return DB.patients.find(p => p.cpf === cpf && !p.excluido_em); }
+function getPatientById(id)    { return DB.patients.find(p => p.id === id && !p.excluido_em); }
+function getPatientByIdIncludingDeleted(id) { return DB.patients.find(p => p.id === id); }
 
 function getGestacoesByPatient(pid) {
-  return DB.gestacoes.filter(g => g.paciente_id === pid)
+  return DB.gestacoes.filter(g => g.paciente_id === pid && !g.excluido_em)
     .sort((a, b) => (a.data_inicio || '').localeCompare(b.data_inicio || ''));
 }
 
-function getGestacaoById(gid) { return DB.gestacoes.find(g => g.id === gid); }
+function getGestacaoById(gid) { return DB.gestacoes.find(g => g.id === gid && !g.excluido_em); }
 
 function getGestacaoAtiva(pid) {
   const gests = getGestacoesByPatient(pid);
@@ -2190,7 +2213,7 @@ function getGestacaoAtiva(pid) {
 }
 
 function getExamsByGestacao(gid) {
-  return DB.exams.filter(e => e.gestacao_id === gid)
+  return DB.exams.filter(e => e.gestacao_id === gid && !e.excluido_em)
     .sort((a, b) => a.data_exame.localeCompare(b.data_exame));
 }
 
@@ -2337,7 +2360,7 @@ function switchGestacao(gid) {
 function renderRecentPatients() {
   const container = document.getElementById('recent-list');
   DB = loadDB();
-  const patients = [...DB.patients].reverse().slice(0, 8);
+  const patients = DB.patients.filter(p => !p.excluido_em).reverse().slice(0, 8);
   if (patients.length === 0) { container.innerHTML = ''; return; }
 
   container.innerHTML = `<h3>Pacientes Recentes</h3>` + patients.map(p => {
@@ -2385,7 +2408,7 @@ function _showNameSuggestions(q) {
     const sb = document.querySelector('.search-box');
     if (sb) { sb.style.position='relative'; sb.appendChild(box); }
   }
-  const matches = DB.patients.filter(p => p.nome && p.nome.toLowerCase().includes(q)).slice(0,8);
+  const matches = DB.patients.filter(p => !p.excluido_em && p.nome && p.nome.toLowerCase().includes(q)).slice(0,8);
   if (!matches.length) { box.style.display='none'; return; }
   box.innerHTML = matches.map(p => `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="padding:10px 16px;cursor:pointer;font-size:13px;color:#527d68;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome)}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span></div>`).join('');
   box.style.display = 'block';
@@ -2416,7 +2439,7 @@ function searchPatient() {
   }
 
   if (val.length >= 2) {
-    const matches = DB.patients.filter(p => p.nome && p.nome.toLowerCase().includes(val.toLowerCase()));
+    const matches = DB.patients.filter(p => !p.excluido_em && p.nome && p.nome.toLowerCase().includes(val.toLowerCase()));
     if (matches.length === 1) { _hideNameSuggestions(); openPatient(matches[0].id); }
     else if (matches.length > 1) { _showNameSuggestions(val.toLowerCase()); }
     else { alert('Nenhuma paciente encontrada com o nome "' + val + '".'); }
@@ -5657,11 +5680,27 @@ function deleteExam(eid) {
 
 function confirmDeleteExam() {
   if (_deleteExamId == null) return;
-  DB.exams = DB.exams.filter(e => e.id !== _deleteExamId);
+  const idx = DB.exams.findIndex(e => e.id === _deleteExamId);
+  if (idx !== -1) DB.exams[idx].excluido_em = new Date().toISOString();
   _deleteExamId = null;
   saveDB(DB);
   closeModal('modal-confirm-delete');
   renderPatientScreen();
+}
+
+function restoreExam(eid) {
+  DB = loadDB();
+  const idx = DB.exams.findIndex(e => e.id === eid);
+  if (idx !== -1) { delete DB.exams[idx].excluido_em; saveDB(DB); }
+  renderLixeira();
+  renderPatientScreen();
+}
+
+function purgeExamPermanently(eid) {
+  DB = loadDB();
+  DB.exams = DB.exams.filter(e => e.id !== eid);
+  saveDB(DB);
+  renderLixeira();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5705,7 +5744,7 @@ function savePatient() {
 
   if (pid) {
     const pidInt     = parseInt(pid);
-    const cpfConflict = DB.patients.find(p => p.cpf === cpf && p.id !== pidInt);
+    const cpfConflict = DB.patients.find(p => p.cpf === cpf && p.id !== pidInt && !p.excluido_em);
     if (cpfConflict) { alert('CPF já cadastrado para outra paciente.'); return; }
     const idx = DB.patients.findIndex(p => p.id === pidInt);
     if (idx === -1) { alert('Paciente não encontrada.'); return; }
@@ -5715,7 +5754,7 @@ function savePatient() {
     renderRecentPatients();
     if (currentPatientId === pidInt) renderPatientScreen();
   } else {
-    const exists = DB.patients.find(p => p.cpf === cpf);
+    const exists = DB.patients.find(p => p.cpf === cpf && !p.excluido_em);
     if (exists) {
       // CPF já existe — perguntar se quer criar nova gestação
       if (confirm(`CPF ${cpf} já está cadastrado (${exists.nome || 'sem nome'}).\n\nDeseja abrir o prontuário desta paciente?`)) {
@@ -5752,28 +5791,80 @@ function savePatient() {
   }
 }
 
+// ── Exclusão em duas etapas: primeiro vai para a lixeira (soft-delete com cascata para
+//    gestações/exames), só sai de vez quando alguém confirma explicitamente na lixeira. ──
+function softDeletePatientCascade(pid) {
+  DB = loadDB();
+  const idx = DB.patients.findIndex(pt => pt.id === pid);
+  if (idx === -1) return;
+  const now = new Date().toISOString();
+  DB.patients[idx].excluido_em = now;
+  const gestIds = [];
+  DB.gestacoes.forEach(g => {
+    if (g.paciente_id === pid && !g.excluido_em) { g.excluido_em = now; gestIds.push(g.id); }
+  });
+  DB.exams.forEach(e => {
+    if (gestIds.includes(e.gestacao_id) && !e.excluido_em) e.excluido_em = now;
+  });
+  saveDB(DB);
+}
+
+function restorePatientCascade(pid) {
+  DB = loadDB();
+  const idx = DB.patients.findIndex(pt => pt.id === pid);
+  if (idx === -1) return;
+  const deletedAt = DB.patients[idx].excluido_em;
+  delete DB.patients[idx].excluido_em;
+  // Restaura só o que foi excluído junto com a paciente (mesmo timestamp) — algo que já
+  // estava excluído individualmente antes disso continua na lixeira.
+  DB.gestacoes.forEach(g => { if (g.paciente_id === pid && g.excluido_em === deletedAt) delete g.excluido_em; });
+  DB.exams.forEach(e => {
+    const gest = DB.gestacoes.find(g => g.id === e.gestacao_id);
+    if (gest && gest.paciente_id === pid && e.excluido_em === deletedAt) delete e.excluido_em;
+  });
+  saveDB(DB);
+}
+
+function purgePatientPermanently(pid) {
+  DB = loadDB();
+  const gestIds = DB.gestacoes.filter(g => g.paciente_id === pid).map(g => g.id);
+  DB.patients   = DB.patients.filter(pt => pt.id !== pid);
+  DB.gestacoes  = DB.gestacoes.filter(g => g.paciente_id !== pid);
+  DB.exams      = DB.exams.filter(e => !gestIds.includes(e.gestacao_id));
+  saveDB(DB);
+}
+
+function confirmPurgePatient(pid) {
+  const p = getPatientByIdIncludingDeleted(pid);
+  if (!p) return;
+  const nome = p.nome || p.cpf || 'paciente';
+  const digitado = prompt(`Isso vai apagar PERMANENTEMENTE o prontuário de "${nome}" — não é possível desfazer.\n\nDigite o nome da paciente para confirmar:`);
+  if (digitado === null) return;
+  if (digitado.trim().toLowerCase() !== nome.trim().toLowerCase()) {
+    alert('O nome digitado não confere. Nada foi excluído.');
+    return;
+  }
+  purgePatientPermanently(pid);
+  renderLixeira();
+}
+
 function deletePatient(pid) {
   const p = getPatientById(pid);
   const nome   = p ? (p.nome || 'Paciente') : 'Paciente';
   const gests  = getGestacoesByPatient(pid);
-  const nexams = DB.exams.filter(e => gests.some(g => g.id === e.gestacao_id)).length;
+  const nexams = DB.exams.filter(e => !e.excluido_em && gests.some(g => g.id === e.gestacao_id)).length;
 
   const titleEl = document.getElementById('confirm-delete-title');
   const descEl  = document.getElementById('confirm-delete-desc');
   const infoEl  = document.getElementById('confirm-delete-info');
   const btn     = document.getElementById('confirm-delete-btn');
   if (titleEl) titleEl.textContent = 'Excluir paciente?';
-  if (descEl)  descEl.innerHTML = `<strong style="color:var(--danger);">Atenção:</strong> todas as gestações e exames desta paciente também serão excluídos permanentemente. Esta ação <strong>não pode ser desfeita</strong>.`;
-  if (infoEl)  infoEl.innerHTML = `<strong>${escapeHtml(nome)}</strong><br><span style="color:var(--text-muted);font-size:12px;">${gests.length} gestação(ões) · ${nexams} exame${nexams !== 1 ? 's' : ''} serão excluídos</span>`;
+  if (descEl)  descEl.innerHTML = `<strong style="color:var(--danger);">Atenção:</strong> todas as gestações e exames desta paciente também irão para a lixeira. Você pode restaurar tudo depois em <strong>🗑 Lixeira</strong>.`;
+  if (infoEl)  infoEl.innerHTML = `<strong>${escapeHtml(nome)}</strong><br><span style="color:var(--text-muted);font-size:12px;">${gests.length} gestação(ões) · ${nexams} exame${nexams !== 1 ? 's' : ''} irão para a lixeira</span>`;
   if (btn) {
     btn.textContent = 'Excluir paciente';
     btn.onclick = () => {
-      DB = loadDB();
-      const gestIds = DB.gestacoes.filter(g => g.paciente_id === pid).map(g => g.id);
-      DB.patients   = DB.patients.filter(pt => pt.id !== pid);
-      DB.gestacoes  = DB.gestacoes.filter(g => g.paciente_id !== pid);
-      DB.exams      = DB.exams.filter(e => !gestIds.includes(e.gestacao_id));
-      saveDB(DB);
+      softDeletePatientCascade(pid);
       closeModal('modal-confirm-delete');
       _doShowSearchScreen();
     };
@@ -5785,29 +5876,100 @@ function deletePatientFromList(pid) {
   const p = getPatientById(pid);
   const nome  = p ? (p.nome || 'Paciente') : 'Paciente';
   const gests = getGestacoesByPatient(pid);
-  const nexams = DB.exams.filter(e => gests.some(g => g.id === e.gestacao_id)).length;
+  const nexams = DB.exams.filter(e => !e.excluido_em && gests.some(g => g.id === e.gestacao_id)).length;
 
   const titleEl = document.getElementById('confirm-delete-title');
   const descEl  = document.getElementById('confirm-delete-desc');
   const infoEl  = document.getElementById('confirm-delete-info');
   const btn     = document.getElementById('confirm-delete-btn');
   if (titleEl) titleEl.textContent = 'Excluir paciente?';
-  if (descEl)  descEl.innerHTML = `<strong style="color:var(--danger);">Atenção:</strong> todas as gestações e exames desta paciente também serão excluídos permanentemente.`;
-  if (infoEl)  infoEl.innerHTML = `<strong>${escapeHtml(nome)}</strong><br><span style="color:var(--text-muted);font-size:12px;">${gests.length} gestação(ões) · ${nexams} exame${nexams !== 1 ? 's' : ''}</span>`;
+  if (descEl)  descEl.innerHTML = `<strong style="color:var(--danger);">Atenção:</strong> todas as gestações e exames desta paciente também irão para a lixeira. Você pode restaurar tudo depois em <strong>🗑 Lixeira</strong>.`;
+  if (infoEl)  infoEl.innerHTML = `<strong>${escapeHtml(nome)}</strong><br><span style="color:var(--text-muted);font-size:12px;">${gests.length} gestação(ões) · ${nexams} exame${nexams !== 1 ? 's' : ''} irão para a lixeira</span>`;
   if (btn) {
     btn.textContent = 'Excluir paciente';
     btn.onclick = () => {
-      DB = loadDB();
-      const gestIds = DB.gestacoes.filter(g => g.paciente_id === pid).map(g => g.id);
-      DB.patients   = DB.patients.filter(pt => pt.id !== pid);
-      DB.gestacoes  = DB.gestacoes.filter(g => g.paciente_id !== pid);
-      DB.exams      = DB.exams.filter(e => !gestIds.includes(e.gestacao_id));
-      saveDB(DB);
+      softDeletePatientCascade(pid);
       closeModal('modal-confirm-delete');
       renderRecentPatients();
     };
   }
   openModal('modal-confirm-delete');
+}
+
+// ═══════════════════════════════════════════════════════════
+// LIXEIRA
+// ═══════════════════════════════════════════════════════════
+
+function getDeletedPatients() {
+  return DB.patients.filter(p => p.excluido_em).sort((a, b) => (b.excluido_em || '').localeCompare(a.excluido_em || ''));
+}
+
+// Exames excluídos individualmente, cuja paciente/gestação continuam ativas
+// (exames que foram junto de uma exclusão de paciente reaparecem restaurando a paciente).
+function getDeletedExamsStandalone() {
+  return DB.exams.filter(e => {
+    if (!e.excluido_em) return false;
+    const g = DB.gestacoes.find(x => x.id === e.gestacao_id);
+    if (!g || g.excluido_em) return false;
+    const p = DB.patients.find(x => x.id === g.paciente_id);
+    return p && !p.excluido_em;
+  }).sort((a, b) => (b.excluido_em || '').localeCompare(a.excluido_em || ''));
+}
+
+function openLixeiraModal() {
+  renderLixeira();
+  openModal('modal-lixeira');
+}
+
+function renderLixeira() {
+  DB = loadDB();
+  const el = document.getElementById('lixeira-content');
+  if (!el) return;
+
+  const pacientes = getDeletedPatients();
+  const exames = getDeletedExamsStandalone();
+
+  if (pacientes.length === 0 && exames.length === 0) {
+    el.innerHTML = `<p style="color:var(--text-muted);font-size:13px;padding:16px 0;text-align:center;">A lixeira está vazia.</p>`;
+    return;
+  }
+
+  const itemRow = (titulo, subtitulo, onRestore, onPurge) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-soft);">
+      <div style="min-width:0;">
+        <div style="font-weight:700;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${titulo}</div>
+        <div style="font-size:11.5px;color:var(--text-muted);font-family:'DM Mono',monospace;">${subtitulo}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="btn btn-secondary btn-sm" onclick="${onRestore}">Restaurar</button>
+        <button class="btn btn-danger btn-sm" onclick="${onPurge}">Excluir definitivo</button>
+      </div>
+    </div>`;
+
+  let html = '';
+  if (pacientes.length) {
+    html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin-bottom:4px;">Pacientes excluídas</div>`;
+    html += pacientes.map(p => itemRow(
+      escapeHtml(p.nome || 'Sem nome'),
+      `${escapeHtml(p.cpf)} · excluída em ${formatDateBR((p.excluido_em || '').slice(0, 10))}`,
+      `restorePatientCascade(${safeId(p.id)});renderLixeira();renderRecentPatients();`,
+      `confirmPurgePatient(${safeId(p.id)})`
+    )).join('');
+  }
+  if (exames.length) {
+    html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-light);margin:16px 0 4px;">Exames excluídos</div>`;
+    html += exames.map(e => {
+      const g = DB.gestacoes.find(x => x.id === e.gestacao_id);
+      const p = g ? DB.patients.find(x => x.id === g.paciente_id) : null;
+      return itemRow(
+        escapeHtml(p ? (p.nome || p.cpf) : 'Paciente'),
+        `Exame de ${formatDateBR(e.data_exame)} · excluído em ${formatDateBR((e.excluido_em || '').slice(0, 10))}`,
+        `restoreExam(${safeId(e.id)})`,
+        `purgeExamPermanently(${safeId(e.id)})`
+      );
+    }).join('');
+  }
+  el.innerHTML = html;
 }
 
 // IG tipo UI — mantido para compatibilidade com HTML existente

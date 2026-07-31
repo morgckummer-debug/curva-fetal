@@ -742,6 +742,16 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       </div>
       <div class="recent-patients" id="recent-list"></div>
     </div>
+
+    <div class="backup-bar">
+      <div class="backup-bar-title">Backup manual</div>
+      <div class="backup-bar-actions">
+        <button class="btn btn-secondary" onclick="exportData()">⬇ Exportar backup</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('backup-file-input').click()">⬆ Importar backup</button>
+        <input type="file" id="backup-file-input" accept="application/json,.json" style="display:none" onchange="importData(this)">
+      </div>
+      <div class="backup-hint">Exporte um arquivo .json com todos os dados salvos neste navegador, ou importe um backup para restaurar. A importação substitui os dados atuais — uma cópia de segurança do estado anterior é salva automaticamente antes de confirmar.</div>
+    </div>
   </div>
 </div>
 
@@ -1296,6 +1306,27 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-confirm-delete')">Cancelar</button>
       <button class="btn btn-danger" id="confirm-delete-btn">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAÇÃO DE IMPORTAÇÃO DE BACKUP -->
+<div class="modal-overlay" id="modal-confirm-import">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header" style="border-bottom:2px solid rgba(176,48,48,0.15);">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--blush-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">⬆</div>
+        <h2 style="font-size:18px;color:var(--danger);">Importar backup?</h2>
+      </div>
+      <button class="modal-close" onclick="cancelImportData()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted);margin-bottom:14px;font-size:13.5px;line-height:1.6;">Esta ação substituirá <strong>todos</strong> os dados atualmente salvos neste navegador pelo conteúdo do arquivo selecionado. Uma cópia de segurança dos dados atuais será salva automaticamente antes, mas a operação não pode ser desfeita pela interface.</p>
+      <div id="import-confirm-info" style="background:var(--danger-bg);border:1.5px solid rgba(176,48,48,0.18);border-radius:10px;padding:13px 16px;font-size:13px;font-family:'DM Mono',monospace;color:var(--danger);white-space:pre-line;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cancelImportData()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmImportData()">Importar e substituir</button>
     </div>
   </div>
 </div>
@@ -6331,7 +6362,8 @@ function confirmarGerarPDF() {
 
 function exportData() {
   DB = loadDB();
-  const json = JSON.stringify(DB, null, 2);
+  const backup = { ...DB, _exportedAt: new Date().toISOString() };
+  const json = JSON.stringify(backup, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -6340,31 +6372,88 @@ function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 3000);
 }
 
+// Retorna null se os dados forem válidos, ou uma mensagem de erro descrevendo o problema.
+function validateBackupData(db) {
+  if (!db || typeof db !== 'object') return 'O arquivo não contém um objeto de dados válido.';
+  if (!Array.isArray(db.patients))  return 'Campo "patients" ausente ou inválido no arquivo.';
+  if (!Array.isArray(db.gestacoes)) return 'Campo "gestacoes" ausente ou inválido no arquivo.';
+  if (!Array.isArray(db.exams))     return 'Campo "exams" ausente ou inválido no arquivo.';
+  for (const p of db.patients) {
+    if (!p || typeof p.id === 'undefined' || !p.cpf) return 'Um ou mais registros de paciente estão incompletos (faltando id ou CPF).';
+  }
+  for (const g of db.gestacoes) {
+    if (!g || typeof g.id === 'undefined' || typeof g.paciente_id === 'undefined') return 'Um ou mais registros de gestação estão incompletos (faltando id ou paciente_id).';
+  }
+  for (const e of db.exams) {
+    if (!e || typeof e.id === 'undefined' || typeof e.gestacao_id === 'undefined' || !e.data_exame) return 'Um ou mais registros de exame estão incompletos (faltando id, gestacao_id ou data do exame).';
+  }
+  return null;
+}
+
+let _pendingImportDB = null;
+
 function importData(input) {
   const file = input.files[0];
   if (!file) return;
+  if (!file.name.toLowerCase().endsWith('.json')) {
+    alert('Selecione um arquivo de backup no formato .json.');
+    input.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
+    let db;
     try {
       const imported = JSON.parse(e.target.result);
       // Suporte a v1 e v2
-      let db;
       if (imported.gestacoes) {
         db = imported; // já é v2
       } else if (imported.patients) {
         db = migrateV1toV2(imported); // migrar v1
       } else {
-        alert('Arquivo de backup inválido.'); return;
+        throw new Error('Arquivo de backup inválido: estrutura não reconhecida.');
       }
-      saveDB(db);
-      DB = loadDB();
-      alert('Dados importados com sucesso!');
-      _doShowSearchScreen();
+      const erro = validateBackupData(db);
+      if (erro) throw new Error(erro);
     } catch(err) {
       alert('Erro ao importar: ' + err.message);
+      input.value = '';
+      return;
     }
+    _pendingImportDB = db;
+    const dataInfo = db._exportedAt
+      ? `Backup gerado em ${new Date(db._exportedAt).toLocaleString('pt-BR')}`
+      : 'Data de geração do backup não disponível';
+    document.getElementById('import-confirm-info').textContent =
+      `Arquivo: ${file.name}\n${dataInfo}\n${db.patients.length} paciente(s) · ${db.gestacoes.length} gestação(ões) · ${db.exams.length} exame(s)`;
+    openModal('modal-confirm-import');
+  };
+  reader.onerror = () => {
+    alert('Não foi possível ler o arquivo selecionado.');
+    input.value = '';
   };
   reader.readAsText(file);
+}
+
+function confirmImportData() {
+  if (!_pendingImportDB) return;
+  try {
+    const atual = loadDB();
+    localStorage.setItem('fetalDB_v2_preimport_backup', JSON.stringify({ savedAt: new Date().toISOString(), data: atual }));
+  } catch(e) {}
+  saveDB(_pendingImportDB);
+  DB = loadDB();
+  _pendingImportDB = null;
+  closeModal('modal-confirm-import');
+  document.getElementById('backup-file-input').value = '';
+  alert('Dados importados com sucesso! Uma cópia de segurança dos dados anteriores foi salva automaticamente neste navegador.');
+  _doShowSearchScreen();
+}
+
+function cancelImportData() {
+  _pendingImportDB = null;
+  document.getElementById('backup-file-input').value = '';
+  closeModal('modal-confirm-import');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6374,6 +6463,7 @@ function importData(input) {
 try { renderRecentPatients(); } catch(e) { console.warn('[CurvaFetal] init:', e); }
 
 // Inicialização concluída
+</script>
 
 <template id="__bundler_thumbnail" data-bg-color="#dbd0c5">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">

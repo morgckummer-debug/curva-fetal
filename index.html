@@ -1627,7 +1627,7 @@ function _hideLoginScreen() {
 async function initAuth() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) _hideLoginScreen(); else _showLoginScreen();
+    if (session) { _hideLoginScreen(); _bootstrapFromSupabase(); } else _showLoginScreen();
   } catch (err) {
     // Se não der pra confirmar a sessão, assume deslogado (mais seguro que mostrar o app à toa).
     console.error('[CurvaFetal] initAuth:', err);
@@ -1635,7 +1635,15 @@ async function initAuth() {
   }
 
   supabaseClient.auth.onAuthStateChange((_event, session) => {
-    if (session) _hideLoginScreen(); else _showLoginScreen();
+    if (session) {
+      _hideLoginScreen();
+      _bootstrapFromSupabase();
+    } else {
+      _showLoginScreen();
+      // Limpa o que estava em memória — nunca deixar dado da sessão anterior visível.
+      _memoryDB = _emptyDB();
+      DB = loadDB();
+    }
   });
 }
 
@@ -1675,7 +1683,9 @@ async function doLogout() {
   } catch (err) {
     console.error('[CurvaFetal] logout:', err);
   }
-  // Sempre volta pra tela de login, mesmo que o signOut remoto falhe.
+  // Sempre volta pra tela de login e limpa a memória, mesmo que o signOut remoto falhe.
+  _memoryDB = _emptyDB();
+  DB = loadDB();
   _showLoginScreen();
 }
 
@@ -2245,39 +2255,85 @@ function calcDiagnosticoFGR(lastExam, allExams) {
 // STORAGE — PACIENTE → GESTAÇÃO → EXAME
 // ═══════════════════════════════════════════════════════════
 
-// ── Storage com fallback em memória (funciona em qualquer ambiente) ──
+// ── Storage: fonte de verdade é o Supabase, mas todo o resto do app continua lendo
+//    de um objeto DB em memória, síncrono, exatamente como sempre — só quem alimenta
+//    esse objeto no início (bootstrap) e quem grava as mudanças (sync) mudou. ──
 let _memoryDB = null;
-let _storageAvailable = (function() {
-  try { localStorage.setItem('__test__','1'); localStorage.removeItem('__test__'); return true; }
-  catch(e) { return false; }
-})();
 
 function _emptyDB() {
   return { patients: [], gestacoes: [], exams: [], _patId: 1, _gestId: 1, _exId: 1 };
 }
 
 function loadDB() {
-  if (_storageAvailable) {
-    try {
-      const raw = localStorage.getItem('fetalDB_v2');
-      if (raw) { const db = JSON.parse(raw); _memoryDB = db; return db; }
-    } catch(e) {}
-
-    // Migração do schema antigo (fetalDB v1)
-    try {
-      const old = localStorage.getItem('fetalDB');
-      if (old) {
-        const v1 = JSON.parse(old);
-        const db = migrateV1toV2(v1);
-        _memoryDB = db;
-        return db;
-      }
-    } catch(e) {}
-  }
-
-  // Sem localStorage: usar memória (dados perdidos ao recarregar — apenas em ambientes restritos)
   if (!_memoryDB) _memoryDB = _emptyDB();
   return _memoryDB;
+}
+
+// Colunas selecionadas explicitamente (em vez de "*") para casar 1:1 com o formato
+// que o resto do app espera — se um dia uma coluna nova entrar no banco, não muda
+// nada aqui sem querer.
+const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
+const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,excluido_em';
+const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,excluido_em';
+
+// Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
+// memória. Chamado uma vez ao entrar (ver onAuthStateChange, mais abaixo).
+// getSession() e onAuthStateChange podem disparar quase juntos ao carregar a página —
+// esse "trava" evita buscar tudo em duplicidade quando isso acontece.
+let _bootstrapInFlight = null;
+function _bootstrapFromSupabase() {
+  if (!_bootstrapInFlight) {
+    _bootstrapInFlight = _bootstrapFromSupabaseImpl().finally(() => { _bootstrapInFlight = null; });
+  }
+  return _bootstrapInFlight;
+}
+
+async function _bootstrapFromSupabaseImpl() {
+  const listEl = document.getElementById('recent-list');
+  if (listEl) listEl.innerHTML = '<p style="color:var(--text-muted);padding:20px 0;">Carregando pacientes…</p>';
+
+  try {
+    const [pRes, gRes, eRes] = await Promise.all([
+      supabaseClient.from('patients').select(_PATIENT_COLUMNS),
+      supabaseClient.from('gestacoes').select(_GESTACAO_COLUMNS),
+      supabaseClient.from('exams').select(_EXAM_COLUMNS),
+    ]);
+    if (pRes.error) throw pRes.error;
+    if (gRes.error) throw gRes.error;
+    if (eRes.error) throw eRes.error;
+
+    const db = {
+      patients:  pRes.data || [],
+      gestacoes: gRes.data || [],
+      exams:     eRes.data || [],
+      _patId: 1, _gestId: 1, _exId: 1,
+    };
+    db._patId  = db.patients.reduce((m, p)  => Math.max(m, p.id), 0) + 1;
+    db._gestId = db.gestacoes.reduce((m, g) => Math.max(m, g.id), 0) + 1;
+    db._exId   = db.exams.reduce((m, e)     => Math.max(m, e.id), 0) + 1;
+
+    _memoryDB = db;
+    DB = loadDB();
+    renderRecentPatients();
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao carregar dados do Supabase:', err);
+    _showGlobalError('Não consegui carregar seus dados do servidor: ' + (err.message || err));
+    if (listEl) listEl.innerHTML = '<p style="color:var(--danger);padding:20px 0;">Não foi possível carregar os pacientes. Verifique sua conexão e recarregue a página.</p>';
+  }
+}
+
+// Envia o DB inteiro (upsert) pro Supabase, em segundo plano — quem chama saveDB()
+// continua síncrono, como sempre foi; se a gravação falhar, o banner de erro global
+// avisa (em vez de perder a alteração em silêncio).
+async function _syncToSupabase(db) {
+  try {
+    if (db.patients.length)  { const { error } = await supabaseClient.from('patients').upsert(db.patients);   if (error) throw error; }
+    if (db.gestacoes.length) { const { error } = await supabaseClient.from('gestacoes').upsert(db.gestacoes); if (error) throw error; }
+    if (db.exams.length)     { const { error } = await supabaseClient.from('exams').upsert(db.exams);         if (error) throw error; }
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao salvar no Supabase:', err);
+    _showGlobalError('Não consegui salvar no servidor: ' + (err.message || err) + '. Verifique sua conexão e tente novamente.');
+  }
 }
 
 function migrateV1toV2(v1) {
@@ -2327,9 +2383,7 @@ function migrateV1toV2(v1) {
 
 function saveDB(db) {
   _memoryDB = db;
-  if (_storageAvailable) {
-    try { localStorage.setItem('fetalDB_v2', JSON.stringify(db)); } catch(e) {}
-  }
+  _syncToSupabase(db); // não aguardado de propósito — mantém saveDB() síncrona pros chamadores
 }
 
 let DB = loadDB();
@@ -5837,7 +5891,15 @@ function restoreExam(eid) {
   renderPatientScreen();
 }
 
-function purgeExamPermanently(eid) {
+async function purgeExamPermanently(eid) {
+  try {
+    const { error } = await supabaseClient.from('exams').delete().eq('id', eid);
+    if (error) throw error;
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao excluir exame definitivamente:', err);
+    _showGlobalError('Não consegui excluir no servidor: ' + (err.message || err));
+    return;
+  }
   DB = loadDB();
   DB.exams = DB.exams.filter(e => e.id !== eid);
   saveDB(DB);
@@ -5966,7 +6028,16 @@ function restorePatientCascade(pid) {
   saveDB(DB);
 }
 
-function purgePatientPermanently(pid) {
+async function purgePatientPermanently(pid) {
+  try {
+    // O banco cuida de apagar gestações/exames em cascata (ver ON DELETE CASCADE no schema).
+    const { error } = await supabaseClient.from('patients').delete().eq('id', pid);
+    if (error) throw error;
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao excluir paciente definitivamente:', err);
+    _showGlobalError('Não consegui excluir no servidor: ' + (err.message || err));
+    return;
+  }
   DB = loadDB();
   const gestIds = DB.gestacoes.filter(g => g.paciente_id === pid).map(g => g.id);
   DB.patients   = DB.patients.filter(pt => pt.id !== pid);
@@ -5975,7 +6046,7 @@ function purgePatientPermanently(pid) {
   saveDB(DB);
 }
 
-function confirmPurgePatient(pid) {
+async function confirmPurgePatient(pid) {
   const p = getPatientByIdIncludingDeleted(pid);
   if (!p) return;
   const nome = p.nome || p.cpf || 'paciente';
@@ -5985,7 +6056,7 @@ function confirmPurgePatient(pid) {
     alert('O nome digitado não confere. Nada foi excluído.');
     return;
   }
-  purgePatientPermanently(pid);
+  await purgePatientPermanently(pid);
   renderLixeira();
 }
 

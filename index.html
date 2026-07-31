@@ -744,6 +744,16 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <input type="password" id="login-senha" autocomplete="current-password" required style="width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:8px;font-family:inherit;font-size:14px;">
     <div id="login-error" role="alert" style="color:var(--danger);font-size:12.5px;min-height:18px;margin-bottom:10px;"></div>
     <button type="submit" class="btn btn-primary" id="login-btn" style="width:100%;justify-content:center;">Entrar</button>
+    <button type="button" onclick="doForgotPassword()" style="width:100%;background:none;border:none;color:var(--accent,#2c4a63);font-size:12.5px;margin-top:12px;cursor:pointer;font-family:inherit;text-decoration:underline;">Esqueci minha senha</button>
+  </form>
+
+  <form id="reset-password-form" onsubmit="event.preventDefault();doSetNewPassword();" style="display:none;width:100%;max-width:360px;padding:34px 30px;background:var(--clay-raised,#f2ebe1);border-radius:22px;box-shadow:0 12px 48px rgba(58,36,22,0.22);">
+    <h1 style="font-family:var(--font-serif);font-size:22px;margin:0 0 6px;color:var(--text);">Nova senha</h1>
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 22px;">Escolha uma nova senha para entrar.</p>
+    <label for="reset-senha" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Nova senha</label>
+    <input type="password" id="reset-senha" autocomplete="new-password" required minlength="6" style="width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:8px;font-family:inherit;font-size:14px;">
+    <div id="reset-error" role="alert" style="color:var(--danger);font-size:12.5px;min-height:18px;margin-bottom:10px;"></div>
+    <button type="submit" class="btn btn-primary" id="reset-btn" style="width:100%;justify-content:center;">Salvar nova senha</button>
   </form>
 </div>
 
@@ -771,6 +781,9 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <button class="btn btn-primary" onclick="searchPatient()">Buscar</button>
           <button class="btn btn-secondary" onclick="openNewPatientModal()">Criar paciente</button>
           <button class="btn btn-secondary" onclick="openLixeiraModal()" title="Pacientes e exames excluídos">🗑 Lixeira</button>
+          <button class="btn btn-secondary" onclick="exportData()" title="Baixar uma cópia de segurança de todos os dados">⬇ Backup</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" title="Restaurar a partir de um arquivo de backup">⬆ Importar</button>
+          <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="importData(this)">
         </div>
       </div>
       <div class="recent-patients" id="recent-list"></div>
@@ -1624,27 +1637,98 @@ function _hideLoginScreen() {
   if (el) el.style.display = 'none';
 }
 
+// login-screen tem dois formulários por dentro (login normal / definir nova senha) —
+// essas duas funções trocam qual dos dois aparece.
+function _showLoginForm() {
+  const loginForm = document.getElementById('login-form');
+  const resetForm = document.getElementById('reset-password-form');
+  if (loginForm) loginForm.style.display = 'block';
+  if (resetForm) resetForm.style.display = 'none';
+  _showLoginScreen();
+}
+
+function _showResetPasswordForm() {
+  const loginForm = document.getElementById('login-form');
+  const resetForm = document.getElementById('reset-password-form');
+  if (loginForm) loginForm.style.display = 'none';
+  if (resetForm) resetForm.style.display = 'block';
+  _showLoginScreen();
+}
+
 async function initAuth() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) { _hideLoginScreen(); _bootstrapFromSupabase(); } else _showLoginScreen();
+    if (session) { _hideLoginScreen(); _bootstrapFromSupabase(); } else _showLoginForm();
   } catch (err) {
     // Se não der pra confirmar a sessão, assume deslogado (mais seguro que mostrar o app à toa).
     console.error('[CurvaFetal] initAuth:', err);
-    _showLoginScreen();
+    _showLoginForm();
   }
 
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    // Supabase manda esse evento quando a pessoa chega pelo link de "esqueci minha senha" —
+    // nesse caso ela já tem uma sessão temporária, mas o objetivo é definir senha nova,
+    // não entrar direto no app com os dados de paciente.
+    if (event === 'PASSWORD_RECOVERY') {
+      _showResetPasswordForm();
+      return;
+    }
     if (session) {
       _hideLoginScreen();
       _bootstrapFromSupabase();
     } else {
-      _showLoginScreen();
+      _showLoginForm();
       // Limpa o que estava em memória — nunca deixar dado da sessão anterior visível.
       _memoryDB = _emptyDB();
       DB = loadDB();
     }
   });
+}
+
+async function doForgotPassword() {
+  const emailEl = document.getElementById('login-email');
+  const errMsg  = document.getElementById('login-error');
+  const email   = emailEl ? emailEl.value.trim() : '';
+
+  if (!email) {
+    if (errMsg) { errMsg.style.color = 'var(--danger)'; errMsg.textContent = 'Digite seu e-mail acima antes de clicar em "Esqueci minha senha".'; }
+    return;
+  }
+  if (errMsg) errMsg.textContent = '';
+
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href.split('#')[0].split('?')[0],
+    });
+    if (error) throw error;
+    if (errMsg) { errMsg.style.color = 'var(--sage-deep,#2c6e49)'; errMsg.textContent = 'Se esse e-mail estiver cadastrado, um link para redefinir a senha foi enviado.'; }
+  } catch (err) {
+    console.error('[CurvaFetal] forgot password:', err);
+    if (errMsg) { errMsg.style.color = 'var(--danger)'; errMsg.textContent = 'Não consegui enviar o e-mail: ' + err.message; }
+  }
+}
+
+async function doSetNewPassword() {
+  const senhaEl = document.getElementById('reset-senha');
+  const errMsg  = document.getElementById('reset-error');
+  const btn     = document.getElementById('reset-btn');
+  const senha   = senhaEl ? senhaEl.value : '';
+
+  if (errMsg) errMsg.textContent = '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password: senha });
+    if (error) throw error;
+    // Sessão de recuperação já virou uma sessão normal — o onAuthStateChange
+    // (evento SIGNED_IN/USER_UPDATED com session preenchida) cuida de mostrar o app.
+    if (senhaEl) senhaEl.value = '';
+  } catch (err) {
+    console.error('[CurvaFetal] definir nova senha:', err);
+    if (errMsg) errMsg.textContent = 'Não consegui salvar: ' + err.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar nova senha'; }
+  }
 }
 
 async function doLogin() {
@@ -1655,7 +1739,7 @@ async function doLogin() {
 
   const email = emailEl ? emailEl.value.trim() : '';
   const senha = senhaEl ? senhaEl.value : '';
-  if (errMsg) errMsg.textContent = '';
+  if (errMsg) { errMsg.style.color = 'var(--danger)'; errMsg.textContent = ''; }
   if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
 
   try {
@@ -6866,7 +6950,7 @@ function importData(input) {
         `• ${stats.gestacoes} gestação(ões)\n` +
         `• ${stats.exams} exame(s)` +
         (avisos.length ? `\n\n⚠ ${avisos.join(' · ')}` : '') +
-        `\n\nIsso vai SUBSTITUIR todos os dados atuais salvos neste navegador. Esta ação não pode ser desfeita.\n\nDeseja continuar?`;
+        `\n\nIsso vai SUBSTITUIR todos os dados atuais salvos no servidor. Esta ação não pode ser desfeita.\n\nDeseja continuar?`;
 
       if (!confirm(resumo)) { input.value = ''; return; }
 

@@ -1598,8 +1598,14 @@ function _hideLoginScreen() {
 }
 
 async function initAuth() {
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (session) _hideLoginScreen(); else _showLoginScreen();
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) _hideLoginScreen(); else _showLoginScreen();
+  } catch (err) {
+    // Se não der pra confirmar a sessão, assume deslogado (mais seguro que mostrar o app à toa).
+    console.error('[CurvaFetal] initAuth:', err);
+    _showLoginScreen();
+  }
 
   supabaseClient.auth.onAuthStateChange((_event, session) => {
     if (session) _hideLoginScreen(); else _showLoginScreen();
@@ -1617,18 +1623,33 @@ async function doLogin() {
   if (errMsg) errMsg.textContent = '';
   if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }
 
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
-
-  if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
-  if (error) {
-    if (errMsg) errMsg.textContent = 'E-mail ou senha incorretos.';
-    return;
+  try {
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+    if (error) {
+      console.error('[CurvaFetal] login:', error);
+      if (errMsg) errMsg.textContent = error.message === 'Invalid login credentials'
+        ? 'E-mail ou senha incorretos.'
+        : ('Erro ao entrar: ' + error.message);
+      return;
+    }
+    if (senhaEl) senhaEl.value = '';
+  } catch (err) {
+    // Falha de rede/CSP/conexão — sem isso, o botão travava sem dar nenhum aviso.
+    console.error('[CurvaFetal] login (falha de conexão):', err);
+    if (errMsg) errMsg.textContent = 'Não consegui conectar ao servidor: ' + err.message;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Entrar'; }
   }
-  if (senhaEl) senhaEl.value = '';
 }
 
 async function doLogout() {
-  await supabaseClient.auth.signOut();
+  try {
+    await supabaseClient.auth.signOut();
+  } catch (err) {
+    console.error('[CurvaFetal] logout:', err);
+  }
+  // Sempre volta pra tela de login, mesmo que o signOut remoto falhe.
+  _showLoginScreen();
 }
 
 initAuth();

@@ -425,16 +425,6 @@ header::after{display:none;}
 }
 .exam-row-actions{display:flex;gap:7px;flex-shrink:0;align-items:center;}
 
-/* ── EXAM HISTORY (gestação gemelar — 1 visita, 2 fetos agrupados) ── */
-.exam-history-gemelar{background:transparent;box-shadow:none;overflow:visible;display:flex;flex-direction:column;gap:10px;}
-.exam-visit-group{background:var(--clay-card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh);}
-.exam-visit-header{
-  display:flex;align-items:center;gap:10px;padding:11px 22px;
-  background:rgba(122,171,146,0.08);border-bottom:1px solid rgba(148,106,74,0.10);
-}
-.exam-row-feto{padding:12px 22px 12px 34px;}
-.exam-row-feto:last-child{border-bottom:none;}
-
 /* ── ALERTS ── */
 .alerts-container{margin-bottom:24px;}
 .alert{
@@ -3120,42 +3110,39 @@ function renderExamList(gestacao, exams) {
     return;
   }
 
-  // Gestação gemelar: 1 visita (mesma data) = 1 card, com os dois fetos
-  // agrupados dentro — evita a leitura errada de "2 exames" quando é
-  // 1 exame com 2 fetos.
+  // Gestação gemelar: 1 visita (mesma data) = 1 linha, exatamente como na
+  // gestação única — por trás tem 1 registro por feto, mas isso é um
+  // detalhe de implementação. Editar essa linha abre os dois fetos juntos;
+  // excluir remove os dois.
   const porData = {};
   sorted.forEach(e => { (porData[e.data_exame] ||= []).push(e); });
+  const datas = Object.keys(porData).sort();
+  const lastDate = datas[datas.length - 1];
 
-  const groups = Object.keys(porData).sort().map(date => {
+  const rows = datas.map(date => {
     const examsDoDia = porData[date];
-    const igDays = examsDoDia[0].ig_dias_manual ?? calcIgDays(gestacao, date);
-
-    const fetoRows = examsDoDia.map(e => {
-      const isLast   = e.id === lastIdPorFeto[e.feto || '_'];
-      const hasAlert = alertIds.has(e.id);
-      return `
-      <div class="exam-row exam-row-feto" data-eid="${safeId(e.id)}" onclick="selectExamRow(${safeId(e.id)})">
-        <div class="exam-row-left">
-          <span class="exam-row-last-badge" style="background:var(--purple-pale,#f5f0ff);color:var(--purple-mid,#527d68);">Feto ${e.feto}</span>
-          ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
-          ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
-        </div>
-        ${actionsHtml(e)}
-      </div>`;
-    }).join('');
+    const igDays   = examsDoDia[0].ig_dias_manual ?? calcIgDays(gestacao, date);
+    const isLast   = date === lastDate;
+    const hasAlert = examsDoDia.some(e => alertIds.has(e.id));
+    const dateJs   = date.replace(/'/g, "\\'");
 
     return `
-    <div class="exam-visit-group">
-      <div class="exam-visit-header">
+    <div class="exam-row" data-date="${date}" onclick="openEditVisitGemelar('${dateJs}')">
+      <div class="exam-row-left">
         <span class="exam-row-date">${formatDateBR(date)}</span>
         <span class="exam-row-sep">•</span>
         <span class="exam-row-ig">${igToStr(igDays)}</span>
+        ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
+        ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
       </div>
-      ${fetoRows}
+      <div class="exam-row-actions" onclick="event.stopPropagation()">
+        <button class="exam-action-btn edit-exam-btn" onclick="openEditVisitGemelar('${dateJs}')">Editar</button>
+        <button class="exam-action-btn delete-exam-btn" onclick="deleteVisitGemelar('${dateJs}')">Excluir</button>
+      </div>
     </div>`;
   }).join('');
 
-  container.innerHTML = `<div class="exam-history exam-history-gemelar">${groups}</div>`;
+  container.innerHTML = `<div class="exam-history">${rows}</div>`;
 }
 
 function selectExamRow(eid) {
@@ -5959,6 +5946,7 @@ function _meClearBio() {
   _meIgAuto   = null;
   _meIgManual = null;
   _meFetoDrafts = { A: null, B: null };
+  _meFetoExamIds = { A: null, B: null };
   _meActiveFeto = 'A';
 }
 
@@ -6006,6 +5994,9 @@ function _meApplyGemelarUI(gestacao, feto, isEdit) {
 // juntos).
 let _meFetoDrafts = { A: null, B: null };
 let _meActiveFeto = 'A';
+// Ids dos exames já salvos por feto, quando editando uma visita gemelar
+// existente (openEditVisitGemelar) — null/null quando é um exame novo.
+let _meFetoExamIds = { A: null, B: null };
 
 const _ME_FETO_FIELD_IDS = [
   'e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula',
@@ -6161,6 +6152,80 @@ function openEditExamModal(eid) {
   }
 
   meUpdate();
+  _attachDopplerListeners();
+  updateDopplerLivePreview();
+  openModal('modal-exam');
+}
+
+// Converte um exame já salvo pro formato de rascunho (_meFetoDrafts), usado
+// pra pré-carregar Feto A e/ou Feto B ao editar uma visita gemelar.
+function _meExamToDraft(exam) {
+  const v = (x) => (x != null ? String(x) : '');
+  return {
+    'e-dbp': v(exam.dbp), 'e-cc': v(exam.cc), 'e-ca': v(exam.ca), 'e-femur': v(exam.femur), 'e-dof': v(exam.dof),
+    'e-ccn': v(exam.ccn), 'e-umero': v(exam.umero), 'e-radio': v(exam.radio), 'e-ulna': v(exam.ulna),
+    'e-tibia': v(exam.tibia), 'e-fibula': v(exam.fibula),
+    'e-au-ip': v(exam.au_ip), 'e-au-fluxo': v(exam.au_fluxo), 'e-acm-ip': v(exam.acm_ip), 'e-acm-psv': v(exam.acm_psv),
+    'e-aut-e': v(exam.aut_e), 'e-aut-d': v(exam.aut_d), 'e-dv-ip': v(exam.dv_ip), 'e-dv-onda': v(exam.dv_onda),
+    'e-colo': v(exam.colo), 'e-ila': v(exam.ila), 'e-bolsao': v(exam.bolsao),
+  };
+}
+
+// Abre "Editar Exame" pra uma VISITA gemelar inteira (1 ou 2 registros —
+// Feto A e/ou Feto B na mesma data), carregada da lista onde cada visita é
+// 1 linha só, igual à gestação única. Os dois fetos ficam disponíveis pra
+// revisar/editar alternando o seletor Feto A/B — diferente da edição de um
+// exame único, aqui o seletor NÃO fica travado.
+function openEditVisitGemelar(date) {
+  DB = loadDB();
+  const gestacao = getGestacaoById(currentGestacaoId);
+  if (!gestacao) return;
+  const examsDoDia = DB.exams.filter(e =>
+    e.gestacao_id === currentGestacaoId && e.data_exame === date && !e.excluido_em && e.feto
+  );
+  if (examsDoDia.length === 0) return;
+
+  currentExamEditingId = null;
+  document.getElementById('modal-exam-title').textContent = 'Editar Exame';
+  _meClearBio();
+
+  _meFetoExamIds = { A: null, B: null };
+  examsDoDia.forEach(e => {
+    _meFetoExamIds[e.feto] = e.id;
+    _meFetoDrafts[e.feto] = _meExamToDraft(e);
+  });
+
+  const _eDataEdit = document.getElementById('e-data');
+  if (_eDataEdit) _eDataEdit.value = date;
+
+  _meActiveFeto = _meFetoExamIds.A != null ? 'A' : 'B';
+  _meApplyGemelarUI(gestacao, _meActiveFeto, false);
+  _meLoadDraftToForm(_meActiveFeto);
+
+  _meIgAuto = calcIgDays(gestacao, date);
+  _meSetIGMode();
+
+  const primary = examsDoDia.find(e => e.feto === _meActiveFeto) || examsDoDia[0];
+  if (!_meHasAnchor()) {
+    if (primary.ig_dias_manual != null) {
+      _meIgManual = primary.ig_dias_manual;
+      _meFillSemDia(_meIgManual);
+    } else {
+      _meIgManual = null;
+      _meFillSemDia(_meIgAuto);
+    }
+  } else {
+    _meIgManual = null;
+  }
+
+  if (primary.ccn) {
+    const igCcn = ccnToIgDays(primary.ccn);
+    const chip = document.getElementById('me-ccn-ig-chip');
+    if (chip && igCcn) { chip.textContent = `CCN ${primary.ccn}mm → IG ${igToStr(igCcn)}`; chip.style.display = 'inline-block'; }
+  }
+
+  meUpdate();
+  meCcnInput();
   _attachDopplerListeners();
   updateDopplerLivePreview();
   openModal('modal-exam');
@@ -6708,7 +6773,11 @@ function saveExam() {
 
   const gestacaoAtualObj = getGestacaoById(currentGestacaoId);
   const isGemelar = !!(gestacaoAtualObj && gestacaoAtualObj.tipo_gestacao === 'gemelar');
-  const isNewExam = currentExamEditingId == null;
+  // Editando uma visita gemelar (openEditVisitGemelar): até 2 registros
+  // existentes (um por feto), rastreados em _meFetoExamIds em vez do
+  // currentExamEditingId único usado pra gestação única.
+  const isEditingVisit = isGemelar && (_meFetoExamIds.A != null || _meFetoExamIds.B != null);
+  const isNewExam = currentExamEditingId == null && !isEditingVisit;
 
   const _eData = document.getElementById('e-data');
   const data = _eData ? _eData.value : '';
@@ -6739,8 +6808,27 @@ function saveExam() {
   const igAutomatic = _meIgAuto;
   const igManual    = _meIgManual;
 
-  if (!isNewExam) {
-    // Edição de um exame já existente — sempre um único registro, feto fixo.
+  if (isEditingVisit) {
+    // Editando uma visita gemelar já salva: até 2 registros (Feto A/B).
+    // Atualiza quem já existia; cria quem foi adicionado agora (ex: visita
+    // só tinha o Feto A e o médico completou o Feto B nesta edição); não
+    // apaga quem ficou sem dado — só não atualiza.
+    _meCaptureFormToDraft(_meActiveFeto);
+    ['A', 'B'].forEach(feto => {
+      const draft = _meFetoDrafts[feto];
+      if (!draft) return;
+      const examData = _meBuildExamData(feto, draft, data, igManual);
+      const existingId = _meFetoExamIds[feto];
+      if (existingId != null) {
+        const idx = DB.exams.findIndex(e => e.id === existingId);
+        if (idx !== -1) DB.exams[idx] = { ...DB.exams[idx], ...examData };
+      } else {
+        DB.exams.push({ id: DB._exId++, ...examData });
+      }
+    });
+    _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, null);
+  } else if (!isNewExam) {
+    // Edição de um exame único (gestação única) — sempre um único registro.
     const feto = isGemelar
       ? ((document.getElementById('me-feto-b')?.checked) ? 'B' : 'A')
       : null;
@@ -6773,6 +6861,7 @@ function saveExam() {
 
   currentExamEditingId = null;
   _meFetoDrafts = { A: null, B: null };
+  _meFetoExamIds = { A: null, B: null };
   _meActiveFeto = 'A';
   saveDB(DB);
   closeModal('modal-exam');
@@ -6783,12 +6872,12 @@ function saveExam() {
 // DELETE EXAM
 // ═══════════════════════════════════════════════════════════
 
-let _deleteExamId = null;
+let _deleteExamIds = [];
 
 function deleteExam(eid) {
   const exam = DB.exams.find(e => e.id === eid);
   if (!exam) return;
-  _deleteExamId = eid;
+  _deleteExamIds = [eid];
   const gestacao = getGestacaoById(currentGestacaoId);
   const igDays   = exam.ig_dias_manual ?? calcIgDays(gestacao, exam.data_exame);
   const infoEl   = document.getElementById('confirm-delete-info');
@@ -6802,11 +6891,38 @@ function deleteExam(eid) {
   openModal('modal-confirm-delete');
 }
 
+// Exclui a visita gemelar inteira (registros de Feto A e B na mesma data) —
+// consistente com a lista mostrando 1 linha por visita, não por feto.
+function deleteVisitGemelar(date) {
+  DB = loadDB();
+  const gestacao = getGestacaoById(currentGestacaoId);
+  const examsDoDia = DB.exams.filter(e =>
+    e.gestacao_id === currentGestacaoId && e.data_exame === date && !e.excluido_em && e.feto
+  );
+  if (examsDoDia.length === 0) return;
+  _deleteExamIds = examsDoDia.map(e => e.id);
+  const igDays = examsDoDia[0].ig_dias_manual ?? calcIgDays(gestacao, date);
+  const infoEl = document.getElementById('confirm-delete-info');
+  if (infoEl) infoEl.textContent = `Exame de ${formatDateBR(date)} · IG ${igToStr(igDays)}`;
+  const titleEl2 = document.getElementById('confirm-delete-title');
+  const descEl2  = document.getElementById('confirm-delete-desc');
+  if (titleEl2) titleEl2.textContent = 'Excluir exame?';
+  if (descEl2)  descEl2.textContent  = examsDoDia.length > 1
+    ? 'Isso exclui os dados dos dois fetos dessa visita. Esta ação não pode ser desfeita.'
+    : 'Esta ação não pode ser desfeita.';
+  const btn = document.getElementById('confirm-delete-btn');
+  if (btn) { btn.textContent = 'Excluir exame'; btn.onclick = confirmDeleteExam; }
+  openModal('modal-confirm-delete');
+}
+
 function confirmDeleteExam() {
-  if (_deleteExamId == null) return;
-  const idx = DB.exams.findIndex(e => e.id === _deleteExamId);
-  if (idx !== -1) DB.exams[idx].excluido_em = new Date().toISOString();
-  _deleteExamId = null;
+  if (!_deleteExamIds.length) return;
+  const now = new Date().toISOString();
+  _deleteExamIds.forEach(id => {
+    const idx = DB.exams.findIndex(e => e.id === id);
+    if (idx !== -1) DB.exams[idx].excluido_em = now;
+  });
+  _deleteExamIds = [];
   saveDB(DB);
   closeModal('modal-confirm-delete');
   renderPatientScreen();

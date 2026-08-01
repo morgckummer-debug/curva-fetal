@@ -1379,6 +1379,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <div class="me-bio-field" id="me-ila-field">
               <label>ILA <span class="optional-tag">cm</span></label>
               <input type="number" id="e-ila" step="0.1" min="0" max="40" placeholder="—">
+              <span id="badge-ila" class="dop-inline-badge" style="display:none;margin-top:6px;"></span>
             </div>
             <div class="me-bio-field">
               <label>Maior Bolsão <span class="optional-tag">cm</span></label>
@@ -5952,7 +5953,7 @@ function _meClearBioFields() {
   if (dvOnda) dvOnda.value = '';
   const auFluxo = document.getElementById('e-au-fluxo');
   if (auFluxo) auFluxo.value = '';
-  ['badge-au-ip','badge-acm-ip','badge-acm-psv','badge-aut-mean','badge-cpr']
+  ['badge-au-ip','badge-acm-ip','badge-acm-psv','badge-aut-mean','badge-cpr','badge-ila']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   ['me-results','me-efw-block'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   const tbody = document.getElementById('me-tbody'); if (tbody) tbody.innerHTML = '';
@@ -5977,7 +5978,7 @@ function _meClearBio() {
 }
 
 function _attachDopplerListeners() {
-  const ids = ['e-au-ip','e-acm-ip','e-acm-psv','e-aut-e','e-aut-d','e-dv-ip'];
+  const ids = ['e-au-ip','e-acm-ip','e-acm-psv','e-aut-e','e-aut-d','e-dv-ip','e-ila'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el && !el._dopplerListened) {
@@ -6724,8 +6725,24 @@ function updateDopplerLivePreview() {
       if (cprBadge) cprBadge.style.display = 'none';
       _setDopBadge('badge-cpr', null, false, null);
     }
+
+    // ILA — Moore & Cayle 1990
+    const ilaEl = document.getElementById('e-ila');
+    const ilaV  = ilaEl ? parseFloat(ilaEl.value) : NaN;
+    if (!isNaN(ilaV)) {
+      const ilaC = calcILAPercentile(ilaV, igDays);
+      const b    = document.getElementById('badge-ila');
+      if (b && ilaC) {
+        const isPath = ilaC.percentil <= 5 || ilaC.percentil >= 95;
+        b.textContent = `P${ilaC.percentil}${isPath ? ' ⚠' : ''}`;
+        b.className   = `dop-inline-badge${isPath ? ' path' : ''}`;
+        b.style.display = 'inline-flex';
+      } else if (b) { b.style.display = 'none'; }
+    } else {
+      const b = document.getElementById('badge-ila'); if (b) b.style.display = 'none';
+    }
   } else {
-    ['badge-au-ip','badge-acm-ip','badge-acm-psv','badge-aut-mean','badge-cpr']
+    ['badge-au-ip','badge-acm-ip','badge-acm-psv','badge-aut-mean','badge-cpr','badge-ila']
       .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   }
 }

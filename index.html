@@ -886,7 +886,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">IP Médio — Artérias Uterinas</div>
-              <div class="chart-card-subtitle" id="sub-dop-ut">Referência FMF (Plasencia 2008)</div>
+              <div class="chart-card-subtitle" id="sub-dop-ut">Referência Gómez et al. (2008)</div>
             </div>
             <span class="chart-card-pct" id="pct-dop-ut" style="display:none"></span>
           </div>
@@ -2101,49 +2101,37 @@ function getEFWP3(igDays) {
 // DOPPLER — referências FMF/ISUOG
 // ═══════════════════════════════════════════════════════════
 
-// Artérias Uterinas — Plasencia 2008
-const _UT_TABLE = [
-  [11,2.22,1.58,1.09],[12,2.11,1.50,1.03],[13,2.01,1.43,0.98],
-  [14,1.91,1.36,0.93],[15,1.82,1.30,0.88],[16,1.74,1.24,0.84],
-  [17,1.66,1.18,0.80],[18,1.59,1.13,0.77],[19,1.52,1.08,0.74],
-  [20,1.46,1.04,0.71],[21,1.40,1.00,0.68],[22,1.35,0.96,0.65],
-  [23,1.30,0.93,0.62],[24,1.25,0.89,0.60],[25,1.21,0.86,0.58],
-  [26,1.17,0.83,0.56],[27,1.13,0.81,0.54],[28,1.10,0.78,0.52],
-  [29,1.07,0.76,0.51],[30,1.04,0.74,0.49],[31,1.01,0.72,0.48],
-  [32,0.99,0.70,0.47],[33,0.97,0.69,0.46],[34,0.95,0.67,0.45],
-  [35,0.93,0.66,0.44],[36,0.91,0.65,0.43],[37,0.90,0.64,0.42],
-  [38,0.88,0.63,0.42],[39,0.87,0.62,0.41],[40,0.86,0.61,0.40],
-];
-
-function _utInterp(gaW) {
-  const lo = _UT_TABLE.find(r => r[0] === Math.floor(gaW));
-  const hi = _UT_TABLE.find(r => r[0] === Math.ceil(gaW));
-  if (!lo) return null;
-  if (!hi || lo === hi) return { p90: lo[1], p50: lo[2], p10: lo[3] };
-  const f = gaW - Math.floor(gaW);
+// Artérias Uterinas — Gómez O, Figueras F, Fernández S, Bennasar M, Martínez JM,
+// Puerto B, Gratacós E. Reference ranges for uterine artery mean pulsatility index
+// at 11-41 weeks of gestation. Ultrasound Obstet Gynecol. 2008;32(2):128-132.
+// Modelo: Loge(IP médio) ~ N(mu, sd), IG em dias, válido 77–287d (11–41 semanas)
+//   mu(IG) = 1.39 − 0.012·IG + 0.0000198·IG²
+//   sd(IG) = 0.272 − 0.000259·IG
+function _utGomezParams(gaDays) {
   return {
-    p90: lo[1] + (hi[1] - lo[1]) * f,
-    p50: lo[2] + (hi[2] - lo[2]) * f,
-    p10: lo[3] + (hi[3] - lo[3]) * f,
+    mu: 1.39 - 0.012 * gaDays + 0.0000198 * gaDays * gaDays,
+    sd: 0.272 - 0.000259 * gaDays,
   };
 }
 
 function dopplerUtRef(gaW) {
-  const r = _utInterp(gaW);
-  if (!r) return null;
-  return { p10: r.p10, p50: r.p50, p90: r.p90 };
+  const gaDays = gaW * 7;
+  if (gaDays < 77 || gaDays > 287) return null;
+  const { mu, sd } = _utGomezParams(gaDays);
+  return {
+    p10: Math.exp(mu - 1.2816 * sd),
+    p50: Math.exp(mu),
+    p90: Math.exp(mu + 1.2816 * sd),
+  };
 }
 
 function calcDopplerUt(ipMean, gaW) {
   if (ipMean == null || !gaW) return null;
-  const ref = dopplerUtRef(gaW);
-  if (!ref) return null;
-  let p;
-  if (ipMean >= ref.p90) p = 95;
-  else if (ipMean >= ref.p50) { const t = (ipMean - ref.p50) / (ref.p90 - ref.p50); p = Math.round(50 + t * 40); }
-  else if (ipMean >= ref.p10) { const t = (ipMean - ref.p10) / (ref.p50 - ref.p10); p = Math.round(10 + t * 40); }
-  else p = 5;
-  return { percentil: p };
+  const gaDays = gaW * 7;
+  if (gaDays < 77 || gaDays > 287) return null;
+  const { mu, sd } = _utGomezParams(gaDays);
+  const z = (Math.log(ipMean) - mu) / sd;
+  return { percentil: _zToPercentile(z) };
 }
 
 // Artéria Umbilical — Acharya 2005
@@ -3986,12 +3974,12 @@ function enrichExams(gestacao, rawExams) {
     const cprVal  = (e.acm_ip != null && e.au_ip != null && e.au_ip > 0) ? e.acm_ip / e.au_ip : null;
     const zCPR    = (cprRef && cprVal != null) ? +((cprVal - cprRef.p50) / 0.30).toFixed(3) : null;
 
-    // UtA z-score — Plasencia 2008, SD estimado ~0.30
+    // UtA z-score — Gómez 2008, modelo log-normal exato (mu/sd por IG)
     const utMean = (e.aut_e != null && e.aut_d != null) ? (e.aut_e + e.aut_d) / 2
                  : (e.aut_e ?? e.aut_d ?? null);
-    const utRef  = gaW ? dopplerUtRef(gaW) : null;
-    const utSD   = utRef ? (utRef.p90 - utRef.p10) / (2 * 1.28) : null;
-    const zUT    = (utRef && utSD && utMean != null) ? +((utMean - utRef.p50) / utSD).toFixed(3) : null;
+    const utGaDays = igDays;
+    const utParams = (utGaDays && utGaDays >= 77 && utGaDays <= 287) ? _utGomezParams(utGaDays) : null;
+    const zUT      = (utParams && utMean != null) ? +((Math.log(utMean) - utParams.mu) / utParams.sd).toFixed(3) : null;
 
     return {
       ...e,
@@ -6548,7 +6536,7 @@ function _drawRelChartUtA(canvasId, gestacao, exams) {
 
   const utaRef = [];
   for (let w = 11; w <= 40; w++) {
-    const r = _utInterp(w);
+    const r = dopplerUtRef(w);
     if (r) utaRef.push({ w, p10: r.p10, p50: r.p50, p90: r.p90 });
   }
   if (!utaRef.length) return;

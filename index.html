@@ -3320,7 +3320,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
   sorted.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
-    if (igDays < 154) return; // biometria apenas a partir de 22 semanas
+    if (igDays < 140) return; // biometria apenas a partir de 20 semanas
     const val = e[bioKey];
     if (!val) return;
     const calc = calcBiometria(val, refKey, igDays);
@@ -3356,7 +3356,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
   sorted.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
-    if (igDays < 154) return; // EFW apenas a partir de 22 semanas
+    if (igDays < 140) return; // EFW apenas a partir de 20 semanas
     const efw = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
     if (!efw) return;
     const calc = calcEFWPercentile(efw, igDays);
@@ -6454,7 +6454,7 @@ function _drawRelChart(canvasId, bio, gestacao, exams) {
     else y = e[bio];
     return y != null ? { x: gaW, y } : null;
   }).filter(Boolean);
-  const plotPts = allPts.filter(p => p.x >= 22);
+  const plotPts = allPts.filter(p => p.x >= 20);
 
   const allY = refData.flatMap(r => [r.p10, r.p90]);
   allPts.forEach(p => allY.push(p.y));

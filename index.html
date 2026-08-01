@@ -1133,11 +1133,11 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <label style="display:block;margin-bottom:6px;">Feto <span style="color:var(--danger)">*</span></label>
         <div style="display:flex;gap:10px;">
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
-            <input type="radio" id="me-feto-a" name="me-feto" value="A" checked style="accent-color:var(--sage);">
+            <input type="radio" id="me-feto-a" name="me-feto" value="A" checked onchange="_meOnFetoChange()" style="accent-color:var(--sage);">
             Feto A
           </label>
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
-            <input type="radio" id="me-feto-b" name="me-feto" value="B" style="accent-color:var(--sage);">
+            <input type="radio" id="me-feto-b" name="me-feto" value="B" onchange="_meOnFetoChange()" style="accent-color:var(--sage);">
             Feto B
           </label>
         </div>
@@ -5765,11 +5765,13 @@ function _meSetIGMode() {
   if (decPanel) decPanel.style.display = 'none';
 }
 
-function _meClearBio() {
-  ['e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula','me-sem','me-dia','e-colo','e-ila','e-bolsao']
+// Limpa só os campos de medida (biometria/doppler/colo/líquido) — usada tanto
+// no reset completo do modal (_meClearBio) quanto ao trocar de feto no meio
+// do preenchimento de um exame novo (_meOnFetoChange), quando data/IG devem
+// permanecer intactos por serem da visita, não do feto.
+function _meClearBioFields() {
+  ['e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula','e-colo','e-ila','e-bolsao']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-  const fetoA = document.getElementById('me-feto-a');
-  if (fetoA) fetoA.checked = true;
   ['e-au-ip','e-acm-ip','e-acm-psv','e-aut-e','e-aut-d','e-dv-ip']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const dvOnda  = document.getElementById('e-dv-onda');
@@ -5780,11 +5782,21 @@ function _meClearBio() {
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   ['me-results','me-efw-block'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   const tbody = document.getElementById('me-tbody'); if (tbody) tbody.innerHTML = '';
-  const chip  = document.getElementById('me-ig-chip'); if (chip) chip.style.display = 'none';
   const ccnChip = document.getElementById('me-ccn-ig-chip'); if (ccnChip) ccnChip.style.display = 'none';
+  const panel = document.getElementById('me-datacao-panel'); if (panel) panel.style.display = 'none';
+  _meDatacaoTipo = null;
+}
+
+function _meClearBio() {
+  _meClearBioFields();
+  ['me-sem','me-dia'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const fetoA = document.getElementById('me-feto-a');
+  if (fetoA) fetoA.checked = true;
+  const chip  = document.getElementById('me-ig-chip'); if (chip) chip.style.display = 'none';
   _meIgAuto   = null;
   _meIgManual = null;
-  _meDatacaoTipo = null;
+  _meFetoDrafts = { A: null, B: null };
+  _meActiveFeto = 'A';
 }
 
 function _attachDopplerListeners() {
@@ -5798,7 +5810,7 @@ function _attachDopplerListeners() {
   });
 }
 
-function _meApplyGemelarUI(gestacao, feto) {
+function _meApplyGemelarUI(gestacao, feto, isEdit) {
   const isGemelar = !!(gestacao && gestacao.tipo_gestacao === 'gemelar');
   const fetoRow  = document.getElementById('me-feto-row');
   const ilaField = document.getElementById('me-ila-field');
@@ -5811,7 +5823,67 @@ function _meApplyGemelarUI(gestacao, feto) {
     const fetoB = document.getElementById('me-feto-b');
     if (feto === 'B' && fetoB) fetoB.checked = true;
     else if (fetoA) fetoA.checked = true;
+    // Editando um exame já salvo: o feto não pode ser trocado (isso "moveria" o
+    // registro pro outro feto). Só bloqueia ao editar — em exame novo o usuário
+    // pode alternar A/B pra lançar os dois fetos sem fechar o modal.
+    [fetoA, fetoB].forEach(el => { if (el) el.disabled = !!isEdit; });
+    const hint = document.getElementById('me-feto-row');
+    if (hint) hint.style.opacity = isEdit ? '0.65' : '1';
   }
+}
+
+// ── Rascunhos por feto ────────────────────────────────────────
+// Numa gestação gemelar, "Novo Exame" cobre a visita inteira: o usuário
+// preenche o Feto A, alterna pro Feto B (sem fechar o modal) e preenche o
+// Feto B — um único "Salvar" grava os dois registros. _meFetoDrafts guarda
+// o que foi digitado em cada feto enquanto o outro está na tela; sem isso,
+// trocar de feto simplesmente perderia o que já tinha sido preenchido no
+// outro (bug reportado: o CCN do Feto A parecia "herdado" pelo Feto B —
+// na verdade os dois só existiam nos inputs da tela, nunca eram salvos
+// juntos).
+let _meFetoDrafts = { A: null, B: null };
+let _meActiveFeto = 'A';
+
+const _ME_FETO_FIELD_IDS = [
+  'e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula',
+  'e-au-ip','e-au-fluxo','e-acm-ip','e-acm-psv','e-aut-e','e-aut-d','e-dv-ip','e-dv-onda',
+  'e-colo','e-ila','e-bolsao',
+];
+
+function _meCaptureFormToDraft(feto) {
+  if (!feto) return;
+  const draft = {};
+  let hasAny = false;
+  _ME_FETO_FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    const v  = el ? el.value : '';
+    draft[id] = v;
+    if (v !== '') hasAny = true;
+  });
+  _meFetoDrafts[feto] = hasAny ? draft : null;
+}
+
+function _meLoadDraftToForm(feto) {
+  const draft = _meFetoDrafts[feto];
+  _ME_FETO_FIELD_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = draft ? (draft[id] || '') : '';
+  });
+}
+
+// Ao alternar Feto A/B no MESMO exame ainda não salvo: guarda o que estava
+// na tela pro feto que estava ativo, e recarrega o rascunho (ou limpa, se
+// ainda não preenchido) do feto recém-selecionado. Data e IG continuam
+// intactos — são da visita, não do feto.
+function _meOnFetoChange() {
+  if (currentExamEditingId != null) return; // radios ficam desabilitados nesse caso, mas por garantia
+  _meCaptureFormToDraft(_meActiveFeto);
+  const fetoB = document.getElementById('me-feto-b');
+  _meActiveFeto = (fetoB && fetoB.checked) ? 'B' : 'A';
+  _meLoadDraftToForm(_meActiveFeto);
+  meUpdate();
+  meCcnInput();
+  updateDopplerLivePreview();
 }
 
 function openExamModal() {
@@ -5826,7 +5898,7 @@ function openExamModal() {
 
   document.getElementById('modal-exam-title').textContent = 'Novo Exame';
   _meClearBio();
-  _meApplyGemelarUI(getGestacaoById(currentGestacaoId), null);
+  _meApplyGemelarUI(getGestacaoById(currentGestacaoId), null, false);
   const _eDataNew = document.getElementById('e-data');
   if (_eDataNew) _eDataNew.value = new Date().toISOString().split('T')[0];
   _meSetIGMode();
@@ -5887,7 +5959,7 @@ function openEditExamModal(eid) {
   });
 
   const gestacao = getGestacaoById(currentGestacaoId);
-  _meApplyGemelarUI(gestacao, exam.feto);
+  _meApplyGemelarUI(gestacao, exam.feto, true);
   _meIgAuto = calcIgDays(gestacao, exam.data_exame);
   _meSetIGMode();
 
@@ -6292,91 +6364,69 @@ function updateDopplerLivePreview() {
   }
 }
 
-function saveExam() {
-  if (!currentGestacaoId) { alert('Nenhuma gestação selecionada.'); return; }
+// Gestação gemelar sem DUM: a IG oficial deve ser datada pelo CCN do MAIOR
+// dos dois embriões na visita de datação (ISUOG) — datar pelo menor superestimaria
+// erroneamente a idade gestacional caso ele já esteja com crescimento discordante.
+// Idempotente: relê os exames da própria data da âncora e recalcula, então funciona
+// não importa se Feto A ou Feto B foi salvo primeiro.
+function _updateTwinCcnAnchor(gestacaoId, data) {
+  const gestacaoAtual = getGestacaoById(gestacaoId);
+  if (!gestacaoAtual || gestacaoAtual.tipo_gestacao !== 'gemelar') return;
+  if (gestacaoAtual.dum) return;                        // DUM sempre tem prioridade
+  if (gestacaoAtual.ig_base_tipo !== 'US') return;       // só mexe quando a âncora já é por CCN/US
+  if (gestacaoAtual.ig_base_data !== data) return;       // só na visita que efetivamente datou a gestação
 
-  DB = loadDB();
+  const examesNaData = DB.exams.filter(e =>
+    e.gestacao_id === gestacaoId && e.data_exame === data && e.feto && e.ccn != null && !e.excluido_em
+  );
+  if (examesNaData.length === 0) return;
 
-  const _eData   = document.getElementById('e-data');
-  const _eAuIp   = document.getElementById('e-au-ip');
-  const _eAcmIp  = document.getElementById('e-acm-ip');
-  const _eAcmPsv = document.getElementById('e-acm-psv');
-  const _eAutE   = document.getElementById('e-aut-e');
-  const _eAutD   = document.getElementById('e-aut-d');
-  const _eDvIp   = document.getElementById('e-dv-ip');
-  const _eDvOnda = document.getElementById('e-dv-onda');
+  const maior  = examesNaData.reduce((a, b) => (b.ccn > a.ccn ? b : a));
+  const igMaior = ccnToIgDays(maior.ccn);
+  if (!igMaior) return;
 
-  const data = _eData ? _eData.value : '';
-  if (!data) { alert('Informe a data do exame.'); return; }
+  const gIdx = DB.gestacoes.findIndex(g => g.id === gestacaoId);
+  if (gIdx !== -1) DB.gestacoes[gIdx].ig_base_valor = igMaior;
+}
 
-  const igAutomatic = _meIgAuto;
-  const igManual    = _meIgManual;
-  const isFirstNew  = _meIsFirstExam() && currentExamEditingId == null;
-  const ccnEl = document.getElementById('e-ccn');
-  const ccn   = ccnEl ? (parseFloat(ccnEl.value) || null) : null;
-
-  // Se o painel de decisão DUM x CCN está aberto aguardando escolha, bloqueia o salvamento
-  const panelEl = document.getElementById('me-datacao-panel');
-  if (isFirstNew && panelEl && panelEl.style.display === 'block' && !_meDatacaoTipo) {
-    alert('Há uma diferença relevante entre a IG pela DUM e pelo CCN. Escolha qual datação seguir antes de salvar.');
-    return;
-  }
-
-  const igFinal = _meHasAnchor() ? igAutomatic : (igManual || igAutomatic);
-
-  const examData = {
+// Monta o objeto a salvar em public.exams a partir de campos com id em
+// _ME_FETO_FIELD_IDS — lidos do formulário na tela (draft == null, caso de
+// gestação única ou edição) ou de um rascunho capturado (draft != null,
+// caso do outro feto numa gestação gemelar que não está mais na tela).
+function _meBuildExamData(feto, draft, data, igManual) {
+  const raw = id => draft ? (draft[id] ?? '') : (document.getElementById(id) ? document.getElementById(id).value : '');
+  const num = id => { const v = raw(id); return v !== '' && v != null ? parseFloat(v) : null; };
+  const str = id => { const v = raw(id); return v || null; };
+  const auIp  = num('e-au-ip');
+  const acmIp = num('e-acm-ip');
+  return {
     gestacao_id:     currentGestacaoId,
     data_exame:      data,
     ig_dias_manual:  _meHasAnchor() ? null : (igManual || null),
-    dbp:   parseFloat(document.getElementById('e-dbp')?.value)   || null,
-    cc:    parseFloat(document.getElementById('e-cc')?.value)    || null,
-    ca:    parseFloat(document.getElementById('e-ca')?.value)    || null,
-    femur: parseFloat(document.getElementById('e-femur')?.value) || null,
-    dof:   parseFloat(document.getElementById('e-dof')?.value)   || null,
-    ccn,
-    umero:  parseFloat(document.getElementById('e-umero')?.value)  || null,
-    radio:  parseFloat(document.getElementById('e-radio')?.value)  || null,
-    ulna:   parseFloat(document.getElementById('e-ulna')?.value)   || null,
-    tibia:  parseFloat(document.getElementById('e-tibia')?.value)  || null,
-    fibula: parseFloat(document.getElementById('e-fibula')?.value) || null,
-    au_ip:   _eAuIp  ? (parseFloat(_eAuIp.value)  || null) : null,
-    au_fluxo: document.getElementById('e-au-fluxo')?.value || null,
-    acm_ip: _eAcmIp ? (parseFloat(_eAcmIp.value) || null) : null,
-    acm_psv:_eAcmPsv? (parseFloat(_eAcmPsv.value)|| null) : null,
-    aut_e:  _eAutE  ? (parseFloat(_eAutE.value)  || null) : null,
-    aut_d:  _eAutD  ? (parseFloat(_eAutD.value)  || null) : null,
-    dv_ip:  _eDvIp  ? (parseFloat(_eDvIp.value)  || null) : null,
-    cpr: (() => {
-      const auV  = _eAuIp  ? parseFloat(_eAuIp.value)  : NaN;
-      const acmV = _eAcmIp ? parseFloat(_eAcmIp.value) : NaN;
-      return (!isNaN(auV) && !isNaN(acmV) && auV > 0) ? Math.round((acmV / auV) * 100) / 100 : null;
-    })(),
-    dv_onda: _eDvOnda ? (_eDvOnda.value || null) : null,
-    colo: parseFloat(document.getElementById('e-colo')?.value) || null,
-    ila:  parseFloat(document.getElementById('e-ila')?.value)  || null,
-    bolsao: parseFloat(document.getElementById('e-bolsao')?.value) || null,
-    feto: (() => {
-      const g = getGestacaoById(currentGestacaoId);
-      if (!g || g.tipo_gestacao !== 'gemelar') return null;
-      const fetoB = document.getElementById('me-feto-b');
-      return (fetoB && fetoB.checked) ? 'B' : 'A';
-    })(),
+    dbp: num('e-dbp'), cc: num('e-cc'), ca: num('e-ca'), femur: num('e-femur'), dof: num('e-dof'),
+    ccn: num('e-ccn'),
+    umero: num('e-umero'), radio: num('e-radio'), ulna: num('e-ulna'), tibia: num('e-tibia'), fibula: num('e-fibula'),
+    au_ip: auIp, au_fluxo: str('e-au-fluxo'),
+    acm_ip: acmIp, acm_psv: num('e-acm-psv'),
+    aut_e: num('e-aut-e'), aut_d: num('e-aut-d'),
+    dv_ip: num('e-dv-ip'),
+    cpr: (auIp != null && acmIp != null && auIp > 0) ? Math.round((acmIp / auIp) * 100) / 100 : null,
+    dv_onda: str('e-dv-onda'),
+    colo: num('e-colo'), ila: num('e-ila'), bolsao: num('e-bolsao'),
+    feto,
   };
+}
 
-  if (currentExamEditingId != null) {
-    const idx = DB.exams.findIndex(e => e.id === currentExamEditingId);
-    if (idx !== -1) DB.exams[idx] = { ...DB.exams[idx], ...examData };
-  } else {
-    DB.exams.push({ id: DB._exId++, ...examData });
-  }
-
-  // Salvar âncora na gestação (1º exame novo)
+// Grava a âncora de IG da gestação a partir do 1º exame novo, e — se for
+// gemelar sem DUM — corrige em seguida pro CCN do maior embrião entre os
+// registros que acabaram de ser salvos.
+function _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, ccnSeed) {
   if (isFirstNew) {
     const gestacaoAtual = getGestacaoById(currentGestacaoId);
     const igAncora = igManual || igAutomatic;
     // Prioriza a decisão explícita resolvida em meCcnInput/meEscolheDatacao.
     // Sem decisão registrada, mantém a DUM (se houver) — CCN nunca vira oficial silenciosamente.
-    const anchorTipo = _meDatacaoTipo || (gestacaoAtual && gestacaoAtual.dum ? 'DUM' : (ccn ? 'US' : 'DUM'));
+    const anchorTipo = _meDatacaoTipo || (gestacaoAtual && gestacaoAtual.dum ? 'DUM' : (ccnSeed ? 'US' : 'DUM'));
 
     if (igAncora && data) {
       const gIdx = DB.gestacoes.findIndex(g => g.id === currentGestacaoId);
@@ -6388,7 +6438,70 @@ function saveExam() {
     }
   }
 
+  // Gestação gemelar sem DUM: quem data a gestação é o CCN do MAIOR embrião
+  // (ISUOG) — não necessariamente o que foi salvo primeiro.
+  _updateTwinCcnAnchor(currentGestacaoId, data);
+}
+
+function saveExam() {
+  if (!currentGestacaoId) { alert('Nenhuma gestação selecionada.'); return; }
+
+  DB = loadDB();
+
+  const gestacaoAtualObj = getGestacaoById(currentGestacaoId);
+  const isGemelar = !!(gestacaoAtualObj && gestacaoAtualObj.tipo_gestacao === 'gemelar');
+  const isNewExam = currentExamEditingId == null;
+
+  const _eData = document.getElementById('e-data');
+  const data = _eData ? _eData.value : '';
+  if (!data) { alert('Informe a data do exame.'); return; }
+
+  const igAutomatic = _meIgAuto;
+  const igManual    = _meIgManual;
+  const isFirstNew  = _meIsFirstExam() && isNewExam;
+
+  // Se o painel de decisão DUM x CCN está aberto aguardando escolha, bloqueia o salvamento
+  const panelEl = document.getElementById('me-datacao-panel');
+  if (isFirstNew && panelEl && panelEl.style.display === 'block' && !_meDatacaoTipo) {
+    alert('Há uma diferença relevante entre a IG pela DUM e pelo CCN. Escolha qual datação seguir antes de salvar.');
+    return;
+  }
+
+  if (!isNewExam) {
+    // Edição de um exame já existente — sempre um único registro, feto fixo.
+    const feto = isGemelar
+      ? ((document.getElementById('me-feto-b')?.checked) ? 'B' : 'A')
+      : null;
+    const examData = _meBuildExamData(feto, null, data, igManual);
+    const idx = DB.exams.findIndex(e => e.id === currentExamEditingId);
+    if (idx !== -1) DB.exams[idx] = { ...DB.exams[idx], ...examData };
+    _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, examData.ccn);
+  } else if (isGemelar) {
+    // Exame novo em gestação gemelar: pode haver dado de 1 ou 2 fetos —
+    // o que está na tela agora (feto ativo) + o que ficou salvo em rascunho
+    // ao alternar A/B. Grava um registro por feto preenchido.
+    _meCaptureFormToDraft(_meActiveFeto);
+    let anySaved = false, ccnSeed = null;
+    ['A', 'B'].forEach(feto => {
+      const draft = _meFetoDrafts[feto];
+      if (!draft) return; // feto não preenchido — não cria registro vazio
+      const examData = _meBuildExamData(feto, draft, data, igManual);
+      DB.exams.push({ id: DB._exId++, ...examData });
+      anySaved = true;
+      if (ccnSeed == null) ccnSeed = examData.ccn;
+    });
+    if (!anySaved) { alert('Preencha ao menos os dados de um dos fetos.'); return; }
+    _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, ccnSeed);
+  } else {
+    // Exame novo, gestação única.
+    const examData = _meBuildExamData(null, null, data, igManual);
+    DB.exams.push({ id: DB._exId++, ...examData });
+    _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, examData.ccn);
+  }
+
   currentExamEditingId = null;
+  _meFetoDrafts = { A: null, B: null };
+  _meActiveFeto = 'A';
   saveDB(DB);
   closeModal('modal-exam');
   renderPatientScreen();

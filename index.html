@@ -1188,6 +1188,26 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           </div>
           <div style="font-size:10px;color:var(--text-muted);margin-top:8px;">A datação escolhida será salva como âncora desta gestação.</div>
         </div>
+
+        <!-- Painel de decisão — gestação GEMELAR: DUM x Embrião 1 x Embrião 2 -->
+        <div id="me-datacao-panel-gemelar" style="display:none;margin-top:14px;padding:14px 16px;background:var(--clay-bg);border:none;border-radius:16px;box-shadow:var(--sh-in);">
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;">Por qual parâmetro você vai datar esta gestação?</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <label id="me-dpg-row-dum" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;">
+              <input type="radio" id="me-dpg-radio-dum" name="me-datacao-gemelar" value="DUM" onchange="meEscolheDatacaoGemelar('DUM')" style="accent-color:var(--sage);">
+              <span id="me-dpg-label-dum">DUM</span>
+            </label>
+            <label id="me-dpg-row-a" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;">
+              <input type="radio" id="me-dpg-radio-a" name="me-datacao-gemelar" value="A" onchange="meEscolheDatacaoGemelar('A')" style="accent-color:var(--sage);">
+              <span id="me-dpg-label-a">Embrião 1 (Feto A)</span>
+            </label>
+            <label id="me-dpg-row-b" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;">
+              <input type="radio" id="me-dpg-radio-b" name="me-datacao-gemelar" value="B" onchange="meEscolheDatacaoGemelar('B')" style="accent-color:var(--sage);">
+              <span id="me-dpg-label-b">Embrião 2 (Feto B)</span>
+            </label>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:8px;">A datação escolhida será salva como âncora desta gestação. Dá pra redatar depois em "Editar gestação".</div>
+        </div>
       </div>
 
       <!-- Row 2: Biometry inputs — large, inline -->
@@ -1595,6 +1615,16 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             </div>
           </div>
           <div id="g-ig-base-preview" class="ig-preview" style="display:none;margin-bottom:8px;"></div>
+        </div>
+
+        <!-- Redatar por um exame já feito — só aparece ao editar gestação com
+             exames que têm CCN medido. Escolher um preenche os campos de
+             âncora acima; ainda precisa clicar em "Salvar" pra confirmar. -->
+        <div id="g-redatar-wrap" style="display:none;margin-top:4px;margin-bottom:14px;">
+          <details>
+            <summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:var(--sage-deep,#3a7a50);">Redatar por um exame já feito</summary>
+            <div id="g-redatar-options" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>
+          </details>
         </div>
 
       </div><!-- /g-section-nova -->
@@ -5596,7 +5626,87 @@ function _openGestacaoModal(gid, extraHtml) {
   // Resumo obstétrico dinâmico
   _updateObsResume();
 
+  _gestacaoBuildRedatarOptions(g);
+
   openModal('modal-gestacao');
+}
+
+// Lista, ao editar uma gestação já existente, as fontes de datação possíveis
+// a partir dos exames já feitos (todo exame com CCN medido) além da DUM —
+// escolher uma preenche os campos de âncora acima, prontos pra confirmar em
+// "Salvar". É o "modo de editar a datação num próximo exame" pedido pra
+// gestação gemelar (e vale também pra única).
+function _gestacaoBuildRedatarOptions(g) {
+  const wrap = document.getElementById('g-redatar-wrap');
+  const container = document.getElementById('g-redatar-options');
+  if (!wrap || !container) return;
+
+  if (!g) { wrap.style.display = 'none'; container.innerHTML = ''; return; }
+
+  const exams = getExamsByGestacao(g.id).filter(e => e.ccn != null);
+  if (exams.length === 0 && !g.dum) { wrap.style.display = 'none'; container.innerHTML = ''; return; }
+
+  const isGemelar = g.tipo_gestacao === 'gemelar';
+  const rows = [];
+
+  if (g.dum) {
+    rows.push(`
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:12.5px;">
+        <input type="radio" name="g-redatar" onclick="_gestacaoRedatarPor('DUM', null)" style="accent-color:var(--sage);">
+        DUM — ${formatDateBR(g.dum)}
+      </label>`);
+  }
+
+  exams.sort((a, b) => a.data_exame.localeCompare(b.data_exame)).forEach(e => {
+    const igCcn = ccnToIgDays(e.ccn);
+    if (!igCcn) return;
+    const fetoLabel = isGemelar && e.feto ? ` — Feto ${e.feto}` : '';
+    rows.push(`
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:12.5px;">
+        <input type="radio" name="g-redatar" onclick="_gestacaoRedatarPor('CCN', ${safeId(e.id)})" style="accent-color:var(--sage);">
+        ${formatDateBR(e.data_exame)}${fetoLabel} — CCN ${e.ccn.toFixed(1)}mm → IG ${igToStr(igCcn)}
+      </label>`);
+  });
+
+  if (rows.length === 0) { wrap.style.display = 'none'; container.innerHTML = ''; return; }
+  container.innerHTML = rows.join('');
+  wrap.style.display = 'block';
+}
+
+function _gestacaoRedatarPor(tipo, examId) {
+  const dumRadio = document.getElementById('g-ig-tipo-dum');
+  const usRadio  = document.getElementById('g-ig-tipo-us');
+
+  if (tipo === 'DUM') {
+    const gestacao = _currentGestacaoEditingId ? getGestacaoById(_currentGestacaoEditingId) : null;
+    if (!gestacao || !gestacao.dum) return;
+    if (dumRadio) dumRadio.checked = true;
+    if (usRadio)  usRadio.checked  = false;
+    // Fixa a âncora na própria DUM (IG = 0 na data da DUM) — assim a decisão
+    // fica de fato registrada (_meHasAnchor() passa a ser true), em vez de só
+    // deixar os campos em branco, que o app trata como "ainda sem decisão".
+    const dataEl = document.getElementById('g-ig-base-data');
+    const semEl  = document.getElementById('g-ig-base-sem');
+    const diaEl  = document.getElementById('g-ig-base-dia');
+    if (dataEl) dataEl.value = gestacao.dum;
+    if (semEl)  semEl.value  = 0;
+    if (diaEl)  diaEl.value  = '';
+  } else {
+    const exam = DB.exams.find(e => e.id === examId);
+    if (!exam || exam.ccn == null) return;
+    const igCcn = ccnToIgDays(exam.ccn);
+    if (!igCcn) return;
+    if (dumRadio) dumRadio.checked = false;
+    if (usRadio)  usRadio.checked  = true;
+    const dataEl = document.getElementById('g-ig-base-data');
+    const semEl  = document.getElementById('g-ig-base-sem');
+    const diaEl  = document.getElementById('g-ig-base-dia');
+    if (dataEl) dataEl.value = exam.data_exame;
+    if (semEl)  semEl.value  = Math.floor(igCcn / 7);
+    if (diaEl)  diaEl.value  = igCcn % 7 || '';
+  }
+
+  _gestacaoIgPreview();
 }
 
 function _finalizarECriarNova() {
@@ -5793,6 +5903,8 @@ function _meClearBio() {
   const fetoA = document.getElementById('me-feto-a');
   if (fetoA) fetoA.checked = true;
   const chip  = document.getElementById('me-ig-chip'); if (chip) chip.style.display = 'none';
+  const panelGemelar = document.getElementById('me-datacao-panel-gemelar'); if (panelGemelar) panelGemelar.style.display = 'none';
+  _meTwinDatacaoEscolha = null;
   _meIgAuto   = null;
   _meIgManual = null;
   _meFetoDrafts = { A: null, B: null };
@@ -6076,6 +6188,22 @@ function meCcnInput() {
     return;
   }
 
+  const gestacaoCcn = getGestacaoById(currentGestacaoId);
+  if (gestacaoCcn && gestacaoCcn.tipo_gestacao === 'gemelar') {
+    // Gestação gemelar tem sua própria lógica de datação (DUM x Embrião 1 x
+    // Embrião 2) — precisa considerar o CCN do feto que não está na tela.
+    const el   = document.getElementById('e-ccn');
+    const ccn  = el ? parseFloat(el.value) : null;
+    const chip = document.getElementById('me-ccn-ig-chip');
+    if (ccn && !isNaN(ccn) && ccn >= 2) {
+      const igCcn = ccnToIgDays(ccn);
+      if (chip && igCcn) { chip.textContent = `CCN ${ccn.toFixed(1)} mm → IG ${igToStr(igCcn)}`; chip.style.display = 'inline-block'; }
+      else if (chip) chip.style.display = 'none';
+    } else if (chip) chip.style.display = 'none';
+    _meUpdateTwinDatacaoPanel();
+    return;
+  }
+
   const el  = document.getElementById('e-ccn');
   const ccn = el ? parseFloat(el.value) : null;
   const chip = document.getElementById('me-ccn-ig-chip');
@@ -6195,6 +6323,102 @@ function meEscolheDatacao(tipo) {
     const labelTipo = tipo === 'DUM' ? 'DUM' : 'CCN';
     chip.textContent = `CCN ${ccn.toFixed(1)} mm → IG pelo ${labelTipo}: ${igToStr(igDays)}`;
   }
+  _meCalcTable();
+}
+
+// ── Datação — gestação GEMELAR (DUM x Embrião 1 x Embrião 2) ─────────────
+// Diferente da gestação única (que só compara DUM x CCN e só pede decisão
+// se a diferença for clinicamente relevante), aqui SEMPRE que houver 2+
+// fontes candidatas (DUM e/ou o CCN de cada feto) a escolha é explícita —
+// com dois embriões em jogo não dá pra assumir automaticamente qual data
+// a gestação. Só é decidido sozinho quando existe exatamente 1 candidato.
+let _meTwinDatacaoEscolha = null; // 'DUM' | 'A' | 'B'
+
+function _meTwinCcnCandidates() {
+  const gestacao = getGestacaoById(currentGestacaoId);
+  const ccnFor = (feto) => {
+    const raw = (feto === _meActiveFeto)
+      ? (document.getElementById('e-ccn') ? document.getElementById('e-ccn').value : '')
+      : (_meFetoDrafts[feto] ? _meFetoDrafts[feto]['e-ccn'] : '');
+    const v = parseFloat(raw);
+    return (!isNaN(v) && v >= 2) ? v : null;
+  };
+
+  const candidatos = [];
+  if (gestacao && gestacao.dum) {
+    const eDate = new Date((document.getElementById('e-data')?.value || '') + 'T12:00:00');
+    const dDate = new Date(gestacao.dum + 'T12:00:00');
+    const igDum = Math.round((eDate - dDate) / 86400000);
+    if (igDum) candidatos.push({ tipo: 'DUM', ig: igDum });
+  }
+  const ccnA = ccnFor('A');
+  if (ccnA != null) { const ig = ccnToIgDays(ccnA); if (ig) candidatos.push({ tipo: 'A', ig, ccn: ccnA }); }
+  const ccnB = ccnFor('B');
+  if (ccnB != null) { const ig = ccnToIgDays(ccnB); if (ig) candidatos.push({ tipo: 'B', ig, ccn: ccnB }); }
+  return candidatos;
+}
+
+function _meUpdateTwinDatacaoPanel() {
+  if (_meHasAnchor() || !_meIsFirstExam()) { _meCalcTable(); return; }
+
+  const panel = document.getElementById('me-datacao-panel-gemelar');
+  const candidatos = _meTwinCcnCandidates();
+
+  ['dum', 'a', 'b'].forEach(k => { const row = document.getElementById('me-dpg-row-' + k); if (row) row.style.display = 'none'; });
+
+  if (candidatos.length === 0) {
+    if (panel) panel.style.display = 'none';
+    _meTwinDatacaoEscolha = null;
+    _meCalcTable();
+    return;
+  }
+
+  if (candidatos.length === 1) {
+    // Só existe 1 fonte possível — sem ambiguidade, não precisa perguntar.
+    if (panel) panel.style.display = 'none';
+    _meTwinDatacaoEscolha = candidatos[0].tipo;
+    _meIgManual = candidatos[0].ig;
+    _meFillSemDia(_meIgManual);
+    _meCalcTable();
+    return;
+  }
+
+  // 2+ candidatos — escolha explícita obrigatória antes de salvar.
+  candidatos.forEach(c => {
+    const key   = c.tipo.toLowerCase();
+    const row   = document.getElementById('me-dpg-row-' + key);
+    const label = document.getElementById('me-dpg-label-' + key);
+    if (row) row.style.display = 'flex';
+    if (label) {
+      const base = c.tipo === 'DUM' ? 'DUM' : (c.tipo === 'A' ? 'Embrião 1 (Feto A)' : 'Embrião 2 (Feto B)');
+      label.textContent = c.ccn ? `${base} — CCN ${c.ccn.toFixed(1)}mm → IG ${igToStr(c.ig)}` : `${base} — IG ${igToStr(c.ig)}`;
+    }
+  });
+
+  // Se a escolha feita antes não é mais uma opção válida (ex: apagou o CCN
+  // daquele feto), reseta e exige nova decisão.
+  if (_meTwinDatacaoEscolha && !candidatos.some(c => c.tipo === _meTwinDatacaoEscolha)) {
+    _meTwinDatacaoEscolha = null;
+  }
+  ['dum', 'a', 'b'].forEach(k => {
+    const r = document.getElementById('me-dpg-radio-' + k);
+    if (r) r.checked = !!(_meTwinDatacaoEscolha && _meTwinDatacaoEscolha.toLowerCase() === k);
+  });
+
+  if (panel) panel.style.display = 'block';
+
+  if (_meTwinDatacaoEscolha) {
+    const chosen = candidatos.find(c => c.tipo === _meTwinDatacaoEscolha);
+    _meIgManual = chosen.ig;
+    _meFillSemDia(_meIgManual);
+  }
+  _meCalcTable();
+}
+
+function meEscolheDatacaoGemelar(tipo) {
+  _meTwinDatacaoEscolha = tipo;
+  const chosen = _meTwinCcnCandidates().find(c => c.tipo === tipo);
+  if (chosen) { _meIgManual = chosen.ig; _meFillSemDia(_meIgManual); }
   _meCalcTable();
 }
 
@@ -6364,31 +6588,6 @@ function updateDopplerLivePreview() {
   }
 }
 
-// Gestação gemelar sem DUM: a IG oficial deve ser datada pelo CCN do MAIOR
-// dos dois embriões na visita de datação (ISUOG) — datar pelo menor superestimaria
-// erroneamente a idade gestacional caso ele já esteja com crescimento discordante.
-// Idempotente: relê os exames da própria data da âncora e recalcula, então funciona
-// não importa se Feto A ou Feto B foi salvo primeiro.
-function _updateTwinCcnAnchor(gestacaoId, data) {
-  const gestacaoAtual = getGestacaoById(gestacaoId);
-  if (!gestacaoAtual || gestacaoAtual.tipo_gestacao !== 'gemelar') return;
-  if (gestacaoAtual.dum) return;                        // DUM sempre tem prioridade
-  if (gestacaoAtual.ig_base_tipo !== 'US') return;       // só mexe quando a âncora já é por CCN/US
-  if (gestacaoAtual.ig_base_data !== data) return;       // só na visita que efetivamente datou a gestação
-
-  const examesNaData = DB.exams.filter(e =>
-    e.gestacao_id === gestacaoId && e.data_exame === data && e.feto && e.ccn != null && !e.excluido_em
-  );
-  if (examesNaData.length === 0) return;
-
-  const maior  = examesNaData.reduce((a, b) => (b.ccn > a.ccn ? b : a));
-  const igMaior = ccnToIgDays(maior.ccn);
-  if (!igMaior) return;
-
-  const gIdx = DB.gestacoes.findIndex(g => g.id === gestacaoId);
-  if (gIdx !== -1) DB.gestacoes[gIdx].ig_base_valor = igMaior;
-}
-
 // Monta o objeto a salvar em public.exams a partir de campos com id em
 // _ME_FETO_FIELD_IDS — lidos do formulário na tela (draft == null, caso de
 // gestação única ou edição) ou de um rascunho capturado (draft != null,
@@ -6417,30 +6616,38 @@ function _meBuildExamData(feto, draft, data, igManual) {
   };
 }
 
-// Grava a âncora de IG da gestação a partir do 1º exame novo, e — se for
-// gemelar sem DUM — corrige em seguida pro CCN do maior embrião entre os
-// registros que acabaram de ser salvos.
+// Grava a âncora de IG da gestação a partir do 1º exame novo. Em gestação
+// gemelar, quem decide se é DUM, Embrião 1 ou Embrião 2 é sempre a escolha
+// explícita feita no painel (_meTwinDatacaoEscolha) — nunca um critério
+// automático tipo "o maior CCN vence" (isso já foi decidido pelo médico
+// antes de chegar aqui; ver bloqueio de salvamento em saveExam()).
 function _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, ccnSeed) {
-  if (isFirstNew) {
-    const gestacaoAtual = getGestacaoById(currentGestacaoId);
-    const igAncora = igManual || igAutomatic;
+  if (!isFirstNew) return;
+
+  const gestacaoAtual = getGestacaoById(currentGestacaoId);
+  const isGemelar = !!(gestacaoAtual && gestacaoAtual.tipo_gestacao === 'gemelar');
+  const igAncora = igManual || igAutomatic;
+
+  let anchorTipo;
+  if (isGemelar) {
+    // 'DUM' | 'A' | 'B' | null — resolvido pelo painel de datação gemelar
+    anchorTipo = _meTwinDatacaoEscolha === 'DUM' ? 'DUM'
+               : _meTwinDatacaoEscolha          ? 'US'
+               : (gestacaoAtual.dum ? 'DUM' : (ccnSeed ? 'US' : 'DUM'));
+  } else {
     // Prioriza a decisão explícita resolvida em meCcnInput/meEscolheDatacao.
     // Sem decisão registrada, mantém a DUM (se houver) — CCN nunca vira oficial silenciosamente.
-    const anchorTipo = _meDatacaoTipo || (gestacaoAtual && gestacaoAtual.dum ? 'DUM' : (ccnSeed ? 'US' : 'DUM'));
-
-    if (igAncora && data) {
-      const gIdx = DB.gestacoes.findIndex(g => g.id === currentGestacaoId);
-      if (gIdx !== -1) {
-        DB.gestacoes[gIdx].ig_base_data  = data;
-        DB.gestacoes[gIdx].ig_base_valor = igAncora;
-        DB.gestacoes[gIdx].ig_base_tipo  = anchorTipo;
-      }
-    }
+    anchorTipo = _meDatacaoTipo || (gestacaoAtual && gestacaoAtual.dum ? 'DUM' : (ccnSeed ? 'US' : 'DUM'));
   }
 
-  // Gestação gemelar sem DUM: quem data a gestação é o CCN do MAIOR embrião
-  // (ISUOG) — não necessariamente o que foi salvo primeiro.
-  _updateTwinCcnAnchor(currentGestacaoId, data);
+  if (igAncora && data) {
+    const gIdx = DB.gestacoes.findIndex(g => g.id === currentGestacaoId);
+    if (gIdx !== -1) {
+      DB.gestacoes[gIdx].ig_base_data  = data;
+      DB.gestacoes[gIdx].ig_base_valor = igAncora;
+      DB.gestacoes[gIdx].ig_base_tipo  = anchorTipo;
+    }
+  }
 }
 
 function saveExam() {
@@ -6456,9 +6663,7 @@ function saveExam() {
   const data = _eData ? _eData.value : '';
   if (!data) { alert('Informe a data do exame.'); return; }
 
-  const igAutomatic = _meIgAuto;
-  const igManual    = _meIgManual;
-  const isFirstNew  = _meIsFirstExam() && isNewExam;
+  const isFirstNew = _meIsFirstExam() && isNewExam;
 
   // Se o painel de decisão DUM x CCN está aberto aguardando escolha, bloqueia o salvamento
   const panelEl = document.getElementById('me-datacao-panel');
@@ -6466,6 +6671,22 @@ function saveExam() {
     alert('Há uma diferença relevante entre a IG pela DUM e pelo CCN. Escolha qual datação seguir antes de salvar.');
     return;
   }
+
+  // Idem pro painel de datação da gestação gemelar (DUM x Embrião 1 x Embrião 2).
+  // Isso pode atualizar _meIgManual (ex: só 1 candidato = resolve sozinho) —
+  // por isso igAutomatic/igManual só são capturados DEPOIS, logo abaixo.
+  if (isFirstNew && isGemelar) {
+    _meCaptureFormToDraft(_meActiveFeto);
+    _meUpdateTwinDatacaoPanel();
+    const panelGemelarEl = document.getElementById('me-datacao-panel-gemelar');
+    if (panelGemelarEl && panelGemelarEl.style.display === 'block' && !_meTwinDatacaoEscolha) {
+      alert('Escolha por qual parâmetro (DUM, Embrião 1 ou Embrião 2) você vai datar esta gestação antes de salvar.');
+      return;
+    }
+  }
+
+  const igAutomatic = _meIgAuto;
+  const igManual    = _meIgManual;
 
   if (!isNewExam) {
     // Edição de um exame já existente — sempre um único registro, feto fixo.

@@ -224,7 +224,7 @@ header::after{display:none;}
 }
 .search-hero p{color:var(--text-muted);margin-bottom:38px;font-size:15px;line-height:1.65;}
 .search-box{display:flex;gap:10px;margin-bottom:40px;flex-wrap:wrap;}
-.search-box-btns{display:flex;gap:10px;flex-shrink:0;}
+.search-box-btns{display:flex;flex-wrap:wrap;gap:10px;min-width:0;}
 .search-box input{
   flex:1;padding:15px 22px;border:none;
   border-radius:var(--radius);font-size:15.5px;font-family:var(--font-mono);
@@ -701,7 +701,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   .hero-logo{width:90px;height:90px;}
   .search-hero h1{font-size:28px;}.search-hero p{font-size:14px;}
   .search-box{flex-direction:column;gap:10px;}.search-box input{width:100%;font-size:16px;}
-  .search-box-btns{display:flex;gap:8px;width:100%;}.search-box-btns .btn{flex:1;text-align:center;}
+  .search-box-btns{display:flex;flex-wrap:wrap;gap:8px;width:100%;}.search-box-btns .btn{flex:0 1 auto;}
   .ph{padding:20px 18px 16px;}.ph-name{font-size:19px;}.ph-ig{font-size:22px;}.ph-actions{flex-wrap:wrap;gap:6px;}
   .tabs-row{flex-direction:column;align-items:flex-start;gap:10px;}.tabs{width:100%;justify-content:space-between;}
   .tab{padding:7px 10px;font-size:11.5px;flex:1;text-align:center;}.btn-pdf-report{width:100%;text-align:center;}
@@ -5329,6 +5329,7 @@ function saveGestacao() {
 
 let _meIgAuto   = null;
 let _meIgManual = null;
+let _meDatacaoTipo = null; // 'DUM' | 'US' | null — datação oficial resolvida para o 1º exame (enquanto sem âncora)
 
 function _meHasAnchor() {
   const g = getGestacaoById(currentGestacaoId);
@@ -5381,6 +5382,7 @@ function _meClearBio() {
   const ccnChip = document.getElementById('me-ccn-ig-chip'); if (ccnChip) ccnChip.style.display = 'none';
   _meIgAuto   = null;
   _meIgManual = null;
+  _meDatacaoTipo = null;
 }
 
 function _attachDopplerListeners() {
@@ -5425,14 +5427,15 @@ function _meEnsureAnchor() {
   const first = exams[0];
   let igAncora = null;
 
-  if (first.ig_dias_manual != null) {
-    igAncora = first.ig_dias_manual;
-  } else if (first.ccn != null) {
-    igAncora = ccnToIgDays(first.ccn);
-  } else if (g.dum) {
+  // DUM tem prioridade — CCN nunca substitui a IG oficial silenciosamente
+  if (g.dum) {
     const eDate = new Date(first.data_exame + 'T12:00:00');
     const dDate = new Date(g.dum + 'T12:00:00');
     igAncora = Math.round((eDate - dDate) / 86400000);
+  } else if (first.ig_dias_manual != null) {
+    igAncora = first.ig_dias_manual;
+  } else if (first.ccn != null) {
+    igAncora = ccnToIgDays(first.ccn);
   }
 
   if (!igAncora || igAncora < 1) return;
@@ -5441,7 +5444,7 @@ function _meEnsureAnchor() {
   if (idx === -1) return;
   DB.gestacoes[idx].ig_base_data  = first.data_exame;
   DB.gestacoes[idx].ig_base_valor = igAncora;
-  DB.gestacoes[idx].ig_base_tipo  = first.ccn != null ? 'US' : 'DUM';
+  DB.gestacoes[idx].ig_base_tipo  = g.dum ? 'DUM' : (first.ccn != null ? 'US' : 'DUM');
   saveDB(DB);
 }
 
@@ -5589,6 +5592,7 @@ function meCcnInput() {
   if (!ccn || isNaN(ccn) || ccn < 2) {
     if (chip)  chip.style.display  = 'none';
     if (panel) panel.style.display = 'none';
+    _meDatacaoTipo = null;
     _meCalcTable();
     return;
   }
@@ -5597,37 +5601,35 @@ function meCcnInput() {
   if (!igCcn) {
     if (chip)  chip.style.display  = 'none';
     if (panel) panel.style.display = 'none';
+    _meDatacaoTipo = null;
     _meCalcTable();
     return;
   }
 
-  // Chip: IG calculada pelo CCN sempre visível
+  // Chip: IG calculada pelo CCN — sempre exibida, mas é só informativa,
+  // nunca substitui a IG oficial por conta própria.
   if (chip) {
     chip.textContent = `CCN ${ccn.toFixed(1)} mm → IG ${igToStr(igCcn)}`;
     chip.style.display = 'inline-block';
   }
 
-  // Atualizar campo IG com o valor do CCN (provisório enquanto usuário decide)
-  _meIgManual = igCcn;
-  _meFillSemDia(igCcn);
-
-  // Painel de datação — só mostra no 1º exame se houver DUM e diferença relevante
+  // Painel de datação — só compara no 1º exame se houver DUM
   const isFirst  = _meIsFirstExam();
   const gestacao = getGestacaoById(currentGestacaoId);
 
   if (isFirst && gestacao && gestacao.dum) {
     const eDate  = new Date((document.getElementById('e-data')?.value || '') + 'T12:00:00');
     const dDate  = new Date(gestacao.dum + 'T12:00:00');
-    const igDum  = Math.round((eDate - dDate) / 86400000);  // dias
+    const igDum  = Math.round((eDate - dDate) / 86400000);  // IG oficial atual, pela DUM
     const diffDays = Math.abs(igCcn - igDum);
 
-    // Limiar: >5 dias até 9s0d; >7 dias de 9s1d a 13s6d
-    const semCcn = igCcn / 7;
-    const limiar = semCcn <= 9.0 ? 5 : 7;
-    const mostraPanel = diffDays > limiar;
+    // Margem: 5 dias até 9s0d pela DUM; 7 dias de 9s1d a 13s6d
+    const limiar = igDum <= 63 ? 5 : 7;
+    const mostraPanel = diffDays >= limiar;
 
     if (mostraPanel) {
-      // Preencher os campos do painel
+      // Diferença relevante — exige decisão explícita do médico.
+      // Até a decisão, a IG oficial permanece pela DUM (nunca trocada automaticamente).
       const elDumIG  = document.getElementById('me-dp-dum-ig');
       const elUsIG   = document.getElementById('me-dp-us-ig');
       const elDiff   = document.getElementById('me-dp-diff');
@@ -5639,21 +5641,34 @@ function meCcnInput() {
 
       if (elAlert) {
         const sign = igCcn > igDum ? 'mais avançada' : 'menos avançada';
-        elAlert.textContent = `Diferença de ${diffDays} dias — pelo CCN a gestação é ${diffDays} ${sign} que pela DUM. Escolha a datação a seguir:`;
+        elAlert.textContent = `Diferença de ${diffDays} dias — pelo CCN a gestação é ${sign} que pela DUM. Escolha a datação a seguir:`;
         elAlert.style.color = diffDays > 10 ? 'var(--danger)' : 'var(--warning, #c06010)';
       }
 
       if (panel) panel.style.display = 'block';
 
-      // Pré-selecionar "Ultrassom" como padrão (FMF recomenda CCN quando disponível)
-      const radUs = document.getElementById('me-dp-radio-us');
-      if (radUs && !document.querySelector('input[name="me-datacao"]:checked')) radUs.click();
+      // Nenhuma opção pré-selecionada — a escolha deve ser explícita do médico
+      const radDum = document.getElementById('me-dp-radio-dum');
+      const radUs  = document.getElementById('me-dp-radio-us');
+      if (radDum) radDum.checked = false;
+      if (radUs)  radUs.checked  = false;
+
+      _meDatacaoTipo = null;
+      _meIgManual = igDum;
+      _meFillSemDia(igDum);
     } else {
-      // Diferença dentro do aceitável — usar CCN silenciosamente
+      // Diferença dentro da margem aceitável — mantém a IG oficial pela DUM
       if (panel) panel.style.display = 'none';
+      _meDatacaoTipo = 'DUM';
+      _meIgManual = igDum;
+      _meFillSemDia(igDum);
     }
   } else {
+    // Sem DUM cadastrada para comparar — CCN é a única base de datação disponível
     if (panel) panel.style.display = 'none';
+    _meDatacaoTipo = 'US';
+    _meIgManual = igCcn;
+    _meFillSemDia(igCcn);
   }
 
   _meCalcTable();
@@ -5661,18 +5676,29 @@ function meCcnInput() {
 
 function meEscolheDatacao(tipo) {
   const gestacao = getGestacaoById(currentGestacaoId);
+  const el  = document.getElementById('e-ccn');
+  const ccn = el ? parseFloat(el.value) : null;
+
   if (tipo === 'DUM' && gestacao && gestacao.dum) {
+    // Mantém a datação pela DUM — a IG não é recalculada pelo CCN
     const eDate = new Date((document.getElementById('e-data')?.value || '') + 'T12:00:00');
     const dDate = new Date(gestacao.dum + 'T12:00:00');
     _meIgManual = Math.round((eDate - dDate) / 86400000);
     _meFillSemDia(_meIgManual);
+    _meDatacaoTipo = 'DUM';
+  } else if (tipo === 'US' && ccn) {
+    // Troca a datação oficial para o CCN — passa a valer também nos exames seguintes
+    const igCcn = ccnToIgDays(ccn);
+    if (igCcn) {
+      _meIgManual = igCcn;
+      _meFillSemDia(igCcn);
+    }
+    _meDatacaoTipo = 'US';
   }
-  // 'US' já foi setado em meCcnInput — _meIgManual = igCcn
+
   // Atualiza chip para mostrar a IG escolhida
   const igDays = _meGetIG();
   const chip = document.getElementById('me-ccn-ig-chip');
-  const el = document.getElementById('e-ccn');
-  const ccn = el ? parseFloat(el.value) : null;
   if (chip && ccn && igDays) {
     const labelTipo = tipo === 'DUM' ? 'DUM' : 'CCN';
     chip.textContent = `CCN ${ccn.toFixed(1)} mm → IG pelo ${labelTipo}: ${igToStr(igDays)}`;
@@ -5869,6 +5895,13 @@ function saveExam() {
   const ccnEl = document.getElementById('e-ccn');
   const ccn   = ccnEl ? (parseFloat(ccnEl.value) || null) : null;
 
+  // Se o painel de decisão DUM x CCN está aberto aguardando escolha, bloqueia o salvamento
+  const panelEl = document.getElementById('me-datacao-panel');
+  if (isFirstNew && panelEl && panelEl.style.display === 'block' && !_meDatacaoTipo) {
+    alert('Há uma diferença relevante entre a IG pela DUM e pelo CCN. Escolha qual datação seguir antes de salvar.');
+    return;
+  }
+
   const igFinal = _meHasAnchor() ? igAutomatic : (igManual || igAutomatic);
 
   const examData = {
@@ -5913,10 +5946,11 @@ function saveExam() {
 
   // Salvar âncora na gestação (1º exame novo)
   if (isFirstNew) {
-    const radioUs  = document.getElementById('me-dp-radio-us');
+    const gestacaoAtual = getGestacaoById(currentGestacaoId);
     const igAncora = igManual || igAutomatic;
-    let anchorTipo = (igManual && ccn) ? 'US' : 'DUM';
-    if (radioUs?.checked) anchorTipo = 'US';
+    // Prioriza a decisão explícita resolvida em meCcnInput/meEscolheDatacao.
+    // Sem decisão registrada, mantém a DUM (se houver) — CCN nunca vira oficial silenciosamente.
+    const anchorTipo = _meDatacaoTipo || (gestacaoAtual && gestacaoAtual.dum ? 'DUM' : (ccn ? 'US' : 'DUM'));
 
     if (igAncora && data) {
       const gIdx = DB.gestacoes.findIndex(g => g.id === currentGestacaoId);

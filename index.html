@@ -1396,6 +1396,9 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         </div>
       </div>
 
+      <!-- Impressão diagnóstica -->
+      <div id="rel-impressao"></div>
+
       <!-- Charts 2x2 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div style="border:1px solid #b8cfc4;border-radius:8px;padding:8px;">
@@ -1428,7 +1431,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <!-- Clinical text editor -->
       <div>
         <label style="font-size:11px;font-weight:700;color:#527d68;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">
-          Resumo Clínico <span style="font-weight:400;color:#9a7858;text-transform:none;">(editável antes de gerar o PDF)</span>
+          Descrição Evolutiva <span style="font-weight:400;color:#9a7858;text-transform:none;">(editável antes de gerar o PDF)</span>
         </label>
         <textarea id="rel-texto-clinico"
           style="width:100%;min-height:120px;border:1.5px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:'DM Sans',sans-serif;line-height:1.65;color:var(--text);resize:vertical;background:var(--surface);"
@@ -6597,6 +6600,117 @@ function _drawRelChartUtA(canvasId, gestacao, exams) {
   for (let i=0; i<=4; i++) { const y = yMin + (yMax-yMin)*i/4; ctx.fillText(y.toFixed(2), PAD.l-3, yS(y)+3); }
 }
 
+// ── Impressão diagnóstica assertiva (diagnóstico + estadiamento + conduta) ──
+// Usada no PDF/preview para dar ao obstetra uma conclusão clara logo no topo,
+// em vez de apenas texto narrativo descritivo.
+function computeImpressaoDiagnostica(gestacao, exams) {
+  if (!gestacao || !exams || exams.length === 0) return null;
+  const analise = runLongitudinalAnalysis(gestacao, exams);
+  if (!analise) return null;
+  const enriched = analise.exams;
+  const last = enriched[enriched.length - 1];
+  const dx = calcDiagnosticoFGR(last, enriched);
+  const diagnostico = dx?.diagnostico || 'adequado';
+
+  const DX_META = {
+    adequado:     { label: 'Crescimento fetal adequado',           icon: '✓' },
+    pig:          { label: 'PIG — Pequeno para Idade Gestacional', icon: '⚠' },
+    gig:          { label: 'GIG — Grande para Idade Gestacional',  icon: 'ℹ' },
+    rciu_precoce: { label: 'RCIU Precoce (< 32 semanas)',          icon: '⚠' },
+    rciu_tardio:  { label: 'RCIU Tardio (≥ 32 semanas)',           icon: '⚠' },
+  };
+
+  let critItems = [];
+  if (dx?.criterios) {
+    const c = dx.criterios;
+    if (c.caBelowP3 || c.efwBelowP3)        critItems.push('CA e/ou PFE abaixo do P3 (critério Delphi primário)');
+    else if (c.caBelowP10 || c.efwBelowP10) critItems.push('CA e/ou PFE abaixo do P10');
+    if (c.caAboveP90 || c.efwAboveP90)      critItems.push('CA e/ou PFE acima do P90');
+    if (c.auAboveP95)                        critItems.push('IP artéria umbilical acima do P95');
+    if (c.utAboveP95)                        critItems.push('IP médio artérias uterinas acima do P95');
+    if (c.cprBelowP5)                        critItems.push('CPR abaixo do P5 — redistribuição cerebro-placentária');
+    if (c.cruzamentoQuartis)                 critItems.push('Cruzamento ≥ 2 quartis na trajetória da CA');
+    if (c.auFluxo === 'ausente')             critItems.push('Diástole ausente na artéria umbilical (AEDF)');
+    if (c.auFluxo === 'reversa')             critItems.push('Diástole reversa na artéria umbilical (REDF)');
+    if (c.dvOnda   === 'reversa')            critItems.push('Onda A reversa no ducto venoso');
+  }
+
+  const ESTADIO_CFG = {
+    1: { label: 'Estágio I',   desc: 'Doppler alterado com fluxo diastólico presente na AU', cor: '#b87a20' },
+    2: { label: 'Estágio II',  desc: 'Diástole ausente na artéria umbilical (AEDF)',          cor: '#b84010' },
+    3: { label: 'Estágio III', desc: 'Diástole reversa na AU e/ou IP do ducto venoso > P95', cor: '#8a1010' },
+    4: { label: 'Estágio IV',  desc: 'Onda A reversa no ducto venoso',                       cor: '#6a0010' },
+  };
+  const estadio = dx?.estadio ? ESTADIO_CFG[dx.estadio] : null;
+  const estadioIndeterminado = !estadio && (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio');
+
+  const CONDUTA = {
+    adequado:     'Seguimento de rotina conforme protocolo gestacional.',
+    pig:          'Recomendado Doppler seriado para excluir RCIU. Repetir exame em intervalo reduzido.',
+    gig:          'Avaliar fatores de risco para macrossomia (DMG, obesidade). Monitorizar crescimento.',
+    rciu_precoce: dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
+                : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
+                : dx?.estadio === 1 ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
+                :                     'Completar avaliação com Doppler para estadiamento. Seguimento em curto prazo.',
+    rciu_tardio:  dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
+                : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
+                : dx?.estadio === 1 ? 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.'
+                :                     'Completar avaliação com Doppler para estadiamento. Seguimento em curto prazo.',
+  };
+
+  return {
+    diagnostico,
+    label: DX_META[diagnostico].label,
+    icon: DX_META[diagnostico].icon,
+    isPrecoce: !!dx?.isPrecoce,
+    critItems,
+    estadio,
+    estadioIndeterminado,
+    conduta: CONDUTA[diagnostico],
+  };
+}
+
+function renderImpressaoDiagnosticaHtml(impressao) {
+  if (!impressao) return '';
+  const PALETTE = {
+    adequado:     { color: '#3a7a50', bg: '#e4f2ec', border: '#7aab92' },
+    pig:          { color: '#8a5800', bg: '#f8f0e4', border: '#c4a060' },
+    gig:          { color: '#4a7a96', bg: '#e4f0f8', border: '#6fa0bc' },
+    rciu_precoce: { color: '#a02020', bg: '#f0e0e0', border: '#946060' },
+    rciu_tardio:  { color: '#a02020', bg: '#f0e0e0', border: '#946060' },
+  };
+  const pal = PALETTE[impressao.diagnostico];
+
+  const critHtml = impressao.critItems.length
+    ? `<div style="margin-top:10px;font-size:11.5px;">
+        <span style="font-weight:700;color:${pal.color};">Critérios identificados:</span>
+        <ul style="margin:6px 0 0 16px;padding:0;">${impressao.critItems.map(i => `<li style="margin-bottom:3px;color:#1e0838;">${i}</li>`).join('')}</ul>
+      </div>` : '';
+
+  let estadioHtml = '';
+  if (impressao.estadio) {
+    estadioHtml = `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-family:monospace;font-size:11px;font-weight:700;padding:3px 12px;border-radius:99px;background:${impressao.estadio.cor}22;color:${impressao.estadio.cor};border:1px solid ${impressao.estadio.cor}55;">${impressao.estadio.label} — Barcelona/FIGO</span>
+      <span style="font-size:11px;color:#6b5a4a;">${impressao.estadio.desc}</span>
+    </div>`;
+  } else if (impressao.estadioIndeterminado) {
+    estadioHtml = `<div style="font-size:11px;color:#6b5a4a;margin-top:6px;">Estadiamento indeterminado — dados Doppler insuficientes para classificar.</div>`;
+  }
+
+  return `<div style="background:${pal.bg};border-left:4px solid ${pal.border};border-radius:8px;padding:14px 18px;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <span style="font-size:18px;">${impressao.icon}</span>
+      <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:${pal.color};">${impressao.label}</span>
+    </div>
+    <div style="font-size:10.5px;color:#9a7858;">Consenso Delphi 2016 · ${impressao.isPrecoce ? 'critérios para gestação antes de 32 semanas' : 'critérios para gestação a partir de 32 semanas'}</div>
+    ${critHtml}
+    ${estadioHtml}
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08);font-size:11.5px;color:${pal.color};">
+      <strong>Conduta sugerida:</strong> ${impressao.conduta}
+    </div>
+  </div>`;
+}
+
 function abrirPreviewRelatorio() {
   const patient  = getPatientById(currentPatientId);
   const gestacao = getGestacaoById(currentGestacaoId);
@@ -6621,6 +6735,10 @@ function abrirPreviewRelatorio() {
   if (relNm) relNm.textContent = patient.nome || patient.cpf;
   if (relMt) relMt.textContent = `CPF ${patient.cpf} · ${igMetodo}`;
   if (relIg) relIg.textContent = igFmt;
+
+  // Impressão diagnóstica — conclusão assertiva no topo do relatório
+  const relImpressao = document.getElementById('rel-impressao');
+  if (relImpressao) relImpressao.innerHTML = renderImpressaoDiagnosticaHtml(computeImpressaoDiagnostica(gestacao, exams));
 
   // Textos dos gráficos preview
   const efw = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
@@ -6715,6 +6833,8 @@ function confirmarGerarPDF() {
     `<p style="font-size:11px;line-height:1.7;color:#1e0838;margin-bottom:10px;padding-left:10px;border-left:2px solid #7aab92;">${p}</p>`
   ).join('');
 
+  const impressaoHtml = renderImpressaoDiagnosticaHtml(computeImpressaoDiagnostica(gestacao, exams));
+
   const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
 
   const obsResume = resumoObstetrico(gestacao);
@@ -6768,6 +6888,10 @@ function confirmarGerarPDF() {
     </div>
   </div>
 
+  <div style="margin-bottom:14px;">
+    ${impressaoHtml}
+  </div>
+
   <table class="bio-table">
     <thead><tr><th>Parâmetro</th><th>Valor</th><th>Percentil (Hadlock)</th></tr></thead>
     <tbody>
@@ -6790,8 +6914,12 @@ function confirmarGerarPDF() {
     <img src="${utaImg}">
   </div>
 
-  <div class="resumo-title">Resumo Clínico</div>
+  <div class="resumo-title">Descrição Evolutiva</div>
   ${relTextoHtml}
+
+  <p style="font-size:9px;color:#9a7858;margin-top:10px;padding-top:8px;border-top:1px solid #e8d8f4;">
+    Impressão diagnóstica e conduta geradas automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 · Doppler: FMF/ISUOG · Revisar sempre antes da emissão.
+  </p>
 
   <div class="sig-block">
     <div class="sig-inner">

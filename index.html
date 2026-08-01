@@ -823,9 +823,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 
     <!-- CHARTS TAB -->
     <div id="tab-charts" class="tab-content" style="display:none;">
+      <div id="charts-feto-toggle"></div>
       <div class="charts-grid">
 
-        <div class="chart-card" id="card-cc">
+        <div class="chart-card" id="card-cc" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Circunferência Cefálica (CC)</div>
@@ -836,7 +837,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-cc"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-ca">
+        <div class="chart-card" id="card-ca" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Circunferência Abdominal (CA)</div>
@@ -847,7 +848,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-ca"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-dbp">
+        <div class="chart-card" id="card-dbp" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Diâmetro Biparietal (DBP)</div>
@@ -858,7 +859,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-dbp"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-fl">
+        <div class="chart-card" id="card-fl" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Comprimento do Fêmur (CF)</div>
@@ -869,7 +870,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-fl"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-efw">
+        <div class="chart-card" id="card-efw" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Peso Fetal Estimado — Hadlock (EFW)</div>
@@ -882,7 +883,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 
 
         <!-- ── DOPPLER CHARTS ── -->
-        <div class="chart-card" id="card-dop-ut">
+        <div class="chart-card" id="card-dop-ut" data-scope="shared">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">IP Médio — Artérias Uterinas</div>
@@ -893,7 +894,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-dop-ut"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-dop-au">
+        <div class="chart-card" id="card-dop-au" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">IP — Artéria Umbilical</div>
@@ -904,7 +905,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-dop-au"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-dop-acm">
+        <div class="chart-card" id="card-dop-acm" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">IP — Artéria Cerebral Média</div>
@@ -915,7 +916,18 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-dop-acm"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-dop-cpr">
+        <div class="chart-card" id="card-dop-dv" data-scope="fetal">
+          <div class="chart-card-header">
+            <div class="chart-card-left">
+              <div class="chart-card-title">IP — Ducto Venoso</div>
+              <div class="chart-card-subtitle" id="sub-dop-dv">Limiar P95 · aproximação linear (Baschat/FMF)</div>
+            </div>
+            <span class="chart-card-pct" id="pct-dop-dv" style="display:none"></span>
+          </div>
+          <div class="chart-wrapper"><canvas id="chart-dop-dv"></canvas></div>
+        </div>
+
+        <div class="chart-card" id="card-dop-cpr" data-scope="fetal">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">CPR — Relação Cérebro-Placentária</div>
@@ -926,8 +938,8 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-dop-cpr"></canvas></div>
         </div>
 
-        <!-- ── COLO + ILA ── -->
-        <div class="chart-card" id="card-colo">
+        <!-- ── COLO + LÍQUIDO AMNIÓTICO ── -->
+        <div class="chart-card" id="card-colo" data-scope="shared">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Colo Uterino (Comprimento)</div>
@@ -938,7 +950,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-colo"></canvas></div>
         </div>
 
-        <div class="chart-card" id="card-ila">
+        <div class="chart-card" id="card-ila" data-scope="singleton-only">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Índice de Líquido Amniótico (ILA)</div>
@@ -947,6 +959,29 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <span class="chart-card-pct" id="pct-ila" style="display:none"></span>
           </div>
           <div class="chart-wrapper"><canvas id="chart-ila"></canvas></div>
+        </div>
+
+        <div class="chart-card" id="card-bolsao" data-scope="fetal">
+          <div class="chart-card-header">
+            <div class="chart-card-left">
+              <div class="chart-card-title">Maior Bolsão de Líquido Amniótico</div>
+              <div class="chart-card-subtitle" id="sub-bolsao">Faixa clínica fixa · normal 2–8cm</div>
+            </div>
+            <span class="chart-card-pct" id="pct-bolsao" style="display:none"></span>
+          </div>
+          <div class="chart-wrapper"><canvas id="chart-bolsao"></canvas></div>
+        </div>
+
+        <!-- ── DISCREPÂNCIA DE PESO (só gemelar) ── -->
+        <div class="chart-card charts-grid-full" id="card-discrepancia" data-scope="shared-twin-only">
+          <div class="chart-card-header">
+            <div class="chart-card-left">
+              <div class="chart-card-title">Discrepância de Peso entre os Fetos</div>
+              <div class="chart-card-subtitle" id="sub-discrepancia">(EFW maior − EFW menor) / EFW maior · critério de RCF seletiva ≥25%</div>
+            </div>
+            <span class="chart-card-pct" id="pct-discrepancia" style="display:none"></span>
+          </div>
+          <div class="chart-wrapper"><canvas id="chart-discrepancia"></canvas></div>
         </div>
 
       </div>
@@ -1091,6 +1126,22 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           </div>
           <div id="me-ig-chip" class="me-ig-chip" style="display:none;"></div>
         </div>
+      </div>
+
+      <!-- Feto — só aparece em gestação gemelar -->
+      <div id="me-feto-row" style="display:none;margin-bottom:14px;">
+        <label style="display:block;margin-bottom:6px;">Feto <span style="color:var(--danger)">*</span></label>
+        <div style="display:flex;gap:10px;">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
+            <input type="radio" id="me-feto-a" name="me-feto" value="A" checked style="accent-color:var(--sage);">
+            Feto A
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
+            <input type="radio" id="me-feto-b" name="me-feto" value="B" style="accent-color:var(--sage);">
+            Feto B
+          </label>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Colo uterino e IP das artérias uterinas são medidas maternas — preencha em apenas um dos fetos.</div>
       </div>
 
       <!-- CCN row — datação de 1º trimestre -->
@@ -1304,7 +1355,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           </div>
           <div class="me-bio-label" style="margin-bottom:8px;">Líquido Amniótico</div>
           <div class="me-bio-row" style="margin-bottom:4px;align-items:flex-end;">
-            <div class="me-bio-field">
+            <div class="me-bio-field" id="me-ila-field">
               <label>ILA <span class="optional-tag">cm</span></label>
               <input type="number" id="e-ila" step="0.1" min="0" max="40" placeholder="—">
             </div>
@@ -1313,6 +1364,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
               <input type="number" id="e-bolsao" step="0.1" min="0" max="20" placeholder="—">
             </div>
           </div>
+          <div id="me-ila-gemelar-note" style="display:none;font-size:10px;color:var(--text-muted);margin-top:-2px;">Em gestação gemelar usamos apenas o maior bolsão — ILA não se aplica por feto.</div>
         </div>
       </details>
 
@@ -1484,6 +1536,32 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="form-group">
             <label>Data de início do acompanhamento</label>
             <input type="date" id="g-data-inicio">
+          </div>
+        </div>
+
+        <!-- Tipo de gestação -->
+        <p class="form-section-title">Tipo de Gestação</p>
+        <div style="margin-bottom:14px;">
+          <div style="display:flex;gap:20px;align-items:center;margin-bottom:12px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:400;color:var(--text);cursor:pointer;">
+              <input type="radio" name="g-tipo-gestacao" id="g-tipo-unica" value="unica" onchange="_gestacaoTipoUI()" style="accent-color:var(--sage);width:16px;height:16px;" checked>
+              Única
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:400;color:var(--text);cursor:pointer;">
+              <input type="radio" name="g-tipo-gestacao" id="g-tipo-gemelar" value="gemelar" onchange="_gestacaoTipoUI()" style="accent-color:var(--sage);width:16px;height:16px;">
+              Gemelar
+            </label>
+          </div>
+          <div id="g-section-corionicidade" style="display:none;">
+            <div class="form-group">
+              <label>Corionicidade</label>
+              <select id="g-corionicidade" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--surface);">
+                <option value="">—</option>
+                <option value="dicorionica_diamniotica">Dicoriônica / Diamniótica</option>
+                <option value="monocorionica_diamniotica">Monocoriônica / Diamniótica</option>
+                <option value="monocorionica_monoamniotica">Monocoriônica / Monoamniótica</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -2352,8 +2430,8 @@ function loadDB() {
 // que o resto do app espera — se um dia uma coluna nova entrar no banco, não muda
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
-const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,excluido_em';
-const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,excluido_em';
+const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
+const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
 // memória. Chamado uma vez ao entrar (ver onAuthStateChange, mais abaixo).
@@ -2448,6 +2526,8 @@ function migrateV1toV2(v1) {
       ig_base_data:  p.ig_base_data  || null,
       ig_base_valor: p.ig_base_valor || null,
       ig_base_tipo:  p.ig_base_tipo  || (p.dum ? 'DUM' : null),
+      tipo_gestacao: 'unica',
+      corionicidade: null,
     });
 
     examesDaPaciente.forEach(e => {
@@ -2489,6 +2569,15 @@ function getGestacaoAtiva(pid) {
 function getExamsByGestacao(gid) {
   return DB.exams.filter(e => e.gestacao_id === gid && !e.excluido_em)
     .sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+}
+
+// Filtra pro feto atualmente selecionado (currentFetoView) quando a gestação é
+// gemelar — usado por alertas/resumo/PDF, que são análises de UM fetus por vez.
+// Em gestação única retorna tudo (feto é sempre null nesse caso).
+function examsForFetoAnalysis(gestacao, allExams) {
+  if (!gestacao || gestacao.tipo_gestacao !== 'gemelar') return allExams;
+  const feto = (typeof currentFetoView !== 'undefined' && currentFetoView === 'B') ? 'B' : 'A';
+  return allExams.filter(e => e.feto === feto);
 }
 
 // ── IG calculation — now uses gestação anchor ────────────────
@@ -2615,6 +2704,7 @@ function openPatient(pid) {
   const gests = getGestacoesByPatient(pid);
   const ativa = gests.find(g => g.status === 'ativa') || gests[gests.length - 1];
   currentGestacaoId = ativa ? ativa.id : null;
+  currentFetoView = 'A';
 
   showScreen('patient');
   const _btn = document.getElementById('btn-back-patients');
@@ -2624,6 +2714,7 @@ function openPatient(pid) {
 
 function switchGestacao(gid) {
   currentGestacaoId = gid;
+  currentFetoView = 'A';
   renderPatientScreen();
 }
 
@@ -2745,7 +2836,8 @@ function renderPatientScreen() {
   document.getElementById('breadcrumb').innerHTML =
     `<span style="color:rgba(58,36,22,0.52);font-size:13px;">${escapeHtml(patient.nome || patient.cpf)}</span>`;
 
-  const exams = gestacao ? getExamsByGestacao(gestacao.id) : [];
+  const allExams = gestacao ? getExamsByGestacao(gestacao.id) : [];
+  const exams    = gestacao ? examsForFetoAnalysis(gestacao, allExams) : [];
   const lastExam = exams.length > 0 ? exams[exams.length - 1] : null;
 
   // IG atual
@@ -2765,6 +2857,11 @@ function renderPatientScreen() {
 
   // Meta linha
   const parts = [];
+  if (gestacao && gestacao.tipo_gestacao === 'gemelar') {
+    const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica: 'MCDA', monocorionica_monoamniotica: 'MCMA' };
+    const corioTag = gestacao.corionicidade ? ` (${CORIO_LABEL[gestacao.corionicidade] || ''})` : '';
+    parts.push(`<strong>Gemelar${corioTag}</strong>`);
+  }
   if (gestacao && gestacao.dum && tipo === 'DUM') parts.push(`DUM ${formatDateBR(gestacao.dum)}`);
   if (lastExam) parts.push(`Último US ${formatDateBR(lastExam.data_exame)}`);
   const metaLine = parts.join(' <span class="ph-sep">•</span> ');
@@ -2832,8 +2929,8 @@ function renderPatientScreen() {
     </div>`;
 
   renderAlerts(gestacao, exams);
-  renderExamList(gestacao, exams);
-  if (currentTab === 'charts')  renderCharts(gestacao, exams);
+  renderExamList(gestacao, allExams);
+  if (currentTab === 'charts')  renderCharts(gestacao, exams, allExams);
   if (currentTab === 'summary') renderSummary(gestacao, exams);
 }
 
@@ -2918,41 +3015,52 @@ function renderExamList(gestacao, exams) {
   }
 
   const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+  const isGemelar = gestacao.tipo_gestacao === 'gemelar';
 
-  // Pre-compute alert IDs
+  // Pre-compute alert IDs — comparado dentro da sequência do MESMO feto,
+  // pra não misturar Feto A com Feto B numa gestação gemelar.
   const alertIds = new Set();
-  exams.forEach((e, idx) => {
-    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
-    const caCalc = calcBiometria(e.ca, 'ca', igDays);
-    const efwCalc = calcEFWPercentile(efw, igDays);
-    const caP     = caCalc  ? caCalc.percentil  : null;
-    const p3ca    = getCAP3(igDays);
-    const p3efw   = getEFWP3(igDays);
-    let hasAlert  = (e.ca && p3ca && e.ca < p3ca) || (efw && p3efw && efw < p3efw);
-    if (!hasAlert && caP != null && idx > 0) {
-      const prev    = exams[idx - 1];
-      const prevIg  = prev.ig_dias_manual ?? calcIgDays(gestacao, prev.data_exame);
-      const prevCaC = calcBiometria(prev.ca, 'ca', prevIg);
-      if (prevCaC && caP < 10 && (prevCaC.percentil - caP) >= 30) hasAlert = true;
-    }
-    if (hasAlert) alertIds.add(e.id);
+  const porFeto = {};
+  sorted.forEach(e => { (porFeto[e.feto || '_'] ||= []).push(e); });
+  Object.values(porFeto).forEach(seq => {
+    seq.forEach((e, idx) => {
+      const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+      const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+      const caCalc = calcBiometria(e.ca, 'ca', igDays);
+      const efwCalc = calcEFWPercentile(efw, igDays);
+      const caP     = caCalc  ? caCalc.percentil  : null;
+      const p3ca    = getCAP3(igDays);
+      const p3efw   = getEFWP3(igDays);
+      let hasAlert  = (e.ca && p3ca && e.ca < p3ca) || (efw && p3efw && efw < p3efw);
+      if (!hasAlert && caP != null && idx > 0) {
+        const prev    = seq[idx - 1];
+        const prevIg  = prev.ig_dias_manual ?? calcIgDays(gestacao, prev.data_exame);
+        const prevCaC = calcBiometria(prev.ca, 'ca', prevIg);
+        if (prevCaC && caP < 10 && (prevCaC.percentil - caP) >= 30) hasAlert = true;
+      }
+      if (hasAlert) alertIds.add(e.id);
+    });
   });
 
-  const lastId = sorted[sorted.length - 1].id;
+  const lastIdPorFeto = {};
+  Object.entries(porFeto).forEach(([feto, seq]) => { lastIdPorFeto[feto] = seq[seq.length - 1].id; });
 
   const rows = sorted.map(e => {
     const igDays  = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     const igStr   = igToStr(igDays);
-    const isLast  = e.id === lastId;
+    const isLast  = e.id === lastIdPorFeto[e.feto || '_'];
     const hasAlert = alertIds.has(e.id);
 
     const alertDot  = hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : '';
     const lastBadge = isLast   ? `<span class="exam-row-last-badge">Último</span>` : '';
+    const fetoBadge = (isGemelar && e.feto)
+      ? `<span class="exam-row-last-badge" style="background:var(--purple-pale,#f5f0ff);color:var(--purple-mid,#527d68);">Feto ${e.feto}</span>`
+      : '';
 
     return `
     <div class="exam-row" data-eid="${safeId(e.id)}" onclick="selectExamRow(${safeId(e.id)})">
       <div class="exam-row-left">
+        ${fetoBadge}
         <span class="exam-row-date">${formatDateBR(e.data_exame)}</span>
         <span class="exam-row-sep">•</span>
         <span class="exam-row-ig">${igStr}</span>
@@ -3440,18 +3548,22 @@ function buildDopplerChart(canvasId, gestacao, exams, dataExtractor, refFn, yLab
   });
 }
 
-function renderDopplerCharts(gestacao, exams) {
-  if (!exams || exams.length === 0) return;
+function renderDopplerCharts(gestacao, exams, utExams) {
+  utExams = utExams || exams;
 
-  buildDopplerChart('chart-dop-ut', gestacao, exams,
-    (e) => {
-      const ev = e.aut_e, dv = e.aut_d;
-      if (ev == null && dv == null) return null;
-      if (ev != null && dv != null) return Math.round(((ev + dv) / 2) * 100) / 100;
-      return ev ?? dv;
-    },
-    dopplerUtRef, 'IP médio (UtA)', false
-  );
+  if (utExams && utExams.length > 0) {
+    buildDopplerChart('chart-dop-ut', gestacao, utExams,
+      (e) => {
+        const ev = e.aut_e, dv = e.aut_d;
+        if (ev == null && dv == null) return null;
+        if (ev != null && dv != null) return Math.round(((ev + dv) / 2) * 100) / 100;
+        return ev ?? dv;
+      },
+      dopplerUtRef, 'IP médio (UtA)', false
+    );
+  }
+
+  if (!exams || exams.length === 0) { updateDopplerHeaders(gestacao, exams, utExams); return; }
 
   buildDopplerChart('chart-dop-au', gestacao, exams,
     (e) => e.au_ip, dopplerAuRef, 'IP (AU)', false
@@ -3471,15 +3583,13 @@ function renderDopplerCharts(gestacao, exams) {
     dopplerCprRef, 'CPR', true
   );
 
-  updateDopplerHeaders(gestacao, exams);
+  buildDvChart('chart-dop-dv', gestacao, exams);
+
+  updateDopplerHeaders(gestacao, exams, utExams);
 }
 
-function updateDopplerHeaders(gestacao, exams) {
-  if (!exams || exams.length === 0) return;
-  const last   = exams[exams.length - 1];
-  const igDays = last.ig_dias_manual ?? calcIgDays(gestacao, last.data_exame);
-  if (!igDays) return;
-  const gaW = igDays / 7;
+function updateDopplerHeaders(gestacao, exams, utExams) {
+  utExams = utExams || exams;
 
   function setDopHeader(pctId, subId, calcResult, higherIsBetter) {
     const pctEl = document.getElementById(pctId);
@@ -3498,13 +3608,25 @@ function updateDopplerHeaders(gestacao, exams) {
     }
   }
 
-  const utMean = (() => {
-    const e = last.aut_e, d = last.aut_d;
-    if (e != null && d != null) return (e + d) / 2;
-    return e ?? d ?? null;
-  })();
+  if (utExams && utExams.length > 0) {
+    const lastUt   = utExams[utExams.length - 1];
+    const igDaysUt = lastUt.ig_dias_manual ?? calcIgDays(gestacao, lastUt.data_exame);
+    if (igDaysUt) {
+      const utMean = (() => {
+        const e = lastUt.aut_e, d = lastUt.aut_d;
+        if (e != null && d != null) return (e + d) / 2;
+        return e ?? d ?? null;
+      })();
+      setDopHeader('pct-dop-ut', 'sub-dop-ut', calcDopplerUt(utMean, igDaysUt / 7), false);
+    }
+  }
 
-  setDopHeader('pct-dop-ut',  'sub-dop-ut',  calcDopplerUt(utMean, gaW),               false);
+  if (!exams || exams.length === 0) return;
+  const last   = exams[exams.length - 1];
+  const igDays = last.ig_dias_manual ?? calcIgDays(gestacao, last.data_exame);
+  if (!igDays) return;
+  const gaW = igDays / 7;
+
   setDopHeader('pct-dop-au',  'sub-dop-au',  calcDopplerAu(last.au_ip, gaW),           false);
   setDopHeader('pct-dop-acm', 'sub-dop-acm', calcDopplerAcm(last.acm_ip, gaW),         true);
   setDopHeader('pct-dop-cpr', 'sub-dop-cpr', calcDopplerCpr(last.acm_ip, last.au_ip, gaW), true);
@@ -3886,16 +4008,275 @@ function _drawILAChart(canvas, refData, patientPoints) {
   ctx.fillText('ILA (mm)', 0, 0); ctx.restore();
 }
 
-function renderCharts(gestacao, exams) {
+// ═══════════════════════════════════════════════════════════
+// GRÁFICO GENÉRICO DE LIMIAR — pontos do paciente + linha(s) de
+// referência fixas ou curvas por IG, sem banda de percentis P10/P50/P90.
+// Reaproveitado por: Ducto Venoso (P95), Maior Bolsão (2cm/8cm) e
+// Discrepância de Peso entre Fetos (25%).
+// ═══════════════════════════════════════════════════════════
+function _drawThresholdChart(canvas, cfg) {
+  // cfg: { xMin, xMax, yMin, yMax, bands: [{yLow,yHigh,color}], lines: [{pts,label,color,dash}], patientPoints, yLabel, yFmt }
+  const ctx = canvas.getContext('2d');
+  const DPR = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 460, H = canvas.offsetHeight || 220;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.scale(DPR, DPR);
+
+  const PAD = { t: 28, r: 44, b: 36, l: 48 };
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+  const { xMin, xMax, yMin, yMax } = cfg;
+  const xS = x => PAD.l + (x - xMin) / (xMax - xMin) * cW;
+  const yS = y => PAD.t + cH - (y - yMin) / (yMax - yMin) * cH;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#faf9fd'; ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(160,130,210,0.10)'; ctx.lineWidth = 0.8;
+  for (let x = xMin; x <= xMax; x += 2) { ctx.beginPath(); ctx.moveTo(xS(x), PAD.t); ctx.lineTo(xS(x), PAD.t + cH); ctx.stroke(); }
+  for (let i = 0; i <= 5; i++) { const y = yMin + (yMax - yMin) * i / 5; ctx.beginPath(); ctx.moveTo(PAD.l, yS(y)); ctx.lineTo(PAD.l + cW, yS(y)); ctx.stroke(); }
+
+  // Bandas de faixa normal/risco
+  (cfg.bands || []).forEach(b => {
+    ctx.fillStyle = b.color;
+    ctx.fillRect(PAD.l, yS(Math.min(b.yHigh, yMax)), cW, yS(Math.max(b.yLow, yMin)) - yS(Math.min(b.yHigh, yMax)));
+  });
+
+  function _sp(pts) {
+    if (!pts.length) return;
+    ctx.moveTo(xS(pts[0].x), yS(pts[0].y));
+    if (pts.length < 3) { pts.slice(1).forEach(p => ctx.lineTo(xS(p.x), yS(p.y))); return; }
+    const a = 0.5;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0,i-1)], p1 = pts[i], p2 = pts[i+1], p3 = pts[Math.min(pts.length-1,i+2)];
+      ctx.bezierCurveTo(xS(p1.x)+(xS(p2.x)-xS(p0.x))*a/3,yS(p1.y)+(yS(p2.y)-yS(p0.y))*a/3,
+        xS(p2.x)-(xS(p3.x)-xS(p1.x))*a/3,yS(p2.y)-(yS(p3.y)-yS(p1.y))*a/3,xS(p2.x),yS(p2.y));
+    }
+  }
+
+  // Linhas de referência/limiar
+  (cfg.lines || []).forEach(line => {
+    if (!line.pts || !line.pts.length) return;
+    ctx.beginPath();
+    ctx.setLineDash(line.dash || [4,4]);
+    ctx.strokeStyle = line.color || 'rgba(200,50,50,0.55)';
+    ctx.lineWidth = 1.2;
+    _sp(line.pts);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (line.label) {
+      const last = line.pts[line.pts.length - 1];
+      ctx.font = '700 9px monospace'; ctx.fillStyle = line.color || 'rgba(200,50,50,0.7)';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(line.label, PAD.l + cW + 4, yS(last.y));
+    }
+  });
+
+  // Linha do paciente
+  const pts = cfg.patientPoints || [];
+  if (pts.length >= 2) {
+    ctx.beginPath(); ctx.setLineDash([4,3]); ctx.strokeStyle = 'rgba(90,60,160,0.45)'; ctx.lineWidth = 1.2;
+    pts.forEach((pt,i) => i===0 ? ctx.moveTo(xS(pt.x),yS(pt.y)) : ctx.lineTo(xS(pt.x),yS(pt.y)));
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  pts.forEach(pt => {
+    const color = pt.color || '#6c47b8';
+    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),6,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),3.5,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
+  });
+
+  // Eixos
+  ctx.fillStyle = '#9988bb'; ctx.font = '10px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let x = xMin; x <= xMax; x += 4) ctx.fillText(x + 's', xS(x), PAD.t + cH + 5);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 5; i++) { const y = yMin + (yMax - yMin) * i / 5; ctx.fillStyle = '#9988bb'; ctx.fillText(cfg.yFmt ? cfg.yFmt(y) : Math.round(y), PAD.l - 5, yS(y)); }
+
+  if (cfg.yLabel) {
+    ctx.save(); ctx.translate(11, PAD.t + cH / 2); ctx.rotate(-Math.PI / 2);
+    ctx.font = '10px sans-serif'; ctx.fillStyle = '#998cb0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(cfg.yLabel, 0, 0); ctx.restore();
+  }
+}
+
+// ── Maior Bolsão Único — faixa clínica fixa (não depende de IG) ──
+// Oligoâmnio <2cm · Normal 2–8cm · Polidrâmnio >8cm
+function buildBolsaoChart(canvasId, gestacao, exams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+  const patientPoints = [];
+  sorted.forEach(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays || e.bolsao == null) return;
+    const gaW = igDays / 7;
+    let color = '#6c47b8';
+    if (e.bolsao < 2) color = '#c03020';
+    else if (e.bolsao > 8) color = '#b07010';
+    patientPoints.push({ x: gaW, y: e.bolsao, color });
+  });
+
+  const pctEl = document.getElementById('pct-bolsao');
+  const subEl = document.getElementById('sub-bolsao');
+  if (pctEl && patientPoints.length > 0) {
+    const last = patientPoints[patientPoints.length - 1];
+    let label = `${last.y.toFixed(1)} cm`, cls = 'chart-card-pct-ok', sub = 'Dentro da normalidade (2–8cm)';
+    if (last.y < 2)      { label += ' — Oligoâmnio'; cls = 'chart-card-pct-alert'; sub = 'Abaixo de 2cm — oligoâmnio'; }
+    else if (last.y > 8) { label += ' — Polidrâmnio'; cls = 'chart-card-pct-warn';  sub = 'Acima de 8cm — polidrâmnio'; }
+    pctEl.textContent = label; pctEl.className = 'chart-card-pct ' + cls; pctEl.style.display = '';
+    if (subEl) subEl.textContent = sub;
+  } else if (pctEl) { pctEl.style.display = 'none'; }
+
+  const lines = [
+    { pts: [{x:20,y:8},{x:42,y:8}], label: '8cm', color: 'rgba(176,112,16,0.55)', dash: [5,4] },
+    { pts: [{x:20,y:2},{x:42,y:2}], label: '2cm', color: 'rgba(200,50,50,0.55)', dash: [3,5] },
+  ];
+  const bands = [
+    { yLow: 2, yHigh: 8, color: 'rgba(130,90,200,0.06)' },
+  ];
+
+  _drawThresholdChart(canvas, { xMin: 20, xMax: 42, yMin: 0, yMax: 14, bands, lines, patientPoints, yLabel: 'Maior bolsão (cm)', yFmt: v => v.toFixed(0) });
+}
+
+// ── Ducto Venoso — IP com limiar P95 (Baschat/FMF, aproximação linear) ──
+function buildDvChart(canvasId, gestacao, exams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+  const patientPoints = [];
+  sorted.forEach(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays || e.dv_ip == null) return;
+    const gaW = igDays / 7;
+    const p95 = _dvP95(gaW);
+    let color = '#6c47b8';
+    if (e.dv_onda === 'reversa') color = '#8a1010';
+    else if (e.dv_ip > p95 || e.dv_onda === 'ausente') color = '#c03020';
+    patientPoints.push({ x: gaW, y: e.dv_ip, color });
+  });
+
+  const pctEl = document.getElementById('pct-dop-dv');
+  const subEl = document.getElementById('sub-dop-dv');
+  if (pctEl && patientPoints.length > 0) {
+    const last = patientPoints[patientPoints.length - 1];
+    const lastExam = sorted[sorted.length - 1];
+    let label = `IP ${last.y.toFixed(2)}`, cls = 'chart-card-pct-ok', sub = 'Dentro da normalidade';
+    if (lastExam.dv_onda === 'reversa') { label = 'Onda A reversa'; cls = 'chart-card-pct-alert'; sub = 'Achado grave — avaliação imediata'; }
+    else if (lastExam.dv_onda === 'ausente') { label = 'Onda A ausente'; cls = 'chart-card-pct-warn'; sub = 'Comprometimento hemodinâmico venoso'; }
+    else if (last.color === '#c03020') { cls = 'chart-card-pct-alert'; sub = 'IP > P95'; }
+    pctEl.textContent = label; pctEl.className = 'chart-card-pct ' + cls; pctEl.style.display = '';
+    if (subEl) subEl.textContent = sub;
+  } else if (pctEl) { pctEl.style.display = 'none'; }
+
+  const p95Pts = [];
+  for (let w = 20; w <= 42; w += 1) p95Pts.push({ x: w, y: _dvP95(w) });
+
+  _drawThresholdChart(canvas, {
+    xMin: 20, xMax: 42, yMin: 0, yMax: 1.3,
+    lines: [{ pts: p95Pts, label: 'P95', color: 'rgba(200,50,50,0.55)', dash: [4,4] }],
+    patientPoints, yLabel: 'IP (DV)', yFmt: v => v.toFixed(1),
+  });
+}
+
+// ── Discrepância de Peso entre Fetos — critério de CIUR seletivo ──
+// Emparelha exames de Feto A/B na mesma data; discrepância = (maior-menor)/maior.
+// Limiar clássico ≥25% (Khalil et al., consenso RCF seletiva em gemelares).
+function buildDiscrepancyChart(canvasId, gestacao, allExams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const byDate = {};
+  (allExams || []).forEach(e => {
+    if (!e.feto) return;
+    (byDate[e.data_exame] ||= {})[e.feto] = e;
+  });
+
+  const patientPoints = [];
+  Object.keys(byDate).sort().forEach(date => {
+    const pair = byDate[date];
+    if (!pair.A || !pair.B) return;
+    const efwA = pair.A.efw ?? calcEFW(pair.A.dbp, pair.A.cc, pair.A.ca, pair.A.femur);
+    const efwB = pair.B.efw ?? calcEFW(pair.B.dbp, pair.B.cc, pair.B.ca, pair.B.femur);
+    if (!efwA || !efwB) return;
+    const maior = Math.max(efwA, efwB), menor = Math.min(efwA, efwB);
+    const disc  = Math.round(((maior - menor) / maior) * 1000) / 10; // % com 1 casa decimal
+    const igDays = pair.A.ig_dias_manual ?? calcIgDays(gestacao, date);
+    if (!igDays) return;
+    patientPoints.push({ x: igDays / 7, y: disc, color: disc >= 25 ? '#c03020' : '#6c47b8' });
+  });
+
+  const pctEl = document.getElementById('pct-discrepancia');
+  const subEl = document.getElementById('sub-discrepancia');
+  if (pctEl && patientPoints.length > 0) {
+    const last = patientPoints[patientPoints.length - 1];
+    pctEl.textContent = `${last.y.toFixed(1)}%`;
+    pctEl.className = 'chart-card-pct ' + (last.y >= 25 ? 'chart-card-pct-alert' : 'chart-card-pct-ok');
+    pctEl.style.display = '';
+    if (subEl) subEl.textContent = last.y >= 25 ? '≥25% — critério de RCF seletiva' : 'Abaixo de 25%';
+  } else if (pctEl) { pctEl.style.display = 'none'; }
+
+  _drawThresholdChart(canvas, {
+    xMin: 20, xMax: 42, yMin: 0, yMax: 40,
+    lines: [{ pts: [{x:20,y:25},{x:42,y:25}], label: '25%', color: 'rgba(200,50,50,0.55)', dash: [4,4] }],
+    patientPoints, yLabel: 'Discrepância (%)', yFmt: v => Math.round(v) + '%',
+  });
+}
+
+// Só relevante em gestação gemelar: 'A' | 'B' | 'gestacao' (IP UtA + colo + discrepância)
+let currentFetoView = 'A';
+
+function renderChartsFetoToggle(gestacao) {
+  const el = document.getElementById('charts-feto-toggle');
+  if (!el) return;
+  if (!gestacao || gestacao.tipo_gestacao !== 'gemelar') { el.innerHTML = ''; return; }
+  if (!['A','B','gestacao'].includes(currentFetoView)) currentFetoView = 'A';
+  const opts = [['A','Feto A'], ['B','Feto B'], ['gestacao','Gestação']];
+  el.innerHTML = `<div class="ph-ig-selector" style="margin:0 0 16px;">` + opts.map(([val, label]) =>
+    `<label class="ph-ig-radio ${currentFetoView === val ? 'active' : ''}" onclick="setFetoView('${val}')">
+      <input type="radio" style="display:none;" ${currentFetoView === val ? 'checked' : ''}>
+      ${label}
+    </label>`
+  ).join('') + `</div>`;
+}
+
+function setFetoView(view) {
+  currentFetoView = view;
+  renderPatientScreen();
+}
+
+function applyChartsScope(gestacao) {
+  renderChartsFetoToggle(gestacao);
+  const grid = document.querySelector('#tab-charts .charts-grid');
+  if (!grid) return;
+  const isTwin = gestacao && gestacao.tipo_gestacao === 'gemelar';
+  const view = !isTwin ? 'unica' : (currentFetoView === 'gestacao' ? 'gestacao' : 'fetal');
+  grid.querySelectorAll('[data-scope]').forEach(card => {
+    const scope = card.dataset.scope;
+    let show = false;
+    if (view === 'unica')    show = scope === 'fetal' || scope === 'shared' || scope === 'singleton-only';
+    if (view === 'fetal')    show = scope === 'fetal';
+    if (view === 'gestacao') show = scope === 'shared' || scope === 'shared-twin-only';
+    card.style.display = show ? '' : 'none';
+  });
+}
+
+function renderCharts(gestacao, exams, allExams) {
+  allExams = allExams || exams;
   buildChart('chart-cc',  gestacao, exams, 'cc',    'cc',  'CC (mm)',     false);
   buildChart('chart-ca',  gestacao, exams, 'ca',    'ca',  'CA (mm)',     false);
   buildChart('chart-dbp', gestacao, exams, 'dbp',   'dbp', 'DBP (mm)',    false);
   buildChart('chart-fl',  gestacao, exams, 'femur', 'fl',  'Fêmur (mm)', false);
   buildEFWChart('chart-efw', gestacao, exams);
   updateChartHeaders(gestacao, exams);
-  renderDopplerCharts(gestacao, exams);
-  buildColoChart('chart-colo', gestacao, exams);
+  renderDopplerCharts(gestacao, exams, allExams);
+  buildColoChart('chart-colo', gestacao, allExams);
   buildILAChart('chart-ila', gestacao, exams);
+  buildBolsaoChart('chart-bolsao', gestacao, exams);
+  buildDiscrepancyChart('chart-discrepancia', gestacao, allExams);
+  applyChartsScope(gestacao);
 }
 
 function updateChartHeaders(gestacao, exams) {
@@ -5060,11 +5441,13 @@ function renderSummary(gestacao, exams) {
     </div>`;
 
   // ── Render ─────────────────────────────────────────────────
+  const tituloFeto = gestacao.tipo_gestacao === 'gemelar' ? ` — Feto ${currentFetoView === 'B' ? 'B' : 'A'}` : '';
   container.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:22px;">
-      <h3 style="font-family:var(--font-serif);font-size:22px;color:var(--text);">Resumo Clínico</h3>
+      <h3 style="font-family:var(--font-serif);font-size:22px;color:var(--text);">Resumo Clínico${tituloFeto}</h3>
       <span style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);">${igStr} · ${dataStr}</span>
     </div>
+    ${gestacao.tipo_gestacao === 'gemelar' ? `<div style="font-size:11px;color:var(--text-muted);margin:-14px 0 18px;">Troque de feto na aba <strong>Gráficos</strong>. Critérios de restrição seletiva ainda não implementados — esta análise usa os critérios de gestação única aplicados a este feto isoladamente.</div>` : ''}
     ${block('1 · Biometria fetal — último exame', bioHtml)}
     ${block('2 · Peso fetal estimado (Hadlock 1985/1991)', pesoHtml)}
     ${n >= 2 ? block('3 · Tendência evolutiva', tendHtml) : ''}
@@ -5197,6 +5580,15 @@ function _openGestacaoModal(gid, extraHtml) {
   if (dumRadio) dumRadio.checked = (tipo !== 'US');
   if (usRadio)  usRadio.checked  = (tipo === 'US');
 
+  // Tipo de gestação (única / gemelar) + corionicidade
+  const unicaRadio   = document.getElementById('g-tipo-unica');
+  const gemelarRadio = document.getElementById('g-tipo-gemelar');
+  const tipoGestacao = g ? (g.tipo_gestacao || 'unica') : 'unica';
+  if (unicaRadio)   unicaRadio.checked   = (tipoGestacao !== 'gemelar');
+  if (gemelarRadio) gemelarRadio.checked = (tipoGestacao === 'gemelar');
+  setVal('g-corionicidade', g ? (g.corionicidade || '') : '');
+  _gestacaoTipoUI();
+
   // Aviso extra (gestação ativa)
   const warnEl = document.getElementById('modal-gestacao-warn');
   if (warnEl) warnEl.innerHTML = extraHtml;
@@ -5237,6 +5629,13 @@ function _gestacaoIgTipoUI() {
   if (secDum) secDum.style.display = 'block';
   if (secUs)  secUs.style.display  = 'block';
   _gestacaoIgPreview();
+}
+
+function _gestacaoTipoUI() {
+  const gemelarRadio = document.getElementById('g-tipo-gemelar');
+  const secCorio     = document.getElementById('g-section-corionicidade');
+  const isGemelar    = !!(gemelarRadio && gemelarRadio.checked);
+  if (secCorio) secCorio.style.display = isGemelar ? 'block' : 'none';
 }
 
 function _gestacaoIgPreview() {
@@ -5291,6 +5690,10 @@ function saveGestacao() {
   const dumRadio = document.getElementById('g-ig-tipo-dum');
   const igTipo   = (dumRadio && dumRadio.checked) ? 'DUM' : 'US';
 
+  const gemelarRadio  = document.getElementById('g-tipo-gemelar');
+  const tipoGestacao  = (gemelarRadio && gemelarRadio.checked) ? 'gemelar' : 'unica';
+  const corionicidade = tipoGestacao === 'gemelar' ? (getVal('g-corionicidade') || null) : null;
+
   const gestData = {
     paciente_id:             currentPatientId,
     dum, dpp, data_inicio:  dataInicio,
@@ -5300,6 +5703,8 @@ function saveGestacao() {
     ig_base_data:  igBD,
     ig_base_valor: igBaseDays,
     ig_base_tipo:  igTipo,
+    tipo_gestacao: tipoGestacao,
+    corionicidade,
   };
 
   if (_currentGestacaoEditingId) {
@@ -5363,6 +5768,8 @@ function _meSetIGMode() {
 function _meClearBio() {
   ['e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula','me-sem','me-dia','e-colo','e-ila','e-bolsao']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const fetoA = document.getElementById('me-feto-a');
+  if (fetoA) fetoA.checked = true;
   ['e-au-ip','e-acm-ip','e-acm-psv','e-aut-e','e-aut-d','e-dv-ip']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const dvOnda  = document.getElementById('e-dv-onda');
@@ -5391,6 +5798,22 @@ function _attachDopplerListeners() {
   });
 }
 
+function _meApplyGemelarUI(gestacao, feto) {
+  const isGemelar = !!(gestacao && gestacao.tipo_gestacao === 'gemelar');
+  const fetoRow  = document.getElementById('me-feto-row');
+  const ilaField = document.getElementById('me-ila-field');
+  const ilaNote  = document.getElementById('me-ila-gemelar-note');
+  if (fetoRow)  fetoRow.style.display  = isGemelar ? 'block' : 'none';
+  if (ilaField) ilaField.style.display = isGemelar ? 'none'  : '';
+  if (ilaNote)  ilaNote.style.display  = isGemelar ? 'block' : 'none';
+  if (isGemelar) {
+    const fetoA = document.getElementById('me-feto-a');
+    const fetoB = document.getElementById('me-feto-b');
+    if (feto === 'B' && fetoB) fetoB.checked = true;
+    else if (fetoA) fetoA.checked = true;
+  }
+}
+
 function openExamModal() {
   if (!currentGestacaoId) {
     alert('Nenhuma gestação selecionada. Crie ou selecione uma gestação antes de adicionar um exame.');
@@ -5403,6 +5826,7 @@ function openExamModal() {
 
   document.getElementById('modal-exam-title').textContent = 'Novo Exame';
   _meClearBio();
+  _meApplyGemelarUI(getGestacaoById(currentGestacaoId), null);
   const _eDataNew = document.getElementById('e-data');
   if (_eDataNew) _eDataNew.value = new Date().toISOString().split('T')[0];
   _meSetIGMode();
@@ -5463,6 +5887,7 @@ function openEditExamModal(eid) {
   });
 
   const gestacao = getGestacaoById(currentGestacaoId);
+  _meApplyGemelarUI(gestacao, exam.feto);
   _meIgAuto = calcIgDays(gestacao, exam.data_exame);
   _meSetIGMode();
 
@@ -5930,6 +6355,12 @@ function saveExam() {
     colo: parseFloat(document.getElementById('e-colo')?.value) || null,
     ila:  parseFloat(document.getElementById('e-ila')?.value)  || null,
     bolsao: parseFloat(document.getElementById('e-bolsao')?.value) || null,
+    feto: (() => {
+      const g = getGestacaoById(currentGestacaoId);
+      if (!g || g.tipo_gestacao !== 'gemelar') return null;
+      const fetoB = document.getElementById('me-feto-b');
+      return (fetoB && fetoB.checked) ? 'B' : 'A';
+    })(),
   };
 
   if (currentExamEditingId != null) {
@@ -6401,12 +6832,14 @@ function setTab(tab) {
 
   if (tab === 'charts') {
     const gestacao = getGestacaoById(currentGestacaoId);
-    const exams    = gestacao ? getExamsByGestacao(gestacao.id) : [];
-    if (gestacao) renderCharts(gestacao, exams);
+    const allExams = gestacao ? getExamsByGestacao(gestacao.id) : [];
+    const exams    = gestacao ? examsForFetoAnalysis(gestacao, allExams) : [];
+    if (gestacao) renderCharts(gestacao, exams, allExams);
   }
   if (tab === 'summary') {
     const gestacao = getGestacaoById(currentGestacaoId);
-    const exams    = gestacao ? getExamsByGestacao(gestacao.id) : [];
+    const allExams = gestacao ? getExamsByGestacao(gestacao.id) : [];
+    const exams    = gestacao ? examsForFetoAnalysis(gestacao, allExams) : [];
     if (gestacao) renderSummary(gestacao, exams);
   }
   if (tab === 'calc') {
@@ -6719,7 +7152,7 @@ function abrirPreviewRelatorio() {
   const patient  = getPatientById(currentPatientId);
   const gestacao = getGestacaoById(currentGestacaoId);
   if (!patient || !gestacao) return;
-  const exams = getExamsByGestacao(gestacao.id);
+  const exams = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
   if (exams.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
 
   const lastExam = exams[exams.length - 1];
@@ -6732,6 +7165,7 @@ function abrirPreviewRelatorio() {
   let igMetodo = 'Idade gestacional não definida';
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `IG corrigida por US (${formatDateBR(gestacao.ig_base_data)})`;
+  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${lastExam.feto || (currentFetoView === 'B' ? 'B' : 'A')}`;
 
   const relNm = document.getElementById('rel-patient-name');
   const relMt = document.getElementById('rel-patient-meta');
@@ -6788,7 +7222,7 @@ function confirmarGerarPDF() {
   const patient  = getPatientById(currentPatientId);
   const gestacao = getGestacaoById(currentGestacaoId);
   if (!patient || !gestacao) return;
-  const exams    = getExamsByGestacao(gestacao.id);
+  const exams    = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
   if (exams.length === 0) return;
 
   const lastExam  = exams[exams.length - 1];
@@ -6802,6 +7236,7 @@ function confirmarGerarPDF() {
   let igMetodo = 'IG não definida';
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM: ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `Corrigida por US em ${formatDateBR(gestacao.ig_base_data)}`;
+  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${lastExam.feto || (currentFetoView === 'B' ? 'B' : 'A')}`;
 
   const relTextoEl = document.getElementById('rel-texto-clinico');
   const relTexto   = relTextoEl ? relTextoEl.value : '';

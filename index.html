@@ -2263,12 +2263,16 @@ function calcDiagnosticoFGR(lastExam, allExams) {
     if (z0 != null && z1 != null && z0 > z1) cruzamentoQuartis = (z0 - z1) >= 1.35;
   }
 
+  // Diástole zero (AEDF) — REDF implica ausência de diástole também, conta junto
+  const auDiastoleZero = lastExam.au_fluxo === 'ausente' || lastExam.au_fluxo === 'reversa';
+
   // ── Diagnóstico Delphi ────────────────────────────────────
   let diagnostico = 'adequado';
 
   if (isPrecoce) {
-    // RCIU Precoce: CA/PFE < P3 OU (CA/PFE < P10 + IP AU > P95 OU IP AUt > P95)
-    if (caBelowP3 || efwBelowP3) {
+    // RCIU Precoce — isolados (basta 1): CA<P3 | PFE<P3 | diástole zero na AU (AEDF)
+    // Contribuintes (combinados): CA/PFE<P10 + (IP AU>P95 OU IP AUt>P95)
+    if (caBelowP3 || efwBelowP3 || auDiastoleZero) {
       diagnostico = 'rciu_precoce';
     } else if ((caBelowP10 || efwBelowP10) && (auAboveP95 || utAboveP95)) {
       diagnostico = 'rciu_precoce';

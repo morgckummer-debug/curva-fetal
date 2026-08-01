@@ -352,6 +352,7 @@ header::after{display:none;}
 }
 .ph-row1{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px;}
 .ph-name{font-family:var(--font-serif);font-size:24px;font-weight:700;color:var(--text);letter-spacing:-0.4px;line-height:1.2;}
+.ph-gemelar-badge{font-size:11.5px;font-weight:800;letter-spacing:0.5px;color:#fff;background:linear-gradient(135deg,#a06ad0,#7a4bb0);padding:4px 12px;border-radius:99px;white-space:nowrap;box-shadow:0 2px 6px rgba(122,75,176,0.35);}
 .ph-ig  {font-family:var(--font-mono);font-size:28px;font-weight:500;color:var(--sage);letter-spacing:-0.8px;white-space:nowrap;flex-shrink:0;}
 .ph-row2{font-size:12.5px;color:var(--text-muted);margin-bottom:12px;display:flex;flex-wrap:wrap;gap:0 10px;align-items:center;}
 .ph-row2 span{white-space:nowrap;}
@@ -423,6 +424,16 @@ header::after{display:none;}
   box-shadow:2px 2px 6px rgba(148,106,74,0.14),-1px -1px 4px rgba(58,36,22,0.52);
 }
 .exam-row-actions{display:flex;gap:7px;flex-shrink:0;align-items:center;}
+
+/* ── EXAM HISTORY (gestação gemelar — 1 visita, 2 fetos agrupados) ── */
+.exam-history-gemelar{background:transparent;box-shadow:none;overflow:visible;display:flex;flex-direction:column;gap:10px;}
+.exam-visit-group{background:var(--clay-card);border-radius:var(--radius);overflow:hidden;box-shadow:var(--sh);}
+.exam-visit-header{
+  display:flex;align-items:center;gap:10px;padding:11px 22px;
+  background:rgba(122,171,146,0.08);border-bottom:1px solid rgba(148,106,74,0.10);
+}
+.exam-row-feto{padding:12px 22px 12px 34px;}
+.exam-row-feto:last-child{border-bottom:none;}
 
 /* ── ALERTS ── */
 .alerts-container{margin-bottom:24px;}
@@ -2887,11 +2898,6 @@ function renderPatientScreen() {
 
   // Meta linha
   const parts = [];
-  if (gestacao && gestacao.tipo_gestacao === 'gemelar') {
-    const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica: 'MCDA', monocorionica_monoamniotica: 'MCMA' };
-    const corioTag = gestacao.corionicidade ? ` (${CORIO_LABEL[gestacao.corionicidade] || ''})` : '';
-    parts.push(`<strong>Gemelar${corioTag}</strong>`);
-  }
   if (gestacao && gestacao.dum && tipo === 'DUM') parts.push(`DUM ${formatDateBR(gestacao.dum)}`);
   if (lastExam) parts.push(`Último US ${formatDateBR(lastExam.data_exame)}`);
   const metaLine = parts.join(' <span class="ph-sep">•</span> ');
@@ -2937,9 +2943,20 @@ function renderPatientScreen() {
   // Histórico obstétrico resumido
   const obsResume = gestacao ? resumoObstetrico(gestacao) : '';
 
+  // Badge de gestação gemelar — bem visível, ao lado do nome
+  let gemelarBadge = '';
+  if (gestacao && gestacao.tipo_gestacao === 'gemelar') {
+    const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica: 'MCDA', monocorionica_monoamniotica: 'MCMA' };
+    const corioTag = gestacao.corionicidade ? ` · ${CORIO_LABEL[gestacao.corionicidade] || ''}` : '';
+    gemelarBadge = `<span class="ph-gemelar-badge">👯 GEMELAR${corioTag}</span>`;
+  }
+
   document.getElementById('patient-header-info').innerHTML = `
     <div class="ph-row1">
-      <span class="ph-name">${escapeHtml(patient.nome || 'Paciente')}</span>
+      <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span class="ph-name">${escapeHtml(patient.nome || 'Paciente')}</span>
+        ${gemelarBadge}
+      </span>
       <span class="ph-ig">${igNowStr}</span>
     </div>
     <div class="ph-row2">
@@ -3075,36 +3092,70 @@ function renderExamList(gestacao, exams) {
   const lastIdPorFeto = {};
   Object.entries(porFeto).forEach(([feto, seq]) => { lastIdPorFeto[feto] = seq[seq.length - 1].id; });
 
-  const rows = sorted.map(e => {
-    const igDays  = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    const igStr   = igToStr(igDays);
-    const isLast  = e.id === lastIdPorFeto[e.feto || '_'];
-    const hasAlert = alertIds.has(e.id);
-
-    const alertDot  = hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : '';
-    const lastBadge = isLast   ? `<span class="exam-row-last-badge">Último</span>` : '';
-    const fetoBadge = (isGemelar && e.feto)
-      ? `<span class="exam-row-last-badge" style="background:var(--purple-pale,#f5f0ff);color:var(--purple-mid,#527d68);">Feto ${e.feto}</span>`
-      : '';
-
-    return `
-    <div class="exam-row" data-eid="${safeId(e.id)}" onclick="selectExamRow(${safeId(e.id)})">
-      <div class="exam-row-left">
-        ${fetoBadge}
-        <span class="exam-row-date">${formatDateBR(e.data_exame)}</span>
-        <span class="exam-row-sep">•</span>
-        <span class="exam-row-ig">${igStr}</span>
-        ${alertDot}
-        ${lastBadge}
-      </div>
+  const actionsHtml = (e) => `
       <div class="exam-row-actions" onclick="event.stopPropagation()">
         <button class="exam-action-btn edit-exam-btn" onclick="openEditExamModal(${safeId(e.id)})">Editar</button>
         <button class="exam-action-btn delete-exam-btn" onclick="deleteExam(${safeId(e.id)})">Excluir</button>
+      </div>`;
+
+  if (!isGemelar) {
+    // Gestação única: 1 exame = 1 linha, como sempre foi.
+    const rows = sorted.map(e => {
+      const igDays  = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+      const isLast  = e.id === lastIdPorFeto[e.feto || '_'];
+      const hasAlert = alertIds.has(e.id);
+      return `
+      <div class="exam-row" data-eid="${safeId(e.id)}" onclick="selectExamRow(${safeId(e.id)})">
+        <div class="exam-row-left">
+          <span class="exam-row-date">${formatDateBR(e.data_exame)}</span>
+          <span class="exam-row-sep">•</span>
+          <span class="exam-row-ig">${igToStr(igDays)}</span>
+          ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
+          ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
+        </div>
+        ${actionsHtml(e)}
+      </div>`;
+    }).join('');
+    container.innerHTML = `<div class="exam-history">${rows}</div>`;
+    return;
+  }
+
+  // Gestação gemelar: 1 visita (mesma data) = 1 card, com os dois fetos
+  // agrupados dentro — evita a leitura errada de "2 exames" quando é
+  // 1 exame com 2 fetos.
+  const porData = {};
+  sorted.forEach(e => { (porData[e.data_exame] ||= []).push(e); });
+
+  const groups = Object.keys(porData).sort().map(date => {
+    const examsDoDia = porData[date];
+    const igDays = examsDoDia[0].ig_dias_manual ?? calcIgDays(gestacao, date);
+
+    const fetoRows = examsDoDia.map(e => {
+      const isLast   = e.id === lastIdPorFeto[e.feto || '_'];
+      const hasAlert = alertIds.has(e.id);
+      return `
+      <div class="exam-row exam-row-feto" data-eid="${safeId(e.id)}" onclick="selectExamRow(${safeId(e.id)})">
+        <div class="exam-row-left">
+          <span class="exam-row-last-badge" style="background:var(--purple-pale,#f5f0ff);color:var(--purple-mid,#527d68);">Feto ${e.feto}</span>
+          ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
+          ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
+        </div>
+        ${actionsHtml(e)}
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="exam-visit-group">
+      <div class="exam-visit-header">
+        <span class="exam-row-date">${formatDateBR(date)}</span>
+        <span class="exam-row-sep">•</span>
+        <span class="exam-row-ig">${igToStr(igDays)}</span>
       </div>
+      ${fetoRows}
     </div>`;
   }).join('');
 
-  container.innerHTML = `<div class="exam-history">${rows}</div>`;
+  container.innerHTML = `<div class="exam-history exam-history-gemelar">${groups}</div>`;
 }
 
 function selectExamRow(eid) {

@@ -3957,6 +3957,25 @@ const ILA_REF = {
   40:[71,123,214],
 };
 
+// Percentil do ILA — interpolação linear por trecho entre P5/P50/P95
+// (mesmo método usado para os índices Doppler — dopplerAuRef/calcDopplerAu etc.),
+// em vez do z-score simétrico usado em CA/CC/Fêmur/EFW: a distribuição do ILA
+// é assimétrica (ex.: em 32 sem., P50−P5=58mm mas P95−P50=98mm — ver ILA_REF),
+// e um z-score assumindo normal simétrica erraria o P5/P95 real da tabela.
+function calcILAPercentile(ila_cm, igDays) {
+  if (ila_cm == null || !igDays) return null;
+  const ref = interpolateRef(ILA_REF, igDays);
+  if (!ref) return null;
+  const [p5, p50, p95] = ref;
+  const ilaMm = ila_cm * 10;
+  let p;
+  if (ilaMm <= p5) p = 5;
+  else if (ilaMm <= p50) { const t = (ilaMm - p5) / (p50 - p5); p = Math.round(5 + t * 45); }
+  else if (ilaMm <= p95) { const t = (ilaMm - p50) / (p95 - p50); p = Math.round(50 + t * 45); }
+  else p = 95;
+  return { percentil: p };
+}
+
 function buildILAChart(canvasId, gestacao, exams) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -3985,12 +4004,14 @@ function buildILAChart(canvasId, gestacao, exams) {
     const ilaMm = e.ila * 10;
     const wLow = Math.floor(gaW);
     const ref = ILA_REF[wLow];
+    const calc = calcILAPercentile(e.ila, igDays);
+    const p = calc ? calc.percentil : null;
     let color = '#6c47b8';
     if (ref) {
       if (ilaMm < ref[0]) color = '#c03020';       // abaixo P5 — oligoâmnio
       else if (ilaMm > ref[2]) color = '#b07010';   // acima P95 — polidrâmnio
     }
-    patientPoints.push({ x: gaW, y: ilaMm, color });
+    patientPoints.push({ x: gaW, y: ilaMm, color, p });
   });
 
   // Header badge
@@ -4001,6 +4022,7 @@ function buildILAChart(canvasId, gestacao, exams) {
     const ref = ILA_REF[wL];
     const ilaCm = (last.y / 10).toFixed(1);
     let label = `${ilaCm} cm`;
+    if (last.p != null) label += ` · P${last.p}`;
     let cls = 'chart-card-pct-ok';
     if (ref && last.y < ref[0]) { label += ' — Oligoâmnio'; cls = 'chart-card-pct-alert'; }
     else if (ref && last.y > ref[2]) { label += ' — Polidrâmnio'; cls = 'chart-card-pct-warn'; }
@@ -4064,6 +4086,10 @@ function _drawILAChart(canvas, refData, patientPoints) {
   patientPoints.forEach(pt => {
     ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),6,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=pt.color; ctx.lineWidth=2; ctx.stroke();
     ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),3.5,0,Math.PI*2); ctx.fillStyle=pt.color; ctx.fill();
+    if (pt.p != null) {
+      ctx.font='700 9px monospace'; ctx.fillStyle=pt.color; ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillText('P'+pt.p, xS(pt.x), yS(pt.y)-8);
+    }
   });
 
   ctx.fillStyle='#9988bb'; ctx.font='10px monospace'; ctx.textAlign='center'; ctx.textBaseline='top';

@@ -2519,6 +2519,17 @@ async function _bootstrapFromSupabaseImpl() {
     db._gestId = db.gestacoes.reduce((m, g) => Math.max(m, g.id), 0) + 1;
     db._exId   = db.exams.reduce((m, e)     => Math.max(m, e.id), 0) + 1;
 
+    // O editor de laudos (repo laudos-dramorgana) grava direto na tabela `patients`, e até
+    // 2026-08-22 o laudo obstétrico gravava o CPF só com dígitos — enquanto este app sempre
+    // grava formatado. O mesmo CPF virava duas pacientes e o exame enviado pelo laudo não
+    // aparecia aqui. Normaliza na leitura: o próximo saveDB reescreve a tabela e conserta a
+    // linha no banco. Se mexer nisso, mantenha o formato pontuado como forma canônica —
+    // é ele que o editor procura e insere.
+    db.patients.forEach(p => {
+      const digits = String(p.cpf || '').replace(/\D/g, '');
+      if (digits.length === 11) p.cpf = formatCpf(digits);
+    });
+
     // Se ainda há alteração local esperando gravação, o que está na memória é mais
     // novo que o que acabou de vir do servidor — trocar agora apagaria o cadastro.
     if (_syncPending) {

@@ -733,6 +733,11 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   </div>
 </div>
 
+<!-- Selo de gravação — fica visível enquanto uma alteração ainda não chegou ao
+     servidor e some quando chega. Sem ele, uma falha de rede sumia com o dado
+     em silêncio: a pessoa via a paciente na tela e achava que estava salva. -->
+<div id="save-status" style="display:none;position:fixed;bottom:14px;right:14px;z-index:999998;padding:8px 15px;border-radius:999px;font-size:12.5px;font-weight:600;color:#fff;box-shadow:0 6px 20px rgba(58,36,22,0.28);"></div>
+
 <!-- Tela de login — cobre a página inteira enquanto não há sessão válida no Supabase.
      Fica por cima de tudo (z-index alto) e não deixa nada por baixo ser clicado. -->
 <div id="login-screen" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--clay-bg,#dbd0c5);padding:20px;">
@@ -1788,6 +1793,12 @@ async function initAuth() {
     }
     if (session) {
       _hideLoginScreen();
+      // TOKEN_REFRESHED e USER_UPDATED chegam com a pessoa já usando o app (o token
+      // se renova sozinho de tempos em tempos e ao voltar pra aba). Recarregar tudo
+      // do servidor nessas horas substituía o DB em memória e podia jogar fora um
+      // cadastro que ainda não tinha terminado de gravar — por isso só o login e o
+      // carregamento inicial da página disparam a busca completa.
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
       _bootstrapFromSupabase();
     } else {
       _showLoginForm();
@@ -1875,6 +1886,9 @@ async function doLogin() {
 }
 
 async function doLogout() {
+  // Sair limpa o DB em memória — se ainda tem coisa esperando gravação, sair agora
+  // perderia exatamente o que acabou de ser digitado.
+  if (_syncPending && !confirm('Ainda estou salvando uma alteração no servidor. Se sair agora ela será perdida.\n\nSair mesmo assim?')) return;
   try {
     await supabaseClient.auth.signOut();
   } catch (err) {
@@ -2483,9 +2497,13 @@ async function _bootstrapFromSupabaseImpl() {
 
   try {
     const [pRes, gRes, eRes] = await Promise.all([
-      supabaseClient.from('patients').select(_PATIENT_COLUMNS),
-      supabaseClient.from('gestacoes').select(_GESTACAO_COLUMNS),
-      supabaseClient.from('exams').select(_EXAM_COLUMNS),
+      // order('id') não é decoração: sem ORDER BY o Postgres devolve as linhas em
+      // ordem física, que muda a cada gravação (e todo saveDB reescreve a tabela
+      // inteira). A lista "Pacientes Recentes" mostra só as 8 primeiras — sem ordem
+      // fixa, uma paciente recém-cadastrada podia simplesmente não estar entre elas.
+      supabaseClient.from('patients').select(_PATIENT_COLUMNS).order('id', { ascending: true }),
+      supabaseClient.from('gestacoes').select(_GESTACAO_COLUMNS).order('id', { ascending: true }),
+      supabaseClient.from('exams').select(_EXAM_COLUMNS).order('id', { ascending: true }),
     ]);
     if (pRes.error) throw pRes.error;
     if (gRes.error) throw gRes.error;
@@ -2501,6 +2519,14 @@ async function _bootstrapFromSupabaseImpl() {
     db._gestId = db.gestacoes.reduce((m, g) => Math.max(m, g.id), 0) + 1;
     db._exId   = db.exams.reduce((m, e)     => Math.max(m, e.id), 0) + 1;
 
+    // Se ainda há alteração local esperando gravação, o que está na memória é mais
+    // novo que o que acabou de vir do servidor — trocar agora apagaria o cadastro.
+    if (_syncPending) {
+      console.warn('[CurvaFetal] bootstrap ignorado: há alteração local ainda não gravada');
+      renderRecentPatients();
+      return;
+    }
+
     _memoryDB = db;
     DB = loadDB();
     renderRecentPatients();
@@ -2511,19 +2537,89 @@ async function _bootstrapFromSupabaseImpl() {
   }
 }
 
-// Envia o DB inteiro (upsert) pro Supabase, em segundo plano — quem chama saveDB()
-// continua síncrono, como sempre foi; se a gravação falhar, o banner de erro global
-// avisa (em vez de perder a alteração em silêncio).
-async function _syncToSupabase(db) {
-  try {
-    if (db.patients.length)  { const { error } = await supabaseClient.from('patients').upsert(db.patients);   if (error) throw error; }
-    if (db.gestacoes.length) { const { error } = await supabaseClient.from('gestacoes').upsert(db.gestacoes); if (error) throw error; }
-    if (db.exams.length)     { const { error } = await supabaseClient.from('exams').upsert(db.exams);         if (error) throw error; }
-  } catch (err) {
-    console.error('[CurvaFetal] falha ao salvar no Supabase:', err);
-    _showGlobalError('Não consegui salvar no servidor: ' + (err.message || err) + '. Verifique sua conexão e tente novamente.');
+// ── Gravação no servidor: uma fila, não um disparo solto ───────────────────
+// saveDB() continua síncrona pros chamadores, mas a gravação em si passa por aqui:
+// uma requisição por vez, com repetição automática se a rede falhar, selo na tela
+// enquanto não confirma e aviso antes de sair da página com coisa pendente.
+//
+// Como era antes: cada saveDB() disparava um upsert solto e ninguém acompanhava.
+// Dois saves seguidos (cadastrar paciente + cadastrar gestação) corriam em paralelo,
+// e um F5 ou uma navegação logo depois cancelava a requisição no meio do caminho —
+// a paciente aparecia na tela, mas nunca tinha chegado ao banco.
+let _syncPending = false;   // existe alteração que o servidor ainda não confirmou
+let _syncRunning = false;   // já tem um envio em andamento
+let _syncDirty   = false;   // chegou alteração nova (ou o último envio falhou)
+
+let _saveStatusTimer = null;
+function _setSaveStatus(state, msg) {
+  const el = document.getElementById('save-status');
+  if (!el) return;
+  clearTimeout(_saveStatusTimer);
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.background = state === 'saved' ? '#2c6e49' : state === 'error' ? '#a3241c' : '#3a2416';
+  if (state === 'saved') _saveStatusTimer = setTimeout(() => { el.style.display = 'none'; }, 1800);
+}
+
+// Uma passada de gravação. Devolve true se o servidor confirmou; false se desistiu
+// depois de repetir. Envia sempre o DB atual em memória, então uma alteração que
+// chegou durante a tentativa anterior vai junto.
+async function _pushToSupabase() {
+  const espera = [800, 2000, 5000];
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      const db = _memoryDB || _emptyDB();
+      if (db.patients.length)  { const { error } = await supabaseClient.from('patients').upsert(db.patients);   if (error) throw error; }
+      if (db.gestacoes.length) { const { error } = await supabaseClient.from('gestacoes').upsert(db.gestacoes); if (error) throw error; }
+      if (db.exams.length)     { const { error } = await supabaseClient.from('exams').upsert(db.exams);         if (error) throw error; }
+      return true;
+    } catch (err) {
+      console.error('[CurvaFetal] falha ao salvar no Supabase (tentativa ' + (tentativa + 1) + '):', err);
+      if (tentativa >= espera.length) {
+        _showGlobalError('Não consegui salvar no servidor: ' + (err.message || err) +
+          '. A alteração ainda está só nesta tela — não feche nem recarregue a página até o selo "Salvo" aparecer.');
+        return false;
+      }
+      await new Promise(r => setTimeout(r, espera[tentativa]));
+    }
   }
 }
+
+async function _runSyncLoop() {
+  _syncRunning = true;
+  try {
+    while (_syncDirty) {
+      _syncDirty = false;
+      const ok = await _pushToSupabase();
+      if (!ok) {
+        // Continua marcado como sujo: o próximo saveDB() (ou o botão de tentar de
+        // novo) reaproveita a fila em vez de dar a alteração por perdida.
+        _syncDirty = true;
+        _setSaveStatus('error', '⚠ Não salvo');
+        return;
+      }
+    }
+    _syncPending = false;
+    _setSaveStatus('saved', '✓ Salvo');
+  } finally {
+    _syncRunning = false;
+  }
+}
+
+function _syncToSupabase() {
+  _syncDirty   = true;
+  _syncPending = true;
+  _setSaveStatus('saving', 'Salvando…');
+  if (!_syncRunning) _runSyncLoop();
+}
+
+// Última rede de proteção: se ainda tem coisa por gravar, o navegador pergunta antes
+// de fechar/recarregar. É exatamente o momento em que os dados sumiam antes.
+window.addEventListener('beforeunload', (e) => {
+  if (!_syncPending) return;
+  e.preventDefault();
+  e.returnValue = '';
+});
 
 function migrateV1toV2(v1) {
   const db = {
@@ -2574,7 +2670,7 @@ function migrateV1toV2(v1) {
 
 function saveDB(db) {
   _memoryDB = db;
-  _syncToSupabase(db); // não aguardado de propósito — mantém saveDB() síncrona pros chamadores
+  _syncToSupabase(); // só enfileira — a gravação real acontece em _runSyncLoop()
 }
 
 let DB = loadDB();
@@ -2757,7 +2853,13 @@ function switchGestacao(gid) {
 function renderRecentPatients() {
   const container = document.getElementById('recent-list');
   DB = loadDB();
-  const patients = DB.patients.filter(p => !p.excluido_em).reverse().slice(0, 8);
+  // Ordena pelo id (maior = cadastrada por último) em vez de confiar na ordem do
+  // array: ela só reflete a ordem de cadastro na sessão em que a paciente foi criada.
+  // Depois de um F5 a ordem vem do servidor e, sem isso, a paciente mais nova podia
+  // cair fora das 8 mostradas — parecia que o cadastro não tinha funcionado.
+  const patients = DB.patients.filter(p => !p.excluido_em)
+    .sort((a, b) => b.id - a.id)
+    .slice(0, 8);
   if (patients.length === 0) { container.innerHTML = ''; return; }
 
   container.innerHTML = `<h3>Pacientes Recentes</h3>` + patients.map(p => {
@@ -2789,11 +2891,26 @@ function smartSearchInput(input) {
     maskCpf(input);
   }
   const q = input.value.trim().toLowerCase();
-  if (q.length >= 2 && !/^[\d\.\-]+$/.test(input.value.trim())) {
+  // Vale também para CPF digitado pela metade — antes só nome abria as sugestões.
+  if (q.length >= 2) {
     _showNameSuggestions(q);
   } else {
     _hideNameSuggestions();
   }
+}
+
+// Nome é opcional no cadastro (só o CPF é obrigatório), então a busca precisa casar
+// pelos dois — antes, quem tinha sido cadastrada só com CPF não aparecia em busca
+// nenhuma a não ser digitando os 11 dígitos completos.
+function _matchPatients(termo) {
+  const t      = (termo || '').trim().toLowerCase();
+  const digits = t.replace(/\D/g, '');
+  if (!t) return [];
+  return DB.patients.filter(p => {
+    if (p.excluido_em) return false;
+    if (p.nome && p.nome.toLowerCase().includes(t)) return true;
+    return digits.length >= 2 && (p.cpf || '').replace(/\D/g, '').includes(digits);
+  });
 }
 
 function _showNameSuggestions(q) {
@@ -2805,9 +2922,9 @@ function _showNameSuggestions(q) {
     const sb = document.querySelector('.search-box');
     if (sb) { sb.style.position='relative'; sb.appendChild(box); }
   }
-  const matches = DB.patients.filter(p => !p.excluido_em && p.nome && p.nome.toLowerCase().includes(q)).slice(0,8);
+  const matches = _matchPatients(q).slice(0,8);
   if (!matches.length) { box.style.display='none'; return; }
-  box.innerHTML = matches.map(p => `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="padding:10px 16px;cursor:pointer;font-size:13px;color:#527d68;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome)}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span></div>`).join('');
+  box.innerHTML = matches.map(p => `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="padding:10px 16px;cursor:pointer;font-size:13px;color:#527d68;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome || 'Sem nome')}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span></div>`).join('');
   box.style.display = 'block';
 }
 
@@ -2836,14 +2953,14 @@ function searchPatient() {
   }
 
   if (val.length >= 2) {
-    const matches = DB.patients.filter(p => !p.excluido_em && p.nome && p.nome.toLowerCase().includes(val.toLowerCase()));
+    const matches = _matchPatients(val);
     if (matches.length === 1) { _hideNameSuggestions(); openPatient(matches[0].id); }
     else if (matches.length > 1) { _showNameSuggestions(val.toLowerCase()); }
-    else { alert('Nenhuma paciente encontrada com o nome "' + val + '".'); }
+    else { alert('Nenhuma paciente encontrada para "' + val + '".'); }
     return;
   }
 
-  alert('Digite o nome (mínimo 2 letras) ou o CPF completo da paciente.');
+  alert('Digite o nome (mínimo 2 letras) ou o CPF da paciente.');
 }
 
 // ═══════════════════════════════════════════════════════════

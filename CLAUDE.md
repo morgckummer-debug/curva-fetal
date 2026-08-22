@@ -25,11 +25,25 @@ Depois de validar uma mudança, faça merge/push direto para a branch que o Page
 publica (confirme qual é, ver acima) sem pedir confirmação a cada vez — esse é o
 comportamento combinado com o usuário. O Pages atualiza em ~1 minuto após o push.
 
-## Cuidado: salvamento no Supabase é assíncrono e não aguardado
+## Salvamento no Supabase: fila, não disparo solto
 
-`saveDB(db)` atualiza o estado local (`_memoryDB`) de forma síncrona, mas dispara
-`_syncToSupabase(db)` sem `await` ("não aguardado de propósito", ver comentário no
-código). Isso significa que um F5 ou navegação logo após cadastrar/editar algo pode
-cancelar a requisição em andamento antes dela chegar ao servidor, perdendo o dado
-silenciosamente (sem erro visível). Ver conversa de 2026-08-01 sobre pacientes de
-teste que "sumiram" após reload — essa é a causa raiz, não um problema de branch.
+`saveDB(db)` atualiza o estado local (`_memoryDB`) de forma síncrona e enfileira a
+gravação (`_syncToSupabase()` → `_runSyncLoop()`). A fila garante **uma requisição
+por vez**, repete até 4 vezes com espera crescente se a rede falhar, mostra o selo
+`#save-status` ("Salvando…" / "✓ Salvo" / "⚠ Não salvo") e o `beforeunload` avisa
+antes de fechar/recarregar com algo pendente. `doLogout()` também pede confirmação.
+
+Antes (até 2026-08-22) cada `saveDB()` disparava um upsert solto e não aguardado:
+um F5 ou uma navegação logo depois de cadastrar cancelava a requisição no meio e o
+dado sumia em silêncio (ver conversa de 2026-08-01 sobre pacientes de teste que
+"sumiram" após reload). Se for mexer nessa área, não volte a disparar upsert fora
+da fila — `_syncPending` é o que segura o `beforeunload` e o que impede
+`_bootstrapFromSupabase()` de sobrescrever alteração ainda não gravada.
+
+## Ordem das listas vem do banco, não do array
+
+`select()` sem `.order()` no PostgREST devolve as linhas em ordem física, que muda
+a cada gravação — e `_syncToSupabase` reescreve as três tabelas inteiras a cada
+save. Por isso os selects do bootstrap usam `.order('id')` e `renderRecentPatients()`
+ordena por `id` decrescente antes de cortar em 8. Não confie na ordem do array
+`DB.patients` para saber quem foi cadastrada por último.

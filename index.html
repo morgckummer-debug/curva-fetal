@@ -1146,11 +1146,11 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <div style="display:flex;gap:10px;">
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
             <input type="radio" id="me-feto-a" name="me-feto" value="A" checked onchange="_meOnFetoChange()" style="accent-color:var(--sage);">
-            Feto A
+            Feto 1
           </label>
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
             <input type="radio" id="me-feto-b" name="me-feto" value="B" onchange="_meOnFetoChange()" style="accent-color:var(--sage);">
-            Feto B
+            Feto 2
           </label>
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Colo uterino e IP das artérias uterinas são medidas maternas — preencha em apenas um dos fetos.</div>
@@ -1211,11 +1211,11 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             </label>
             <label id="me-dpg-row-a" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;">
               <input type="radio" id="me-dpg-radio-a" name="me-datacao-gemelar" value="A" onchange="meEscolheDatacaoGemelar('A')" style="accent-color:var(--sage);">
-              <span id="me-dpg-label-a">Embrião 1 (Feto A)</span>
+              <span id="me-dpg-label-a">Embrião 1 (Feto 1)</span>
             </label>
             <label id="me-dpg-row-b" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;">
               <input type="radio" id="me-dpg-radio-b" name="me-datacao-gemelar" value="B" onchange="meEscolheDatacaoGemelar('B')" style="accent-color:var(--sage);">
-              <span id="me-dpg-label-b">Embrião 2 (Feto B)</span>
+              <span id="me-dpg-label-b">Embrião 2 (Feto 2)</span>
             </label>
           </div>
           <div style="font-size:10px;color:var(--text-muted);margin-top:8px;">A datação escolhida será salva como âncora desta gestação. Dá pra redatar depois em "Editar gestação".</div>
@@ -4526,7 +4526,7 @@ function renderChartsFetoToggle(gestacao) {
   if (!el) return;
   if (!gestacao || gestacao.tipo_gestacao !== 'gemelar') { el.innerHTML = ''; return; }
   if (!['A','B','gestacao'].includes(currentFetoView)) currentFetoView = 'A';
-  const opts = [['A','Feto A'], ['B','Feto B'], ['gestacao','Gestação']];
+  const opts = [['A','Feto 1'], ['B','Feto 2'], ['gestacao','Gestação']];
   el.innerHTML = `<div class="ph-ig-selector" style="margin:0 0 16px;">` + opts.map(([val, label]) =>
     `<label class="ph-ig-radio ${currentFetoView === val ? 'active' : ''}" onclick="setFetoView('${val}')">
       <input type="radio" style="display:none;" ${currentFetoView === val ? 'checked' : ''}>
@@ -5735,7 +5735,7 @@ function renderSummary(gestacao, exams) {
     </div>`;
 
   // ── Render ─────────────────────────────────────────────────
-  const tituloFeto = gestacao.tipo_gestacao === 'gemelar' ? ` — Feto ${currentFetoView === 'B' ? 'B' : 'A'}` : '';
+  const tituloFeto = gestacao.tipo_gestacao === 'gemelar' ? ` — Feto ${currentFetoView === 'B' ? '2' : '1'}` : '';
   container.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:22px;">
       <h3 style="font-family:var(--font-serif);font-size:22px;color:var(--text);">Resumo Clínico${tituloFeto}</h3>
@@ -6732,7 +6732,7 @@ function _meUpdateTwinDatacaoPanel() {
     const label = document.getElementById('me-dpg-label-' + key);
     if (row) row.style.display = 'flex';
     if (label) {
-      const base = c.tipo === 'DUM' ? 'DUM' : (c.tipo === 'A' ? 'Embrião 1 (Feto A)' : 'Embrião 2 (Feto B)');
+      const base = c.tipo === 'DUM' ? 'DUM' : (c.tipo === 'A' ? 'Embrião 1 (Feto 1)' : 'Embrião 2 (Feto 2)');
       label.textContent = c.ccn ? `${base} — CCN ${c.ccn.toFixed(1)}mm → IG ${igToStr(c.ig)}` : `${base} — IG ${igToStr(c.ig)}`;
     }
   });
@@ -7908,7 +7908,7 @@ function abrirPreviewRelatorio() {
   let igMetodo = 'Idade gestacional não definida';
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `IG corrigida por US (${formatDateBR(gestacao.ig_base_data)})`;
-  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${lastExam.feto || (currentFetoView === 'B' ? 'B' : 'A')}`;
+  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${(lastExam.feto || currentFetoView) === 'B' ? '2' : '1'}`;
 
   const relNm = document.getElementById('rel-patient-name');
   const relMt = document.getElementById('rel-patient-meta');
@@ -7979,7 +7979,7 @@ function confirmarGerarPDF() {
   let igMetodo = 'IG não definida';
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM: ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `Corrigida por US em ${formatDateBR(gestacao.ig_base_data)}`;
-  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${lastExam.feto || (currentFetoView === 'B' ? 'B' : 'A')}`;
+  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${(lastExam.feto || currentFetoView) === 'B' ? '2' : '1'}`;
 
   const relTextoEl = document.getElementById('rel-texto-clinico');
   const relTexto   = relTextoEl ? relTextoEl.value : '';

@@ -477,6 +477,11 @@ header::after{display:none;}
 .chart-card-left{flex:1;min-width:0;}
 .chart-card-title{font-size:13.5px;font-weight:700;color:var(--text);letter-spacing:-.1px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .chart-card-subtitle{font-size:11px;color:var(--text-muted);}
+.chart-card-note{
+  font-size:11px;line-height:1.45;color:#8a5a12;
+  background:rgba(176,112,16,0.09);border-left:3px solid rgba(176,112,16,0.45);
+  border-radius:0 4px 4px 0;padding:7px 10px;margin-top:10px;
+}
 .chart-card-pct{
   font-family:var(--font-mono);font-size:13px;font-weight:700;
   color:var(--sage-deep);background:var(--sage-pale);
@@ -885,6 +890,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <span class="chart-card-pct" id="pct-efw" style="display:none"></span>
           </div>
           <div class="chart-wrapper"><canvas id="chart-efw"></canvas></div>
+          <div class="chart-card-note" id="nota-efw" style="display:none"></div>
         </div>
 
 
@@ -3705,6 +3711,53 @@ function buildEFWChart(canvasId, gestacao, exams) {
   });
 }
 
+// ── Por que o ponto de peso pode faltar ──────────────────────
+// O peso não é medido nem gravado: sai da fórmula de Hadlock, que precisa dos QUATRO
+// biométricos (DBP, CC, CA e fêmur). Faltando um, calcEFW devolve null e buildEFWChart
+// pula o exame — os outros gráficos continuam plotando normalmente, porque cada um usa
+// só a sua medida. Sem esta nota, o card fica com um ponto a menos e nenhuma explicação,
+// e a leitura natural é "o app perdeu meu dado".
+const _ROTULOS_BIOMETRIA = { dbp: 'DBP', cc: 'CC', ca: 'CA', femur: 'fêmur' };
+
+function _biometriaFaltante(exam) {
+  return Object.keys(_ROTULOS_BIOMETRIA)
+    .filter(campo => !exam[campo])
+    .map(campo => _ROTULOS_BIOMETRIA[campo]);
+}
+
+function updateEFWNote(gestacao, exams) {
+  const el = document.getElementById('nota-efw');
+  if (!el) return;
+
+  const semPeso = [];
+  exams.forEach(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    // Antes de 20 semanas o gráfico não plota peso de propósito — não é omissão a explicar.
+    if (!igDays || igDays < 140) return;
+    if (e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur)) return;
+    const faltam = _biometriaFaltante(e);
+    // Exame sem biometria nenhuma (uma visita só de Doppler, por exemplo) não é
+    // biometria pela metade: avisar ali seria ruído.
+    if (!faltam.length || faltam.length === 4) return;
+    semPeso.push({ data: e.data_exame, faltam });
+  });
+
+  if (semPeso.length === 0) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+
+  const detalhe = semPeso
+    .map(s => `${formatDateBR(s.data)} (falta ${s.faltam.join(', ')})`)
+    .join('; ');
+
+  el.textContent = semPeso.length === 1
+    ? `Sem ponto de peso em ${detalhe}. O peso é calculado por Hadlock e precisa de DBP, CC, CA e fêmur no mesmo exame.`
+    : `Sem ponto de peso em ${semPeso.length} exames — ${detalhe}. O peso é calculado por Hadlock e precisa de DBP, CC, CA e fêmur no mesmo exame.`;
+  el.style.display = '';
+}
+
 // ── Doppler charts ───────────────────────────────────────────
 
 function buildDopplerRefCurve(refFn) {
@@ -4510,6 +4563,7 @@ function renderCharts(gestacao, exams, allExams) {
   buildChart('chart-dbp', gestacao, exams, 'dbp',   'dbp', 'DBP (mm)',    false);
   buildChart('chart-fl',  gestacao, exams, 'femur', 'fl',  'Fêmur (mm)', false);
   buildEFWChart('chart-efw', gestacao, exams);
+  updateEFWNote(gestacao, exams);
   updateChartHeaders(gestacao, exams);
   renderDopplerCharts(gestacao, exams, allExams);
   buildColoChart('chart-colo', gestacao, allExams);

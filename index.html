@@ -2472,6 +2472,23 @@ function loadDB() {
   return _memoryDB;
 }
 
+// ── Ids: dois geradores para as mesmas tabelas, em faixas separadas ──
+// Este app escolhe o id de cada registro novo (maior id + 1) e grava por upsert; o editor
+// de laudos (repo laudos-dramorgana) insere sem id e deixa a identity do Postgres gerar.
+// Dois geradores disputando a mesma sequência de números colidem nos dois sentidos: um
+// insert do editor caindo num id que já existe aqui morre com erro de chave primária
+// (a identity nunca avançou, porque todo id daqui vem gravado explícito), e no sentido
+// inverso o upsert daqui sobrescreveria em silêncio a linha criada pelo editor.
+//
+// Por isso a identity do banco começa em 1.000.000 (migração 004) e o contador local só
+// enxerga os ids abaixo dessa faixa. As duas faixas nunca se cruzam. Se mexer aqui,
+// mexa na migração junto — a separação só funciona com os dois lados combinados.
+const _ID_BASE_SERVIDOR = 1000000;
+
+function _proximoIdLocal(linhas) {
+  return linhas.reduce((m, r) => (r.id < _ID_BASE_SERVIDOR ? Math.max(m, r.id) : m), 0) + 1;
+}
+
 // Colunas selecionadas explicitamente (em vez de "*") para casar 1:1 com o formato
 // que o resto do app espera — se um dia uma coluna nova entrar no banco, não muda
 // nada aqui sem querer.
@@ -2515,9 +2532,9 @@ async function _bootstrapFromSupabaseImpl() {
       exams:     eRes.data || [],
       _patId: 1, _gestId: 1, _exId: 1,
     };
-    db._patId  = db.patients.reduce((m, p)  => Math.max(m, p.id), 0) + 1;
-    db._gestId = db.gestacoes.reduce((m, g) => Math.max(m, g.id), 0) + 1;
-    db._exId   = db.exams.reduce((m, e)     => Math.max(m, e.id), 0) + 1;
+    db._patId  = _proximoIdLocal(db.patients);
+    db._gestId = _proximoIdLocal(db.gestacoes);
+    db._exId   = _proximoIdLocal(db.exams);
 
     // O editor de laudos (repo laudos-dramorgana) grava direto na tabela `patients`, e até
     // 2026-08-22 o laudo obstétrico gravava o CPF só com dígitos — enquanto este app sempre
@@ -8158,9 +8175,9 @@ function validateImportedDB(raw) {
     throw new Error('Nenhum paciente válido encontrado no arquivo — importação cancelada.');
   }
 
-  db._patId  = db.patients.reduce((m, p)  => Math.max(m, p.id), 0) + 1;
-  db._gestId = db.gestacoes.reduce((m, g) => Math.max(m, g.id), 0) + 1;
-  db._exId   = db.exams.reduce((m, e)     => Math.max(m, e.id), 0) + 1;
+  db._patId  = _proximoIdLocal(db.patients);
+  db._gestId = _proximoIdLocal(db.gestacoes);
+  db._exId   = _proximoIdLocal(db.exams);
 
   return {
     db,

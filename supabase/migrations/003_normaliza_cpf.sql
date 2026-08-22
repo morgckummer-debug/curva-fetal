@@ -17,13 +17,14 @@ where cpf !~ '^\d{3}\.\d{3}\.\d{3}-\d{2}$'
 order by id;
 
 -- ═══ PASSO 2 — diagnóstico: a mesma pessoa está em duas linhas? ═══
-select regexp_replace(cpf, '\D', '', 'g') as digitos,
+select user_id,
+       regexp_replace(cpf, '\D', '', 'g') as digitos,
        count(*)                           as linhas,
        array_agg(id   order by id)        as ids,
        array_agg(nome order by id)        as nomes
 from public.patients
 where excluido_em is null
-group by 1
+group by 1, 2
 having count(*) > 1;
 
 -- ═══ PASSO 3 — SÓ SE O PASSO 2 VOLTOU LINHAS: funde as duplicatas ═══
@@ -35,7 +36,7 @@ having count(*) > 1;
 --
 -- with grp as (
 --   select id,
---          min(id) over (partition by regexp_replace(cpf, '\D', '', 'g')) as manter
+--          min(id) over (partition by user_id, regexp_replace(cpf, '\D', '', 'g')) as manter
 --   from public.patients
 --   where excluido_em is null
 -- )
@@ -46,7 +47,7 @@ having count(*) > 1;
 --
 -- with grp as (
 --   select id,
---          min(id) over (partition by regexp_replace(cpf, '\D', '', 'g')) as manter
+--          min(id) over (partition by user_id, regexp_replace(cpf, '\D', '', 'g')) as manter
 --   from public.patients
 --   where excluido_em is null
 -- )

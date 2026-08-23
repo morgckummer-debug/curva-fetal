@@ -40,6 +40,49 @@ dado sumia em silêncio (ver conversa de 2026-08-01 sobre pacientes de teste que
 da fila — `_syncPending` é o que segura o `beforeunload` e o que impede
 `_bootstrapFromSupabase()` de sobrescrever alteração ainda não gravada.
 
+## Backup: três camadas, e nenhuma delas é o Supabase
+
+O plano Free do Supabase **não faz backup automático nenhum** (backup diário só do
+Pro em diante). Isso é o pano de fundo de tudo nesta seção — não existe rede de
+proteção do lado do servidor.
+
+1. **Snapshot automático** (`_enviarSnapshot`, migração 005). Uma foto do DB em
+   `backups/{user_id}/{AAAA-MM-DD}.json`, no Storage do próprio Supabase: bucket
+   privado, uma policy por operação amarrando a primeira pasta do caminho ao
+   `auth.uid()`. Um arquivo por dia com alteração; o do dia corrente é reescrito
+   (upsert) a cada 5 min enquanto ela trabalha, os anteriores nunca são tocados.
+   Disparado por `_agendarSnapshot()` no fim do `_runSyncLoop`, ou seja **depois**
+   de o servidor confirmar a gravação. Cobre sobrescrita por bug, exclusão
+   acidental e colisão com o editor de laudos. Não cobre perder o projeto inteiro.
+2. **Arquivo baixado** (`exportData`). A única cópia fora do Supabase — a única
+   que sobrevive se o projeto for perdido. Depende de clique, por isso a faixa
+   `#aviso-backup` cobra depois de 7 dias (`renderAvisoBackup`, chamada no topo de
+   `renderRecentPatients`). A data fica em `localStorage`, então é por aparelho.
+3. **Restauração** (`restaurarSnapshot`). Sem isso as outras duas não valem nada.
+
+Dois cuidados que não são detalhe:
+
+- **`_enviarSnapshot` recusa DB vazio.** Se o bootstrap falhar e a memória zerar,
+  gravar isso por cima da foto de hoje apagaria justamente a cópia que serviria
+  para recuperar.
+- **Restaurar mescla, não substitui** (`_mesclarSnapshot`). As fichas do snapshot
+  voltam por cima das atuais por id; o que foi criado depois continua. É o que
+  acontece de fato no servidor — `_pushToSupabase` faz upsert, nunca delete — então
+  memória e banco contam a mesma história. Trocar o DB em memória pelo snapshot
+  inteiro fazia a paciente cadastrada depois sumir da tela até o próximo F5.
+
+Datas usam `_hojeISO()` (dia local), não `toISOString()` cru: em UTC-3 todo
+trabalho feito depois das 21h cairia no arquivo do dia seguinte.
+
+## Projeto Free pausa sozinho
+
+Projeto no plano gratuito pausa depois de ~1 semana sem acesso, e o app só via um
+erro de rede genérico. "Não consegui carregar seus pacientes" depois de uma viagem
+é indistinguível de "sumiu tudo" para quem está do outro lado. O `catch` do
+`_bootstrapFromSupabaseImpl` detecta resposta ausente (`Failed to fetch`, 502/503/
+504/544) e diz o que provavelmente é, com o caminho para despausar. O SDK repete a
+requisição algumas vezes antes de desistir: a mensagem leva uns 10 s para aparecer.
+
 ## Ordem das listas vem do banco, não do array
 
 `select()` sem `.order()` no PostgREST devolve as linhas em ordem física, que muda

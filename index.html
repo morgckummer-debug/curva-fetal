@@ -669,6 +669,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 }
 .dop-inline-badge.path{background:var(--blush-pale);color:var(--blush-deep);}
 
+.aviso-backup{
+  background:#fffbe6;border:1.5px solid #e67e22;border-radius:var(--radius);
+  padding:14px 16px;margin:0 0 20px;font-size:13px;color:#5c2a00;line-height:1.65;text-align:left;
+}
 .backup-bar{
   margin-top:40px;padding:20px 24px;background:var(--clay-card);border:none;
   border-radius:var(--radius);box-shadow:var(--sh);
@@ -774,8 +778,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <button class="btn btn-secondary" onclick="exportData()" title="Baixar uma cópia de segurança de todos os dados">⬇ Backup</button>
           <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" title="Restaurar a partir de um arquivo de backup">⬆ Importar</button>
           <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="importData(this)">
+          <button class="btn btn-secondary" onclick="abrirSnapshotsModal()" title="Cópias que o app guarda sozinho, uma por dia">🕘 Cópias automáticas</button>
         </div>
       </div>
+      <div id="aviso-backup" class="aviso-backup" style="display:none;"></div>
       <div class="recent-patients" id="recent-list"></div>
     </div>
   </div>
@@ -1370,6 +1376,30 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-lixeira')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Cópias automáticas (snapshots no Storage do Supabase) -->
+<div class="modal-overlay" id="modal-snapshots">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🕘</div>
+        <h2 style="font-size:18px;">Cópias automáticas</h2>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-snapshots')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted);font-size:13px;margin-bottom:14px;line-height:1.6;">
+        O app guarda sozinho uma cópia por dia em que você mexeu em alguma coisa. Restaurar traz
+        as fichas daquele dia de volta por cima das atuais — e não apaga nada que tenha sido
+        cadastrado depois.
+      </p>
+      <div id="snapshots-content" style="max-height:50vh;overflow-y:auto;padding-right:6px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-snapshots')">Fechar</button>
     </div>
   </div>
 </div>
@@ -2489,8 +2519,25 @@ async function _bootstrapFromSupabaseImpl() {
     renderRecentPatients();
   } catch (err) {
     console.error('[CurvaFetal] falha ao carregar dados do Supabase:', err);
-    _showGlobalError('Não consegui carregar seus dados do servidor: ' + (err.message || err));
-    if (listEl) listEl.innerHTML = '<p style="color:var(--danger);padding:20px 0;">Não foi possível carregar os pacientes. Verifique sua conexão e recarregue a página.</p>';
+
+    // Projeto no plano Free do Supabase pausa sozinho depois de ~1 semana sem acesso.
+    // Os dados continuam lá e voltam ao despausar pelo painel — mas o app só via um
+    // erro de rede genérico, e "não consegui carregar seus pacientes" depois de uma
+    // viagem parece exatamente com "sumiu tudo". Diz o que provavelmente é.
+    const semResposta = !err || err.message === 'Failed to fetch' ||
+                        /failed to fetch|networkerror|load failed/i.test(err.message || '') ||
+                        [502, 503, 504, 544].includes(Number(err.status));
+    const pista = semResposta
+      ? ' O servidor não respondeu. Seus dados NÃO foram perdidos: no plano gratuito o' +
+        ' projeto do Supabase pausa sozinho depois de cerca de uma semana sem acesso.' +
+        ' Entre em supabase.com, abra o projeto e clique em "Restore"/"Resume" — leva' +
+        ' cerca de um minuto. Se não for isso, é conexão de internet.'
+      : '';
+    _showGlobalError('Não consegui carregar seus dados do servidor: ' + (err.message || err) + '.' + pista);
+    if (listEl) listEl.innerHTML = '<p style="color:var(--danger);padding:20px 0;line-height:1.6;">Não foi possível carregar os pacientes. ' +
+      (semResposta
+        ? 'O servidor não respondeu — provavelmente o projeto do Supabase pausado por inatividade. <strong>Seus dados continuam lá.</strong> Veja o aviso no topo da tela.'
+        : 'Verifique sua conexão e recarregue a página.') + '</p>';
   }
 }
 
@@ -2558,6 +2605,8 @@ async function _runSyncLoop() {
     }
     _syncPending = false;
     _setSaveStatus('saved', '✓ Salvo');
+    // O dado já está no servidor; agora tira a foto do dia (ver SNAPSHOTS AUTOMÁTICOS).
+    _agendarSnapshot();
   } finally {
     _syncRunning = false;
   }
@@ -2810,6 +2859,8 @@ function switchGestacao(gid) {
 function renderRecentPatients() {
   const container = document.getElementById('recent-list');
   DB = loadDB();
+  // Antes do early return de lista vazia: o aviso tem regra própria de quando aparecer.
+  renderAvisoBackup();
   // Ordena pelo id (maior = cadastrada por último) em vez de confiar na ordem do
   // array: ela só reflete a ordem de cadastro na sessão em que a paciente foi criada.
   // Depois de um F5 a ordem vem do servidor e, sem isso, a paciente mais nova podia
@@ -8011,6 +8062,277 @@ function confirmarGerarPDF() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// SNAPSHOTS AUTOMÁTICOS
+// ═══════════════════════════════════════════════════════════
+//
+// O plano Free do Supabase não faz backup automático nenhum. Até aqui, a única
+// cópia dos dados eram as três tabelas vivas — e cada saveDB() reescreve as três
+// inteiras por upsert, a partir do que está na memória do navegador. Uma linha
+// sobrescrita com estado errado não tinha para onde voltar.
+//
+// Agora o app guarda uma foto congelada do banco no Storage do próprio Supabase
+// (bucket privado 'backups', criado pela migração 005), em
+// backups/{user_id}/{AAAA-MM-DD}.json — um arquivo por dia em que houve alteração.
+// São arquivos, não linhas: nada que o app faça no dia a dia (upsert, delete da
+// lixeira, cascade) encosta neles.
+//
+// Cobre sobrescrita por bug, exclusão acidental e a colisão com o editor de laudos
+// (que grava nas mesmas tabelas). NÃO cobre perder o projeto Supabase inteiro — o
+// snapshot mora dentro dele. Para esse caso só serve o arquivo que o botão
+// "⬇ Backup" baixa para fora, e é por isso que o aviso de backup pendente existe.
+
+const _SNAPSHOT_BUCKET = 'backups';
+
+// Enquanto ela trabalha, o arquivo do dia é reescrito no máximo a cada 5 minutos:
+// o bastante para a foto de hoje acompanhar a sessão de hoje, sem transformar cada
+// cadastro em upload. O primeiro save da sessão não espera — dispara na hora.
+const _SNAPSHOT_INTERVALO_MS = 5 * 60 * 1000;
+
+let _snapshotTimer       = null;
+let _snapshotUltimoEnvio = 0;
+let _snapshotPendente    = false;  // houve alteração ainda não fotografada
+let _snapshotEnviando    = false;
+
+// Data local, não UTC. new Date().toISOString() devolve o dia em UTC, e no Brasil
+// (UTC-3) todo trabalho feito depois das 21h cairia no arquivo do dia seguinte.
+function _hojeISO() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+async function _snapshotUid() {
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    return (session && session.user && session.user.id) || null;
+  } catch (err) {
+    console.error('[CurvaFetal] snapshot: não consegui identificar a sessão:', err);
+    return null;
+  }
+}
+
+// Uma passada de envio. Devolve true se gravou de verdade.
+async function _enviarSnapshot() {
+  if (_snapshotEnviando) return false;
+  _snapshotEnviando = true;
+  try {
+    const uid = await _snapshotUid();
+    if (!uid) return false;
+
+    const db = _memoryDB || _emptyDB();
+    // Banco vazio nunca vira snapshot. Se o bootstrap falhou e a memória ficou
+    // zerada, gravar isso por cima da foto de hoje apagaria justamente a cópia
+    // que serviria para recuperar.
+    if (!db.patients.length && !db.gestacoes.length && !db.exams.length) return false;
+
+    const conteudo = JSON.stringify({
+      _formato:   'curva-fetal-snapshot-v1',
+      _gerado_em: new Date().toISOString(),
+      ...db,
+    });
+
+    const { error } = await supabaseClient.storage
+      .from(_SNAPSHOT_BUCKET)
+      .upload(`${uid}/${_hojeISO()}.json`,
+              new Blob([conteudo], { type: 'application/json' }),
+              { upsert: true, contentType: 'application/json' });
+    if (error) throw error;
+
+    _snapshotUltimoEnvio = Date.now();
+    _snapshotPendente    = false;
+    return true;
+  } catch (err) {
+    // Falha de snapshot não interrompe o trabalho nem vira alerta na tela: o dado
+    // dela já está gravado (quem garante isso é a fila do saveDB). Fica no console
+    // e a próxima gravação tenta de novo.
+    console.error('[CurvaFetal] falha ao gravar snapshot:', err);
+    return false;
+  } finally {
+    _snapshotEnviando = false;
+  }
+}
+
+// Chamado depois de cada gravação confirmada no servidor (ver _runSyncLoop).
+function _agendarSnapshot() {
+  _snapshotPendente = true;
+  if (_snapshotTimer) return;
+  const espera = Math.max(0, _SNAPSHOT_INTERVALO_MS - (Date.now() - _snapshotUltimoEnvio));
+  _snapshotTimer = setTimeout(() => { _snapshotTimer = null; _enviarSnapshot(); }, espera);
+}
+
+// Fechar a aba no meio da janela de 5 minutos deixaria a foto de hoje atrasada em
+// relação ao que ela acabou de cadastrar. Aqui é a última chance de alcançá-la —
+// melhor esforço: se o navegador cortar a requisição, o dado continua salvo nas
+// tabelas e o próximo acesso refaz o snapshot.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && _snapshotPendente) _enviarSnapshot();
+});
+
+// ── Restauração ────────────────────────────────────────────────────────────
+// Um backup que não se sabe restaurar não é backup. importData() só aceita
+// arquivo do computador; isto abre as cópias que o app guardou sozinho.
+
+async function abrirSnapshotsModal() {
+  openModal('modal-snapshots');
+  const el = document.getElementById('snapshots-content');
+  if (!el) return;
+  el.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;">Carregando cópias…</p>';
+
+  try {
+    const uid = await _snapshotUid();
+    if (!uid) throw new Error('Não consegui confirmar sua sessão. Saia e entre de novo.');
+
+    const { data, error } = await supabaseClient.storage
+      .from(_SNAPSHOT_BUCKET)
+      .list(uid, { limit: 200, sortBy: { column: 'name', order: 'desc' } });
+    if (error) throw error;
+
+    const arquivos = (data || []).filter(f => f && /^\d{4}-\d{2}-\d{2}\.json$/.test(f.name));
+    if (!arquivos.length) {
+      el.innerHTML =
+        '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;line-height:1.65;">' +
+        'Nenhuma cópia automática ainda. A primeira é gravada na próxima vez que você ' +
+        'cadastrar ou alterar alguma coisa.</p>';
+      return;
+    }
+
+    const hoje = _hojeISO();
+    el.innerHTML = arquivos.map(f => {
+      const dia   = f.name.slice(0, 10);
+      const [a, m, d] = dia.split('-');
+      const kb    = f.metadata && f.metadata.size ? Math.max(1, Math.round(f.metadata.size / 1024)) : null;
+      const eHoje = dia === hoje;
+      return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+        <div style="min-width:0;">
+          <div style="font-weight:600;font-size:14px;color:var(--text);">
+            ${d}/${m}/${a}${eHoje ? ' <span style="font-weight:400;font-size:11px;color:var(--sage);">· hoje, ainda sendo atualizada</span>' : ''}
+          </div>
+          <div style="font-size:11.5px;color:var(--text-muted);font-family:var(--font-mono);">${kb ? kb + ' KB' : ''}</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="restaurarSnapshot('${escapeHtml(f.name)}')">Restaurar</button>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao listar snapshots:', err);
+    el.innerHTML =
+      '<p style="color:var(--danger);font-size:13px;padding:18px 0;line-height:1.65;">' +
+      'Não consegui listar as cópias: ' + escapeHtml(err.message || String(err)) +
+      '</p>';
+  }
+}
+
+// Restaurar sobrepõe, não substitui: as fichas do snapshot voltam por cima das
+// atuais e o que foi criado depois continua onde está. É também o que acontece de
+// fato no servidor — _pushToSupabase faz upsert, nunca delete — então memória e
+// banco passam a contar a mesma história. Trocar o DB em memória pelo snapshot
+// inteiro fazia a paciente cadastrada depois sumir da tela até o próximo F5:
+// exatamente o susto que esta tela existe para evitar.
+function _mesclarSnapshot(atual, snapshot) {
+  const juntar = (velhas, novas) => {
+    const porId = new Map((velhas || []).map(l => [l.id, l]));
+    (novas  || []).forEach(l => porId.set(l.id, l));
+    return [...porId.values()].sort((a, b) => a.id - b.id);
+  };
+  const db = {
+    patients:  juntar(atual.patients,  snapshot.patients),
+    gestacoes: juntar(atual.gestacoes, snapshot.gestacoes),
+    exams:     juntar(atual.exams,     snapshot.exams),
+  };
+  db._patId  = _proximoIdLocal(db.patients);
+  db._gestId = _proximoIdLocal(db.gestacoes);
+  db._exId   = _proximoIdLocal(db.exams);
+  return db;
+}
+
+async function restaurarSnapshot(nome) {
+  // O nome vem da nossa própria listagem, mas ele entra num caminho de Storage —
+  // confere o formato em vez de confiar.
+  if (!/^\d{4}-\d{2}-\d{2}\.json$/.test(nome)) return;
+
+  try {
+    const uid = await _snapshotUid();
+    if (!uid) throw new Error('Não consegui confirmar sua sessão. Saia e entre de novo.');
+
+    const { data, error } = await supabaseClient.storage
+      .from(_SNAPSHOT_BUCKET).download(`${uid}/${nome}`);
+    if (error) throw error;
+
+    // Mesmo caminho de validação do arquivo importado à mão: um snapshot é dado
+    // vindo de fora da memória, e ninguém confia direto num JSON.
+    const { db, stats } = validateImportedDB(JSON.parse(await data.text()));
+
+    const [a, m, d] = nome.slice(0, 10).split('-');
+    const ok = confirm(
+      `Restaurar a cópia de ${d}/${m}/${a}?\n\n` +
+      `Ela contém:\n` +
+      `• ${stats.patients} paciente(s)\n` +
+      `• ${stats.gestacoes} gestação(ões)\n` +
+      `• ${stats.exams} exame(s)\n\n` +
+      `As fichas desta cópia voltam ao estado em que estavam naquele dia, por cima ` +
+      `do que está lá hoje.\n\n` +
+      `Restaurar NÃO apaga nada: pacientes ou exames cadastrados depois desta data ` +
+      `continuam onde estão.\n\nDeseja continuar?`
+    );
+    if (!ok) return;
+
+    saveDB(_mesclarSnapshot(loadDB(), db));
+    DB = loadDB();
+    closeModal('modal-snapshots');
+    alert(`Cópia de ${d}/${m}/${a} restaurada.`);
+    _doShowSearchScreen();
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao restaurar snapshot:', err);
+    alert('Não consegui restaurar esta cópia: ' + (err.message || err));
+  }
+}
+
+// ── Aviso de backup pendente ───────────────────────────────────────────────
+// O snapshot mora dentro do Supabase; o arquivo baixado é a única cópia que
+// sobrevive se o projeto for perdido. Essa camada depende de um clique, então
+// precisa aparecer — mas só quando já existe algo a perder.
+
+const _CHAVE_ULTIMO_BACKUP = 'curvafetal:ultimo-backup';
+const _DIAS_AVISO_BACKUP   = 7;
+
+function _lerUltimoBackup() {
+  try { return localStorage.getItem(_CHAVE_ULTIMO_BACKUP); } catch (e) { return null; }
+}
+function _marcarBackupFeito() {
+  try { localStorage.setItem(_CHAVE_ULTIMO_BACKUP, _hojeISO()); } catch (e) { /* modo privado */ }
+}
+
+// null = nunca baixou neste aparelho (localStorage é por navegador, não por conta).
+function _diasDesdeUltimoBackup() {
+  const dia = _lerUltimoBackup();
+  if (!dia || !/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null;
+  const ms = Date.now() - new Date(dia + 'T12:00:00').getTime();
+  return Math.max(0, Math.floor(ms / 86400000));
+}
+
+function renderAvisoBackup() {
+  const el = document.getElementById('aviso-backup');
+  if (!el) return;
+
+  // Sem paciente cadastrada ainda não há o que perder — o aviso só seria ruído.
+  const temDados = (DB.patients || []).some(p => !p.excluido_em);
+  const dias = _diasDesdeUltimoBackup();
+  if (!temDados || (dias !== null && dias < _DIAS_AVISO_BACKUP)) {
+    el.style.display = 'none';
+    return;
+  }
+
+  el.innerHTML =
+    `<strong>⚠ Faça uma cópia de segurança fora do sistema.</strong><br>` +
+    (dias === null
+      ? 'Você ainda não baixou nenhuma cópia neste aparelho.'
+      : `Faz ${dias} dia${dias === 1 ? '' : 's'} desde a última cópia baixada neste aparelho.`) +
+    ' O app guarda cópias automáticas dentro do Supabase, mas elas não sobrevivem se a ' +
+    'conta do servidor for perdida — o arquivo baixado é a única que sobrevive.' +
+    `<div style="margin-top:11px;"><button class="btn btn-primary btn-sm" onclick="exportData()">⬇ Baixar cópia agora</button></div>`;
+  el.style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════════
 // BACKUP / EXPORT
 // ═══════════════════════════════════════════════════════════
 
@@ -8020,9 +8342,12 @@ function exportData() {
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url; a.download = `CurvaFetal_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.href = url; a.download = `CurvaFetal_backup_${_hojeISO()}.json`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 3000);
+  // Some com a faixa de aviso até a próxima semana — é este arquivo que ela pedia.
+  _marcarBackupFeito();
+  renderAvisoBackup();
 }
 
 // ── Segurança: sanitiza string livre (remove caracteres de controle, limita tamanho) ──

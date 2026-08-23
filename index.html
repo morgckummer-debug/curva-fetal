@@ -588,27 +588,7 @@ header::after{display:none;}
 .pct-track::before{left:0;}.pct-track::after{right:0;}
 .pct-dot{position:absolute;width:11px;height:11px;border-radius:50%;background:var(--sage);border:2px solid var(--clay-raised);box-shadow:2px 2px 6px rgba(148,106,74,0.25);top:50%;transform:translate(-50%,-50%);z-index:2;}
 
-/* ── CALCULATOR ── */
-.calc-card{background:var(--clay-card);border:none;border-radius:var(--radius);padding:26px 28px 24px;margin-bottom:24px;box-shadow:var(--sh);}
-.calc-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.1px;color:var(--sage);margin-bottom:18px;}
-.calc-inputs{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:flex-end;margin-bottom:28px;}
-.calc-field{display:flex;flex-direction:column;gap:5px;min-width:80px;}
-.calc-field-ig{min-width:190px;}
-.calc-field label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);white-space:nowrap;}
-.calc-unit{font-weight:400;text-transform:none;color:#bbb;margin-left:2px;}
-.calc-ig-wrap{display:flex;align-items:center;gap:6px;}
-.calc-ig-sep{font-size:12px;color:var(--text-muted);white-space:nowrap;}
-.calc-field input,.calc-ig-wrap input{
-  width:72px;padding:11px 10px;border:none;border-radius:var(--radius-sm);
-  font-size:19px;font-family:var(--font-mono);font-weight:500;color:var(--sage-deep);
-  background:var(--clay-bg);outline:none;transition:box-shadow .18s;
-  text-align:center;-moz-appearance:textfield;box-shadow:var(--sh-in);
-}
-.calc-field input{width:90px;}
-.calc-ig-wrap input:first-child{width:64px;}.calc-ig-wrap input:last-child{width:48px;}
-.calc-field input::-webkit-inner-spin-button,.calc-ig-wrap input::-webkit-inner-spin-button{-webkit-appearance:none;}
-.calc-field input:focus,.calc-ig-wrap input:focus{box-shadow:var(--sh-in-d);}
-.calc-results{margin-top:6px;}
+/* ── PESO FETAL / PERCENTIL (compartilhado com o modal de exame) ── */
 .calc-table{width:100%;border-collapse:collapse;}
 .calc-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);padding:9px 16px 9px 0;text-align:left;border-bottom:2px solid rgba(148,106,74,0.12);}
 .calc-table th:last-child{text-align:right;}
@@ -632,7 +612,6 @@ header::after{display:none;}
 .calc-efw-meta-item{display:flex;flex-direction:column;gap:2px;}
 .calc-efw-meta-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-light);}
 .calc-efw-meta-value{font-family:var(--font-mono);font-size:24px;font-weight:700;color:var(--sage);}
-.calc-empty{padding:40px 0 12px;font-size:13.5px;color:var(--text-muted);text-align:center;}
 
 /* ── MODAL EXAM ── */
 .me-top-row{display:flex;gap:22px;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;}
@@ -716,7 +695,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   .modal-body,.modal-header,.modal-footer{padding-left:16px;padding-right:16px;}.modal{border-radius:var(--radius-lg);}
   .form-row{grid-template-columns:1fr;}.form-row-3{grid-template-columns:1fr 1fr;}
   .chart-card{padding:14px 14px 12px;border-radius:var(--radius);}.charts-grid{grid-template-columns:1fr;gap:14px;}
-  .calc-card{padding:18px 14px 16px;}.action-bar{flex-direction:column;align-items:flex-start;gap:8px;}.action-bar .btn{width:100%;}
+  .action-bar{flex-direction:column;align-items:flex-start;gap:8px;}.action-bar .btn{width:100%;}
 }
 
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
@@ -812,8 +791,6 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <button class="tab active" onclick="setTab('exams')">Exames</button>
         <button class="tab" onclick="setTab('charts')">Gráficos</button>
         <button class="tab" onclick="setTab('summary')">Resumo</button>
-        <button class="tab" onclick="setTab('calc')">Calculadora</button>
-
       </div>
       <button class="btn-pdf-report" id="btn-pdf-report" onclick="abrirPreviewRelatorio()" style="display:none;">⬇ Relatório PDF</button>
     </div>
@@ -1003,60 +980,6 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div id="tab-summary" class="tab-content" style="display:none;">
       <div class="summary-box" id="summary-content"></div>
     </div>
-
-    <!-- CALCULADORA TAB -->
-    <div id="tab-calc" class="tab-content" style="display:none;">
-      <div class="calc-card">
-
-        <div class="calc-section-title">Percentil do Peso Fetal</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:18px;">
-          Disponível a partir de 22 semanas · Referência: Hadlock 1991
-        </div>
-
-        <!-- Inputs: IG + Peso -->
-        <div class="calc-inputs">
-          <div class="calc-field calc-field-ig">
-            <label>Idade Gestacional</label>
-            <div class="calc-ig-wrap">
-              <input type="number" id="calc-sem" min="22" max="42" placeholder="sem" oninput="calcUpdate()">
-              <span class="calc-ig-sep">sem</span>
-              <input type="number" id="calc-dia" min="0" max="6" placeholder="d" oninput="calcUpdate()">
-              <span class="calc-ig-sep">d</span>
-            </div>
-          </div>
-          <div class="calc-field">
-            <label>Peso fetal <span class="calc-unit">g</span></label>
-            <input type="number" id="calc-peso" min="100" max="6000" step="1" placeholder="—" oninput="calcUpdate()">
-          </div>
-        </div>
-
-        <!-- Resultado -->
-        <div id="calc-results" class="calc-results" style="display:none;">
-          <div id="calc-efw-block" class="calc-efw-block">
-            <div class="calc-efw-label">Peso fetal · Ref. Hadlock 1991</div>
-            <div class="calc-efw-row">
-              <div class="calc-efw-weight" id="calc-efw-weight">—</div>
-              <div class="calc-efw-meta">
-                <div class="calc-efw-meta-item">
-                  <span class="calc-efw-meta-label">Percentil</span>
-                  <span class="calc-efw-meta-value calc-pct" id="calc-efw-pct">—</span>
-                </div>
-                <div class="calc-efw-meta-item">
-                  <span class="calc-efw-meta-label">P50 esperado</span>
-                  <span class="calc-efw-meta-value" id="calc-efw-p50">—</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div id="calc-empty" class="calc-empty">
-          Preencha a IG (≥ 22 semanas) e o peso fetal para calcular o percentil.
-        </div>
-
-      </div>
-    </div>
-
 
   </div>
 </div>
@@ -5753,44 +5676,6 @@ function renderSummary(gestacao, exams) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CALCULADORA
-// ═══════════════════════════════════════════════════════════
-
-function calcUpdate() {
-  const semEl   = document.getElementById('calc-sem');
-  const diaEl   = document.getElementById('calc-dia');
-  const pesoEl  = document.getElementById('calc-peso');
-  const results = document.getElementById('calc-results');
-  const empty   = document.getElementById('calc-empty');
-  const efwWt   = document.getElementById('calc-efw-weight');
-  const efwPct  = document.getElementById('calc-efw-pct');
-  const efwP50  = document.getElementById('calc-efw-p50');
-
-  const sem  = parseInt(semEl?.value);
-  const dia  = parseInt(diaEl?.value) || 0;
-  const peso = parseFloat(pesoEl?.value) || null;
-  const igDays = (!isNaN(sem) && sem >= 22) ? sem * 7 + dia : null;
-
-  if (!igDays || !peso) {
-    if (results) results.style.display = 'none';
-    if (empty)   empty.style.display   = 'block';
-    return;
-  }
-
-  const ref    = interpolateRef(REF_TABLES.efw, igDays);
-  const pct    = ref ? calcPercentile(peso, ref) : null;
-  const p50val = ref ? Math.round(ref[2]) : null;
-  const cls    = pctClass(pct, 'calc-pct');
-
-  if (efwWt)  efwWt.textContent  = `${peso.toLocaleString('pt-BR')} g`;
-  if (efwPct) { efwPct.textContent = pct != null ? pct : '—'; efwPct.className = `calc-efw-meta-value calc-pct ${cls}`; }
-  if (efwP50) efwP50.textContent = p50val ? `${p50val.toLocaleString('pt-BR')} g` : '—';
-
-  if (results) results.style.display = 'block';
-  if (empty)   empty.style.display   = 'none';
-}
-
-// ═══════════════════════════════════════════════════════════
 // MODALS — genérico
 // ═══════════════════════════════════════════════════════════
 
@@ -7561,14 +7446,13 @@ function showPatientScreen(pid) {
 
 function setTab(tab) {
   currentTab = tab;
-  const tabNames = ['exams','charts','summary','calc'];
+  const tabNames = ['exams','charts','summary'];
   document.querySelectorAll('.tab').forEach((t, i) => {
     t.classList.toggle('active', tabNames[i] === tab);
   });
   document.getElementById('tab-exams').style.display   = tab === 'exams'   ? 'block' : 'none';
   document.getElementById('tab-charts').style.display  = tab === 'charts'  ? 'block' : 'none';
   document.getElementById('tab-summary').style.display = tab === 'summary' ? 'block' : 'none';
-  document.getElementById('tab-calc').style.display    = tab === 'calc'    ? 'block' : 'none';
 
   const pdfBtn = document.getElementById('btn-pdf-report');
   if (pdfBtn) pdfBtn.style.display = tab === 'summary' ? '' : 'none';
@@ -7584,13 +7468,6 @@ function setTab(tab) {
     const allExams = gestacao ? getExamsByGestacao(gestacao.id) : [];
     const exams    = gestacao ? examsForFetoAnalysis(gestacao, allExams) : [];
     if (gestacao) renderSummary(gestacao, exams);
-  }
-  if (tab === 'calc') {
-    ['calc-sem','calc-dia','calc-peso'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    const results = document.getElementById('calc-results');
-    const empty   = document.getElementById('calc-empty');
-    if (results) results.style.display = 'none';
-    if (empty)   empty.style.display   = 'block';
   }
 }
 

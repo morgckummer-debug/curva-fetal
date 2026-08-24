@@ -8185,7 +8185,7 @@ function confirmarGerarPDF() {
 // sobrescrita com estado errado não tinha para onde voltar.
 //
 // Agora o app guarda uma foto congelada do banco no Storage do próprio Supabase
-// (bucket privado 'backups', criado pela migração 005), em
+// (bucket privado 'backups', criado pela migração 006), em
 // backups/{user_id}/{AAAA-MM-DD}.json — um arquivo por dia em que houve alteração.
 // São arquivos, não linhas: nada que o app faça no dia a dia (upsert, delete da
 // lixeira, cascade) encosta neles.
@@ -8328,14 +8328,14 @@ async function abrirSnapshotsModal() {
     }).join('');
   } catch (err) {
     console.error('[CurvaFetal] falha ao listar snapshots:', err);
-    // O bucket é criado pela migração 005, rodada à mão no painel do Supabase. Até
+    // O bucket é criado pela migração 006, rodada à mão no painel do Supabase. Até
     // lá o app funciona normalmente e só esta tela fica vazia — dizer o que falta
     // é mais útil que repetir "Bucket not found".
     const semBucket = /bucket not found|not_found|does not exist/i.test(err.message || '');
     el.innerHTML = semBucket
       ? '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;line-height:1.65;">' +
         'A área de cópias automáticas ainda não foi criada no servidor. Rode a migração ' +
-        '<code>supabase/migrations/005_snapshots_automaticos.sql</code> no editor SQL do ' +
+        '<code>supabase/migrations/006_snapshots_automaticos.sql</code> no editor SQL do ' +
         'painel do Supabase — depois disso a primeira cópia é gravada na próxima alteração.</p>'
       : '<p style="color:var(--danger);font-size:13px;padding:18px 0;line-height:1.65;">' +
         'Não consegui listar as cópias: ' + escapeHtml(err.message || String(err)) + '</p>';

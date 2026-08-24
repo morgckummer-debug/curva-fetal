@@ -46,7 +46,7 @@ O plano Free do Supabase **não faz backup automático nenhum** (backup diário 
 Pro em diante). Isso é o pano de fundo de tudo nesta seção — não existe rede de
 proteção do lado do servidor.
 
-1. **Snapshot automático** (`_enviarSnapshot`, migração 005). Uma foto do DB em
+1. **Snapshot automático** (`_enviarSnapshot`, migração 006). Uma foto do DB em
    `backups/{user_id}/{AAAA-MM-DD}.json`, no Storage do próprio Supabase: bucket
    privado, uma policy por operação amarrando a primeira pasta do caminho ao
    `auth.uid()`. Um arquivo por dia com alteração; o do dia corrente é reescrito

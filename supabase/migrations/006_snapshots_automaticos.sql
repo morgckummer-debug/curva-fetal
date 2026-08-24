@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- 005 — Snapshots automáticos (cópias de segurança dentro do próprio Supabase)
+-- 006 — Snapshots automáticos (cópias de segurança dentro do próprio Supabase)
 -- ═══════════════════════════════════════════════════════════════════════════
 --
 -- O plano Free do Supabase não faz backup automático nenhum. Até aqui, a única

@@ -8214,10 +8214,17 @@ async function abrirSnapshotsModal() {
     }).join('');
   } catch (err) {
     console.error('[CurvaFetal] falha ao listar snapshots:', err);
-    el.innerHTML =
-      '<p style="color:var(--danger);font-size:13px;padding:18px 0;line-height:1.65;">' +
-      'Não consegui listar as cópias: ' + escapeHtml(err.message || String(err)) +
-      '</p>';
+    // O bucket é criado pela migração 005, rodada à mão no painel do Supabase. Até
+    // lá o app funciona normalmente e só esta tela fica vazia — dizer o que falta
+    // é mais útil que repetir "Bucket not found".
+    const semBucket = /bucket not found|not_found|does not exist/i.test(err.message || '');
+    el.innerHTML = semBucket
+      ? '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;line-height:1.65;">' +
+        'A área de cópias automáticas ainda não foi criada no servidor. Rode a migração ' +
+        '<code>supabase/migrations/005_snapshots_automaticos.sql</code> no editor SQL do ' +
+        'painel do Supabase — depois disso a primeira cópia é gravada na próxima alteração.</p>'
+      : '<p style="color:var(--danger);font-size:13px;padding:18px 0;line-height:1.65;">' +
+        'Não consegui listar as cópias: ' + escapeHtml(err.message || String(err)) + '</p>';
   }
 }
 
@@ -8305,8 +8312,11 @@ function _marcarBackupFeito() {
 function _diasDesdeUltimoBackup() {
   const dia = _lerUltimoBackup();
   if (!dia || !/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null;
-  const ms = Date.now() - new Date(dia + 'T12:00:00').getTime();
-  return Math.max(0, Math.floor(ms / 86400000));
+  // Dias de calendário, não múltiplos de 24h. Dividindo milissegundos, uma cópia
+  // baixada às 18h de nove dias atrás vira "8 dias" logo depois da meia-noite —
+  // a frase diz "faz N dias", então a conta tem que ser de datas, não de horas.
+  const dias = (iso) => { const [a, m, d] = iso.split('-').map(Number); return Date.UTC(a, m - 1, d); };
+  return Math.max(0, Math.round((dias(_hojeISO()) - dias(dia)) / 86400000));
 }
 
 function renderAvisoBackup() {

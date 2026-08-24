@@ -85,9 +85,9 @@ create table if not exists public.gestacoes (
   ig_base_valor             integer,
   ig_base_tipo              text check (ig_base_tipo in ('DUM','US')),
   tipo_gestacao             text not null default 'unica'
-                              check (tipo_gestacao in ('unica','gemelar')),
+                              check (tipo_gestacao in ('unica','gemelar','trigemelar')),
   corionicidade             text
-                              check (corionicidade in ('dicorionica_diamniotica','monocorionica_diamniotica','monocorionica_monoamniotica')),
+                              check (corionicidade in ('dicorionica_diamniotica','monocorionica_diamniotica','monocorionica_monoamniotica','tricorionica_triamniotica')),
   excluido_em               timestamptz,
   created_at                timestamptz not null default now(),
   updated_at                timestamptz not null default now()
@@ -142,7 +142,7 @@ create table if not exists public.exams (
   colo             numeric,
   ila              numeric,
   bolsao           numeric,
-  feto             text check (feto in ('A','B')),
+  feto             text check (feto in ('A','B','C')),
   excluido_em      timestamptz,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()

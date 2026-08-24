@@ -967,12 +967,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-bolsao"></canvas></div>
         </div>
 
-        <!-- ── DISCREPÂNCIA DE PESO (só gemelar) ── -->
+        <!-- ── DISCREPÂNCIA DE PESO (só gestação múltipla) ── -->
         <div class="chart-card charts-grid-full" id="card-discrepancia" data-scope="shared-twin-only">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Discrepância de Peso entre os Fetos</div>
-              <div class="chart-card-subtitle" id="sub-discrepancia">(EFW maior − EFW menor) / EFW maior · critério de RCF seletiva ≥25%</div>
+              <div class="chart-card-subtitle" id="sub-discrepancia">Sempre contra o maior feto da visita · critério de RCF seletiva ≥25%</div>
             </div>
             <span class="chart-card-pct" id="pct-discrepancia" style="display:none"></span>
           </div>
@@ -1069,7 +1069,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         </div>
       </div>
 
-      <!-- Feto — só aparece em gestação gemelar -->
+      <!-- Feto — só aparece em gestação múltipla (Feto 3 só na trigemelar) -->
       <div id="me-feto-row" style="display:none;margin-bottom:14px;">
         <label style="display:block;margin-bottom:6px;">Feto <span style="color:var(--danger)">*</span></label>
         <div style="display:flex;gap:10px;">
@@ -1080,6 +1080,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
             <input type="radio" id="me-feto-b" name="me-feto" value="B" onchange="_meOnFetoChange()" style="accent-color:var(--sage);">
             Feto 2
+          </label>
+          <label id="me-feto-c-wrap" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;flex:1;justify-content:center;">
+            <input type="radio" id="me-feto-c" name="me-feto" value="C" onchange="_meOnFetoChange()" style="accent-color:var(--sage);">
+            Feto 3
           </label>
         </div>
         <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Colo uterino e IP das artérias uterinas são medidas maternas — preencha em apenas um dos fetos.</div>
@@ -1145,6 +1149,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <label id="me-dpg-row-b" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;">
               <input type="radio" id="me-dpg-radio-b" name="me-datacao-gemelar" value="B" onchange="meEscolheDatacaoGemelar('B')" style="accent-color:var(--sage);">
               <span id="me-dpg-label-b">Embrião 2 (Feto 2)</span>
+            </label>
+            <label id="me-dpg-row-c" style="display:none;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;font-weight:600;">
+              <input type="radio" id="me-dpg-radio-c" name="me-datacao-gemelar" value="C" onchange="meEscolheDatacaoGemelar('C')" style="accent-color:var(--sage);">
+              <span id="me-dpg-label-c">Embrião 3 (Feto 3)</span>
             </label>
           </div>
           <div style="font-size:10px;color:var(--text-muted);margin-top:8px;">A datação escolhida será salva como âncora desta gestação. Dá pra redatar depois em "Editar gestação".</div>
@@ -1326,7 +1334,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
               <input type="number" id="e-bolsao" step="0.1" min="0" max="20" placeholder="—">
             </div>
           </div>
-          <div id="me-ila-gemelar-note" style="display:none;font-size:10px;color:var(--text-muted);margin-top:-2px;">Em gestação gemelar usamos apenas o maior bolsão — ILA não se aplica por feto.</div>
+          <div id="me-ila-gemelar-note" style="display:none;font-size:10px;color:var(--text-muted);margin-top:-2px;">Em gestação múltipla usamos apenas o maior bolsão — ILA não se aplica por feto.</div>
         </div>
       </details>
 
@@ -1537,15 +1545,20 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
               <input type="radio" name="g-tipo-gestacao" id="g-tipo-gemelar" value="gemelar" onchange="_gestacaoTipoUI()" style="accent-color:var(--sage);width:16px;height:16px;">
               Gemelar
             </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:14px;font-weight:400;color:var(--text);cursor:pointer;">
+              <input type="radio" name="g-tipo-gestacao" id="g-tipo-trigemelar" value="trigemelar" onchange="_gestacaoTipoUI()" style="accent-color:var(--sage);width:16px;height:16px;">
+              Trigemelar
+            </label>
           </div>
           <div id="g-section-corionicidade" style="display:none;">
             <div class="form-group">
               <label>Corionicidade</label>
               <select id="g-corionicidade" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--surface);">
                 <option value="">—</option>
-                <option value="dicorionica_diamniotica">Dicoriônica / Diamniótica</option>
-                <option value="monocorionica_diamniotica">Monocoriônica / Diamniótica</option>
-                <option value="monocorionica_monoamniotica">Monocoriônica / Monoamniótica</option>
+                <option value="dicorionica_diamniotica" data-tipo="gemelar">Dicoriônica / Diamniótica</option>
+                <option value="monocorionica_diamniotica" data-tipo="gemelar">Monocoriônica / Diamniótica</option>
+                <option value="monocorionica_monoamniotica" data-tipo="gemelar">Monocoriônica / Monoamniótica</option>
+                <option value="tricorionica_triamniotica" data-tipo="trigemelar">Tricoriônica / Triamniótica</option>
               </select>
             </div>
           </div>
@@ -2705,12 +2718,33 @@ function getExamsByGestacao(gid) {
     .sort((a, b) => a.data_exame.localeCompare(b.data_exame));
 }
 
+// ── Fetos de uma gestação ──────────────────────────────────────────────
+// Gestação única não tem feto nomeado (exams.feto fica null); gemelar tem A/B;
+// trigemelar tem A/B/C (migração 005). Todo lugar que antes perguntava
+// `tipo_gestacao === 'gemelar'` pergunta a esta lista — foi assim que o Feto C
+// entrou sem precisar caçar comparação por comparação, e é assim que um tipo
+// novo entraria depois.
+const FETOS_POR_TIPO = { unica: [], gemelar: ['A','B'], trigemelar: ['A','B','C'] };
+function fetosDaGestacao(g) { return (g && FETOS_POR_TIPO[g.tipo_gestacao]) || []; }
+function isMultipla(g) { return fetosDaGestacao(g).length > 0; }
+// No banco os fetos são letras (A/B/C); na tela, números (Feto 1/2/3).
+function numeroDoFeto(feto) { return feto ? String(feto.charCodeAt(0) - 64) : ''; }
+function labelFeto(feto) { return feto ? 'Feto ' + numeroDoFeto(feto) : ''; }
+// Qual feto as análises de um feto por vez estão olhando: o selecionado, ou o
+// primeiro da gestação quando a aba aberta é "Gestação" (que não é um feto).
+function fetoEmAnalise(g) {
+  const fetos = fetosDaGestacao(g);
+  if (!fetos.length) return null;
+  const view = (typeof currentFetoView !== 'undefined') ? currentFetoView : null;
+  return fetos.includes(view) ? view : fetos[0];
+}
+
 // Filtra pro feto atualmente selecionado (currentFetoView) quando a gestação é
 // gemelar — usado por alertas/resumo/PDF, que são análises de UM fetus por vez.
 // Em gestação única retorna tudo (feto é sempre null nesse caso).
 function examsForFetoAnalysis(gestacao, allExams) {
-  if (!gestacao || gestacao.tipo_gestacao !== 'gemelar') return allExams;
-  const feto = (typeof currentFetoView !== 'undefined' && currentFetoView === 'B') ? 'B' : 'A';
+  const feto = fetoEmAnalise(gestacao);
+  if (!feto) return allExams;
   return allExams.filter(e => e.feto === feto);
 }
 
@@ -3059,10 +3093,10 @@ function renderPatientScreen() {
   // Histórico obstétrico resumido
   const obsResume = gestacao ? resumoObstetrico(gestacao) : '';
 
-  // Badge de gestação gemelar — bem visível, ao lado do nome
+  // Badge de gestação múltipla — bem visível, ao lado do nome
   let gemelarBadge = '';
-  if (gestacao && gestacao.tipo_gestacao === 'gemelar') {
-    const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica: 'MCDA', monocorionica_monoamniotica: 'MCMA' };
+  if (isMultipla(gestacao)) {
+    const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica: 'MCDA', monocorionica_monoamniotica: 'MCMA', tricorionica_triamniotica: 'TCTA' };
     const corioTag = gestacao.corionicidade ? ` · ${CORIO_LABEL[gestacao.corionicidade] || ''}` : '';
     gemelarBadge = `<span class="ph-gemelar-badge">👯 GEMELAR${corioTag}</span>`;
   }
@@ -3178,10 +3212,10 @@ function renderExamList(gestacao, exams) {
   }
 
   const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
-  const isGemelar = gestacao.tipo_gestacao === 'gemelar';
+  const multipla = isMultipla(gestacao);
 
   // Pre-compute alert IDs — comparado dentro da sequência do MESMO feto,
-  // pra não misturar Feto A com Feto B numa gestação gemelar.
+  // pra não misturar um feto com outro numa gestação múltipla.
   const alertIds = new Set();
   const porFeto = {};
   sorted.forEach(e => { (porFeto[e.feto || '_'] ||= []).push(e); });
@@ -3214,7 +3248,7 @@ function renderExamList(gestacao, exams) {
         <button class="exam-action-btn delete-exam-btn" onclick="deleteExam(${safeId(e.id)})">Excluir</button>
       </div>`;
 
-  if (!isGemelar) {
+  if (!multipla) {
     // Gestação única: 1 exame = 1 linha, como sempre foi.
     const rows = sorted.map(e => {
       const igDays  = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
@@ -3236,10 +3270,10 @@ function renderExamList(gestacao, exams) {
     return;
   }
 
-  // Gestação gemelar: 1 visita (mesma data) = 1 linha, exatamente como na
+  // Gestação múltipla: 1 visita (mesma data) = 1 linha, exatamente como na
   // gestação única — por trás tem 1 registro por feto, mas isso é um
-  // detalhe de implementação. Editar essa linha abre os dois fetos juntos;
-  // excluir remove os dois.
+  // detalhe de implementação. Editar essa linha abre todos os fetos juntos;
+  // excluir remove todos.
   const porData = {};
   sorted.forEach(e => { (porData[e.data_exame] ||= []).push(e); });
   const datas = Object.keys(porData).sort();
@@ -4340,19 +4374,25 @@ function _drawThresholdChart(canvas, cfg) {
     }
   });
 
-  // Linha do paciente
-  const pts = cfg.patientPoints || [];
-  if (pts.length >= 2) {
-    ctx.beginPath(); ctx.setLineDash([4,3]); ctx.strokeStyle = 'rgba(90,60,160,0.45)'; ctx.lineWidth = 1.2;
-    pts.forEach((pt,i) => i===0 ? ctx.moveTo(xS(pt.x),yS(pt.y)) : ctx.lineTo(xS(pt.x),yS(pt.y)));
-    ctx.stroke();
+  // Linha do paciente — e, quando o gráfico tem mais de uma curva de dados
+  // (cfg.series: a segunda discrepância da trigemelar), cada uma sai com a
+  // mesma forma, mudando só a cor do traço que liga os pontos.
+  function _drawSerie(pts, corLinha) {
+    if (!pts || !pts.length) return;
+    if (pts.length >= 2) {
+      ctx.beginPath(); ctx.setLineDash([4,3]); ctx.strokeStyle = corLinha || 'rgba(90,60,160,0.45)'; ctx.lineWidth = 1.2;
+      pts.forEach((pt,i) => i===0 ? ctx.moveTo(xS(pt.x),yS(pt.y)) : ctx.lineTo(xS(pt.x),yS(pt.y)));
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    pts.forEach(pt => {
+      const color = pt.color || '#6c47b8';
+      ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),6,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),3.5,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
+    });
   }
-  ctx.setLineDash([]);
-  pts.forEach(pt => {
-    const color = pt.color || '#6c47b8';
-    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),6,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=color; ctx.lineWidth=2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),3.5,0,Math.PI*2); ctx.fillStyle=color; ctx.fill();
-  });
+  _drawSerie(cfg.patientPoints || [], null);
+  (cfg.series || []).forEach(serie => _drawSerie(serie.pts, serie.color));
 
   // Eixos
   ctx.fillStyle = '#9988bb'; ctx.font = '10px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
@@ -4449,58 +4489,98 @@ function buildDvChart(canvasId, gestacao, exams) {
 }
 
 // ── Discrepância de Peso entre Fetos — critério de CIUR seletivo ──
-// Emparelha exames de Feto A/B na mesma data; discrepância = (maior-menor)/maior.
-// Limiar clássico ≥25% (Khalil et al., consenso RCF seletiva em gemelares).
+// Agrupa os exames de uma mesma data e compara os pesos estimados. Limiar
+// ≥25% (Khalil et al., consenso RCF seletiva em gemelares).
+//
+// Gemelar: uma curva, (maior − menor) / maior.
+// Trigemelar: duas curvas, as duas contra o MAIOR feto da visita, como
+// recomenda o NICE — (maior − menor)/maior e (maior − intermediário)/maior.
+// Uma discrepância única entre os extremos esconderia um feto intermediário
+// já destoando do maior. A curva maior×menor é sempre a mais alta das duas,
+// por isso é ela que vira o número grande do card.
+const DISC_COR_MENOR  = '#6c47b8';           // maior × menor
+const DISC_COR_INTERM = '#2f7d8c';           // maior × intermediário (só trigemelar)
+const DISC_COR_ALERTA = '#c03020';           // ponto que cruzou os 25%
+
 function buildDiscrepancyChart(canvasId, gestacao, allExams) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
+  const fetos = fetosDaGestacao(gestacao);
   const byDate = {};
   (allExams || []).forEach(e => {
     if (!e.feto) return;
     (byDate[e.data_exame] ||= {})[e.feto] = e;
   });
 
-  const patientPoints = [];
+  const serieMenor  = [];
+  const serieInterm = [];
+
   Object.keys(byDate).sort().forEach(date => {
-    const pair = byDate[date];
-    if (!pair.A || !pair.B) return;
-    const efwA = pair.A.efw ?? calcEFW(pair.A.dbp, pair.A.cc, pair.A.ca, pair.A.femur);
-    const efwB = pair.B.efw ?? calcEFW(pair.B.dbp, pair.B.cc, pair.B.ca, pair.B.femur);
-    if (!efwA || !efwB) return;
-    const maior = Math.max(efwA, efwB), menor = Math.min(efwA, efwB);
-    const disc  = Math.round(((maior - menor) / maior) * 1000) / 10; // % com 1 casa decimal
-    const igDays = pair.A.ig_dias_manual ?? calcIgDays(gestacao, date);
+    const doDia = byDate[date];
+    // Só entram na conta os fetos daquela visita que já têm peso estimado —
+    // numa trigemelar com só dois fetos medidos, sobra a comparação do par.
+    const medidos = fetos
+      .map(f => {
+        const e = doDia[f];
+        if (!e) return null;
+        const efw = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+        return efw ? { efw, exam: e } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.efw - a.efw); // maior primeiro
+    if (medidos.length < 2) return;
+
+    const igDays = medidos[0].exam.ig_dias_manual ?? calcIgDays(gestacao, date);
     if (!igDays) return;
-    patientPoints.push({ x: igDays / 7, y: disc, color: disc >= 25 ? '#c03020' : '#6c47b8' });
+    const gaW  = igDays / 7;
+    const maior = medidos[0].efw;
+    const disc  = outro => Math.round(((maior - outro) / maior) * 1000) / 10; // % com 1 casa
+
+    const dMenor = disc(medidos[medidos.length - 1].efw);
+    serieMenor.push({ x: gaW, y: dMenor, color: dMenor >= 25 ? DISC_COR_ALERTA : DISC_COR_MENOR });
+
+    if (medidos.length >= 3) {
+      const dInterm = disc(medidos[1].efw);
+      serieInterm.push({ x: gaW, y: dInterm, color: dInterm >= 25 ? DISC_COR_ALERTA : DISC_COR_INTERM });
+    }
   });
 
   const pctEl = document.getElementById('pct-discrepancia');
   const subEl = document.getElementById('sub-discrepancia');
-  if (pctEl && patientPoints.length > 0) {
-    const last = patientPoints[patientPoints.length - 1];
+  if (pctEl && serieMenor.length > 0) {
+    const last       = serieMenor[serieMenor.length - 1];
+    const lastInterm = serieInterm.length ? serieInterm[serieInterm.length - 1] : null;
     pctEl.textContent = `${last.y.toFixed(1)}%`;
     pctEl.className = 'chart-card-pct ' + (last.y >= 25 ? 'chart-card-pct-alert' : 'chart-card-pct-ok');
     pctEl.style.display = '';
-    if (subEl) subEl.textContent = last.y >= 25 ? '≥25% — critério de RCF seletiva' : 'Abaixo de 25%';
+    if (subEl) {
+      const aviso = last.y >= 25 ? ' — ≥25%, critério de RCF seletiva' : '';
+      subEl.textContent = lastInterm
+        ? `Maior×menor ${last.y.toFixed(1)}% · maior×intermediário ${lastInterm.y.toFixed(1)}%${aviso}`
+        : (last.y >= 25 ? '≥25% — critério de RCF seletiva' : 'Abaixo de 25%');
+    }
   } else if (pctEl) { pctEl.style.display = 'none'; }
 
   _drawThresholdChart(canvas, {
     xMin: 20, xMax: 42, yMin: 0, yMax: 40,
     lines: [{ pts: [{x:20,y:25},{x:42,y:25}], label: '25%', color: 'rgba(200,50,50,0.55)', dash: [4,4] }],
-    patientPoints, yLabel: 'Discrepância (%)', yFmt: v => Math.round(v) + '%',
+    patientPoints: serieMenor,
+    series: serieInterm.length ? [{ pts: serieInterm, color: 'rgba(47,125,140,0.45)' }] : null,
+    yLabel: 'Discrepância (%)', yFmt: v => Math.round(v) + '%',
   });
 }
 
-// Só relevante em gestação gemelar: 'A' | 'B' | 'gestacao' (IP UtA + colo + discrepância)
+// Só relevante em gestação múltipla: 'A' | 'B' | 'C' | 'gestacao' (IP UtA + colo + discrepância)
 let currentFetoView = 'A';
 
 function renderChartsFetoToggle(gestacao) {
   const el = document.getElementById('charts-feto-toggle');
   if (!el) return;
-  if (!gestacao || gestacao.tipo_gestacao !== 'gemelar') { el.innerHTML = ''; return; }
-  if (!['A','B','gestacao'].includes(currentFetoView)) currentFetoView = 'A';
-  const opts = [['A','Feto 1'], ['B','Feto 2'], ['gestacao','Gestação']];
+  const fetos = fetosDaGestacao(gestacao);
+  if (!fetos.length) { el.innerHTML = ''; return; }
+  if (currentFetoView !== 'gestacao' && !fetos.includes(currentFetoView)) currentFetoView = fetos[0];
+  const opts = [...fetos.map(f => [f, labelFeto(f)]), ['gestacao','Gestação']];
   el.innerHTML = `<div class="ph-ig-selector" style="margin:0 0 16px;">` + opts.map(([val, label]) =>
     `<label class="ph-ig-radio ${currentFetoView === val ? 'active' : ''}" onclick="setFetoView('${val}')">
       <input type="radio" style="display:none;" ${currentFetoView === val ? 'checked' : ''}>
@@ -4518,7 +4598,7 @@ function applyChartsScope(gestacao) {
   renderChartsFetoToggle(gestacao);
   const grid = document.querySelector('#tab-charts .charts-grid');
   if (!grid) return;
-  const isTwin = gestacao && gestacao.tipo_gestacao === 'gemelar';
+  const isTwin = isMultipla(gestacao);
   const view = !isTwin ? 'unica' : (currentFetoView === 'gestacao' ? 'gestacao' : 'fetal');
   grid.querySelectorAll('[data-scope]').forEach(card => {
     const scope = card.dataset.scope;
@@ -5709,13 +5789,13 @@ function renderSummary(gestacao, exams) {
     </div>`;
 
   // ── Render ─────────────────────────────────────────────────
-  const tituloFeto = gestacao.tipo_gestacao === 'gemelar' ? ` — Feto ${currentFetoView === 'B' ? '2' : '1'}` : '';
+  const tituloFeto = isMultipla(gestacao) ? ` — ${labelFeto(fetoEmAnalise(gestacao))}` : '';
   container.innerHTML = `
     <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:22px;">
       <h3 style="font-family:var(--font-serif);font-size:22px;color:var(--text);">Resumo Clínico${tituloFeto}</h3>
       <span style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);">${igStr} · ${dataStr}</span>
     </div>
-    ${gestacao.tipo_gestacao === 'gemelar' ? `<div style="font-size:11px;color:var(--text-muted);margin:-14px 0 18px;">Troque de feto na aba <strong>Gráficos</strong>. Critérios de restrição seletiva ainda não implementados — esta análise usa os critérios de gestação única aplicados a este feto isoladamente.</div>` : ''}
+    ${isMultipla(gestacao) ? `<div style="font-size:11px;color:var(--text-muted);margin:-14px 0 18px;">Troque de feto na aba <strong>Gráficos</strong>. Critérios de restrição seletiva ainda não implementados — esta análise usa os critérios de gestação única aplicados a este feto isoladamente.</div>` : ''}
     ${block('1 · Biometria fetal — último exame', bioHtml)}
     ${block('2 · Peso fetal estimado (Hadlock 1985/1991)', pesoHtml)}
     ${n >= 2 ? block('3 · Tendência evolutiva', tendHtml) : ''}
@@ -5810,12 +5890,14 @@ function _openGestacaoModal(gid, extraHtml) {
   if (dumRadio) dumRadio.checked = (tipo !== 'US');
   if (usRadio)  usRadio.checked  = (tipo === 'US');
 
-  // Tipo de gestação (única / gemelar) + corionicidade
-  const unicaRadio   = document.getElementById('g-tipo-unica');
-  const gemelarRadio = document.getElementById('g-tipo-gemelar');
+  // Tipo de gestação (única / gemelar / trigemelar) + corionicidade
+  const unicaRadio      = document.getElementById('g-tipo-unica');
+  const gemelarRadio    = document.getElementById('g-tipo-gemelar');
+  const trigemelarRadio = document.getElementById('g-tipo-trigemelar');
   const tipoGestacao = g ? (g.tipo_gestacao || 'unica') : 'unica';
-  if (unicaRadio)   unicaRadio.checked   = (tipoGestacao !== 'gemelar');
-  if (gemelarRadio) gemelarRadio.checked = (tipoGestacao === 'gemelar');
+  if (unicaRadio)      unicaRadio.checked      = (tipoGestacao === 'unica');
+  if (gemelarRadio)    gemelarRadio.checked    = (tipoGestacao === 'gemelar');
+  if (trigemelarRadio) trigemelarRadio.checked = (tipoGestacao === 'trigemelar');
   setVal('g-corionicidade', g ? (g.corionicidade || '') : '');
   _gestacaoTipoUI();
 
@@ -5846,7 +5928,7 @@ function _gestacaoBuildRedatarOptions(g) {
   const exams = getExamsByGestacao(g.id).filter(e => e.ccn != null);
   if (exams.length === 0 && !g.dum) { wrap.style.display = 'none'; container.innerHTML = ''; return; }
 
-  const isGemelar = g.tipo_gestacao === 'gemelar';
+  const isGemelar = isMultipla(g);
   const rows = [];
 
   if (g.dum) {
@@ -5941,11 +6023,29 @@ function _gestacaoIgTipoUI() {
   _gestacaoIgPreview();
 }
 
+function _gestacaoTipoSelecionado() {
+  const tri = document.getElementById('g-tipo-trigemelar');
+  if (tri && tri.checked) return 'trigemelar';
+  const gem = document.getElementById('g-tipo-gemelar');
+  if (gem && gem.checked) return 'gemelar';
+  return 'unica';
+}
+
 function _gestacaoTipoUI() {
-  const gemelarRadio = document.getElementById('g-tipo-gemelar');
-  const secCorio     = document.getElementById('g-section-corionicidade');
-  const isGemelar    = !!(gemelarRadio && gemelarRadio.checked);
-  if (secCorio) secCorio.style.display = isGemelar ? 'block' : 'none';
+  const secCorio = document.getElementById('g-section-corionicidade');
+  const tipo     = _gestacaoTipoSelecionado();
+  if (secCorio) secCorio.style.display = tipo !== 'unica' ? 'block' : 'none';
+
+  // As corionicidades de gemelar e de trigemelar são listas diferentes, e o
+  // check do banco (migração 005) recusa a de um tipo gravada no outro. O
+  // select mostra só as do tipo escolhido e larga um valor que deixou de valer.
+  const sel = document.getElementById('g-corionicidade');
+  if (!sel) return;
+  Array.from(sel.options).forEach(opt => {
+    const doTipo = !opt.dataset.tipo || opt.dataset.tipo === tipo;
+    opt.hidden = !doTipo;
+    if (!doTipo && sel.value === opt.value) sel.value = '';
+  });
 }
 
 function _gestacaoIgPreview() {
@@ -6000,9 +6100,8 @@ function saveGestacao() {
   const dumRadio = document.getElementById('g-ig-tipo-dum');
   const igTipo   = (dumRadio && dumRadio.checked) ? 'DUM' : 'US';
 
-  const gemelarRadio  = document.getElementById('g-tipo-gemelar');
-  const tipoGestacao  = (gemelarRadio && gemelarRadio.checked) ? 'gemelar' : 'unica';
-  const corionicidade = tipoGestacao === 'gemelar' ? (getVal('g-corionicidade') || null) : null;
+  const tipoGestacao  = _gestacaoTipoSelecionado();
+  const corionicidade = tipoGestacao !== 'unica' ? (getVal('g-corionicidade') || null) : null;
 
   const gestData = {
     paciente_id:             currentPatientId,
@@ -6107,8 +6206,8 @@ function _meClearBio() {
   _meTwinDatacaoEscolha = null;
   _meIgAuto   = null;
   _meIgManual = null;
-  _meFetoDrafts = { A: null, B: null };
-  _meFetoExamIds = { A: null, B: null };
+  _meFetoDrafts = { A: null, B: null, C: null };
+  _meFetoExamIds = { A: null, B: null, C: null };
   _meActiveFeto = 'A';
 }
 
@@ -6124,22 +6223,29 @@ function _attachDopplerListeners() {
 }
 
 function _meApplyGemelarUI(gestacao, feto, isEdit) {
-  const isGemelar = !!(gestacao && gestacao.tipo_gestacao === 'gemelar');
+  const fetos    = fetosDaGestacao(gestacao);
+  const multipla = fetos.length > 0;
   const fetoRow  = document.getElementById('me-feto-row');
   const ilaField = document.getElementById('me-ila-field');
   const ilaNote  = document.getElementById('me-ila-gemelar-note');
-  if (fetoRow)  fetoRow.style.display  = isGemelar ? 'block' : 'none';
-  if (ilaField) ilaField.style.display = isGemelar ? 'none'  : '';
-  if (ilaNote)  ilaNote.style.display  = isGemelar ? 'block' : 'none';
-  if (isGemelar) {
-    const fetoA = document.getElementById('me-feto-a');
-    const fetoB = document.getElementById('me-feto-b');
-    if (feto === 'B' && fetoB) fetoB.checked = true;
-    else if (fetoA) fetoA.checked = true;
-    // Editando um exame já salvo: o feto não pode ser trocado (isso "moveria" o
-    // registro pro outro feto). Só bloqueia ao editar — em exame novo o usuário
-    // pode alternar A/B pra lançar os dois fetos sem fechar o modal.
-    [fetoA, fetoB].forEach(el => { if (el) el.disabled = !!isEdit; });
+  if (fetoRow)  fetoRow.style.display  = multipla ? 'block' : 'none';
+  if (ilaField) ilaField.style.display = multipla ? 'none'  : '';
+  if (ilaNote)  ilaNote.style.display  = multipla ? 'block' : 'none';
+  if (multipla) {
+    // O Feto 3 só aparece na trigemelar: numa gemelar o rádio dele fica
+    // escondido, senão daria para lançar um exame de um feto que não existe.
+    ['A','B','C'].forEach(f => {
+      const el   = document.getElementById('me-feto-' + f.toLowerCase());
+      const wrap = document.getElementById('me-feto-' + f.toLowerCase() + '-wrap') || (el && el.parentElement);
+      const existe = fetos.includes(f);
+      if (wrap) wrap.style.display = existe ? 'flex' : 'none';
+      if (!el) return;
+      el.checked = existe && f === (fetos.includes(feto) ? feto : fetos[0]);
+      // Editando um exame já salvo: o feto não pode ser trocado (isso "moveria" o
+      // registro pro outro feto). Só bloqueia ao editar — em exame novo o usuário
+      // pode alternar entre os fetos pra lançar todos sem fechar o modal.
+      el.disabled = !!isEdit;
+    });
     const hint = document.getElementById('me-feto-row');
     if (hint) hint.style.opacity = isEdit ? '0.65' : '1';
   }
@@ -6148,17 +6254,18 @@ function _meApplyGemelarUI(gestacao, feto, isEdit) {
 // ── Rascunhos por feto ────────────────────────────────────────
 // Numa gestação gemelar, "Novo Exame" cobre a visita inteira: o usuário
 // preenche o Feto A, alterna pro Feto B (sem fechar o modal) e preenche o
-// Feto B — um único "Salvar" grava os dois registros. _meFetoDrafts guarda
+// Feto B — e o Feto C, na trigemelar. Um único "Salvar" grava todos os
+// registros da visita. _meFetoDrafts guarda
 // o que foi digitado em cada feto enquanto o outro está na tela; sem isso,
 // trocar de feto simplesmente perderia o que já tinha sido preenchido no
 // outro (bug reportado: o CCN do Feto A parecia "herdado" pelo Feto B —
 // na verdade os dois só existiam nos inputs da tela, nunca eram salvos
 // juntos).
-let _meFetoDrafts = { A: null, B: null };
+let _meFetoDrafts = { A: null, B: null, C: null };
 let _meActiveFeto = 'A';
-// Ids dos exames já salvos por feto, quando editando uma visita gemelar
-// existente (openEditVisitGemelar) — null/null quando é um exame novo.
-let _meFetoExamIds = { A: null, B: null };
+// Ids dos exames já salvos por feto, quando editando uma visita múltipla
+// existente (openEditVisitGemelar) — tudo null quando é um exame novo.
+let _meFetoExamIds = { A: null, B: null, C: null };
 
 const _ME_FETO_FIELD_IDS = [
   'e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula',
@@ -6187,15 +6294,18 @@ function _meLoadDraftToForm(feto) {
   });
 }
 
-// Ao alternar Feto A/B no MESMO exame ainda não salvo: guarda o que estava
+// Ao alternar de feto no MESMO exame ainda não salvo: guarda o que estava
 // na tela pro feto que estava ativo, e recarrega o rascunho (ou limpa, se
 // ainda não preenchido) do feto recém-selecionado. Data e IG continuam
 // intactos — são da visita, não do feto.
 function _meOnFetoChange() {
   if (currentExamEditingId != null) return; // radios ficam desabilitados nesse caso, mas por garantia
   _meCaptureFormToDraft(_meActiveFeto);
-  const fetoB = document.getElementById('me-feto-b');
-  _meActiveFeto = (fetoB && fetoB.checked) ? 'B' : 'A';
+  const marcado = ['A','B','C'].find(f => {
+    const el = document.getElementById('me-feto-' + f.toLowerCase());
+    return el && el.checked;
+  });
+  _meActiveFeto = marcado || 'A';
   _meLoadDraftToForm(_meActiveFeto);
   meUpdate();
   meCcnInput();
@@ -6320,7 +6430,7 @@ function openEditExamModal(eid) {
 }
 
 // Converte um exame já salvo pro formato de rascunho (_meFetoDrafts), usado
-// pra pré-carregar Feto A e/ou Feto B ao editar uma visita gemelar.
+// pra pré-carregar os fetos ao editar uma visita múltipla.
 function _meExamToDraft(exam) {
   const v = (x) => (x != null ? String(x) : '');
   return {
@@ -6333,11 +6443,11 @@ function _meExamToDraft(exam) {
   };
 }
 
-// Abre "Editar Exame" pra uma VISITA gemelar inteira (1 ou 2 registros —
-// Feto A e/ou Feto B na mesma data), carregada da lista onde cada visita é
-// 1 linha só, igual à gestação única. Os dois fetos ficam disponíveis pra
-// revisar/editar alternando o seletor Feto A/B — diferente da edição de um
-// exame único, aqui o seletor NÃO fica travado.
+// Abre "Editar Exame" pra uma VISITA múltipla inteira (um registro por feto
+// preenchido na mesma data), carregada da lista onde cada visita é 1 linha só,
+// igual à gestação única. Todos os fetos ficam disponíveis pra revisar/editar
+// alternando o seletor — diferente da edição de um exame único, aqui o seletor
+// NÃO fica travado.
 function openEditVisitGemelar(date) {
   DB = loadDB();
   const gestacao = getGestacaoById(currentGestacaoId);
@@ -6351,7 +6461,7 @@ function openEditVisitGemelar(date) {
   document.getElementById('modal-exam-title').textContent = 'Editar Exame';
   _meClearBio();
 
-  _meFetoExamIds = { A: null, B: null };
+  _meFetoExamIds = { A: null, B: null, C: null };
   examsDoDia.forEach(e => {
     _meFetoExamIds[e.feto] = e.id;
     _meFetoDrafts[e.feto] = _meExamToDraft(e);
@@ -6360,7 +6470,7 @@ function openEditVisitGemelar(date) {
   const _eDataEdit = document.getElementById('e-data');
   if (_eDataEdit) _eDataEdit.value = date;
 
-  _meActiveFeto = _meFetoExamIds.A != null ? 'A' : 'B';
+  _meActiveFeto = fetosDaGestacao(gestacao).find(f => _meFetoExamIds[f] != null) || 'A';
   _meApplyGemelarUI(gestacao, _meActiveFeto, false);
   _meLoadDraftToForm(_meActiveFeto);
 
@@ -6467,7 +6577,7 @@ function meCcnInput() {
   }
 
   const gestacaoCcn = getGestacaoById(currentGestacaoId);
-  if (gestacaoCcn && gestacaoCcn.tipo_gestacao === 'gemelar') {
+  if (isMultipla(gestacaoCcn)) {
     // Gestação gemelar tem sua própria lógica de datação (DUM x Embrião 1 x
     // Embrião 2) — precisa considerar o CCN do feto que não está na tela.
     const el   = document.getElementById('e-ccn');
@@ -6604,13 +6714,13 @@ function meEscolheDatacao(tipo) {
   _meCalcTable();
 }
 
-// ── Datação — gestação GEMELAR (DUM x Embrião 1 x Embrião 2) ─────────────
+// ── Datação — gestação MÚLTIPLA (DUM x CCN de cada embrião) ──────────────
 // Diferente da gestação única (que só compara DUM x CCN e só pede decisão
 // se a diferença for clinicamente relevante), aqui SEMPRE que houver 2+
 // fontes candidatas (DUM e/ou o CCN de cada feto) a escolha é explícita —
-// com dois embriões em jogo não dá pra assumir automaticamente qual data
-// a gestação. Só é decidido sozinho quando existe exatamente 1 candidato.
-let _meTwinDatacaoEscolha = null; // 'DUM' | 'A' | 'B'
+// com mais de um embrião em jogo não dá pra assumir automaticamente qual
+// data a gestação. Só é decidido sozinho quando existe exatamente 1 candidato.
+let _meTwinDatacaoEscolha = null; // 'DUM' | 'A' | 'B' | 'C'
 
 function _meTwinCcnCandidates() {
   const gestacao = getGestacaoById(currentGestacaoId);
@@ -6629,10 +6739,12 @@ function _meTwinCcnCandidates() {
     const igDum = Math.round((eDate - dDate) / 86400000);
     if (igDum) candidatos.push({ tipo: 'DUM', ig: igDum });
   }
-  const ccnA = ccnFor('A');
-  if (ccnA != null) { const ig = ccnToIgDays(ccnA); if (ig) candidatos.push({ tipo: 'A', ig, ccn: ccnA }); }
-  const ccnB = ccnFor('B');
-  if (ccnB != null) { const ig = ccnToIgDays(ccnB); if (ig) candidatos.push({ tipo: 'B', ig, ccn: ccnB }); }
+  fetosDaGestacao(gestacao).forEach(f => {
+    const ccn = ccnFor(f);
+    if (ccn == null) return;
+    const ig = ccnToIgDays(ccn);
+    if (ig) candidatos.push({ tipo: f, ig, ccn });
+  });
   return candidatos;
 }
 
@@ -6642,7 +6754,7 @@ function _meUpdateTwinDatacaoPanel() {
   const panel = document.getElementById('me-datacao-panel-gemelar');
   const candidatos = _meTwinCcnCandidates();
 
-  ['dum', 'a', 'b'].forEach(k => { const row = document.getElementById('me-dpg-row-' + k); if (row) row.style.display = 'none'; });
+  ['dum', 'a', 'b', 'c'].forEach(k => { const row = document.getElementById('me-dpg-row-' + k); if (row) row.style.display = 'none'; });
 
   if (candidatos.length === 0) {
     if (panel) panel.style.display = 'none';
@@ -6668,7 +6780,7 @@ function _meUpdateTwinDatacaoPanel() {
     const label = document.getElementById('me-dpg-label-' + key);
     if (row) row.style.display = 'flex';
     if (label) {
-      const base = c.tipo === 'DUM' ? 'DUM' : (c.tipo === 'A' ? 'Embrião 1 (Feto 1)' : 'Embrião 2 (Feto 2)');
+      const base = c.tipo === 'DUM' ? 'DUM' : `Embrião ${numeroDoFeto(c.tipo)} (${labelFeto(c.tipo)})`;
       label.textContent = c.ccn ? `${base} — CCN ${c.ccn.toFixed(1)}mm → IG ${igToStr(c.ig)}` : `${base} — IG ${igToStr(c.ig)}`;
     }
   });
@@ -6678,7 +6790,7 @@ function _meUpdateTwinDatacaoPanel() {
   if (_meTwinDatacaoEscolha && !candidatos.some(c => c.tipo === _meTwinDatacaoEscolha)) {
     _meTwinDatacaoEscolha = null;
   }
-  ['dum', 'a', 'b'].forEach(k => {
+  ['dum', 'a', 'b', 'c'].forEach(k => {
     const r = document.getElementById('me-dpg-radio-' + k);
     if (r) r.checked = !!(_meTwinDatacaoEscolha && _meTwinDatacaoEscolha.toLowerCase() === k);
   });
@@ -6911,7 +7023,7 @@ function _meBuildExamData(feto, draft, data, igManual) {
 }
 
 // Grava a âncora de IG da gestação a partir do 1º exame novo. Em gestação
-// gemelar, quem decide se é DUM, Embrião 1 ou Embrião 2 é sempre a escolha
+// múltipla, quem decide se é DUM ou o CCN de qual embrião é sempre a escolha
 // explícita feita no painel (_meTwinDatacaoEscolha) — nunca um critério
 // automático tipo "o maior CCN vence" (isso já foi decidido pelo médico
 // antes de chegar aqui; ver bloqueio de salvamento em saveExam()).
@@ -6919,12 +7031,12 @@ function _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, ccnSeed) {
   if (!isFirstNew) return;
 
   const gestacaoAtual = getGestacaoById(currentGestacaoId);
-  const isGemelar = !!(gestacaoAtual && gestacaoAtual.tipo_gestacao === 'gemelar');
+  const isGemelar = isMultipla(gestacaoAtual);
   const igAncora = igManual || igAutomatic;
 
   let anchorTipo;
   if (isGemelar) {
-    // 'DUM' | 'A' | 'B' | null — resolvido pelo painel de datação gemelar
+    // 'DUM' | 'A' | 'B' | 'C' | null — resolvido pelo painel de datação
     anchorTipo = _meTwinDatacaoEscolha === 'DUM' ? 'DUM'
                : _meTwinDatacaoEscolha          ? 'US'
                : (gestacaoAtual.dum ? 'DUM' : (ccnSeed ? 'US' : 'DUM'));
@@ -6950,11 +7062,12 @@ function saveExam() {
   DB = loadDB();
 
   const gestacaoAtualObj = getGestacaoById(currentGestacaoId);
-  const isGemelar = !!(gestacaoAtualObj && gestacaoAtualObj.tipo_gestacao === 'gemelar');
-  // Editando uma visita gemelar (openEditVisitGemelar): até 2 registros
-  // existentes (um por feto), rastreados em _meFetoExamIds em vez do
+  const fetos     = fetosDaGestacao(gestacaoAtualObj);
+  const isGemelar = fetos.length > 0;
+  // Editando uma visita múltipla (openEditVisitGemelar): um registro existente
+  // por feto preenchido, rastreados em _meFetoExamIds em vez do
   // currentExamEditingId único usado pra gestação única.
-  const isEditingVisit = isGemelar && (_meFetoExamIds.A != null || _meFetoExamIds.B != null);
+  const isEditingVisit = isGemelar && fetos.some(f => _meFetoExamIds[f] != null);
   const isNewExam = currentExamEditingId == null && !isEditingVisit;
 
   const _eData = document.getElementById('e-data');
@@ -6970,7 +7083,7 @@ function saveExam() {
     return;
   }
 
-  // Idem pro painel de datação da gestação gemelar (DUM x Embrião 1 x Embrião 2).
+  // Idem pro painel de datação da gestação múltipla (DUM x CCN de cada embrião).
   // Isso pode atualizar _meIgManual (ex: só 1 candidato = resolve sozinho) —
   // por isso igAutomatic/igManual só são capturados DEPOIS, logo abaixo.
   if (isFirstNew && isGemelar) {
@@ -6978,7 +7091,8 @@ function saveExam() {
     _meUpdateTwinDatacaoPanel();
     const panelGemelarEl = document.getElementById('me-datacao-panel-gemelar');
     if (panelGemelarEl && panelGemelarEl.style.display === 'block' && !_meTwinDatacaoEscolha) {
-      alert('Escolha por qual parâmetro (DUM, Embrião 1 ou Embrião 2) você vai datar esta gestação antes de salvar.');
+      const embrioes = fetos.map(f => 'Embrião ' + numeroDoFeto(f)).join(', ');
+      alert(`Escolha por qual parâmetro (DUM, ${embrioes}) você vai datar esta gestação antes de salvar.`);
       return;
     }
   }
@@ -6987,12 +7101,12 @@ function saveExam() {
   const igManual    = _meIgManual;
 
   if (isEditingVisit) {
-    // Editando uma visita gemelar já salva: até 2 registros (Feto A/B).
+    // Editando uma visita múltipla já salva: um registro por feto.
     // Atualiza quem já existia; cria quem foi adicionado agora (ex: visita
     // só tinha o Feto A e o médico completou o Feto B nesta edição); não
     // apaga quem ficou sem dado — só não atualiza.
     _meCaptureFormToDraft(_meActiveFeto);
-    ['A', 'B'].forEach(feto => {
+    fetos.forEach(feto => {
       const draft = _meFetoDrafts[feto];
       if (!draft) return;
       const examData = _meBuildExamData(feto, draft, data, igManual);
@@ -7008,19 +7122,19 @@ function saveExam() {
   } else if (!isNewExam) {
     // Edição de um exame único (gestação única) — sempre um único registro.
     const feto = isGemelar
-      ? ((document.getElementById('me-feto-b')?.checked) ? 'B' : 'A')
+      ? (fetos.find(f => document.getElementById('me-feto-' + f.toLowerCase())?.checked) || fetos[0])
       : null;
     const examData = _meBuildExamData(feto, null, data, igManual);
     const idx = DB.exams.findIndex(e => e.id === currentExamEditingId);
     if (idx !== -1) DB.exams[idx] = { ...DB.exams[idx], ...examData };
     _meSaveAnchor(isFirstNew, data, igManual, igAutomatic, examData.ccn);
   } else if (isGemelar) {
-    // Exame novo em gestação gemelar: pode haver dado de 1 ou 2 fetos —
-    // o que está na tela agora (feto ativo) + o que ficou salvo em rascunho
-    // ao alternar A/B. Grava um registro por feto preenchido.
+    // Exame novo em gestação múltipla: pode haver dado de um ou de todos os
+    // fetos — o que está na tela agora (feto ativo) + o que ficou salvo em
+    // rascunho ao alternar de feto. Grava um registro por feto preenchido.
     _meCaptureFormToDraft(_meActiveFeto);
     let anySaved = false, ccnSeed = null;
-    ['A', 'B'].forEach(feto => {
+    fetos.forEach(feto => {
       const draft = _meFetoDrafts[feto];
       if (!draft) return; // feto não preenchido — não cria registro vazio
       const examData = _meBuildExamData(feto, draft, data, igManual);
@@ -7038,8 +7152,8 @@ function saveExam() {
   }
 
   currentExamEditingId = null;
-  _meFetoDrafts = { A: null, B: null };
-  _meFetoExamIds = { A: null, B: null };
+  _meFetoDrafts = { A: null, B: null, C: null };
+  _meFetoExamIds = { A: null, B: null, C: null };
   _meActiveFeto = 'A';
   saveDB(DB);
   closeModal('modal-exam');
@@ -7069,8 +7183,8 @@ function deleteExam(eid) {
   openModal('modal-confirm-delete');
 }
 
-// Exclui a visita gemelar inteira (registros de Feto A e B na mesma data) —
-// consistente com a lista mostrando 1 linha por visita, não por feto.
+// Exclui a visita múltipla inteira (todos os registros de fetos na mesma
+// data) — consistente com a lista mostrando 1 linha por visita, não por feto.
 function deleteVisitGemelar(date) {
   DB = loadDB();
   const gestacao = getGestacaoById(currentGestacaoId);
@@ -7086,7 +7200,7 @@ function deleteVisitGemelar(date) {
   const descEl2  = document.getElementById('confirm-delete-desc');
   if (titleEl2) titleEl2.textContent = 'Excluir exame?';
   if (descEl2)  descEl2.textContent  = examsDoDia.length > 1
-    ? 'Isso exclui os dados dos dois fetos dessa visita. Esta ação não pode ser desfeita.'
+    ? `Isso exclui os dados dos ${examsDoDia.length} fetos dessa visita. Esta ação não pode ser desfeita.`
     : 'Esta ação não pode ser desfeita.';
   const btn = document.getElementById('confirm-delete-btn');
   if (btn) { btn.textContent = 'Excluir exame'; btn.onclick = confirmDeleteExam; }
@@ -7836,7 +7950,7 @@ function abrirPreviewRelatorio() {
   let igMetodo = 'Idade gestacional não definida';
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `IG corrigida por US (${formatDateBR(gestacao.ig_base_data)})`;
-  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${(lastExam.feto || currentFetoView) === 'B' ? '2' : '1'}`;
+  if (isMultipla(gestacao)) igMetodo += ` · ${labelFeto(lastExam.feto || fetoEmAnalise(gestacao))}`;
 
   const relNm = document.getElementById('rel-patient-name');
   const relMt = document.getElementById('rel-patient-meta');
@@ -7907,7 +8021,7 @@ function confirmarGerarPDF() {
   let igMetodo = 'IG não definida';
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM: ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `Corrigida por US em ${formatDateBR(gestacao.ig_base_data)}`;
-  if (gestacao.tipo_gestacao === 'gemelar') igMetodo += ` · Feto ${(lastExam.feto || currentFetoView) === 'B' ? '2' : '1'}`;
+  if (isMultipla(gestacao)) igMetodo += ` · ${labelFeto(lastExam.feto || fetoEmAnalise(gestacao))}`;
 
   const relTextoEl = document.getElementById('rel-texto-clinico');
   const relTexto   = relTextoEl ? relTextoEl.value : '';

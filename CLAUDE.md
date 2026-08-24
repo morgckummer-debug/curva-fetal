@@ -99,6 +99,12 @@ O editor de laudos (repo `morgckummer-debug/laudos-dramorgana`, arquivos
 mudança em como este app grava CPF, id ou soft-delete precisa ser espelhada lá —
 não existe código compartilhado entre os dois repos.
 
+- **Fetos: A/B na gemelar, A/B/C na trigemelar.** `fetosDaGestacao(g)` é a
+  lista; ninguém pergunta `tipo_gestacao === 'gemelar'` direto. O laudo manda o
+  Feto 1 como `'A'`, o 2 como `'B'`, o 3 como `'C'`, e a corionicidade segue o
+  número de fetos nos dois lados (tricoriônica só com três). Isso depende da
+  migração 005, que soltou os checks de `exams.feto`, `tipo_gestacao` e
+  `corionicidade` — sem ela o insert do terceiro feto falha.
 - **CPF: sempre `000.000.000-00`.** Formato pontuado é a forma canônica dos dois
   lados. Até 2026-08-22 o laudo obstétrico gravava só os 11 dígitos e a mesma
   paciente virava duas linhas. `_bootstrapFromSupabase()` normaliza na leitura,

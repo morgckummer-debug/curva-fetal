@@ -1,0 +1,47 @@
+# Batida diária no banco, para o Supabase não pausar o projeto por inatividade.
+#
+# No plano Free, projeto sem atividade de banco por cerca de uma semana é
+# pausado — e projeto pausado é o que, lá na frente, corre risco de sumir,
+# levando junto os snapshots que moram dentro dele.
+#
+# ANTES DE FUNCIONAR: rode supabase/migrations/007_keepalive.sql no SQL Editor
+# do Supabase. Sem isso a função não existe e esta rotina falha (avisando).
+#
+# A URL e a chave abaixo são as mesmas que já vão no index.html — a chave anon
+# é pública por natureza, quem protege os dados é o RLS. Para apontar para
+# outro projeto, defina as variáveis SUPABASE_URL / SUPABASE_ANON_KEY em
+# Settings → Secrets and variables → Actions → Variables.
+#
+# Se o projeto estiver pausado ou fora do ar, o job falha e o GitHub manda
+# e-mail — que é exatamente o aviso que se quer receber.
+name: Keep-alive do Supabase
+
+on:
+  schedule:
+    # 09:20 UTC = 06:20 em Brasília, todo dia.
+    - cron: '20 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  batida:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Registrar atividade no banco
+        env:
+          URL: ${{ vars.SUPABASE_URL || 'https://ulcqnqwxguydrpoaplcv.supabase.co' }}
+          CHAVE: ${{ vars.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY3FucXd4Z3V5ZHJwb2FwbGN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Njk2NjcsImV4cCI6MjEwMTA0NTY2N30.hNrszyJvaBzP08Oild4wivMrTvXnDoGfgL6My1bbtVU' }}
+        run: |
+          curl --fail-with-body -sS -X POST "$URL/rest/v1/rpc/registrar_keepalive" \
+            -H "apikey: $CHAVE" \
+            -H "Authorization: Bearer $CHAVE" \
+            -H "Content-Type: application/json" \
+            -d '{"p_origem":"github-actions"}'
+          echo

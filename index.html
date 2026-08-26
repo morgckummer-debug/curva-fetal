@@ -2900,7 +2900,10 @@ function renderRecentPatients() {
   // array: ela só reflete a ordem de cadastro na sessão em que a paciente foi criada.
   // Depois de um F5 a ordem vem do servidor e, sem isso, a paciente mais nova podia
   // cair fora das 8 mostradas — parecia que o cadastro não tinha funcionado.
-  const patients = DB.patients.filter(p => !p.excluido_em)
+  // Só quem tem gestação cadastrada: pacientes que existem só por causa de outro
+  // laudo (ex.: rastreio de ovulação, que grava em `patients` para casar CPF mas
+  // nunca cria gestação) não são pacientes deste app e não devem aparecer aqui.
+  const patients = DB.patients.filter(p => !p.excluido_em && getGestacoesByPatient(p.id).length > 0)
     .sort((a, b) => b.id - a.id)
     .slice(0, 8);
   if (patients.length === 0) { container.innerHTML = ''; return; }

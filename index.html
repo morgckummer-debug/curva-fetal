@@ -1404,6 +1404,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         as fichas daquele dia de volta por cima das atuais — e não apaga nada que tenha sido
         cadastrado depois.
       </p>
+      <div id="snapshots-status" style="padding:12px 14px;margin-bottom:14px;background:var(--clay-bg);border-radius:12px;box-shadow:var(--sh-in);"></div>
       <div id="snapshots-content" style="max-height:50vh;overflow-y:auto;padding-right:6px;"></div>
     </div>
     <div class="modal-footer">
@@ -8207,6 +8208,12 @@ let _snapshotUltimoEnvio = 0;
 let _snapshotPendente    = false;  // houve alteração ainda não fotografada
 let _snapshotEnviando    = false;
 
+// Resultado da última tentativa, para a tela poder dizer o que aconteceu.
+// Sem isso a falha só aparecia no console — inútil para quem usa no celular, e
+// pior que inútil num backup: uma cópia que não está sendo feita parece idêntica
+// a uma cópia que está.
+let _snapshotResultado = null;   // { ok, quando, erro }
+
 // Data local, não UTC. new Date().toISOString() devolve o dia em UTC, e no Brasil
 // (UTC-3) todo trabalho feito depois das 21h cairia no arquivo do dia seguinte.
 function _hojeISO() {
@@ -8224,19 +8231,24 @@ async function _snapshotUid() {
   }
 }
 
-// Uma passada de envio. Devolve true se gravou de verdade.
+// Uma passada de envio. Devolve true se gravou de verdade. Toda saída registra
+// em _snapshotResultado o motivo, para a tela de cópias poder mostrá-lo.
 async function _enviarSnapshot() {
   if (_snapshotEnviando) return false;
   _snapshotEnviando = true;
+  const anota = (ok, erro) => { _snapshotResultado = { ok, quando: Date.now(), erro: erro || null }; };
   try {
     const uid = await _snapshotUid();
-    if (!uid) return false;
+    if (!uid) { anota(false, 'Sua sessão não foi confirmada. Saia da conta e entre de novo.'); return false; }
 
     const db = _memoryDB || _emptyDB();
     // Banco vazio nunca vira snapshot. Se o bootstrap falhou e a memória ficou
     // zerada, gravar isso por cima da foto de hoje apagaria justamente a cópia
     // que serviria para recuperar.
-    if (!db.patients.length && !db.gestacoes.length && !db.exams.length) return false;
+    if (!db.patients.length && !db.gestacoes.length && !db.exams.length) {
+      anota(false, 'Não há nada para copiar ainda — nenhuma paciente carregada nesta tela.');
+      return false;
+    }
 
     const conteudo = JSON.stringify({
       _formato:   'curva-fetal-snapshot-v1',
@@ -8253,12 +8265,15 @@ async function _enviarSnapshot() {
 
     _snapshotUltimoEnvio = Date.now();
     _snapshotPendente    = false;
+    anota(true);
     return true;
   } catch (err) {
-    // Falha de snapshot não interrompe o trabalho nem vira alerta na tela: o dado
-    // dela já está gravado (quem garante isso é a fila do saveDB). Fica no console
-    // e a próxima gravação tenta de novo.
+    // Falha de snapshot não interrompe o trabalho — o dado dela já está gravado
+    // (quem garante isso é a fila do saveDB) e um alerta no meio de um exame não
+    // ajudaria. Mas fica registrado para a tela de cópias mostrar, em vez de só
+    // no console.
     console.error('[CurvaFetal] falha ao gravar snapshot:', err);
+    anota(false, err && err.message ? err.message : String(err));
     return false;
   } finally {
     _snapshotEnviando = false;
@@ -8285,10 +8300,48 @@ document.addEventListener('visibilitychange', () => {
 // Um backup que não se sabe restaurar não é backup. importData() só aceita
 // arquivo do computador; isto abre as cópias que o app guardou sozinho.
 
+// Diz, em português, o que aconteceu na última tentativa. É o que transforma
+// "não tem nada no bucket" de mistério em diagnóstico.
+function _renderStatusSnapshot() {
+  const el = document.getElementById('snapshots-status');
+  if (!el) return;
+  const r = _snapshotResultado;
+  const hora = r ? new Date(r.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  let cor, texto;
+  if (!r) {
+    cor = 'var(--text-muted)';
+    texto = 'Nenhuma cópia foi tentada desde que você abriu o app. Ela acontece sozinha ' +
+            'depois que você cadastra ou altera alguma coisa — ou agora, no botão abaixo.';
+  } else if (r.ok) {
+    cor = '#2c6e49';
+    texto = `✓ Cópia enviada com sucesso às ${hora}.`;
+  } else {
+    cor = 'var(--danger)';
+    texto = `⚠ A última tentativa (${hora}) não funcionou: ${escapeHtml(r.erro)}`;
+  }
+
+  el.innerHTML =
+    `<div style="font-size:12.5px;line-height:1.6;color:${cor};margin-bottom:10px;">${texto}</div>` +
+    `<button class="btn btn-secondary btn-sm" id="btn-snapshot-agora" onclick="forcarSnapshot()">Fazer uma cópia agora</button>`;
+}
+
+// O botão existe para dois momentos: conferir que está funcionando, e forçar uma
+// cópia antes de mexer em algo arriscado.
+async function forcarSnapshot() {
+  const btn = document.getElementById('btn-snapshot-agora');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  // Zera a espera de 5 min: aqui ela pediu explicitamente.
+  _snapshotUltimoEnvio = 0;
+  await _enviarSnapshot();
+  await abrirSnapshotsModal();
+}
+
 async function abrirSnapshotsModal() {
   openModal('modal-snapshots');
   const el = document.getElementById('snapshots-content');
   if (!el) return;
+  _renderStatusSnapshot();
   el.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;">Carregando cópias…</p>';
 
   try {

@@ -28,8 +28,16 @@
 -- file_size_limit de 25 MB é folga larga: um snapshot é um JSON de dezenas de
 -- KB. O limite existe só para que um bug de loop não encha a cota de 1 GB do
 -- plano Free com um arquivo gigante.
+--
+-- allowed_mime_types fica NULO de propósito. Restringir a 'application/json'
+-- parece prudente e não é: o SDK manda o arquivo como multipart/form-data, e
+-- basta o Storage registrar o tipo de outro jeito para o upload ser recusado —
+-- em silêncio, já que falha de snapshot não interrompe o trabalho. O ganho seria
+-- nenhum (quem grava aqui é só este app, e o conteúdo é sempre o mesmo JSON) e o
+-- risco é o backup não existir sem ninguém perceber. O limite de tamanho já
+-- cobre o que precisava ser coberto.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('backups', 'backups', false, 26214400, array['application/json'])
+values ('backups', 'backups', false, 26214400, null)
 on conflict (id) do update
   set public             = excluded.public,
       file_size_limit    = excluded.file_size_limit,

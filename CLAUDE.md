@@ -62,6 +62,11 @@ proteção do lado do servidor.
 
 Dois cuidados que não são detalhe:
 
+- **Falha de snapshot é silenciosa para o fluxo, visível na tela de cópias.** Não
+  interrompe o trabalho (o dado já está gravado pela fila do saveDB), mas
+  `_snapshotResultado` guarda o motivo e `_renderStatusSnapshot` o mostra, com um
+  botão `forcarSnapshot()` para tentar na hora. Só console não serve: no celular
+  ninguém vê, e um backup que não está sendo feito é idêntico a um que está.
 - **`_enviarSnapshot` recusa DB vazio.** Se o bootstrap falhar e a memória zerar,
   gravar isso por cima da foto de hoje apagaria justamente a cópia que serviria
   para recuperar.
@@ -70,6 +75,10 @@ Dois cuidados que não são detalhe:
   acontece de fato no servidor — `_pushToSupabase` faz upsert, nunca delete — então
   memória e banco contam a mesma história. Trocar o DB em memória pelo snapshot
   inteiro fazia a paciente cadastrada depois sumir da tela até o próximo F5.
+
+O bucket fica sem `allowed_mime_types` de propósito: o SDK envia o arquivo como
+multipart e basta o Storage registrar outro tipo para recusar o upload — trocaria
+proteção nenhuma (só este app grava ali) por backup inexistente sem ninguém ver.
 
 Datas usam `_hojeISO()` (dia local), não `toISOString()` cru: em UTC-3 todo
 trabalho feito depois das 21h cairia no arquivo do dia seguinte.

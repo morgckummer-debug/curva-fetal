@@ -2547,7 +2547,19 @@ async function _bootstrapFromSupabaseImpl() {
     const semResposta = !err || err.message === 'Failed to fetch' ||
                         /failed to fetch|networkerror|load failed/i.test(err.message || '') ||
                         [502, 503, 504, 544].includes(Number(err.status));
-    const pista = semResposta
+    // "JWT issued at future" (PGRST303) é desencontro de relógio dentro do próprio
+    // Supabase: o serviço de login carimba o token com uma hora que o serviço que
+    // lê o banco considera futura, e recusa. Não tem nada a ver com os dados — mas
+    // a mensagem crua, para quem está do outro lado, lê como "perdi tudo".
+    const relogio = /issued at future|PGRST303|jwt.*future/i.test(err && err.message || '');
+
+    const pista = relogio
+      ? ' Isto é um desencontro de relógio entre dois serviços do Supabase, não um' +
+        ' problema com os seus dados: <strong>nada foi perdido</strong>, suas pacientes' +
+        ' continuam gravadas. Tente sair da conta e entrar de novo, para pegar um token' +
+        ' novo. Se continuar, é do lado do Supabase e costuma se resolver sozinho em' +
+        ' alguns minutos — espere e recarregue a página.'
+      : semResposta
       ? ' O servidor não respondeu. Seus dados NÃO foram perdidos: no plano gratuito o' +
         ' projeto do Supabase pausa sozinho depois de cerca de uma semana sem acesso.' +
         ' Entre em supabase.com, abra o projeto e clique em "Restore"/"Resume" — leva' +
@@ -2555,7 +2567,9 @@ async function _bootstrapFromSupabaseImpl() {
       : '';
     _showGlobalError('Não consegui carregar seus dados do servidor: ' + (err.message || err) + '.' + pista);
     if (listEl) listEl.innerHTML = '<p style="color:var(--danger);padding:20px 0;line-height:1.6;">Não foi possível carregar os pacientes. ' +
-      (semResposta
+      (relogio
+        ? 'Desencontro de relógio entre serviços do Supabase. <strong>Seus dados continuam lá.</strong> Veja o aviso no topo da tela.'
+        : semResposta
         ? 'O servidor não respondeu — provavelmente o projeto do Supabase pausado por inatividade. <strong>Seus dados continuam lá.</strong> Veja o aviso no topo da tela.'
         : 'Verifique sua conexão e recarregue a página.') + '</p>';
   }

@@ -85,6 +85,16 @@ proteção nenhuma (só este app grava ali) por backup inexistente sem ninguém 
 Datas usam `_hojeISO()` (dia local), não `toISOString()` cru: em UTC-3 todo
 trabalho feito depois das 21h cairia no arquivo do dia seguinte.
 
+## "JWT issued at future": relógio, não dado
+
+`PGRST303` vem de desencontro de relógio dentro do próprio Supabase — o GoTrue
+carimba o token com uma hora que o PostgREST considera futura e recusa a leitura.
+É transitório e do lado do servidor; não há nada a corrigir no app nem nos dados.
+O `catch` do bootstrap detecta e diz isso, porque a mensagem crua na tela de quem
+guarda prontuário lê como "perdi tudo". O guarda do `_enviarSnapshot` contra DB
+vazio é o que impede o estrago de virar permanente: com o bootstrap falhando, a
+memória fica zerada e sem ele a foto de hoje seria sobrescrita com nada.
+
 ## Projeto Free pausa sozinho
 
 Projeto no plano gratuito pausa depois de ~1 semana sem acesso, e o app só via um

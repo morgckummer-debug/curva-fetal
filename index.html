@@ -8303,6 +8303,39 @@ document.addEventListener('visibilitychange', () => {
 // Um backup que não se sabe restaurar não é backup. importData() só aceita
 // arquivo do computador; isto abre as cópias que o app guardou sozinho.
 
+// Traduz o erro cru do Storage no que precisa ser feito. Sem isso a tela mostra
+// "new row violates row-level security policy", que é verdadeiro e inútil.
+function _explicaErroSnapshot(msg) {
+  const m = String(msg || '');
+  if (/bucket not found|not_found/i.test(m)) {
+    return 'A área de cópias não existe no servidor. Falta rodar a migração 006 ' +
+           '(<code>supabase/migrations/006_snapshots_automaticos.sql</code>) no SQL Editor do Supabase.';
+  }
+  // O caso mais provável quando o bucket aparece no painel mas vive vazio: o SQL
+  // criou o bucket (primeira metade da migração) e as policies falharam com
+  // "must be owner of table objects" — erro comum do SQL Editor em storage.objects.
+  if (/row-level security|violates row|unauthorized|not authorized|403/i.test(m)) {
+    return 'O servidor recusou a gravação por falta de permissão. O bucket existe, mas as ' +
+           'permissões dele não foram criadas — provavelmente a segunda metade da migração 006 ' +
+           'falhou com <code>must be owner of table objects</code>. Dá para criar as quatro ' +
+           'permissões pelo painel, em <strong>Storage → Policies → backups</strong>.';
+  }
+  if (/mime type/i.test(m)) {
+    return 'O bucket está recusando o tipo do arquivo. Rode no SQL Editor: ' +
+           '<code>update storage.buckets set allowed_mime_types = null where id = \'backups\';</code>';
+  }
+  if (/exceeded|too large|payload/i.test(m)) {
+    return 'O arquivo passou do tamanho permitido no bucket.';
+  }
+  if (/jwt|token|expired|session/i.test(m)) {
+    return 'Sua sessão expirou. Saia da conta e entre de novo.';
+  }
+  if (/failed to fetch|networkerror|load failed/i.test(m)) {
+    return 'O servidor não respondeu — pode ser conexão, ou o projeto do Supabase pausado.';
+  }
+  return escapeHtml(m);
+}
+
 // Diz, em português, o que aconteceu na última tentativa. É o que transforma
 // "não tem nada no bucket" de mistério em diagnóstico.
 function _renderStatusSnapshot() {
@@ -8321,7 +8354,8 @@ function _renderStatusSnapshot() {
     texto = `✓ Cópia enviada com sucesso às ${hora}.`;
   } else {
     cor = 'var(--danger)';
-    texto = `⚠ A última tentativa (${hora}) não funcionou: ${escapeHtml(r.erro)}`;
+    texto = `⚠ A última tentativa (${hora}) não funcionou.<br>${_explicaErroSnapshot(r.erro)}` +
+            `<br><span style="color:var(--text-muted);font-size:11px;">Mensagem do servidor: ${escapeHtml(r.erro)}</span>`;
   }
 
   el.innerHTML =

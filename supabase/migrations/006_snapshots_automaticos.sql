@@ -87,3 +87,28 @@ create policy "snapshots: dono apaga"
 --   select policyname, cmd from pg_policies
 --    where schemaname = 'storage' and tablename = 'objects'
 --      and policyname like 'snapshots:%' order by policyname;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- DIAGNÓSTICO — rode isto sozinho se o bucket aparecer no painel mas vazio
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- O bucket é criado pelo passo 1 e as permissões pelo passo 2. Os dois pedaços
+-- falham de formas diferentes: `insert into storage.buckets` quase sempre passa,
+-- enquanto `create policy on storage.objects` pode ser recusado no SQL Editor com
+-- "must be owner of table objects", dependendo do projeto. Nesse caso o bucket
+-- existe, aparece no painel — e todo upload é negado pelo RLS, em silêncio.
+--
+-- O resultado esperado é 5 linhas: 1 do bucket e 4 policies (SELECT, INSERT,
+-- UPDATE, DELETE). Se vier só a do bucket, é esse o problema: crie as quatro
+-- permissões pelo painel, em Storage → Policies → backups, cada uma com a
+-- expressão  (storage.foldername(name))[1] = auth.uid()::text  para o papel
+-- `authenticated`.
+--
+--   select 'bucket' as o_que, id as nome, public::text as detalhe
+--     from storage.buckets where id = 'backups'
+--   union all
+--   select 'policy', policyname, cmd
+--     from pg_policies
+--    where schemaname = 'storage' and tablename = 'objects'
+--      and policyname like 'snapshots:%'
+--    order by 1, 2;

@@ -51,8 +51,10 @@ proteção do lado do servidor.
    privado, uma policy por operação amarrando a primeira pasta do caminho ao
    `auth.uid()`. Um arquivo por dia com alteração; o do dia corrente é reescrito
    (upsert) a cada 5 min enquanto ela trabalha, os anteriores nunca são tocados.
-   Disparado por `_agendarSnapshot()` no fim do `_runSyncLoop`, ou seja **depois**
-   de o servidor confirmar a gravação. Cobre sobrescrita por bug, exclusão
+   Disparado por `_agendarSnapshot()` em dois pontos: no fim do `_runSyncLoop`
+   (depois de o servidor confirmar a gravação) e no fim do bootstrap. O segundo
+   não é redundante — sem ele, quem abre o app, confere uma ficha e fecha passa o
+   dia sem cópia, e um Storage vazio não distingue "não precisou" de "quebrado". Cobre sobrescrita por bug, exclusão
    acidental e colisão com o editor de laudos. Não cobre perder o projeto inteiro.
 2. **Arquivo baixado** (`exportData`). A única cópia fora do Supabase — a única
    que sobrevive se o projeto for perdido. Depende de clique, por isso a faixa

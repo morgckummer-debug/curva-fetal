@@ -2531,6 +2531,12 @@ async function _bootstrapFromSupabaseImpl() {
     _memoryDB = db;
     DB = loadDB();
     renderRecentPatients();
+
+    // Tira a foto do dia já na abertura, não só depois de uma alteração. Sem isso
+    // a cópia dependia de ela mexer em alguma coisa: quem abre o app, confere uma
+    // ficha e fecha passava o dia sem cópia nenhuma — e, olhando o Storage vazio,
+    // não tinha como distinguir "não precisou" de "está quebrado".
+    _agendarSnapshot();
   } catch (err) {
     console.error('[CurvaFetal] falha ao carregar dados do Supabase:', err);
 
@@ -8199,6 +8205,12 @@ function confirmarGerarPDF() {
 // snapshot mora dentro dele. Para esse caso só serve o arquivo que o botão
 // "⬇ Backup" baixa para fora, e é por isso que o aviso de backup pendente existe.
 
+// Carimbo da versão publicada. Serve para responder, sem adivinhação, se o
+// navegador está mesmo rodando o código novo — GitHub Pages e Safari guardam a
+// página em cache, e "não aconteceu nada" tem uma causa a menos quando dá para
+// ler a versão na tela.
+const _VERSAO_APP = 'backup-4 · 28/08/2026';
+
 const _SNAPSHOT_BUCKET = 'backups';
 
 // Enquanto ela trabalha, o arquivo do dia é reescrito no máximo a cada 5 minutos:
@@ -8360,7 +8372,8 @@ function _renderStatusSnapshot() {
 
   el.innerHTML =
     `<div style="font-size:12.5px;line-height:1.6;color:${cor};margin-bottom:10px;">${texto}</div>` +
-    `<button class="btn btn-secondary btn-sm" id="btn-snapshot-agora" onclick="forcarSnapshot()">Fazer uma cópia agora</button>`;
+    `<button class="btn btn-secondary btn-sm" id="btn-snapshot-agora" onclick="forcarSnapshot()">Fazer uma cópia agora</button>` +
+    `<div style="margin-top:10px;font-size:10.5px;color:var(--text-light);font-family:var(--font-mono);">versão ${_VERSAO_APP}</div>`;
 }
 
 // O botão existe para dois momentos: conferir que está funcionando, e forçar uma

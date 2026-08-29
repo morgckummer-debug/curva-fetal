@@ -13,7 +13,7 @@
 <title>Curva Fetal · Acompanhamento de Crescimento</title>
 <!-- Chart.js removido — gráficos renderizados em Canvas2D puro -->
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Nunito:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Nunito:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500;600&family=Comfortaa:wght@600&family=Lato:wght@400&display=swap');
 :root{
   --font-serif:'Playfair Display',Georgia,serif;
   --font-mono:'DM Mono','Courier New',monospace;
@@ -708,6 +708,115 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 ::-webkit-scrollbar-thumb{background:rgba(122,171,146,0.40);border-radius:99px;}
 ::-webkit-scrollbar-thumb:hover{background:rgba(122,171,146,0.65);}
 ::selection{background:var(--sage-pale);color:var(--sage-deep);}
+
+/* ═════════════════════════════════
+   RELATÓRIO PDF — preview no modal
+   Mesmas classes usadas no HTML exportado por confirmarGerarPDF() (ver
+   _buildRelSheetHtml), só escopadas sob .rel-preview para não vazar os nomes
+   genéricos (.body, .status, .tile...) pro resto do app. Cores/tipografia
+   vêm do handoff de design "médico assistente" — lavanda/roxo/dourado,
+   Comfortaa nos títulos, Lato no corpo.
+   ═════════════════════════════════ */
+.rel-preview{
+  --roxo:#3D2352; --lilas:#8B6BA8; --lavanda:#C3B1D1; --lavanda-bg:#F1ECF4;
+  --nude:#F5EDE3; --nude-2:#EDE4F2; --dourado:#B08D3F; --dourado-claro:#D9BE7A;
+  --texto-2:#6B5A5A; --texto-3:#9B8C8C; --papel:#FFFDFB; --linha:#E3D9DE;
+}
+.rel-preview{display:flex;justify-content:center;}
+.rel-preview .sheet-preview{position:relative;width:100%;max-width:210mm;
+  background:var(--papel);color:#3B2A2A;font-family:'Lato',Georgia,serif;
+  box-shadow:0 4px 24px rgba(61,35,82,.18);}
+.rel-preview .hdr{background:var(--roxo);padding:22px 40px 20px;display:flex;align-items:center;
+  justify-content:space-between;border-bottom:2px solid var(--dourado)}
+.rel-preview .hdr-brand{display:flex;align-items:center;gap:16px}
+.rel-preview .monogram{width:46px;height:46px;border:1px solid var(--dourado);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-family:'Comfortaa',system-ui,sans-serif;
+  font-size:16px;font-weight:600;color:var(--dourado-claro);letter-spacing:.04em}
+.rel-preview .hdr-name{font-family:'Comfortaa',system-ui,sans-serif;font-size:19px;font-weight:600;color:#FAF7F5}
+.rel-preview .hdr-sub{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--lavanda);margin-top:3px}
+.rel-preview .hdr-right{text-align:right}
+.rel-preview .hdr-kicker{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dourado-claro)}
+.rel-preview .hdr-doc{font-family:'Comfortaa',system-ui,sans-serif;font-size:13px;color:#FAF7F5;margin-top:4px}
+.rel-preview .body{padding:22px 40px 0;display:flex;flex-direction:column;gap:16px}
+.rel-preview .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--lilas)}
+.rel-preview .ident{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;flex-wrap:wrap}
+.rel-preview .paciente{font-family:'Comfortaa',system-ui,sans-serif;font-size:31px;font-weight:600;color:var(--roxo);
+  line-height:1.05;margin:7px 0}
+.rel-preview .paciente-meta{font-size:12.5px;color:var(--texto-2)}
+.rel-preview .ig{background:var(--nude);border-radius:3px;padding:14px 26px 15px;text-align:right;min-width:190px}
+.rel-preview .ig-label{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--lilas);margin-bottom:4px}
+.rel-preview .ig-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:38px;font-weight:600;color:var(--dourado);line-height:1}
+.rel-preview .ig-val small{font-size:22px}
+.rel-preview .status{background:var(--lavanda-bg);border-radius:3px;padding:16px 24px;display:flex;
+  align-items:center;gap:18px}
+.rel-preview .status-ic{width:30px;height:30px;flex:none;border-radius:50%;background:var(--lilas);color:#FAF7F5;
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.rel-preview .status-body{flex:1}
+.rel-preview .status-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:17px;font-weight:600;color:var(--roxo)}
+.rel-preview .status-s{font-size:11.5px;color:var(--texto-2);margin-top:3px}
+.rel-preview .status-extra{font-size:10px;color:var(--texto-2);margin-top:5px}
+.rel-preview .status--atencao .status-ic{background:var(--dourado)}
+.rel-preview .status--alerta  .status-ic{background:#A8425F}
+.rel-preview .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px}
+.rel-preview .tile{background:var(--nude);border-radius:3px;padding:13px 16px 14px}
+.rel-preview .tile--accent{background:var(--nude-2)}
+.rel-preview .tile-l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--lilas)}
+.rel-preview .tile-v{font-family:'Comfortaa',system-ui,sans-serif;font-size:24px;font-weight:600;color:var(--roxo);margin:5px 0}
+.rel-preview .tile-v span{font-size:13px;color:var(--texto-2)}
+.rel-preview .tile-p{font-size:11px;color:var(--dourado);letter-spacing:.06em}
+.rel-preview .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px}
+.rel-preview .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}
+.rel-preview .legend span{display:flex;align-items:center;gap:6px}
+.rel-preview .k-band{width:16px;height:8px;background:var(--lavanda);opacity:.55;border-radius:1px}
+.rel-preview .k-med{width:16px;border-top:1px dashed var(--lilas)}
+.rel-preview .k-pat{width:16px;border-top:2px solid var(--dourado)}
+.rel-preview .charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px 18px}
+.rel-preview .chart-t{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.rel-preview .chart-t b{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo)}
+.rel-preview .chart-t i{font-style:normal;font-size:10.5px;color:var(--dourado)}
+.rel-preview .chart svg{width:100%;height:auto;display:block}
+.rel-preview .band-out{fill:var(--lavanda);opacity:.22}
+.rel-preview .band-in{fill:var(--lavanda);opacity:.5}
+.rel-preview .median{fill:none;stroke:var(--lilas);stroke-width:1;stroke-dasharray:3 3}
+.rel-preview .trace{fill:none;stroke:var(--dourado);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.rel-preview .pt{fill:var(--dourado)}
+.rel-preview .pt-now{fill:var(--papel);stroke:var(--dourado);stroke-width:2.2}
+.rel-preview .axis{stroke:var(--linha);stroke-width:1}
+.rel-preview .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
+.rel-preview .conduta{background:var(--nude);border-radius:3px;padding:14px 16px;display:flex;
+  flex-direction:column;justify-content:center;gap:8px}
+.rel-preview .conduta p{margin:0;font-size:12.5px;line-height:1.5}
+.rel-preview .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
+.rel-preview .rel-texto{width:100%;min-height:110px;max-width:62ch;border:1px solid var(--linha);border-radius:3px;
+  padding:12px;font-size:13px;font-family:'Lato',Georgia,serif;line-height:1.62;color:#3B2A2A;
+  resize:none;overflow:hidden;background:#fff}
+.rel-preview .rel-texto:focus{outline:none;border-color:var(--lilas)}
+.rel-preview .rel-texto-hint{font-size:10px;color:var(--dourado);margin-top:5px}
+.rel-preview .assinatura{padding:22px 40px 26px;display:flex;align-items:flex-end;
+  justify-content:space-between;gap:30px;flex-wrap:wrap}
+.rel-preview .sig-name{width:230px;border-top:1px solid var(--lavanda);padding-top:8px;
+  font-family:'Comfortaa',system-ui,sans-serif;font-size:14px;font-weight:600;color:var(--roxo)}
+.rel-preview .sig-l{font-size:11px;color:var(--texto-2);margin-top:4px}
+.rel-preview .emit{text-align:right}
+.rel-preview .handle{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dourado);margin-top:4px}
+.rel-preview .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
+  justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--lavanda);flex-wrap:wrap;gap:4px}
+.rel-preview .ftr b{color:var(--dourado-claro);font-weight:400}
+/* Linha tracejada na marca dos 297mm — mesma altura de uma folha A4 impressa,
+   para o preview mostrar ANTES de gerar o PDF se o conteúdo vai ultrapassar
+   uma página (o relatório final corta tudo que passar disso). */
+.rel-preview .rel-page-mark{position:absolute;left:0;right:0;border-top:1px dashed var(--lilas);pointer-events:none}
+.rel-preview .rel-page-mark span{position:absolute;right:0;top:0;background:var(--lilas);color:#fff;
+  font-size:9px;padding:2px 8px;border-radius:0 0 3px 3px;letter-spacing:.04em;text-transform:uppercase;
+  white-space:nowrap}
+.rel-preview .rel-page-mark--over{border-top-color:#A8425F}
+.rel-preview .rel-page-mark--over span{background:#A8425F}
+@media (max-width:640px){
+  .rel-preview .hdr,.rel-preview .body,.rel-preview .assinatura,.rel-preview .ftr{padding-left:20px;padding-right:20px}
+  .rel-preview .tiles{grid-template-columns:repeat(2,1fr)}
+  .rel-preview .charts{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body style="background-color: rgb(247, 243, 235); font-size: 16px">
@@ -1414,79 +1523,17 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 </div>
 
 <!-- MODAL RELATÓRIO PDF — Pré-visualização e edição -->
+<!-- O conteúdo é injetado por abrirPreviewRelatorio() via _buildRelSheetHtml(),
+     a mesma função que monta o HTML exportado em confirmarGerarPDF() — o preview
+     e o PDF final são literalmente o mesmo layout, não duas versões mantidas
+     à mão em paralelo. -->
 <div class="modal-overlay" id="modal-relatorio">
-  <div class="modal" style="max-width:780px;width:95vw;max-height:92vh;display:flex;flex-direction:column;">
+  <div class="modal" style="max-width:860px;width:95vw;max-height:92vh;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
       <h2>Relatório de Crescimento Fetal</h2>
       <button class="modal-close" onclick="closeModal('modal-relatorio')">✕</button>
     </div>
-    <div class="modal-body" id="modal-relatorio-body" style="flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;">
-
-      <!-- Preview header -->
-      <div style="background:linear-gradient(135deg,#527d68,#527d68);border-radius:10px;padding:14px 18px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <div style="font-family:'DM Serif Display',serif;font-size:16px;font-weight:400;">Dra. Morgana Kummer</div>
-          <div style="font-size:11px;opacity:.75;margin-top:2px;">Medicina Fetal · Programa de Acompanhamento Ultrassonográfico</div>
-        </div>
-        <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;">MK</div>
-      </div>
-
-      <!-- Patient info -->
-      <div style="background:#cce0d5;border-radius:8px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div>
-          <div id="rel-patient-name" style="font-size:14px;font-weight:700;color:#527d68;"></div>
-          <div id="rel-patient-meta" style="font-size:11px;color:#527d68;margin-top:2px;"></div>
-        </div>
-        <div style="text-align:right;">
-          <div id="rel-ig-val" style="font-size:18px;font-weight:700;color:#527d68;font-family:'DM Serif Display',serif;"></div>
-          <div style="font-size:9px;color:#9a7858;">Idade gestacional</div>
-        </div>
-      </div>
-
-      <!-- Impressão diagnóstica -->
-      <div id="rel-impressao"></div>
-
-      <!-- Charts 2x2 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div style="border:1px solid #b8cfc4;border-radius:8px;padding:8px;">
-          <div style="font-size:10px;font-weight:700;color:#527d68;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;">Circunferência Cefálica (CC)</div>
-          <div id="rel-cc-sub" style="font-size:9px;color:#9a7858;margin-bottom:4px;"></div>
-          <canvas id="rel-canvas-cc" width="320" height="200" style="width:100%;height:auto;display:block;"></canvas>
-        </div>
-        <div style="border:1px solid #b8cfc4;border-radius:8px;padding:8px;">
-          <div style="font-size:10px;font-weight:700;color:#527d68;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;">Circunferência Abdominal (CA)</div>
-          <div id="rel-ca-sub" style="font-size:9px;color:#9a7858;margin-bottom:4px;"></div>
-          <canvas id="rel-canvas-ca" width="320" height="200" style="width:100%;height:auto;display:block;"></canvas>
-        </div>
-        <div style="border:1px solid #b8cfc4;border-radius:8px;padding:8px;">
-          <div style="font-size:10px;font-weight:700;color:#527d68;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;">Comprimento do Fêmur (FL)</div>
-          <div id="rel-fl-sub" style="font-size:9px;color:#9a7858;margin-bottom:4px;"></div>
-          <canvas id="rel-canvas-fl" width="320" height="200" style="width:100%;height:auto;display:block;"></canvas>
-        </div>
-        <div style="border:1px solid #b8cfc4;border-radius:8px;padding:8px;">
-          <div style="font-size:10px;font-weight:700;color:#527d68;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;">Peso Fetal Estimado (PFE)</div>
-          <div id="rel-efw-sub" style="font-size:9px;color:#9a7858;margin-bottom:4px;"></div>
-          <canvas id="rel-canvas-efw" width="320" height="200" style="width:100%;height:auto;display:block;"></canvas>
-        </div>
-        <div style="border:1px solid #b8cfc4;border-radius:8px;padding:8px;grid-column:1/-1;">
-          <div style="font-size:10px;font-weight:700;color:#527d68;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;">IP Médio — Artérias Uterinas (UtA)</div>
-          <div id="rel-uta-sub" style="font-size:9px;color:#9a7858;margin-bottom:4px;"></div>
-          <canvas id="rel-canvas-uta" width="640" height="200" style="width:100%;height:auto;display:block;"></canvas>
-        </div>
-      </div>
-
-      <!-- Clinical text editor -->
-      <div>
-        <label style="font-size:11px;font-weight:700;color:#527d68;text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px;">
-          Descrição Evolutiva <span style="font-weight:400;color:#9a7858;text-transform:none;">(editável antes de gerar o PDF)</span>
-        </label>
-        <textarea id="rel-texto-clinico"
-          style="width:100%;min-height:120px;border:1.5px solid var(--border);border-radius:8px;padding:12px;font-size:13px;font-family:'DM Sans',sans-serif;line-height:1.65;color:var(--text);resize:vertical;background:var(--surface);"
-          placeholder="Texto clínico gerado automaticamente..."></textarea>
-        <div style="font-size:10px;color:#b080c8;margin-top:4px;">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>
-      </div>
-
-    </div>
+    <div class="modal-body" id="modal-relatorio-body" style="flex:1;overflow-y:auto;padding:24px;"></div>
     <div class="modal-footer" style="flex-shrink:0;">
       <button class="btn btn-secondary" onclick="closeModal('modal-relatorio')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarGerarPDF()">Gerar PDF</button>
@@ -7774,188 +7821,6 @@ const _REL_FONT_LATO_400 = 'd09GMgABAAAAAFwcABAAAAAA7SwAAFu+AAEAAAAAAAAAAAAAAAAA
 // RELATÓRIO PDF
 // ═══════════════════════════════════════════════════════════
 
-function _drawRelChart(canvasId, bio, gestacao, exams) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const PAD = { t: 8, r: 10, b: 24, l: 32 };
-  const cW = W - PAD.l - PAD.r;
-  const cH = H - PAD.t - PAD.b;
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, W, H);
-
-  const WEEKS = [];
-  for (let w = 20; w <= 42; w++) WEEKS.push(w);
-
-  let refData;
-  if (bio === 'efw') {
-    refData = WEEKS.map(w => {
-      const linha = _linhaPesoInterpolada(w);
-      return { w, p10: Math.round(linha.p10), p50: Math.round(linha.p50), p90: Math.round(linha.p90) };
-    });
-  } else {
-    refData = WEEKS.map(w => {
-      const ref = getRef(bio === 'fl' ? 'fl' : bio, w * 7);
-      return ref ? { w, p10: Math.round(ref[1]*10)/10, p50: Math.round(ref[2]*10)/10, p90: Math.round(ref[3]*10)/10 } : null;
-    }).filter(Boolean);
-  }
-  if (!refData.length) return;
-
-  const allPts = exams.map(e => {
-    const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    if (!ig) return null;
-    const gaW = ig / 7;
-    let y = null;
-    if (bio === 'efw') y = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
-    else if (bio === 'fl') y = e.femur;
-    else y = e[bio];
-    return y != null ? { x: gaW, y } : null;
-  }).filter(Boolean);
-  const plotPts = allPts.filter(p => p.x >= 20);
-
-  const allY = refData.flatMap(r => [r.p10, r.p90]);
-  allPts.forEach(p => allY.push(p.y));
-  const yMin = Math.max(0, Math.min(...allY) - (Math.max(...allY) - Math.min(...allY)) * 0.15);
-  const yMax = Math.max(...allY) + (Math.max(...allY) - Math.min(...allY)) * 0.15;
-  const xMin = 20, xMax = 42;
-
-  const xS = x => PAD.l + (x - xMin) / (xMax - xMin) * cW;
-  const yS = y => PAD.t + cH - (y - yMin) / (yMax - yMin) * cH;
-
-  ctx.strokeStyle = 'rgba(91,63,166,0.08)'; ctx.lineWidth = 0.5;
-  [20,22,24,26,28,30,32,34,36,38,40].forEach(w => {
-    ctx.beginPath(); ctx.moveTo(xS(w), PAD.t); ctx.lineTo(xS(w), PAD.t + cH); ctx.stroke();
-  });
-
-  // Catmull-Rom spline helper for PDF charts
-  function _relSmooth(ctx, pts, getX, getY) {
-    if (!pts.length) return;
-    ctx.moveTo(getX(pts[0]), getY(pts[0]));
-    if (pts.length < 3) { pts.slice(1).forEach(p => ctx.lineTo(getX(p), getY(p))); return; }
-    const a = 0.5;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[Math.max(0, i - 1)];
-      const p1 = pts[i];
-      const p2 = pts[i + 1];
-      const p3 = pts[Math.min(pts.length - 1, i + 2)];
-      const cp1x = getX(p1) + (getX(p2) - getX(p0)) * a / 3;
-      const cp1y = getY(p1) + (getY(p2) - getY(p0)) * a / 3;
-      const cp2x = getX(p2) - (getX(p3) - getX(p1)) * a / 3;
-      const cp2y = getY(p2) - (getY(p3) - getY(p1)) * a / 3;
-      ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, getX(p2), getY(p2));
-    }
-  }
-
-  ctx.beginPath();
-  _relSmooth(ctx, refData, r => xS(r.w), r => yS(r.p90));
-  [...refData].reverse().forEach(r => ctx.lineTo(xS(r.w), yS(r.p10)));
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(155,127,212,0.12)'; ctx.fill();
-
-  ctx.beginPath(); ctx.setLineDash([2,4]); ctx.strokeStyle = 'rgba(212,138,138,0.9)'; ctx.lineWidth = 1;
-  _relSmooth(ctx, refData, r => xS(r.w), r => yS(r.p10));
-  ctx.stroke();
-
-  ctx.beginPath(); ctx.setLineDash([6,3]); ctx.strokeStyle = 'rgba(82,169,122,0.9)'; ctx.lineWidth = 1;
-  _relSmooth(ctx, refData, r => xS(r.w), r => yS(r.p90));
-  ctx.stroke();
-
-  ctx.beginPath(); ctx.setLineDash([]); ctx.strokeStyle = 'rgba(58,120,201,0.95)'; ctx.lineWidth = 1.5;
-  _relSmooth(ctx, refData, r => xS(r.w), r => yS(r.p50));
-  ctx.stroke();
-
-  ctx.setLineDash([]);
-  plotPts.forEach(p => {
-    ctx.beginPath(); ctx.arc(xS(p.x), yS(p.y), 3.5, 0, Math.PI*2);
-    ctx.fillStyle = '#7c5cbf'; ctx.fill();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
-  });
-
-  ctx.setLineDash([]); ctx.fillStyle = '#9990bb'; ctx.font = '7px sans-serif'; ctx.textAlign = 'center';
-  [20,24,28,32,36,40].forEach(w => ctx.fillText(w+'s', xS(w), PAD.t + cH + 14));
-  ctx.textAlign = 'right';
-  for (let i=0; i<=4; i++) {
-    const y = yMin + (yMax-yMin)*i/4;
-    const lbl = y >= 1000 ? (y/1000).toFixed(1)+'k' : Math.round(y);
-    ctx.fillText(lbl, PAD.l-3, yS(y)+3);
-  }
-}
-
-function _drawRelChartUtA(canvasId, gestacao, exams) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const PAD = { t: 8, r: 10, b: 24, l: 32 };
-  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
-
-  const utaRef = [];
-  for (let w = 11; w <= 40; w++) {
-    const r = dopplerUtRef(w);
-    if (r) utaRef.push({ w, p10: r.p10, p50: r.p50, p90: r.p90 });
-  }
-  if (!utaRef.length) return;
-
-  const utaPts = exams.map(e => {
-    const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    if (!ig) return null;
-    const gaW = ig / 7;
-    const ev = e.aut_e, dv = e.aut_d;
-    let m = null;
-    if (ev != null && dv != null) m = (ev + dv) / 2;
-    else if (ev != null) m = ev;
-    else if (dv != null) m = dv;
-    return m != null ? { x: gaW, y: m } : null;
-  }).filter(Boolean);
-
-  const xMin = 11, xMax = 40;
-  const allY = utaRef.flatMap(r => [r.p10, r.p90]);
-  utaPts.forEach(p => allY.push(p.y));
-  const yMin = Math.max(0, Math.min(...allY) - (Math.max(...allY) - Math.min(...allY)) * 0.15);
-  const yMax = Math.max(...allY) + (Math.max(...allY) - Math.min(...allY)) * 0.15;
-  const xS = x => PAD.l + (x - xMin) / (xMax - xMin) * cW;
-  const yS = y => PAD.t + cH - (y - yMin) / (yMax - yMin) * cH;
-
-  ctx.strokeStyle = 'rgba(91,63,166,0.08)'; ctx.lineWidth = 0.5;
-  [12,16,20,24,28,32,36,40].forEach(w => { ctx.beginPath(); ctx.moveTo(xS(w), PAD.t); ctx.lineTo(xS(w), PAD.t + cH); ctx.stroke(); });
-
-  function _utaSmooth(ctx, pts, getX, getY) {
-    if (!pts.length) return;
-    ctx.moveTo(getX(pts[0]), getY(pts[0]));
-    if (pts.length < 3) { pts.slice(1).forEach(p => ctx.lineTo(getX(p), getY(p))); return; }
-    const a = 0.5;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
-      ctx.bezierCurveTo(
-        getX(p1) + (getX(p2) - getX(p0)) * a / 3, getY(p1) + (getY(p2) - getY(p0)) * a / 3,
-        getX(p2) - (getX(p3) - getX(p1)) * a / 3, getY(p2) - (getY(p3) - getY(p1)) * a / 3,
-        getX(p2), getY(p2)
-      );
-    }
-  }
-
-  ctx.beginPath();
-  _utaSmooth(ctx, utaRef, r => xS(r.w), r => yS(r.p90));
-  [...utaRef].reverse().forEach(r => ctx.lineTo(xS(r.w), yS(r.p10)));
-  ctx.closePath(); ctx.fillStyle = 'rgba(155,127,212,0.12)'; ctx.fill();
-  ctx.beginPath(); ctx.setLineDash([2,4]); ctx.strokeStyle = 'rgba(212,138,138,0.9)'; ctx.lineWidth = 1;
-  _utaSmooth(ctx, utaRef, r => xS(r.w), r => yS(r.p10)); ctx.stroke();
-  ctx.beginPath(); ctx.setLineDash([6,3]); ctx.strokeStyle = 'rgba(82,169,122,0.9)'; ctx.lineWidth = 1;
-  _utaSmooth(ctx, utaRef, r => xS(r.w), r => yS(r.p90)); ctx.stroke();
-  ctx.beginPath(); ctx.setLineDash([]); ctx.strokeStyle = 'rgba(58,120,201,0.95)'; ctx.lineWidth = 1.5;
-  _utaSmooth(ctx, utaRef, r => xS(r.w), r => yS(r.p50)); ctx.stroke();
-  ctx.setLineDash([]);
-  utaPts.forEach(p => { ctx.beginPath(); ctx.arc(xS(p.x), yS(p.y), 3.5, 0, Math.PI*2); ctx.fillStyle = '#7c5cbf'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); });
-  ctx.setLineDash([]); ctx.fillStyle = '#9990bb'; ctx.font = '7px sans-serif'; ctx.textAlign = 'center';
-  [12,16,20,24,28,32,36,40].forEach(w => ctx.fillText(w+'s', xS(w), PAD.t + cH + 14));
-  ctx.textAlign = 'right';
-  for (let i=0; i<=4; i++) { const y = yMin + (yMax-yMin)*i/4; ctx.fillText(y.toFixed(2), PAD.l-3, yS(y)+3); }
-}
-
 // ── Impressão diagnóstica assertiva (diagnóstico + estadiamento + conduta) ──
 // Usada no PDF/preview para dar ao obstetra uma conclusão clara logo no topo,
 // em vez de apenas texto narrativo descritivo.
@@ -8026,47 +7891,10 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   };
 }
 
-function renderImpressaoDiagnosticaHtml(impressao) {
-  if (!impressao) return '';
-  const PALETTE = {
-    adequado:     { color: '#3a7a50', bg: '#e4f2ec', border: '#7aab92' },
-    pig:          { color: '#8a5800', bg: '#f8f0e4', border: '#c4a060' },
-    gig:          { color: '#4a7a96', bg: '#e4f0f8', border: '#6fa0bc' },
-    rciu_precoce: { color: '#a02020', bg: '#f0e0e0', border: '#946060' },
-    rciu_tardio:  { color: '#a02020', bg: '#f0e0e0', border: '#946060' },
-  };
-  const pal = PALETTE[impressao.diagnostico];
-
-  const critHtml = impressao.critItems.length
-    ? `<div style="margin-top:10px;font-size:11.5px;">
-        <span style="font-weight:700;color:${pal.color};">Critérios identificados:</span>
-        <ul style="margin:6px 0 0 16px;padding:0;">${impressao.critItems.map(i => `<li style="margin-bottom:3px;color:#1e0838;">${i}</li>`).join('')}</ul>
-      </div>` : '';
-
-  let estadioHtml = '';
-  if (impressao.estadio) {
-    estadioHtml = `<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-family:monospace;font-size:11px;font-weight:700;padding:3px 12px;border-radius:99px;background:${impressao.estadio.cor}22;color:${impressao.estadio.cor};border:1px solid ${impressao.estadio.cor}55;">${impressao.estadio.label} — Barcelona/FIGO</span>
-      <span style="font-size:11px;color:#6b5a4a;">${impressao.estadio.desc}</span>
-    </div>`;
-  } else if (impressao.estadioIndeterminado) {
-    estadioHtml = `<div style="font-size:11px;color:#6b5a4a;margin-top:6px;">Estadiamento indeterminado — dados Doppler insuficientes para classificar.</div>`;
-  }
-
-  return `<div style="background:${pal.bg};border-left:4px solid ${pal.border};border-radius:8px;padding:14px 18px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-      <span style="font-size:18px;">${impressao.icon}</span>
-      <span style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;color:${pal.color};">${impressao.label}</span>
-    </div>
-    <div style="font-size:10.5px;color:#9a7858;">Consenso Delphi 2016 · ${impressao.isPrecoce ? 'critérios para gestação antes de 32 semanas' : 'critérios para gestação a partir de 32 semanas'}</div>
-    ${critHtml}
-    ${estadioHtml}
-    <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(0,0,0,0.08);font-size:11.5px;color:${pal.color};">
-      <strong>Conduta sugerida:</strong> ${impressao.conduta}
-    </div>
-  </div>`;
-}
-
+// Preview do relatório — abre o modal com o MESMO HTML que será exportado
+// (ver _buildRelSheetHtml), só que com a descrição evolutiva num <textarea>
+// editável em vez de parágrafos fixos. Não existem duas versões do layout
+// para manter sincronizadas: o que a médica vê aqui é o que sai no PDF.
 function abrirPreviewRelatorio() {
   const patient  = getPatientById(currentPatientId);
   const gestacao = getGestacaoById(currentGestacaoId);
@@ -8074,67 +7902,43 @@ function abrirPreviewRelatorio() {
   const exams = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
   if (exams.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
 
-  const lastExam = exams[exams.length - 1];
-  const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
-  const igSem    = igDays ? Math.floor(igDays / 7) : null;
-  const igDia    = igDays ? igDays % 7 : null;
-  const igFmt    = igDays ? `${igSem}s+${igDia}d` : '—';
-
-  const tipo = gestacao.ig_base_tipo || (gestacao.dum ? 'DUM' : null);
-  let igMetodo = 'Idade gestacional não definida';
-  if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM ${formatDateBR(gestacao.dum)}`;
-  else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `IG corrigida por US (${formatDateBR(gestacao.ig_base_data)})`;
-  if (isMultipla(gestacao)) igMetodo += ` · ${labelFeto(lastExam.feto || fetoEmAnalise(gestacao))}`;
-
-  const relNm = document.getElementById('rel-patient-name');
-  const relMt = document.getElementById('rel-patient-meta');
-  const relIg = document.getElementById('rel-ig-val');
-  if (relNm) relNm.textContent = patient.nome || patient.cpf;
-  if (relMt) relMt.textContent = igMetodo;
-  if (relIg) relIg.textContent = igFmt;
-
-  // Impressão diagnóstica — conclusão assertiva no topo do relatório
-  const relImpressao = document.getElementById('rel-impressao');
-  if (relImpressao) relImpressao.innerHTML = renderImpressaoDiagnosticaHtml(computeImpressaoDiagnostica(gestacao, exams));
-
-  // Textos dos gráficos preview
-  const efw = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
-  const efwC = calcEFWPercentile(efw, igDays);
-  const caC  = calcBiometria(lastExam.ca, 'ca', igDays);
-  const ccC  = calcBiometria(lastExam.cc, 'cc', igDays);
-  const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
-
-  const setRelSub = (id, p, val, unit) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = (p != null && val != null) ? `${val}${unit} · P${p}` : (val != null ? `${val}${unit}` : '—');
-  };
-  setRelSub('rel-cc-sub',  ccC  ? ccC.percentil  : null, lastExam.cc,    ' mm');
-  setRelSub('rel-ca-sub',  caC  ? caC.percentil  : null, lastExam.ca,    ' mm');
-  setRelSub('rel-fl-sub',  flC  ? flC.percentil  : null, lastExam.femur, ' mm');
-  setRelSub('rel-efw-sub', efwC ? efwC.percentil : null, efw ? efw.toLocaleString('pt-BR') : null, ' g');
-
-  // Texto clínico
   const { paragrafos } = generateSummary(gestacao, exams);
-  const relTexto = document.getElementById('rel-texto-clinico');
-  if (relTexto) relTexto.value = paragrafos.join('\n\n');
+  const textoInicial = paragrafos.join('\n\n');
+
+  const body = document.getElementById('modal-relatorio-body');
+  if (body) {
+    body.innerHTML = `<div class="rel-preview"><div class="sheet-preview" id="rel-sheet-preview">`
+      + _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: true, textoInicial })
+      + `<div class="rel-page-mark" id="rel-page-mark"><span>Fim da página A4</span></div>`
+      + `</div></div>`;
+  }
 
   openModal('modal-relatorio');
+  setTimeout(_atualizarRelPageMark, 60);
+}
 
-  // Desenha gráficos preview
-  setTimeout(() => {
-    _drawRelChart('rel-canvas-cc',  'cc',  gestacao, exams);
-    _drawRelChart('rel-canvas-ca',  'ca',  gestacao, exams);
-    _drawRelChart('rel-canvas-fl',  'fl',  gestacao, exams);
-    _drawRelChart('rel-canvas-efw', 'efw', gestacao, exams);
-    _drawRelChartUtA('rel-canvas-uta', gestacao, exams);
-    const relUtaSub = document.getElementById('rel-uta-sub');
-    if (relUtaSub) {
-      const utMean = (() => { const e = lastExam.aut_e, d = lastExam.aut_d; if (e!=null&&d!=null) return (e+d)/2; return e??d??null; })();
-      const utC = utMean != null ? calcDopplerUt(utMean, igDays/7) : null;
-      relUtaSub.textContent = utMean != null ? `IP médio: ${utMean.toFixed(2)}${utC ? ' · P'+utC.percentil : ''}` : 'sem dados';
-    }
-  }, 120);
+// Linha tracejada nos 297mm reais — mostra ANTES de gerar o PDF se o texto
+// evolutivo (o único conteúdo de comprimento livre) vai empurrar o relatório
+// para além de uma página A4, já que o export final corta tudo que passar
+// disso (.sheet tem overflow:hidden lá). Recalculada a cada edição do texto.
+function _atualizarRelPageMark() {
+  const sheet = document.getElementById('rel-sheet-preview');
+  const mark  = document.getElementById('rel-page-mark');
+  const ta    = document.getElementById('rel-texto-clinico');
+  // O <textarea> não cresce sozinho com o conteúdo como os <p> do PDF final
+  // cresceriam — sem isso, o texto colado aqui ficaria escondido num scroll
+  // interno e a altura medida abaixo nunca bateria com a do export.
+  if (ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+  if (!sheet || !mark) return;
+  const larguraPx = sheet.getBoundingClientRect().width;
+  if (!larguraPx) return;
+  const alturaPaginaPx = (larguraPx / 210) * 297;
+  mark.style.top = alturaPaginaPx + 'px';
+  const excede = sheet.scrollHeight > alturaPaginaPx + 2;
+  mark.classList.toggle('rel-page-mark--over', excede);
+  mark.querySelector('span').textContent = excede
+    ? '⚠ excede 1 página A4 — reduza o texto'
+    : 'Fim da página A4';
 }
 
 // ── Gráficos SVG do relatório PDF — layout "médico assistente" ──────────────
@@ -8299,52 +8103,39 @@ function _renderStatusFaixaHtml(impressao) {
   </section>`;
 }
 
-function confirmarGerarPDF() {
-  const patient  = getPatientById(currentPatientId);
-  const gestacao = getGestacaoById(currentGestacaoId);
-  if (!patient || !gestacao) return;
-  const exams    = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
-  if (exams.length === 0) return;
-
-  const lastExam  = exams[exams.length - 1];
-  const igDays    = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
-  const igSem     = igDays ? Math.floor(igDays / 7) : '—';
-  const igDia     = igDays ? igDays % 7 : '—';
-  const igFmt     = igDays ? `${igSem}s+${igDia}d` : '—';
-  const igFull    = igDays ? `${igSem} semana${igSem!==1?'s':''} e ${igDia} dia${igDia!==1?'s':''}` : '—';
+// Monta o miolo do relatório (cabeçalho até rodapé) a partir dos dados da
+// gestação — usada tanto pelo preview no modal quanto pelo HTML exportado,
+// para as duas versões nunca divergirem. `opts.textareaMode` troca a
+// descrição evolutiva entre <textarea> editável (preview) e parágrafos
+// estáticos (export, a partir do texto já revisado).
+function _buildRelSheetHtml(patient, gestacao, exams, opts) {
+  opts = opts || {};
+  const lastExam = exams[exams.length - 1];
+  const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
+  const igSem    = igDays ? Math.floor(igDays / 7) : null;
+  const igDia    = igDays ? igDays % 7 : null;
+  const igValHtml = igDays ? `${igSem}<small>s</small>+${igDia}<small>d</small>` : '—';
 
   const tipo = gestacao.ig_base_tipo || (gestacao.dum ? 'DUM' : null);
   let igMetodo = 'IG não definida';
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM: ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `Corrigida por US em ${formatDateBR(gestacao.ig_base_data)}`;
   if (isMultipla(gestacao)) igMetodo += ` · ${labelFeto(lastExam.feto || fetoEmAnalise(gestacao))}`;
+  const obsResume = resumoObstetrico(gestacao);
 
-  const relTextoEl = document.getElementById('rel-texto-clinico');
-  const relTexto   = relTextoEl ? relTextoEl.value : '';
-
-  const efw = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
+  const efw  = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
   const efwC = calcEFWPercentile(efw, igDays);
   const caC  = calcBiometria(lastExam.ca, 'ca', igDays);
   const ccC  = calcBiometria(lastExam.cc, 'cc', igDays);
   const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
 
-  const relTextoHtml = relTexto.split('\n\n').filter(p => p.trim()).map(p =>
-    `<p>${escapeHtml(p.trim())}</p>`
-  ).join('');
-
-  const impressao = computeImpressaoDiagnostica(gestacao, exams);
+  const impressao  = computeImpressaoDiagnostica(gestacao, exams);
   const statusHtml = _renderStatusFaixaHtml(impressao);
-  const conduta = impressao?.conduta || 'Seguimento conforme avaliação clínica.';
-
-  const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
-  const obsResume = resumoObstetrico(gestacao);
-
-  const igValHtml = igDays ? `${igSem}<small>s</small>+${igDia}<small>d</small>` : '—';
+  const conduta    = impressao?.conduta || 'Seguimento conforme avaliação clínica.';
 
   // Gráficos — um <svg> por parâmetro, gerado a partir da tabela de referência
   // (ver _buildRelChartSvg). O Doppler de UtA só entra se a gestação tiver
-  // registro; sem ele, a grade vira 2×2 + conduta em vez de 3×2 (ver README
-  // do handoff de design).
+  // registro.
   const chartCells = [];
   ['cc', 'ca', 'fl', 'efw'].forEach(key => {
     const svg = _buildRelChartSvg(key, gestacao, exams);
@@ -8352,7 +8143,6 @@ function confirmarGerarPDF() {
     const pct = { cc: ccC, ca: caC, fl: flC, efw: efwC }[key]?.percentil;
     chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE[key]}</b><i>${pct != null ? 'P' + pct : '—'}</i></div>${svg}</div>`);
   });
-
   const hasDoppler = exams.some(e => e.aut_e != null || e.aut_d != null);
   const utaSvg = hasDoppler ? _buildRelChartSvg('uta', gestacao, exams) : null;
   if (utaSvg) {
@@ -8362,6 +8152,121 @@ function confirmarGerarPDF() {
     chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE.uta}</b><i>${utaBadge}</i></div>${utaSvg}</div>`);
   }
   chartCells.push(`<div class="conduta"><div class="eyebrow" style="font-size:9.5px;letter-spacing:.18em">Conduta sugerida</div><p>${escapeHtml(conduta)}</p></div>`);
+
+  const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  const descricaoHtml = opts.textareaMode
+    ? `<textarea id="rel-texto-clinico" class="rel-texto" oninput="_atualizarRelPageMark()" placeholder="Texto clínico gerado automaticamente...">${escapeHtml(opts.textoInicial || '')}</textarea>
+      <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
+    : (opts.textoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+
+  return `<header class="hdr">
+    <div class="hdr-brand">
+      <div class="monogram">MK</div>
+      <div>
+        <div class="hdr-name">Dra. Morgana Kummer</div>
+        <div class="hdr-sub">Medicina Fetal · Ultrassonografia</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-kicker">Relatório</div>
+      <div class="hdr-doc">Curva de Crescimento Fetal</div>
+    </div>
+  </header>
+
+  <main class="body">
+
+    <section class="ident">
+      <div>
+        <div class="eyebrow">Gestante</div>
+        <div class="paciente">${escapeHtml(patient.nome || patient.cpf)}</div>
+        <div class="paciente-meta">${escapeHtml(igMetodo)}${obsResume ? ' &nbsp;·&nbsp; ' + escapeHtml(obsResume) : ''}</div>
+      </div>
+      <div class="ig">
+        <div class="ig-label">Idade gestacional</div>
+        <div class="ig-val">${igValHtml}</div>
+      </div>
+    </section>
+
+    ${statusHtml}
+
+    <section>
+      <div class="eyebrow">Biometria fetal</div>
+      <div class="tiles">
+        <div class="tile">
+          <div class="tile-l">Circ. cefálica</div>
+          <div class="tile-v">${lastExam.cc ?? '—'}<span> mm</span></div>
+          <div class="tile-p">${ccC?.percentil != null ? 'Percentil ' + ccC.percentil : '—'}</div>
+        </div>
+        <div class="tile">
+          <div class="tile-l">Circ. abdominal</div>
+          <div class="tile-v">${lastExam.ca ?? '—'}<span> mm</span></div>
+          <div class="tile-p">${caC?.percentil != null ? 'Percentil ' + caC.percentil : '—'}</div>
+        </div>
+        <div class="tile">
+          <div class="tile-l">Comp. do fêmur</div>
+          <div class="tile-v">${lastExam.femur ?? '—'}<span> mm</span></div>
+          <div class="tile-p">${flC?.percentil != null ? 'Percentil ' + flC.percentil : '—'}</div>
+        </div>
+        <div class="tile tile--accent">
+          <div class="tile-l">Peso fetal estimado</div>
+          <div class="tile-v">${efw != null ? efw.toLocaleString('pt-BR') : '—'}<span> g</span></div>
+          <div class="tile-p">${efwC?.percentil != null ? 'Percentil ' + efwC.percentil : '—'}</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="charts-head">
+        <div class="eyebrow">Evolução longitudinal</div>
+        <div class="legend">
+          <span><i class="k-band"></i>P10–P90</span>
+          <span><i class="k-med"></i>Mediana</span>
+          <span><i class="k-pat"></i>Paciente</span>
+        </div>
+      </div>
+      <div class="charts">
+        ${chartCells.join('\n        ')}
+      </div>
+    </section>
+
+    <section class="descricao">
+      <div class="eyebrow" style="margin-bottom:8px">Descrição evolutiva</div>
+      ${descricaoHtml}
+    </section>
+
+    <section class="assinatura">
+      <div>
+        <div class="sig-name">Dra. Morgana Kummer</div>
+        <div class="sig-l">Médica Ultrassonografista · Medicina Fetal</div>
+        <div class="sig-l">CRM-MG 45.304 &nbsp;|&nbsp; RQE 39.156</div>
+      </div>
+      <div class="emit">
+        <div class="sig-l">Emitido em ${dataEmissao}</div>
+        <div class="handle">@dramorganak · dramorgana.com.br</div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="ftr">
+    <span>Medicina Fetal · Programa de Acompanhamento Ultrassonográfico</span>
+    <b>Documento para apresentação ao médico assistente</b>
+  </footer>`;
+}
+
+function confirmarGerarPDF() {
+  const patient  = getPatientById(currentPatientId);
+  const gestacao = getGestacaoById(currentGestacaoId);
+  if (!patient || !gestacao) return;
+  const exams    = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
+  if (exams.length === 0) return;
+  const lastExam = exams[exams.length - 1];
+
+  const relTextoEl = document.getElementById('rel-texto-clinico');
+  const textoFinal = relTextoEl ? relTextoEl.value : '';
+
+  const sheetHtml = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoFinal });
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
@@ -8482,101 +8387,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 <div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
 
 <div class="sheet">
-
-  <header class="hdr">
-    <div class="hdr-brand">
-      <div class="monogram">MK</div>
-      <div>
-        <div class="hdr-name">Dra. Morgana Kummer</div>
-        <div class="hdr-sub">Medicina Fetal · Ultrassonografia</div>
-      </div>
-    </div>
-    <div class="hdr-right">
-      <div class="hdr-kicker">Relatório</div>
-      <div class="hdr-doc">Curva de Crescimento Fetal</div>
-    </div>
-  </header>
-
-  <main class="body">
-
-    <section class="ident">
-      <div>
-        <div class="eyebrow">Gestante</div>
-        <div class="paciente">${escapeHtml(patient.nome || patient.cpf)}</div>
-        <div class="paciente-meta">${escapeHtml(igMetodo)}${obsResume ? ' &nbsp;·&nbsp; ' + escapeHtml(obsResume) : ''}</div>
-      </div>
-      <div class="ig">
-        <div class="ig-label">Idade gestacional</div>
-        <div class="ig-val">${igValHtml}</div>
-      </div>
-    </section>
-
-    ${statusHtml}
-
-    <section>
-      <div class="eyebrow">Biometria fetal</div>
-      <div class="tiles">
-        <div class="tile">
-          <div class="tile-l">Circ. cefálica</div>
-          <div class="tile-v">${lastExam.cc ?? '—'}<span> mm</span></div>
-          <div class="tile-p">${ccC?.percentil != null ? 'Percentil ' + ccC.percentil : '—'}</div>
-        </div>
-        <div class="tile">
-          <div class="tile-l">Circ. abdominal</div>
-          <div class="tile-v">${lastExam.ca ?? '—'}<span> mm</span></div>
-          <div class="tile-p">${caC?.percentil != null ? 'Percentil ' + caC.percentil : '—'}</div>
-        </div>
-        <div class="tile">
-          <div class="tile-l">Comp. do fêmur</div>
-          <div class="tile-v">${lastExam.femur ?? '—'}<span> mm</span></div>
-          <div class="tile-p">${flC?.percentil != null ? 'Percentil ' + flC.percentil : '—'}</div>
-        </div>
-        <div class="tile tile--accent">
-          <div class="tile-l">Peso fetal estimado</div>
-          <div class="tile-v">${efw != null ? efw.toLocaleString('pt-BR') : '—'}<span> g</span></div>
-          <div class="tile-p">${efwC?.percentil != null ? 'Percentil ' + efwC.percentil : '—'}</div>
-        </div>
-      </div>
-    </section>
-
-    <section>
-      <div class="charts-head">
-        <div class="eyebrow">Evolução longitudinal</div>
-        <div class="legend">
-          <span><i class="k-band"></i>P10–P90</span>
-          <span><i class="k-med"></i>Mediana</span>
-          <span><i class="k-pat"></i>Paciente</span>
-        </div>
-      </div>
-      <div class="charts">
-        ${chartCells.join('\n        ')}
-      </div>
-    </section>
-
-    <section class="descricao">
-      <div class="eyebrow" style="margin-bottom:8px">Descrição evolutiva</div>
-      ${relTextoHtml}
-    </section>
-
-    <section class="assinatura">
-      <div>
-        <div class="sig-name">Dra. Morgana Kummer</div>
-        <div class="sig-l">Médica Ultrassonografista · Medicina Fetal</div>
-        <div class="sig-l">CRM-MG 45.304 &nbsp;|&nbsp; RQE 39.156</div>
-      </div>
-      <div class="emit">
-        <div class="sig-l">Emitido em ${dataEmissao}</div>
-        <div class="handle">@dramorganak · dramorgana.com.br</div>
-      </div>
-    </section>
-
-  </main>
-
-  <footer class="ftr">
-    <span>Medicina Fetal · Programa de Acompanhamento Ultrassonográfico</span>
-    <b>Documento para apresentação ao médico assistente</b>
-  </footer>
-
+${sheetHtml}
 </div>
 
 <button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>

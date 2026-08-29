@@ -868,7 +868,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Peso Fetal Estimado — Hadlock (EFW)</div>
-              <div class="chart-card-subtitle" id="sub-efw">Fórmula Hadlock 1985 · Percentis Hadlock 1991 (Radiology)</div>
+              <div class="chart-card-subtitle" id="sub-efw">Fórmula Hadlock 1985 · Percentis Hadlock 1991 + INTERGROWTH-21st</div>
             </div>
             <span class="chart-card-pct" id="pct-efw" style="display:none"></span>
           </div>
@@ -1685,7 +1685,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 // ═══════════════════════════════════════════════════════════
 // CURVA FETAL — Script Principal
 // Arquitetura: PACIENTE → GESTAÇÃO → EXAME
-// Tabelas de Referência: Hadlock 1984 / Hadlock 1991 / FMF / ISUOG
+// Tabelas de Referência: Hadlock 1984 / Hadlock 1991 + INTERGROWTH-21st (peso) / FMF / ISUOG
 // ═══════════════════════════════════════════════════════════
 
 // ── Captura de erro global — primeiro código a rodar, para pegar até erro na
@@ -2026,26 +2026,6 @@ const REF_TABLES = {
     11:[33,35,42,50,52], 12:[43,46,55,64,67],
     13:[54,57,68,79,82],
   },
-  efw: {
-    // Hadlock 1991 Radiology — [P5, P10, P50, P90, P95] em gramas
-    10:[26,29,38,48,53],     11:[34,38,50,63,68],
-    12:[43,48,64,80,87],     13:[55,61,81,102,111],
-    14:[70,78,103,130,141],  15:[88,98,130,163,177],
-    16:[110,122,163,204,221],17:[136,151,201,252,274],
-    18:[167,186,248,311,337],19:[205,228,304,381,413],
-    20:[250,279,372,466,505],21:[303,338,451,565,613],
-    22:[364,406,542,679,736],23:[433,483,645,808,875],
-    24:[510,569,760,952,1031],25:[595,664,887,1111,1203],
-    26:[688,767,1025,1284,1389],27:[790,881,1177,1473,1594],
-    28:[899,1003,1340,1677,1815],29:[1016,1133,1513,1894,2050],
-    30:[1139,1270,1697,2124,2299],31:[1267,1413,1888,2364,2559],
-    32:[1399,1560,2084,2610,2824],33:[1533,1710,2283,2860,3094],
-    34:[1667,1860,2484,3111,3367],35:[1798,2006,2679,3355,3631],
-    36:[1922,2144,2863,3587,3883],37:[2035,2270,3031,3799,4113],
-    38:[2130,2376,3175,3981,4310],39:[2200,2455,3282,4116,4457],
-    40:[2230,2489,3330,4177,4523],41:[2210,2468,3303,4147,4491],
-    42:[2140,2390,3198,4018,4353],
-  },
 };
 
 // CCN → IG tabela de conversão
@@ -2167,17 +2147,123 @@ function calcEFW(dbp_mm, cc_mm, ca_mm, fl_mm) {
   return Math.round(Math.pow(10, log10efw));
 }
 
-function calcEFWPercentile(efw_g, igDays) {
-  if (!efw_g || !igDays) return null;
-  const ref = interpolateRef(REF_TABLES.efw, igDays);
-  if (!ref) return null;
-  const z = _calcZ(efw_g, ref);
-  return { percentil: _zToPercentile(z), zscore: z !== null ? +z.toFixed(2) : null };
+// ═══════════════════════════════════════════════════════════
+// PESO FETAL ESTIMADO (PFE) — percentil combinado Hadlock + INTERGROWTH-21st
+// Abaixo de 30 sem: Hadlock (1991) puro. A partir de 35 sem: INTERGROWTH-21st
+// puro — mais fiel perto do termo (a desaceleração do crescimento no fim da
+// gestação é modelada de forma diferente entre as referências). Entre 30 e
+// 35 sem, as duas tabelas são misturadas linearmente (por semana) para
+// evitar um salto no percentil bem em cima da fronteira.
+// ═══════════════════════════════════════════════════════════
+const TABELA_PESO_HADLOCK = {
+  20: { p3: 247,  p10: 275,  p50: 331,  p90: 387  },
+  21: { p3: 298,  p10: 331,  p50: 399,  p90: 467  },
+  22: { p3: 357,  p10: 397,  p50: 478,  p90: 559  },
+  23: { p3: 424,  p10: 472,  p50: 568,  p90: 664  },
+  24: { p3: 503,  p10: 556,  p50: 670,  p90: 784  },
+  25: { p3: 590,  p10: 653,  p50: 785,  p90: 918  },
+  26: { p3: 685,  p10: 758,  p50: 913,  p90: 1068 },
+  27: { p3: 791,  p10: 875,  p50: 1055, p90: 1234 },
+  28: { p3: 908,  p10: 1004, p50: 1210, p90: 1416 },
+  29: { p3: 1033, p10: 1143, p50: 1379, p90: 1613 },
+  30: { p3: 1169, p10: 1294, p50: 1559, p90: 1824 },
+  31: { p3: 1312, p10: 1452, p50: 1751, p90: 2049 },
+  32: { p3: 1465, p10: 1621, p50: 1953, p90: 2285 },
+  33: { p3: 1622, p10: 1795, p50: 2162, p90: 2530 },
+  34: { p3: 1788, p10: 1978, p50: 2377, p90: 2781 },
+  35: { p3: 1955, p10: 2164, p50: 2595, p90: 3036 },
+  36: { p3: 2126, p10: 2352, p50: 2813, p90: 3291 },
+  37: { p3: 2294, p10: 2537, p50: 3028, p90: 3543 },
+  38: { p3: 2455, p10: 2716, p50: 3236, p90: 3786 },
+  39: { p3: 2607, p10: 2884, p50: 3435, p90: 4019 },
+  40: { p3: 2747, p10: 3039, p50: 3619, p90: 4234 },
+};
+const PESO_HADLOCK_MIN_SEMANA = 20;
+const PESO_HADLOCK_MAX_SEMANA = 40;
+
+const TABELA_PESO_INTERGROWTH = {
+  30: { p3: 967,  p10: 1089, p50: 1396, p90: 1813 },
+  31: { p3: 1062, p10: 1207, p50: 1568, p90: 2050 },
+  32: { p3: 1162, p10: 1334, p50: 1755, p90: 2304 },
+  33: { p3: 1269, p10: 1469, p50: 1954, p90: 2570 },
+  34: { p3: 1380, p10: 1612, p50: 2162, p90: 2843 },
+  35: { p3: 1494, p10: 1761, p50: 2378, p90: 3116 },
+  36: { p3: 1612, p10: 1913, p50: 2594, p90: 3381 },
+  37: { p3: 1731, p10: 2068, p50: 2806, p90: 3629 },
+  38: { p3: 1851, p10: 2221, p50: 3006, p90: 3850 },
+  39: { p3: 1969, p10: 2368, p50: 3186, p90: 4034 },
+  40: { p3: 2085, p10: 2505, p50: 3338, p90: 4171 },
+};
+const PESO_INTERGROWTH_MIN_SEMANA = 30;
+const PESO_INTERGROWTH_MAX_SEMANA = 40;
+
+const PESO_TRANSICAO_INICIO = 30;
+const PESO_TRANSICAO_FIM = 35;
+const PESO_GA_MIN_SEMANAS = PESO_HADLOCK_MIN_SEMANA;
+const PESO_GA_MAX_SEMANAS = PESO_HADLOCK_MAX_SEMANA;
+
+// Quantis da normal padrão correspondentes a cada coluna das tabelas de peso.
+const PESO_Z_P3 = -1.8808, PESO_Z_P10 = -1.2816, PESO_Z_P50 = 0, PESO_Z_P90 = 1.2816;
+
+function _linhaTabelaPeso(tabela, semanaMin, semanaMax, gaSemanasDecimais) {
+  const ga = Math.min(semanaMax, Math.max(semanaMin, gaSemanasDecimais));
+  const semanaBase = Math.min(semanaMax - 1, Math.floor(ga));
+  const frac = ga - semanaBase;
+  const inferior = tabela[semanaBase];
+  const superior = tabela[semanaBase + 1];
+  const interp = chave => inferior[chave] + (superior[chave] - inferior[chave]) * frac;
+  return { p3: interp('p3'), p10: interp('p10'), p50: interp('p50'), p90: interp('p90') };
 }
 
-function getEFWP5(igDays) {
-  const ref = interpolateRef(REF_TABLES.efw, igDays);
-  return ref ? ref[0] : null;
+// Idade gestacional fracionária → linha {p3,p10,p50,p90} combinada.
+function _linhaPesoInterpolada(gaSemanasDecimais) {
+  const ga = Math.min(PESO_GA_MAX_SEMANAS, Math.max(PESO_GA_MIN_SEMANAS, gaSemanasDecimais));
+
+  if (ga < PESO_TRANSICAO_INICIO) {
+    return _linhaTabelaPeso(TABELA_PESO_HADLOCK, PESO_HADLOCK_MIN_SEMANA, PESO_HADLOCK_MAX_SEMANA, ga);
+  }
+  if (ga >= PESO_TRANSICAO_FIM) {
+    return _linhaTabelaPeso(TABELA_PESO_INTERGROWTH, PESO_INTERGROWTH_MIN_SEMANA, PESO_INTERGROWTH_MAX_SEMANA, ga);
+  }
+
+  const t = (ga - PESO_TRANSICAO_INICIO) / (PESO_TRANSICAO_FIM - PESO_TRANSICAO_INICIO);
+  const hadlock = _linhaTabelaPeso(TABELA_PESO_HADLOCK, PESO_HADLOCK_MIN_SEMANA, PESO_HADLOCK_MAX_SEMANA, ga);
+  const intergrowth = _linhaTabelaPeso(TABELA_PESO_INTERGROWTH, PESO_INTERGROWTH_MIN_SEMANA, PESO_INTERGROWTH_MAX_SEMANA, ga);
+  const misturar = chave => hadlock[chave] + (intergrowth[chave] - hadlock[chave]) * t;
+  return { p3: misturar('p3'), p10: misturar('p10'), p50: misturar('p50'), p90: misturar('p90') };
+}
+
+// Percentil de um peso informado por interpolação linear no espaço
+// (ln(peso), escore-z) entre os pontos conhecidos da linha — preserva a
+// assimetria real das tabelas (P3–P10–P50–P90 não formam uma curva
+// log-normal simétrica) em vez de assumir um único desvio padrão. Fora do
+// intervalo [P3,P90], estende a inclinação do segmento mais próximo.
+function _zDoPeso(pesoGramas, linha) {
+  const pontos = [
+    { peso: linha.p3,  z: PESO_Z_P3  },
+    { peso: linha.p10, z: PESO_Z_P10 },
+    { peso: linha.p50, z: PESO_Z_P50 },
+    { peso: linha.p90, z: PESO_Z_P90 },
+  ];
+  const interpolarSegmento = (a, b) => {
+    const t = Math.log(pesoGramas / a.peso) / Math.log(b.peso / a.peso);
+    return a.z + t * (b.z - a.z);
+  };
+  if (pesoGramas <= pontos[0].peso) return interpolarSegmento(pontos[0], pontos[1]);
+  if (pesoGramas >= pontos[3].peso) return interpolarSegmento(pontos[2], pontos[3]);
+  for (let i = 0; i < pontos.length - 1; i++) {
+    if (pesoGramas >= pontos[i].peso && pesoGramas <= pontos[i + 1].peso) {
+      return interpolarSegmento(pontos[i], pontos[i + 1]);
+    }
+  }
+  return 0;
+}
+
+function calcEFWPercentile(efw_g, igDays) {
+  if (!efw_g || !igDays) return null;
+  const linha = _linhaPesoInterpolada(igDays / 7);
+  const z = _zDoPeso(efw_g, linha);
+  return { percentil: _zToPercentile(z), zscore: z !== null ? +z.toFixed(2) : null };
 }
 
 function getCAP5(igDays) {
@@ -2193,8 +2279,13 @@ function getCAP3(igDays) {
 }
 
 function getEFWP3(igDays) {
-  const ref = interpolateRef(REF_TABLES.efw, igDays);
-  return ref ? ref[0] : null;
+  if (!igDays) return null;
+  return _linhaPesoInterpolada(igDays / 7).p3;
+}
+
+function getEFWP50(igDays) {
+  if (!igDays) return null;
+  return _linhaPesoInterpolada(igDays / 7).p50;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -3454,13 +3545,21 @@ function patientEFWHasAlert(gestacao, exams) {
 
 function refYRange(refKey, isGrams) {
   let lo = Infinity, hi = -Infinity;
-  const table = isGrams ? REF_TABLES.efw : REF_TABLES[refKey];
-  if (!table) return { yMin: null, yMax: null };
-  const weeks = Object.keys(table).map(Number);
-  for (const w of weeks) {
-    const ref = table[w];
-    lo = Math.min(lo, ref[0]);
-    hi = Math.max(hi, ref[4]);
+  if (isGrams) {
+    for (let w = FIXED_X.xMin; w <= FIXED_X.xMax; w++) {
+      const linha = _linhaPesoInterpolada(w);
+      lo = Math.min(lo, linha.p3);
+      hi = Math.max(hi, linha.p90);
+    }
+  } else {
+    const table = REF_TABLES[refKey];
+    if (!table) return { yMin: null, yMax: null };
+    const weeks = Object.keys(table).map(Number);
+    for (const w of weeks) {
+      const ref = table[w];
+      lo = Math.min(lo, ref[0]);
+      hi = Math.max(hi, ref[4]);
+    }
   }
   if (!isFinite(lo) || !isFinite(hi)) return { yMin: null, yMax: null };
   const margin = (hi - lo) * 0.22;
@@ -3711,12 +3810,11 @@ function buildEFWChart(canvasId, gestacao, exams) {
   const { yMin, yMax } = refYRange('efw', true);
 
   const refData = { p10: [], p50: [], p90: [] };
-  for (let w = 20; w <= 42; w++) {
-    const ref = interpolateRef(REF_TABLES.efw, w * 7);
-    if (!ref) continue;
-    refData.p10.push({ x: w, y: ref[1] });
-    refData.p50.push({ x: w, y: ref[2] });
-    refData.p90.push({ x: w, y: ref[3] });
+  for (let w = 20; w <= 42; w += 0.5) {
+    const linha = _linhaPesoInterpolada(w);
+    refData.p10.push({ x: w, y: linha.p10 });
+    refData.p50.push({ x: w, y: linha.p50 });
+    refData.p90.push({ x: w, y: linha.p90 });
   }
 
   const patientPoints = [];
@@ -5603,7 +5701,7 @@ function renderSummary(gestacao, exams) {
   // ── Bloco 2: Peso Fetal ───────────────────────────────────
   const efwVal = last._efw || (last.dbp && last.cc && last.ca && last.femur ? calcEFW(last.dbp, last.cc, last.ca, last.femur) : null);
   const efwPct = z.efw != null ? _zToPercentile(z.efw) : null;
-  const efwP50 = igDays ? (interpolateRef(REF_TABLES.efw, igDays)?.[2] ?? null) : null;
+  const efwP50 = getEFWP50(igDays);
   let pesoMsg  = '';
   if (efwPct != null) {
     pesoMsg = efwPct <= 3  ? 'Peso muito abaixo do esperado — critério biométrico para RCIU/PIG grave.'
@@ -5821,12 +5919,12 @@ function renderSummary(gestacao, exams) {
     </div>
     ${isMultipla(gestacao) ? `<div style="font-size:11px;color:var(--text-muted);margin:-14px 0 18px;">Troque de feto na aba <strong>Gráficos</strong>. Critérios de restrição seletiva ainda não implementados — esta análise usa os critérios de gestação única aplicados a este feto isoladamente.</div>` : ''}
     ${block('1 · Biometria fetal — último exame', bioHtml)}
-    ${block('2 · Peso fetal estimado (Hadlock 1985/1991)', pesoHtml)}
+    ${block('2 · Peso fetal estimado (Hadlock 1985 · percentil Hadlock 1991 + INTERGROWTH-21st)', pesoHtml)}
     ${n >= 2 ? block('3 · Tendência evolutiva', tendHtml) : ''}
     ${block('4 · Velocimetria Doppler', dopplerHtml)}
     ${block('5 · Impressão diagnóstica', dxBox)}
     <p style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
+      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
     </p>`;
 }
 
@@ -7682,9 +7780,9 @@ function _drawRelChart(canvasId, bio, gestacao, exams) {
   let refData;
   if (bio === 'efw') {
     refData = WEEKS.map(w => {
-      const ref = interpolateRef(REF_TABLES.efw, w * 7);
-      return ref ? { w, p10: Math.round(ref[1]), p50: Math.round(ref[2]), p90: Math.round(ref[3]) } : null;
-    }).filter(Boolean);
+      const linha = _linhaPesoInterpolada(w);
+      return { w, p10: Math.round(linha.p10), p50: Math.round(linha.p50), p90: Math.round(linha.p90) };
+    });
   } else {
     refData = WEEKS.map(w => {
       const ref = getRef(bio === 'fl' ? 'fl' : bio, w * 7);
@@ -8141,7 +8239,7 @@ function confirmarGerarPDF() {
   </div>
 
   <table class="bio-table">
-    <thead><tr><th>Parâmetro</th><th>Valor</th><th>Percentil (Hadlock)</th></tr></thead>
+    <thead><tr><th>Parâmetro</th><th>Valor</th><th>Percentil</th></tr></thead>
     <tbody>
       ${pRow('Circunferência Cefálica (CC)', lastExam.cc, ccC?.percentil, ' mm')}
       ${pRow('Circunferência Abdominal (CA)', lastExam.ca, caC?.percentil, ' mm')}
@@ -8166,7 +8264,7 @@ function confirmarGerarPDF() {
   ${relTextoHtml}
 
   <p style="font-size:9px;color:#9a7858;margin-top:10px;padding-top:8px;border-top:1px solid #e8d8f4;">
-    Impressão diagnóstica e conduta geradas automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 · Doppler: FMF/ISUOG · Revisar sempre antes da emissão.
+    Impressão diagnóstica e conduta geradas automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revisar sempre antes da emissão.
   </p>
 
   <div class="sig-block">

@@ -2186,6 +2186,16 @@ function calcEFW(dbp_mm, cc_mm, ca_mm, fl_mm) {
 // evitar um salto no percentil bem em cima da fronteira.
 // ═══════════════════════════════════════════════════════════
 const TABELA_PESO_HADLOCK = {
+  10: { p3: 26,   p10: 29,   p50: 35,   p90: 41   },
+  11: { p3: 34,   p10: 37,   p50: 45,   p90: 53   },
+  12: { p3: 43,   p10: 48,   p50: 58,   p90: 68   },
+  13: { p3: 55,   p10: 61,   p50: 73,   p90: 85   },
+  14: { p3: 70,   p10: 77,   p50: 93,   p90: 109  },
+  15: { p3: 88,   p10: 97,   p50: 117,  p90: 137  },
+  16: { p3: 110,  p10: 121,  p50: 146,  p90: 171  },
+  17: { p3: 136,  p10: 150,  p50: 181,  p90: 212  },
+  18: { p3: 167,  p10: 185,  p50: 223,  p90: 261  },
+  19: { p3: 205,  p10: 227,  p50: 273,  p90: 319  },
   20: { p3: 247,  p10: 275,  p50: 331,  p90: 387  },
   21: { p3: 298,  p10: 331,  p50: 399,  p90: 467  },
   22: { p3: 357,  p10: 397,  p50: 478,  p90: 559  },
@@ -2208,7 +2218,7 @@ const TABELA_PESO_HADLOCK = {
   39: { p3: 2607, p10: 2884, p50: 3435, p90: 4019 },
   40: { p3: 2747, p10: 3039, p50: 3619, p90: 4234 },
 };
-const PESO_HADLOCK_MIN_SEMANA = 20;
+const PESO_HADLOCK_MIN_SEMANA = 10;
 const PESO_HADLOCK_MAX_SEMANA = 40;
 
 const TABELA_PESO_INTERGROWTH = {
@@ -2291,11 +2301,11 @@ function _zDoPeso(pesoGramas, linha) {
 
 function calcEFWPercentile(efw_g, igDays) {
   if (!efw_g || !igDays) return null;
-  // Tabela de peso só cobre a partir de 20 sem (140 dias) — abaixo disso não
-  // há referência real e _linhaPesoInterpolada clamparia para a semana 20,
-  // comparando o peso (normal para a IG real) contra uma expectativa de
-  // semanas mais avançadas e gerando percentil falsamente baixo (falso CIUR).
-  if (igDays < 140) return null;
+  // Abaixo do mínimo da tabela, _linhaPesoInterpolada clamparia a IG para
+  // PESO_GA_MIN_SEMANAS, comparando o peso (normal para a IG real) contra a
+  // expectativa de semanas mais avançadas e gerando percentil falsamente
+  // baixo (falso CIUR) — por isso nem tenta abaixo do mínimo coberto.
+  if (igDays < PESO_GA_MIN_SEMANAS * 7) return null;
   const linha = _linhaPesoInterpolada(igDays / 7);
   const z = _zDoPeso(efw_g, linha);
   return { percentil: _zToPercentile(z), zscore: z !== null ? +z.toFixed(2) : null };
@@ -2314,12 +2324,12 @@ function getCAP3(igDays) {
 }
 
 function getEFWP3(igDays) {
-  if (!igDays || igDays < 140) return null; // tabela de peso só cobre a partir de 20 sem
+  if (!igDays || igDays < PESO_GA_MIN_SEMANAS * 7) return null;
   return _linhaPesoInterpolada(igDays / 7).p3;
 }
 
 function getEFWP50(igDays) {
-  if (!igDays || igDays < 140) return null; // tabela de peso só cobre a partir de 20 sem
+  if (!igDays || igDays < PESO_GA_MIN_SEMANAS * 7) return null;
   return _linhaPesoInterpolada(igDays / 7).p50;
 }
 

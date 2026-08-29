@@ -755,15 +755,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:17px;font-weight:600;color:var(--roxo)}
 .rel-preview .status-s{font-size:11.5px;color:var(--texto-2);margin-top:3px}
 .rel-preview .status-extra{font-size:10px;color:var(--texto-2);margin-top:5px}
+.rel-preview .status-conduta{font-size:11px;color:var(--roxo);margin-top:8px;padding-top:8px;
+  border-top:1px solid rgba(61,35,82,.14)}
 .rel-preview .status--atencao .status-ic{background:var(--dourado)}
 .rel-preview .status--alerta  .status-ic{background:#A8425F}
-.rel-preview .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px}
-.rel-preview .tile{background:var(--nude);border-radius:3px;padding:13px 16px 14px}
-.rel-preview .tile--accent{background:var(--nude-2)}
-.rel-preview .tile-l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--lilas)}
-.rel-preview .tile-v{font-family:'Comfortaa',system-ui,sans-serif;font-size:24px;font-weight:600;color:var(--roxo);margin:5px 0}
-.rel-preview .tile-v span{font-size:13px;color:var(--texto-2)}
-.rel-preview .tile-p{font-size:11px;color:var(--dourado);letter-spacing:.06em}
 .rel-preview .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px}
 .rel-preview .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}
 .rel-preview .legend span{display:flex;align-items:center;gap:6px}
@@ -783,26 +778,15 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .pt-now{fill:var(--papel);stroke:var(--dourado);stroke-width:2.2}
 .rel-preview .axis{stroke:var(--linha);stroke-width:1}
 .rel-preview .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
-.rel-preview .conduta{background:var(--nude);border-radius:3px;padding:14px 16px;display:flex;
-  flex-direction:column;justify-content:center;gap:8px}
-.rel-preview .conduta p{margin:0;font-size:12.5px;line-height:1.5}
 .rel-preview .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
 .rel-preview .rel-texto{width:100%;min-height:110px;max-width:62ch;border:1px solid var(--linha);border-radius:3px;
   padding:12px;font-size:13px;font-family:'Lato',Georgia,serif;line-height:1.62;color:#3B2A2A;
   resize:none;overflow:hidden;background:#fff}
 .rel-preview .rel-texto:focus{outline:none;border-color:var(--lilas)}
 .rel-preview .rel-texto-hint{font-size:10px;color:var(--dourado);margin-top:5px}
-.rel-preview .assinatura{padding:22px 40px 26px;display:flex;align-items:flex-end;
-  justify-content:space-between;gap:30px;flex-wrap:wrap}
-.rel-preview .sig-name{width:230px;border-top:1px solid var(--lavanda);padding-top:8px;
-  font-family:'Comfortaa',system-ui,sans-serif;font-size:14px;font-weight:600;color:var(--roxo)}
-.rel-preview .sig-l{font-size:11px;color:var(--texto-2);margin-top:4px}
-.rel-preview .emit{text-align:right}
-.rel-preview .handle{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dourado);margin-top:4px}
 .rel-preview .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--lavanda);flex-wrap:wrap;gap:4px}
-.rel-preview .ftr b{color:var(--dourado-claro);font-weight:400}
 /* Linha tracejada na marca dos 297mm — mesma altura de uma folha A4 impressa,
    para o preview mostrar ANTES de gerar o PDF se o conteúdo vai ultrapassar
    uma página (o relatório final corta tudo que passar disso). */
@@ -813,8 +797,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .rel-page-mark--over{border-top-color:#A8425F}
 .rel-preview .rel-page-mark--over span{background:#A8425F}
 @media (max-width:640px){
-  .rel-preview .hdr,.rel-preview .body,.rel-preview .assinatura,.rel-preview .ftr{padding-left:20px;padding-right:20px}
-  .rel-preview .tiles{grid-template-columns:repeat(2,1fr)}
+  .rel-preview .hdr,.rel-preview .body,.rel-preview .ftr{padding-left:20px;padding-right:20px}
   .rel-preview .charts{grid-template-columns:1fr}
 }
 </style>
@@ -8092,6 +8075,10 @@ function _renderStatusFaixaHtml(impressao) {
     : impressao.estadioIndeterminado ? 'Estadiamento indeterminado — dados Doppler insuficientes' : '';
   const estadioHtml = estadioTxt ? `<div class="status-extra">${escapeHtml(estadioTxt)}</div>` : '';
 
+  const condutaHtml = impressao.conduta
+    ? `<div class="status-conduta"><b>Conduta sugerida:</b> ${escapeHtml(impressao.conduta)}</div>`
+    : '';
+
   return `<section class="status ${variante}">
     <div class="status-ic">${impressao.icon}</div>
     <div class="status-body">
@@ -8099,6 +8086,7 @@ function _renderStatusFaixaHtml(impressao) {
       <div class="status-s">${escapeHtml(subtitulo)}</div>
       ${extraCrit}
       ${estadioHtml}
+      ${condutaHtml}
     </div>
   </section>`;
 }
@@ -8121,8 +8109,11 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM: ${formatDateBR(gestacao.dum)}`;
   else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `Corrigida por US em ${formatDateBR(gestacao.ig_base_data)}`;
   if (isMultipla(gestacao)) igMetodo += ` · ${labelFeto(lastExam.feto || fetoEmAnalise(gestacao))}`;
-  const obsResume = resumoObstetrico(gestacao);
 
+  // efwC/caC/ccC/flC seguem calculados aqui só para os badges de percentil no
+  // cabeçalho de cada gráfico (chart-t i) — os cards de biometria com o valor
+  // em mm/g foram removidos do layout para caber numa página A4; o valor em
+  // si já aparece plotado na curva.
   const efw  = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
   const efwC = calcEFWPercentile(efw, igDays);
   const caC  = calcBiometria(lastExam.ca, 'ca', igDays);
@@ -8131,7 +8122,6 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
 
   const impressao  = computeImpressaoDiagnostica(gestacao, exams);
   const statusHtml = _renderStatusFaixaHtml(impressao);
-  const conduta    = impressao?.conduta || 'Seguimento conforme avaliação clínica.';
 
   // Gráficos — um <svg> por parâmetro, gerado a partir da tabela de referência
   // (ver _buildRelChartSvg). O Doppler de UtA só entra se a gestação tiver
@@ -8151,7 +8141,6 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
     const utaBadge = utaC ? (utaC.percentil >= 95 ? 'IP elevado (>P95)' : `P${utaC.percentil}`) : 'sem dados';
     chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE.uta}</b><i>${utaBadge}</i></div>${utaSvg}</div>`);
   }
-  chartCells.push(`<div class="conduta"><div class="eyebrow" style="font-size:9.5px;letter-spacing:.18em">Conduta sugerida</div><p>${escapeHtml(conduta)}</p></div>`);
 
   const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
 
@@ -8160,17 +8149,22 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
     : (opts.textoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
 
+  // Ordem pedida: cabeçalho (programa + médica + CRM/RQE) → identificação da
+  // paciente (DUM + IG em destaque) → gráficos → card de status → resumo →
+  // rodapé roxo. Sem os cards de biometria e sem bloco de assinatura — CRM/RQE
+  // já está no cabeçalho, e cortar os dois foi o que abriu espaço pra caber
+  // numa página A4 só.
   return `<header class="hdr">
     <div class="hdr-brand">
       <div class="monogram">MK</div>
       <div>
         <div class="hdr-name">Dra. Morgana Kummer</div>
-        <div class="hdr-sub">Medicina Fetal · Ultrassonografia</div>
+        <div class="hdr-sub">CRM-MG 45.304 · RQE 39.156</div>
       </div>
     </div>
     <div class="hdr-right">
-      <div class="hdr-kicker">Relatório</div>
-      <div class="hdr-doc">Curva de Crescimento Fetal</div>
+      <div class="hdr-kicker">Programa Personalizado de</div>
+      <div class="hdr-doc">Crescimento Fetal</div>
     </div>
   </header>
 
@@ -8180,39 +8174,11 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       <div>
         <div class="eyebrow">Gestante</div>
         <div class="paciente">${escapeHtml(patient.nome || patient.cpf)}</div>
-        <div class="paciente-meta">${escapeHtml(igMetodo)}${obsResume ? ' &nbsp;·&nbsp; ' + escapeHtml(obsResume) : ''}</div>
+        <div class="paciente-meta">${escapeHtml(igMetodo)}</div>
       </div>
       <div class="ig">
         <div class="ig-label">Idade gestacional</div>
         <div class="ig-val">${igValHtml}</div>
-      </div>
-    </section>
-
-    ${statusHtml}
-
-    <section>
-      <div class="eyebrow">Biometria fetal</div>
-      <div class="tiles">
-        <div class="tile">
-          <div class="tile-l">Circ. cefálica</div>
-          <div class="tile-v">${lastExam.cc ?? '—'}<span> mm</span></div>
-          <div class="tile-p">${ccC?.percentil != null ? 'Percentil ' + ccC.percentil : '—'}</div>
-        </div>
-        <div class="tile">
-          <div class="tile-l">Circ. abdominal</div>
-          <div class="tile-v">${lastExam.ca ?? '—'}<span> mm</span></div>
-          <div class="tile-p">${caC?.percentil != null ? 'Percentil ' + caC.percentil : '—'}</div>
-        </div>
-        <div class="tile">
-          <div class="tile-l">Comp. do fêmur</div>
-          <div class="tile-v">${lastExam.femur ?? '—'}<span> mm</span></div>
-          <div class="tile-p">${flC?.percentil != null ? 'Percentil ' + flC.percentil : '—'}</div>
-        </div>
-        <div class="tile tile--accent">
-          <div class="tile-l">Peso fetal estimado</div>
-          <div class="tile-v">${efw != null ? efw.toLocaleString('pt-BR') : '—'}<span> g</span></div>
-          <div class="tile-p">${efwC?.percentil != null ? 'Percentil ' + efwC.percentil : '—'}</div>
-        </div>
       </div>
     </section>
 
@@ -8230,28 +8196,18 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       </div>
     </section>
 
-    <section class="descricao">
-      <div class="eyebrow" style="margin-bottom:8px">Descrição evolutiva</div>
-      ${descricaoHtml}
-    </section>
+    ${statusHtml}
 
-    <section class="assinatura">
-      <div>
-        <div class="sig-name">Dra. Morgana Kummer</div>
-        <div class="sig-l">Médica Ultrassonografista · Medicina Fetal</div>
-        <div class="sig-l">CRM-MG 45.304 &nbsp;|&nbsp; RQE 39.156</div>
-      </div>
-      <div class="emit">
-        <div class="sig-l">Emitido em ${dataEmissao}</div>
-        <div class="handle">@dramorganak · dramorgana.com.br</div>
-      </div>
+    <section class="descricao">
+      <div class="eyebrow" style="margin-bottom:8px">Resumo do acompanhamento</div>
+      ${descricaoHtml}
     </section>
 
   </main>
 
   <footer class="ftr">
-    <span>Medicina Fetal · Programa de Acompanhamento Ultrassonográfico</span>
-    <b>Documento para apresentação ao médico assistente</b>
+    <span>Programa de Acompanhamento Ultrassonográfico</span>
+    <span>Emitido em ${dataEmissao}</span>
   </footer>`;
 }
 
@@ -8324,17 +8280,10 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .status-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:17px;font-weight:600;color:var(--roxo)}
 .status-s{font-size:11.5px;color:var(--texto-2);margin-top:3px}
 .status-extra{font-size:10px;color:var(--texto-2);margin-top:5px}
+.status-conduta{font-size:11px;color:var(--roxo);margin-top:8px;padding-top:8px;
+  border-top:1px solid rgba(61,35,82,.14)}
 .status--atencao .status-ic{background:var(--dourado)}
 .status--alerta  .status-ic{background:#A8425F}
-
-.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px}
-.tile{background:var(--nude);border-radius:3px;padding:13px 16px 14px;
-  -webkit-print-color-adjust:exact;print-color-adjust:exact}
-.tile--accent{background:var(--nude-2)}
-.tile-l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--lilas)}
-.tile-v{font-family:'Comfortaa',system-ui,sans-serif;font-size:24px;font-weight:600;color:var(--roxo);margin:5px 0}
-.tile-v span{font-size:13px;color:var(--texto-2)}
-.tile-p{font-size:11px;color:var(--dourado);letter-spacing:.06em}
 
 .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
 .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}
@@ -8356,25 +8305,11 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .axis{stroke:var(--linha);stroke-width:1}
 .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
 
-.conduta{background:var(--nude);border-radius:3px;padding:14px 16px;display:flex;
-  flex-direction:column;justify-content:center;gap:8px;
-  -webkit-print-color-adjust:exact;print-color-adjust:exact}
-.conduta p{margin:0;font-size:12.5px;line-height:1.5}
-
 .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
-
-.assinatura{margin-top:auto;padding-bottom:26px;display:flex;align-items:flex-end;
-  justify-content:space-between;gap:30px}
-.sig-name{width:230px;border-top:1px solid var(--lavanda);padding-top:8px;
-  font-family:'Comfortaa',system-ui,sans-serif;font-size:14px;font-weight:600;color:var(--roxo)}
-.sig-l{font-size:11px;color:var(--texto-2);margin-top:4px}
-.emit{text-align:right}
-.handle{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dourado);margin-top:4px}
 
 .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--lavanda);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ftr b{color:var(--dourado-claro);font-weight:400}
 
 .rel-reminder{background:var(--roxo);color:var(--dourado-claro);
   font-size:11px;padding:8px 16px;text-align:center}

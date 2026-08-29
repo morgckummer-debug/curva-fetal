@@ -2315,6 +2315,11 @@ function _zDoPeso(pesoGramas, linha) {
 
 function calcEFWPercentile(efw_g, igDays) {
   if (!efw_g || !igDays) return null;
+  // Tabela de peso só cobre a partir de 20 sem (140 dias) — abaixo disso não
+  // há referência real e _linhaPesoInterpolada clamparia para a semana 20,
+  // comparando o peso (normal para a IG real) contra uma expectativa de
+  // semanas mais avançadas e gerando percentil falsamente baixo (falso CIUR).
+  if (igDays < 140) return null;
   const linha = _linhaPesoInterpolada(igDays / 7);
   const z = _zDoPeso(efw_g, linha);
   return { percentil: _zToPercentile(z), zscore: z !== null ? +z.toFixed(2) : null };
@@ -2333,12 +2338,12 @@ function getCAP3(igDays) {
 }
 
 function getEFWP3(igDays) {
-  if (!igDays) return null;
+  if (!igDays || igDays < 140) return null; // tabela de peso só cobre a partir de 20 sem
   return _linhaPesoInterpolada(igDays / 7).p3;
 }
 
 function getEFWP50(igDays) {
-  if (!igDays) return null;
+  if (!igDays || igDays < 140) return null; // tabela de peso só cobre a partir de 20 sem
   return _linhaPesoInterpolada(igDays / 7).p50;
 }
 

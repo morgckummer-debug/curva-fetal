@@ -891,6 +891,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <button class="tab" onclick="setTab('summary')">Resumo</button>
       </div>
       <button class="btn-pdf-report" id="btn-pdf-report" onclick="abrirPreviewRelatorio()" style="display:none;">⬇ Relatório PDF</button>
+      <button class="btn-pdf-report" id="btn-relatorios-emitidos" onclick="abrirRelatoriosModal()" style="display:none;" title="Segunda via de relatórios já gerados para esta gestação">📄 Relatórios emitidos</button>
     </div>
 
     <!-- EXAMS TAB -->
@@ -1501,6 +1502,29 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-snapshots')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RELATÓRIOS EMITIDOS — segunda via, um por clique em "Gerar PDF" -->
+<div class="modal-overlay" id="modal-relatorios">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📄</div>
+        <h2 style="font-size:18px;">Relatórios emitidos</h2>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-relatorios')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted);font-size:13px;margin-bottom:14px;line-height:1.6;">
+        Toda vez que "Gerar PDF" é usado, uma cópia do relatório fica guardada aqui — útil se a
+        paciente perder a via impressa e precisar de uma segunda via, sem refazer o exame.
+      </p>
+      <div id="relatorios-content" style="max-height:55vh;overflow-y:auto;padding-right:6px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-relatorios')">Fechar</button>
     </div>
   </div>
 </div>
@@ -3228,6 +3252,8 @@ function renderPatientScreen() {
   // PDF button
   const btnPdf = document.getElementById('btn-pdf-report');
   if (btnPdf) btnPdf.style.display = 'none';
+  const btnRel = document.getElementById('btn-relatorios-emitidos');
+  if (btnRel) btnRel.style.display = 'none';
 
   // Seletor de gestação (se houver mais de uma)
   let gestacaoSelectorHtml = '';
@@ -7716,7 +7742,7 @@ function _hasUnsavedModalData() {
 }
 
 function _doShowSearchScreen() {
-  ['modal-exam','modal-patient','modal-confirm-delete','modal-relatorio','modal-gestacao']
+  ['modal-exam','modal-patient','modal-confirm-delete','modal-relatorio','modal-relatorios','modal-gestacao']
     .forEach(id => closeModal(id));
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-search').classList.add('active');
@@ -7788,6 +7814,8 @@ function setTab(tab) {
 
   const pdfBtn = document.getElementById('btn-pdf-report');
   if (pdfBtn) pdfBtn.style.display = tab === 'summary' ? '' : 'none';
+  const relBtn = document.getElementById('btn-relatorios-emitidos');
+  if (relBtn) relBtn.style.display = tab === 'summary' ? '' : 'none';
 
   if (tab === 'charts') {
     const gestacao = getGestacaoById(currentGestacaoId);
@@ -8332,7 +8360,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
   border-radius:3px;padding:10px 20px;font-size:14px;cursor:pointer;font-family:inherit;
   box-shadow:0 4px 18px rgba(61,35,82,.35)}
 </style></head>
-<body>
+<body onload="window.print()">
 
 <div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
 
@@ -8343,20 +8371,24 @@ ${sheetHtml}
 <button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
 </body></html>`;
 
-  const nm  = (patient.nome||'paciente').replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚãõâêôçÇ]/g,'_').replace(/_+/g,'_');
-  const dt  = (lastExam.data_exame||new Date().toISOString().slice(0,10)).replace(/-/g,'');
-  const filename = `CurvaFetal_${nm}_${dt}.html`;
-
+  // Abrir direto a janela de impressão — em vez de baixar um .html que a médica
+  // precisava abrir e mandar imprimir na mão. window.open síncrono aqui (sem
+  // await antes) é o que evita o bloqueador de pop-up: o clique no botão é o
+  // gesto do usuário que autoriza a nova aba. O <body onload="window.print()">
+  // do próprio documento dispara o diálogo assim que a página carrega — e
+  // funciona igual tanto agora quanto quando reaberto depois em "Relatórios
+  // emitidos".
   const blob = new Blob([printHTML], { type: 'text/html;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  const printWindow = window.open(url, '_blank');
+  if (!printWindow) {
+    alert('Não consegui abrir a janela de impressão — seu navegador deve ter bloqueado o pop-up. Permita pop-ups para este site e clique em "Gerar PDF" de novo.');
+    return;
+  }
 
-  setTimeout(() => {
-    alert(`Arquivo "${filename}" baixado.\n\nPara gerar o PDF:\n1. Abra o arquivo no navegador\n2. Pressione Ctrl+P (ou Cmd+P no Mac)\n3. Selecione "Salvar como PDF"`);
-  }, 300);
+  // Guarda uma cópia no Storage para servir de segunda via depois — não trava
+  // a impressão por causa disso (fire-and-forget, como o snapshot de backup).
+  _salvarRelatorioGerado(gestacao.id, printHTML);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -8681,6 +8713,112 @@ async function restaurarSnapshot(nome) {
   } catch (err) {
     console.error('[CurvaFetal] falha ao restaurar snapshot:', err);
     alert('Não consegui restaurar esta cópia: ' + (err.message || err));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// RELATÓRIOS EMITIDOS — segunda via
+// ═══════════════════════════════════════════════════════════
+//
+// Cada clique em "Gerar PDF" (confirmarGerarPDF) guarda uma cópia do HTML
+// exportado aqui, em relatorios/{user_id}/{gestacao_id}/{data}_{hora}.html —
+// mesmo padrão de bucket privado + RLS por auth.uid() dos snapshots (migração
+// 006), só que por arquivo individual em vez de reescrito por dia. Serve pra
+// paciente que perde a via impressa: reabre o mesmo HTML (com o mesmo
+// <body onload="window.print()">) e manda imprimir de novo, sem precisar
+// remarcar exame.
+
+const _RELATORIOS_BUCKET = 'relatorios';
+
+// Cópia best-effort — nunca deve travar a impressão, que já aconteceu antes
+// desta função ser chamada (ver confirmarGerarPDF).
+async function _salvarRelatorioGerado(gestacaoId, html) {
+  try {
+    const uid = await _snapshotUid();
+    if (!uid) return;
+    const agora = new Date();
+    const hora  = String(agora.getHours()).padStart(2, '0')
+                + String(agora.getMinutes()).padStart(2, '0')
+                + String(agora.getSeconds()).padStart(2, '0');
+    const nome = `${_hojeISO()}_${hora}.html`;
+    const { error } = await supabaseClient.storage
+      .from(_RELATORIOS_BUCKET)
+      .upload(`${uid}/${gestacaoId}/${nome}`, new Blob([html], { type: 'text/html' }), { contentType: 'text/html' });
+    if (error) throw error;
+  } catch (err) {
+    // Silencioso de propósito: a médica já tem a janela de impressão aberta
+    // com o relatório certo. Isto é só a cópia extra pra segunda via depois.
+    console.error('[CurvaFetal] falha ao arquivar relatório para segunda via:', err);
+  }
+}
+
+async function abrirRelatoriosModal() {
+  if (!currentGestacaoId) return;
+  openModal('modal-relatorios');
+  const el = document.getElementById('relatorios-content');
+  if (!el) return;
+  el.innerHTML = '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;">Carregando relatórios…</p>';
+
+  try {
+    const uid = await _snapshotUid();
+    if (!uid) throw new Error('Não consegui confirmar sua sessão. Saia e entre de novo.');
+
+    const { data, error } = await supabaseClient.storage
+      .from(_RELATORIOS_BUCKET)
+      .list(`${uid}/${currentGestacaoId}`, { limit: 200, sortBy: { column: 'name', order: 'desc' } });
+    if (error) throw error;
+
+    const arquivos = (data || []).filter(f => f && /^\d{4}-\d{2}-\d{2}_\d{6}\.html$/.test(f.name));
+    if (!arquivos.length) {
+      el.innerHTML =
+        '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;line-height:1.65;">' +
+        'Nenhum relatório emitido ainda para esta gestação. Toda vez que "Gerar PDF" for usado, ' +
+        'uma cópia fica guardada aqui.</p>';
+      return;
+    }
+
+    el.innerHTML = arquivos.map(f => {
+      const m = f.name.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(\d{2})\.html$/);
+      const [, a, mo, d, hh, mm] = m;
+      const path = `${uid}/${currentGestacaoId}/${f.name}`;
+      return `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
+        <div style="font-weight:600;font-size:14px;color:var(--text);">
+          ${d}/${mo}/${a} <span style="font-weight:400;font-size:11.5px;color:var(--text-muted);">às ${hh}:${mm}</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="abrirRelatorioArquivado('${escapeHtml(path)}')">Abrir</button>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao listar relatórios emitidos:', err);
+    const semBucket = /bucket not found|not_found|does not exist/i.test(err.message || '');
+    el.innerHTML = semBucket
+      ? '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;line-height:1.65;">' +
+        'A área de relatórios emitidos ainda não foi criada no servidor. Rode a migração ' +
+        '<code>supabase/migrations/008_relatorios_pdf.sql</code> no editor SQL do painel do ' +
+        'Supabase — os próximos relatórios gerados já ficam guardados aqui.</p>'
+      : '<p style="color:var(--danger);font-size:13px;padding:18px 0;line-height:1.65;">' +
+        'Não consegui listar os relatórios: ' + escapeHtml(err.message || String(err)) + '</p>';
+  }
+}
+
+// Abre uma aba em branco ANTES do await — é o gesto síncrono do clique que
+// evita o bloqueador de pop-up. A URL assinada (o bucket é privado) só chega
+// depois; setar a location da aba já aberta não é bloqueado como um
+// window.open() tardio seria.
+async function abrirRelatorioArquivado(path) {
+  const janela = window.open('', '_blank');
+  try {
+    const { data, error } = await supabaseClient.storage
+      .from(_RELATORIOS_BUCKET)
+      .createSignedUrl(path, 300);
+    if (error) throw error;
+    if (janela) janela.location.href = data.signedUrl;
+    else window.open(data.signedUrl, '_blank');
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao abrir relatório arquivado:', err);
+    if (janela) janela.close();
+    alert('Não consegui abrir este relatório: ' + (err.message || err));
   }
 }
 

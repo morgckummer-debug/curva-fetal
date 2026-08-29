@@ -8741,9 +8741,17 @@ async function _salvarRelatorioGerado(gestacaoId, html) {
                 + String(agora.getMinutes()).padStart(2, '0')
                 + String(agora.getSeconds()).padStart(2, '0');
     const nome = `${_hojeISO()}_${hora}.html`;
+    // Corpo como string, não Blob: no SDK do Supabase, upload() só usa a opção
+    // contentType quando o corpo é string/ArrayBuffer — com um Blob, o servidor
+    // fica com o tipo que o multipart mandar para aquele campo, que nem sempre
+    // é 'text/html'. Isso nunca deu problema no snapshot (JSON) porque aquele
+    // arquivo só é lido via download() e reinterpretado como JSON; aqui o
+    // arquivo é aberto direto no navegador pela URL assinada, então um
+    // Content-Type errado (ex.: application/octet-stream) faz o navegador
+    // mostrar o HTML como texto/código em vez de renderizar e imprimir.
     const { error } = await supabaseClient.storage
       .from(_RELATORIOS_BUCKET)
-      .upload(`${uid}/${gestacaoId}/${nome}`, new Blob([html], { type: 'text/html' }), { contentType: 'text/html' });
+      .upload(`${uid}/${gestacaoId}/${nome}`, html, { contentType: 'text/html' });
     if (error) throw error;
   } catch (err) {
     // Silencioso de propósito: a médica já tem a janela de impressão aberta

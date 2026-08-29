@@ -85,6 +85,25 @@ proteção nenhuma (só este app grava ali) por backup inexistente sem ninguém 
 Datas usam `_hojeISO()` (dia local), não `toISOString()` cru: em UTC-3 todo
 trabalho feito depois das 21h cairia no arquivo do dia seguinte.
 
+## Relatório PDF: abre pra imprimir na hora, e fica arquivado pra segunda via
+
+`confirmarGerarPDF()` não baixa mais um `.html` pra clicar em Ctrl+P na mão —
+abre uma aba nova com `window.open(url, '_blank')` (a URL de um Blob criado na
+hora) e o próprio documento exportado tem `<body onload="window.print()">`,
+então o diálogo de impressão já aparece sozinho. O `window.open` tem que ser
+síncrono, sem `await` antes: é o clique no botão que autoriza a aba nova, e um
+`window.open` depois de uma espera vira pop-up bloqueado.
+
+Cada geração também sobe uma cópia do HTML pro bucket privado `relatorios`
+(migração 008, mesmo padrão de RLS por `auth.uid()` da 006) em
+`relatorios/{user_id}/{gestacao_id}/{data}_{hora}.html` — um arquivo por
+emissão, não reescrito como o snapshot do dia. É a "segunda via": se a
+paciente perder a via impressa, `abrirRelatoriosModal()` lista os relatórios
+daquela gestação e reabre qualquer um por URL assinada (`createSignedUrl`,
+bucket privado) — o mesmo HTML, com o mesmo auto-print. O upload é
+fire-and-forget (`_salvarRelatorioGerado`, mesmo espírito do `_enviarSnapshot`):
+nunca atrasa nem trava a impressão, que já está acontecendo antes dele rodar.
+
 ## "JWT issued at future": relógio, não dado
 
 `PGRST303` vem de desencontro de relógio dentro do próprio Supabase — o GoTrue

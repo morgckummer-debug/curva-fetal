@@ -8811,18 +8811,28 @@ async function abrirRelatoriosModal() {
 }
 
 // Abre uma aba em branco ANTES do await — é o gesto síncrono do clique que
-// evita o bloqueador de pop-up. A URL assinada (o bucket é privado) só chega
+// evita o bloqueador de pop-up. O conteúdo (o bucket é privado) só chega
 // depois; setar a location da aba já aberta não é bloqueado como um
 // window.open() tardio seria.
+//
+// download() em vez de createSignedUrl(): a URL assinada faz o navegador
+// confiar no Content-Type que o servidor devolver para aquele objeto — e na
+// prática ele voltou errado (o relatório abria como texto cru, não como
+// página). Baixando os bytes e montando o Blob aqui do lado do cliente com
+// type: 'text/html' explícito, a renderização não depende de header nenhum
+// vindo do Storage — é o mesmo truque que já funciona em confirmarGerarPDF
+// pra abrir a impressão na hora.
 async function abrirRelatorioArquivado(path) {
   const janela = window.open('', '_blank');
   try {
     const { data, error } = await supabaseClient.storage
       .from(_RELATORIOS_BUCKET)
-      .createSignedUrl(path, 300);
+      .download(path);
     if (error) throw error;
-    if (janela) janela.location.href = data.signedUrl;
-    else window.open(data.signedUrl, '_blank');
+    const html = await data.text();
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    if (janela) janela.location.href = url;
+    else window.open(url, '_blank');
   } catch (err) {
     console.error('[CurvaFetal] falha ao abrir relatório arquivado:', err);
     if (janela) janela.close();

@@ -8078,7 +8078,7 @@ function abrirPreviewRelatorio() {
   const relMt = document.getElementById('rel-patient-meta');
   const relIg = document.getElementById('rel-ig-val');
   if (relNm) relNm.textContent = patient.nome || patient.cpf;
-  if (relMt) relMt.textContent = `CPF ${patient.cpf} · ${igMetodo}`;
+  if (relMt) relMt.textContent = igMetodo;
   if (relIg) relIg.textContent = igFmt;
 
   // Impressão diagnóstica — conclusão assertiva no topo do relatório
@@ -8192,13 +8192,13 @@ function confirmarGerarPDF() {
 <style>
   /* Fontes locais */
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4; margin: 10mm 12mm; }
   body { font-family: 'Nunito Sans', sans-serif; background: #fff; color: #1e0838; font-size: 12px; }
   .page { max-width: 780px; margin: 0 auto; padding: 28px 32px; }
   .header { background: linear-gradient(135deg,#527d68,#527d68); border-radius: 10px; padding: 14px 20px; color: #fff; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .patient-bar { background: #cce0d5; border-radius: 8px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-  .chart-box { border: 1px solid #b8cfc4; border-radius: 8px; padding: 8px; }
-  .chart-box-full { border: 1px solid #b8cfc4; border-radius: 8px; padding: 8px; grid-column: 1/-1; margin-bottom: 14px; }
+  .charts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .chart-box { border: 1px solid #b8cfc4; border-radius: 8px; padding: 8px; page-break-inside: avoid; }
   .chart-label { font-size: 10px; font-weight: 700; color: #527d68; text-transform: uppercase; letter-spacing: .3px; margin-bottom: 3px; }
   .chart-sub { font-size: 9px; color: #9a7858; margin-bottom: 4px; }
   img { width: 100%; height: auto; display: block; }
@@ -8211,7 +8211,17 @@ function confirmarGerarPDF() {
   .sig-line { font-size: 11px; color: #527d68; }
   .print-btn { position: fixed; bottom: 20px; right: 20px; background: #527d68; color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-size: 14px; cursor: pointer; font-family: inherit; box-shadow: 0 4px 18px rgba(91,63,166,.35); }
   .no-print { }
-  @media print { .no-print { display: none !important; } body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+  @media print {
+    .no-print { display: none !important; }
+    body { print-color-adjust: exact; -webkit-print-color-adjust: exact; font-size: 11px; }
+    .page { max-width: none; margin: 0; padding: 0; }
+    .header { padding: 10px 16px; margin-bottom: 10px; }
+    .patient-bar { padding: 8px 14px; margin-bottom: 10px; }
+    .bio-table { margin-bottom: 10px; }
+    .charts-grid { margin-bottom: 10px; }
+    .resumo-title { margin-bottom: 6px; }
+    .sig-block { margin-top: 14px; padding-top: 10px; }
+  }
 </style></head>
 <body>
 <div class="page">
@@ -8226,7 +8236,7 @@ function confirmarGerarPDF() {
   <div class="patient-bar">
     <div>
       <div style="font-size:14px;font-weight:700;color:#527d68;">${escapeHtml(patient.nome || 'Paciente')}</div>
-      <div style="font-size:11px;color:#527d68;margin-top:2px;">CPF ${escapeHtml(patient.cpf)} · ${igMetodo}${obsResume ? ' · ' + obsResume : ''}</div>
+      <div style="font-size:11px;color:#527d68;margin-top:2px;">${igMetodo}${obsResume ? ' · ' + obsResume : ''}</div>
     </div>
     <div style="text-align:right;">
       <div style="font-size:18px;font-weight:700;color:#527d68;font-family:'Playfair Display',serif;">${igFmt}</div>
@@ -8253,17 +8263,13 @@ function confirmarGerarPDF() {
     <div class="chart-box"><div class="chart-label">Circ. Abdominal (CA)</div><img src="${caImg}"></div>
     <div class="chart-box"><div class="chart-label">Comprimento Fêmur (CF)</div><img src="${flImg}"></div>
     <div class="chart-box"><div class="chart-label">Peso Fetal Estimado (PFE)</div><img src="${efwImg}"></div>
-  </div>
-
-  <div class="chart-box-full">
-    <div class="chart-label">IP Médio — Artérias Uterinas (UtA)</div>
-    <img src="${utaImg}">
+    <div class="chart-box"><div class="chart-label">IP Médio — Artérias Uterinas (UtA)</div><img src="${utaImg}"></div>
   </div>
 
   <div class="resumo-title">Descrição Evolutiva</div>
   ${relTextoHtml}
 
-  <p style="font-size:9px;color:#9a7858;margin-top:10px;padding-top:8px;border-top:1px solid #e8d8f4;">
+  <p class="no-print" style="font-size:9px;color:#9a7858;margin-top:10px;padding-top:8px;border-top:1px solid #e8d8f4;">
     Impressão diagnóstica e conduta geradas automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revisar sempre antes da emissão.
   </p>
 

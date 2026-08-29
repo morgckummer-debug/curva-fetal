@@ -3614,7 +3614,7 @@ function patientEFWHasAlert(gestacao, exams) {
 
 // Canvas2D charts — sem dependências externas
 
-function refYRange(refKey, isGrams) {
+function refYRange(refKey, isGrams, patientValues) {
   let lo = Infinity, hi = -Infinity;
   if (isGrams) {
     for (let w = FIXED_X.xMin; w <= FIXED_X.xMax; w++) {
@@ -3622,18 +3622,31 @@ function refYRange(refKey, isGrams) {
       lo = Math.min(lo, linha.p3);
       hi = Math.max(hi, linha.p90);
     }
-  } else {
-    const table = REF_TABLES[refKey];
-    if (!table) return { yMin: null, yMax: null };
-    const weeks = Object.keys(table).map(Number);
-    for (const w of weeks) {
-      const ref = table[w];
-      lo = Math.min(lo, ref[0]);
-      hi = Math.max(hi, ref[4]);
+    if (!isFinite(lo) || !isFinite(hi)) return { yMin: null, yMax: null };
+    const margin = (hi - lo) * 0.22;
+    return { yMin: Math.max(0, Math.floor(lo - margin)), yMax: Math.ceil(hi + margin) };
+  }
+  // Foca a faixa realmente informativa (P10–P90) em vez de P5–P95: a banda
+  // sombreada passa a ocupar quase toda a altura do gráfico. Os valores do
+  // paciente entram no min/max para nunca cortar o ponto ou o rótulo "P—"
+  // quando ele foge da faixa (é justamente o caso que se quer destacar).
+  const table = REF_TABLES[refKey];
+  if (!table) return { yMin: null, yMax: null };
+  const weeks = Object.keys(table).map(Number);
+  for (const w of weeks) {
+    const ref = table[w];
+    lo = Math.min(lo, ref[1]); // P10
+    hi = Math.max(hi, ref[3]); // P90
+  }
+  if (patientValues) {
+    for (const v of patientValues) {
+      if (v == null) continue;
+      lo = Math.min(lo, v);
+      hi = Math.max(hi, v);
     }
   }
   if (!isFinite(lo) || !isFinite(hi)) return { yMin: null, yMax: null };
-  const margin = (hi - lo) * 0.22;
+  const margin = (hi - lo) * 0.12;
   return {
     yMin: Math.max(0, Math.floor(lo - margin)),
     yMax: Math.ceil(hi + margin),
@@ -3658,7 +3671,7 @@ function _drawChart(canvas, cfg) {
   canvas.style.height = H + 'px';
   ctx.scale(DPR, DPR);
 
-  const PAD = { t: 28, r: 44, b: 36, l: 48 };
+  const PAD = Object.assign({ t: 28, r: 44, b: 36, l: 48 }, cfg.pad || {});
   const cW  = W - PAD.l - PAD.r;
   const cH  = H - PAD.t - PAD.b;
 
@@ -3841,7 +3854,6 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
   if (!canvas) return;
 
   const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
-  const { yMin, yMax } = refYRange(refKey, false);
 
   // Use 0.5-week steps + interpolateRef for smooth percentile curves (avoids table jitter)
   const refData = { p10: [], p50: [], p90: [] };
@@ -3870,7 +3882,12 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
     patientPoints.push({ x: igDays / 7, y: val, p, color });
   });
 
-  _drawChart(canvas, { xMin: 20, xMax: 42, yMin, yMax, refData, patientPoints, yLabel });
+  const { yMin, yMax } = refYRange(refKey, false, patientPoints.map(pt => pt.y));
+
+  // Padding de topo reduzido: com o eixo Y já focado em P10–P90 (refYRange acima),
+  // sobra espaço em branco acima do gráfico que não existia quando a escala ia
+  // até P5/P95 — devolve esse espaço para a faixa sombreada ficar mais "larga".
+  _drawChart(canvas, { xMin: 20, xMax: 42, yMin, yMax, refData, patientPoints, yLabel, pad: { t: 14 } });
 }
 
 function buildEFWChart(canvasId, gestacao, exams) {

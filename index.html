@@ -98,6 +98,14 @@ code,.mono {font-family:var(--font-mono);}
   --warning-bg:   #f7f0de;
   --danger:       #a84848;
   --danger-bg:    #f4e8e8;
+  /* Verde clínico de "adequado/normal" — deliberadamente fora da família --sage
+     (que é decorativa e virou roxo). Repaginar a marca não pode apagar o
+     verde que sinaliza "sem alteração" em toda a tela de acompanhamento. */
+  --ok:           #3a7a50;
+  --ok-deep:      #527d68;
+  --ok-bg:        #e4f2ec;
+  --ok-pale:      #cce4d8;
+  --ok-border:    #7aab92;
 
   /* ── Radius (clay = very round) ── */
   --radius:    22px;
@@ -434,7 +442,7 @@ header::after{display:none;}
 }
 .alert-danger {background:var(--blush-pale);color:#7a2828;}
 .alert-warning{background:var(--peach-pale);color:#6a3800;}
-.alert-ok     {background:var(--sage-light); color:var(--sage-deep);}
+.alert-ok     {background:var(--ok-bg); color:var(--ok-deep);}
 .alert-info   {background:var(--blue-light);  color:var(--blue-deep);}
 .alert-icon   {font-size:18px;flex-shrink:0;}
 
@@ -488,7 +496,7 @@ header::after{display:none;}
   padding:4px 13px;border-radius:99px;white-space:nowrap;flex-shrink:0;border:none;
   box-shadow:2px 2px 7px rgba(61,35,82,0.16),-1px -1px 4px rgba(255,255,255,0.56);
 }
-.chart-card-pct-ok  {color:#3a7a50;background:var(--sage-pale);}
+.chart-card-pct-ok  {color:var(--ok);background:var(--ok-pale);}
 .chart-card-pct-warn{color:#8a5800;background:var(--peach-pale);}
 .chart-card-pct-alert{color:#8a2828;background:var(--blush-pale);}
 .chart-wrapper{position:relative;width:100%;aspect-ratio:1/1;flex:1;min-width:0;}
@@ -758,7 +766,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status-conduta{font-size:11px;color:var(--roxo);margin-top:8px;padding-top:8px;
   border-top:1px solid rgba(61,35,82,.14)}
 .rel-preview .status--atencao .status-ic{background:var(--dourado)}
+.rel-preview .status--alerta  {background:#F6E3E8}
 .rel-preview .status--alerta  .status-ic{background:#A8425F}
+.rel-preview .status--alerta  .status-t{color:#8a2840}
+.rel-preview .status--alerta  .status-conduta{color:#8a2840;border-top-color:rgba(168,66,95,.22)}
 .rel-preview .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px}
 .rel-preview .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}
 .rel-preview .legend span{display:flex;align-items:center;gap:6px}
@@ -5239,7 +5250,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
     eventos.push({
       tipo: 'crossing_ca',
       prioridade: (c.level === 'P3' || c.level === 'P5') ? 4 : 2,
-      label: `Queda de canal — CA cruzou abaixo do ${c.level}`,
+      label: `Queda de percentil — CA cruzou abaixo do ${c.level}`,
       detalhe: `De z=${c.fromZ.toFixed(2)} (${c.fromGA.toFixed(1)}s) para z=${c.toZ.toFixed(2)} (${c.toGA.toFixed(1)}s)`,
     });
   });
@@ -5249,7 +5260,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
     eventos.push({
       tipo: 'crossing_efw',
       prioridade: (c.level === 'P3' || c.level === 'P5') ? 4 : 2,
-      label: `Queda de canal — PFE cruzou abaixo do ${c.level}`,
+      label: `Queda de percentil — PFE cruzou abaixo do ${c.level}`,
       detalhe: `De z=${c.fromZ.toFixed(2)} (${c.fromGA.toFixed(1)}s) para z=${c.toZ.toFixed(2)} (${c.toGA.toFixed(1)}s)`,
     });
   });
@@ -5565,7 +5576,7 @@ function generateNarrativa(analise, gestacao) {
       }
     } else if (n >= 2 && crossCA) {
       // Queda de canal — cruzou P20 ou menor
-      pBio = 'Observa-se queda de canal da circunferência abdominal fetal nas avaliações recentes';
+      pBio = 'Observa-se queda de percentil da circunferência abdominal fetal nas avaliações recentes';
       if (efwBaixo) pBio += ', com peso fetal estimado abaixo do esperado para a idade gestacional.';
       else pBio += ', embora o peso fetal estimado permaneça dentro dos limites normais.';
     } else if (caZ != null && caZ < -1.28) {
@@ -5694,16 +5705,16 @@ function generateLongitudinalAlerts(gestacao, rawExams) {
     crossing_ca:      (ev) => {
       const grave = ev.label.includes('P3') || ev.label.includes('P5');
       const limi  = ev.label.includes('P10') || ev.label.includes('P20');
-      if (grave) return 'Circunferência abdominal fetal abaixo do esperado para a idade gestacional, com queda de canal em relação à avaliação anterior.';
-      if (limi)  return 'Queda de canal da circunferência abdominal fetal observada nas avaliações recentes.';
-      return 'Circunferência abdominal fetal com redução de canal em relação à avaliação anterior.';
+      if (grave) return 'Circunferência abdominal fetal abaixo do esperado para a idade gestacional, com queda de percentil em relação à avaliação anterior.';
+      if (limi)  return 'Queda de percentil da circunferência abdominal fetal observada nas avaliações recentes.';
+      return 'Circunferência abdominal fetal com redução de percentil em relação à avaliação anterior.';
     },
     crossing_efw:     (ev) => {
       const grave = ev.label.includes('P3') || ev.label.includes('P5');
       const limi  = ev.label.includes('P10') || ev.label.includes('P20');
-      if (grave) return 'Peso fetal estimado abaixo do esperado para a idade gestacional, com queda de canal em relação à avaliação anterior.';
-      if (limi)  return 'Queda de canal do peso fetal estimado observada nas avaliações recentes.';
-      return 'Peso fetal estimado com redução de canal em relação à avaliação anterior.';
+      if (grave) return 'Peso fetal estimado abaixo do esperado para a idade gestacional, com queda de percentil em relação à avaliação anterior.';
+      if (limi)  return 'Queda de percentil do peso fetal estimado observada nas avaliações recentes.';
+      return 'Peso fetal estimado com redução de percentil em relação à avaliação anterior.';
     },
     desaceleracao_ca: (ev) => {
       const int = ev.params && ev.params.slope < -0.22 ? 'progressiva e significativa' : 'progressiva';
@@ -5811,7 +5822,7 @@ function renderSummary(gestacao, exams) {
     const warn = highIsBad ? pct >= 90 : pct <= 10;
     const s = bad  ? 'background:var(--blush-pale);color:var(--blush-deep)'
             : warn ? 'background:var(--peach-pale);color:#7a4800'
-            :        'background:var(--sage-pale);color:var(--sage-deep)';
+            :        'background:var(--ok-pale);color:var(--ok-deep)';
     return `<span style="font-family:var(--font-mono);font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;${s}">P${pct}</span>`;
   }
 
@@ -5873,7 +5884,7 @@ function renderSummary(gestacao, exams) {
       ['desaceleracao_ca','crossing_ca','crossing_efw','redistribuicao','assimetria','au_ascendente','cpr_declinio'].includes(ev.tipo)
     );
     if (relevantes.length === 0) {
-      tendHtml = `<p style="font-size:13px;color:var(--sage-deep);">Trajetória de crescimento estável em ${n} exames. Nenhuma queda de canal ou desaceleração detectada.</p>`;
+      tendHtml = `<p style="font-size:13px;color:var(--ok-deep);">Trajetória de crescimento estável em ${n} exames. Nenhuma queda importante de percentil detectada.</p>`;
     } else {
       tendHtml = relevantes.map(ev => {
         const c = ev.prioridade >= 4 ? '#a02020' : ev.prioridade >= 3 ? '#b84010' : '#b87a20';
@@ -5977,7 +5988,7 @@ function renderSummary(gestacao, exams) {
 
   // ── Bloco 5: Impressão Diagnóstica ────────────────────────
   const DX_CFG = {
-    adequado:     { label:'Crescimento fetal adequado',             icon:'✓', color:'#3a7a50',         bg:'var(--sage-light)',  border:'var(--sage)' },
+    adequado:     { label:'Crescimento fetal adequado',             icon:'✓', color:'var(--ok)',        bg:'var(--ok-bg)',        border:'var(--ok-border)' },
     pig:          { label:'PIG — Pequeno para Idade Gestacional',   icon:'⚠', color:'#8a5800',         bg:'var(--peach-light)', border:'var(--peach)' },
     gig:          { label:'GIG — Grande para Idade Gestacional',    icon:'ℹ', color:'var(--blue-deep)', bg:'var(--blue-light)',  border:'var(--blue)' },
     rciu_precoce: { label:'RCIU Precoce (< 32 semanas)',            icon:'⚠', color:'#a02020',         bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
@@ -8471,7 +8482,10 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .status-conduta{font-size:11px;color:var(--roxo);margin-top:8px;padding-top:8px;
   border-top:1px solid rgba(61,35,82,.14)}
 .status--atencao .status-ic{background:var(--dourado)}
+.status--alerta  {background:#F6E3E8;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .status--alerta  .status-ic{background:#A8425F}
+.status--alerta  .status-t{color:#8a2840}
+.status--alerta  .status-conduta{color:#8a2840;border-top-color:rgba(168,66,95,.22)}
 
 .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
 .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}

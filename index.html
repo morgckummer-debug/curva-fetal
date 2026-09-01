@@ -5315,7 +5315,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'desaceleracao_ca',
       prioridade: trendCA.slope < -0.22 ? 3 : 2,
       label: 'Desaceleração longitudinal da CA',
-      detalhe: `Inclinação z-score: ${trendCA.slope.toFixed(2)} Δz/sem (${trendCA.magnitude})`,
+      detalhe: `Percentil caiu de P${_zToPercentile(serCA[0].z)} para P${_zToPercentile(serCA[serCA.length - 1].z)} ao longo de ${n} exames (queda ${trendCA.magnitude})`,
       params: { slope: trendCA.slope, r2: trendCA.r2, n },
     });
   }
@@ -5326,7 +5326,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'crossing_ca',
       prioridade: (c.level === 'P3' || c.level === 'P5') ? 4 : 2,
       label: `Queda de percentil — CA cruzou abaixo do ${c.level}`,
-      detalhe: `De z=${c.fromZ.toFixed(2)} (${c.fromGA.toFixed(1)}s) para z=${c.toZ.toFixed(2)} (${c.toGA.toFixed(1)}s)`,
+      detalhe: `De P${_zToPercentile(c.fromZ)} (${c.fromGA.toFixed(1)}s) para P${_zToPercentile(c.toZ)} (${c.toGA.toFixed(1)}s)`,
     });
   });
 
@@ -5336,7 +5336,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'crossing_efw',
       prioridade: (c.level === 'P3' || c.level === 'P5') ? 4 : 2,
       label: `Queda de percentil — PFE cruzou abaixo do ${c.level}`,
-      detalhe: `De z=${c.fromZ.toFixed(2)} (${c.fromGA.toFixed(1)}s) para z=${c.toZ.toFixed(2)} (${c.toGA.toFixed(1)}s)`,
+      detalhe: `De P${_zToPercentile(c.fromZ)} (${c.fromGA.toFixed(1)}s) para P${_zToPercentile(c.toZ)} (${c.toGA.toFixed(1)}s)`,
     });
   });
 
@@ -5347,7 +5347,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'assimetria',
       prioridade: assimetria.severity === 'marcada' ? 3 : 1,
       label: `Assimetria biométrica ${assimetria.severity === 'marcada' ? 'marcada' : 'leve'}`,
-      detalhe: `CC preservada (z=${assimetria.zCC.toFixed(2)}) vs CA reduzida (z=${assimetria.zCA.toFixed(2)}) — diferença Δz=${assimetria.diff}`,
+      detalhe: `CC preservada (P${_zToPercentile(assimetria.zCC)}) vs CA reduzida (P${_zToPercentile(assimetria.zCA)})`,
     });
   }
 
@@ -5358,7 +5358,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'redistribuicao',
       prioridade: redistrib.score >= 2.0 ? 4 : 3,
       label: 'Padrão hemodinâmico de redistribuição fetal',
-      detalhe: `IP ACM reduzido (z=${(-redistrib.zACM).toFixed(2)} negativo) + IP AU elevado (z=${redistrib.zAU.toFixed(2)})`,
+      detalhe: `IP ACM reduzido (P${_zToPercentile(-redistrib.zACM)}) + IP AU elevado (P${_zToPercentile(redistrib.zAU)})`,
     });
   }
 
@@ -5368,7 +5368,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'cpr_declinio',
       prioridade: trendCPR.slope < -0.20 ? 3 : 2,
       label: 'Redução longitudinal da CPR',
-      detalhe: `Inclinação: ${trendCPR.slope.toFixed(2)} Δz/sem sobre ${n} exames`,
+      detalhe: `CPR caiu de P${_zToPercentile(serCPR[0].z)} para P${_zToPercentile(serCPR[serCPR.length - 1].z)} ao longo de ${n} exames`,
     });
   }
 
@@ -5378,7 +5378,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'au_ascendente',
       prioridade: trendAU.slope > 0.25 ? 3 : 2,
       label: 'Tendência ascendente do IP da artéria umbilical',
-      detalhe: `Inclinação: +${trendAU.slope.toFixed(2)} Δz/sem (${trendAU.magnitude})`,
+      detalhe: `IP AU subiu de P${_zToPercentile(serAU[0].z)} para P${_zToPercentile(serAU[serAU.length - 1].z)} ao longo de ${n} exames (${trendAU.magnitude})`,
     });
   }
 
@@ -5389,7 +5389,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'dissociacao_ca_efw',
       prioridade: 2,
       label: 'Dissociação entre CA e peso fetal estimado',
-      detalhe: `CA (z=${dissoc.zCA.toFixed(2)}) reduzida antes do PFE (z=${dissoc.zEFW.toFixed(2)}) — padrão precoce`,
+      detalhe: `CA (P${_zToPercentile(dissoc.zCA)}) reduzida antes do PFE (P${_zToPercentile(dissoc.zEFW)}) — padrão precoce`,
     });
   }
 
@@ -5400,7 +5400,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'insuficiencia_placentaria',
       prioridade: 3,
       label: 'Padrão sugestivo de insuficiência placentária',
-      detalhe: `IP UtA elevado (z=${insufPlacentaria.zUT.toFixed(2)}) + IP AU elevado (z=${insufPlacentaria.zAU.toFixed(2)})`,
+      detalhe: `IP UtA elevado (P${_zToPercentile(insufPlacentaria.zUT)}) + IP AU elevado (P${_zToPercentile(insufPlacentaria.zAU)})`,
     });
   }
 
@@ -5855,7 +5855,7 @@ function generateSummary(gestacao, exams) {
 
   // Macrossomia (z alto — não detectado pelo motor por design)
   if (last._z.ca != null && last._z.ca > 1.65) {
-    paragrafos.splice(-1, 0, `Circunferência abdominal acima do esperado para a idade gestacional (z=${last._z.ca.toFixed(2)}), levantando suspeita de macrossomia fetal. Recomenda-se correlação com fatores de risco maternos.`);
+    paragrafos.splice(-1, 0, `Circunferência abdominal acima do esperado para a idade gestacional (P${_zToPercentile(last._z.ca)}), levantando suspeita de macrossomia fetal. Recomenda-se correlação com fatores de risco maternos.`);
   }
 
   // Mapear status fisiológico → status de interface (retrocompatibilidade)

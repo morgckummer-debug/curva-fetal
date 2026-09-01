@@ -765,6 +765,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status-extra{font-size:10px;color:var(--texto-2);margin-top:5px}
 .rel-preview .status-conduta{font-size:11px;color:var(--roxo);margin-top:8px;padding-top:8px;
   border-top:1px solid rgba(61,35,82,.14)}
+.rel-preview .status--ok      {background:#e4f2ec}
+.rel-preview .status--ok      .status-ic{background:#7aab92}
+.rel-preview .status--ok      .status-t{color:#3a7a50}
+.rel-preview .status--ok      .status-conduta{color:#3a7a50;border-top-color:rgba(58,122,80,.20)}
 .rel-preview .status--atencao .status-ic{background:var(--dourado)}
 .rel-preview .status--alerta  {background:#F6E3E8}
 .rel-preview .status--alerta  .status-ic{background:#A8425F}
@@ -8222,7 +8226,7 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
 function _renderStatusFaixaHtml(impressao) {
   if (!impressao) return '';
   const VARIANTE = {
-    adequado: '', pig: 'status--atencao', gig: 'status--atencao',
+    adequado: 'status--ok', pig: 'status--atencao', gig: 'status--atencao',
     rciu_precoce: 'status--alerta', rciu_tardio: 'status--alerta',
   };
   const variante = VARIANTE[impressao.diagnostico] || '';
@@ -8481,6 +8485,10 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .status-extra{font-size:10px;color:var(--texto-2);margin-top:5px}
 .status-conduta{font-size:11px;color:var(--roxo);margin-top:8px;padding-top:8px;
   border-top:1px solid rgba(61,35,82,.14)}
+.status--ok      {background:#e4f2ec;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.status--ok      .status-ic{background:#7aab92}
+.status--ok      .status-t{color:#3a7a50}
+.status--ok      .status-conduta{color:#3a7a50;border-top-color:rgba(58,122,80,.20)}
 .status--atencao .status-ic{background:var(--dourado)}
 .status--alerta  {background:#F6E3E8;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .status--alerta  .status-ic{background:#A8425F}

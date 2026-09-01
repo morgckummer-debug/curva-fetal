@@ -1614,6 +1614,8 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
                 <option value="monocorionica_diamniotica" data-tipo="gemelar">Monocoriônica / Diamniótica</option>
                 <option value="monocorionica_monoamniotica" data-tipo="gemelar">Monocoriônica / Monoamniótica</option>
                 <option value="tricorionica_triamniotica" data-tipo="trigemelar">Tricoriônica / Triamniótica</option>
+                   <option value="dicorionica_triamniotica" data-tipo="trigemelar">Dicoriônica / Triamniótica</option>
+<option value="monocorionica_triamniotica" data-tipo="trigemelar">Monocoriônica / Triamniótica</option>
               </select>
             </div>
           </div>
@@ -3348,8 +3350,7 @@ function renderPatientScreen() {
   // Badge de gestação múltipla — bem visível, ao lado do nome
   let gemelarBadge = '';
   if (isMultipla(gestacao)) {
-    const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica: 'MCDA', monocorionica_monoamniotica: 'MCMA', tricorionica_triamniotica: 'TCTA' };
-    const corioTag = gestacao.corionicidade ? ` · ${CORIO_LABEL[gestacao.corionicidade] || ''}` : '';
+const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica: 'MCDA', monocorionica_monoamniotica: 'MCMA', tricorionica_triamniotica: 'TCTA', dicorionica_triamniotica: 'DCTA', monocorionica_triamniotica: 'MCTA' };    const corioTag = gestacao.corionicidade ? ` · ${CORIO_LABEL[gestacao.corionicidade] || ''}` : '';
     gemelarBadge = `<span class="ph-gemelar-badge">👯 GEMELAR${corioTag}</span>`;
   }
 

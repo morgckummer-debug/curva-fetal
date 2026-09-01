@@ -5140,10 +5140,17 @@ function detectCrossingCentiles(series) {
   for (let i = 1; i < series.length; i++) {
     const prev = series[i - 1].z;
     const curr = series[i].z;
+    // Uma queda pode atravessar mais de um limiar de uma vez só (ex: de P48 pra
+    // P8 passa por P20 e por P10 no mesmo par de exames) — reporta só o mais
+    // severo, não um evento por limiar cruzado: são a mesma queda, os mesmos
+    // dois exames, os mesmos números, e duas linhas iguais no relatório não
+    // contam nada que a mais grave já não conte.
+    let maisSevero = null;
     for (const lvl of levels) {
-      if (prev > lvl.z && curr <= lvl.z) {
-        crossings.push({ level: lvl.name, zThreshold: lvl.z, fromGA: series[i-1].gaW, toGA: series[i].gaW, fromZ: prev, toZ: curr });
-      }
+      if (prev > lvl.z && curr <= lvl.z) maisSevero = lvl;
+    }
+    if (maisSevero) {
+      crossings.push({ level: maisSevero.name, zThreshold: maisSevero.z, fromGA: series[i-1].gaW, toGA: series[i].gaW, fromZ: prev, toZ: curr });
     }
   }
   return crossings;

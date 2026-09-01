@@ -2616,8 +2616,10 @@ function avaliarRiscoPreEclampsia(dx) {
 
 // Colo curto → risco de parto prematuro. Escada reconciliando ISUOG (Practice
 // Guidelines 2022: define colo curto <25mm e sugere considerar cerclagem
-// <10mm, independente de antecedente) e FMF (corte de 15mm do estudo
-// fundador da progesterona vaginal, Fonseca et al. 2007, NEJM). Rastreio de
+// <10mm, independente de antecedente) e FMF (corte de 15mm do estudo que
+// embasa a progesterona vaginal no protocolo da FMF, Fonseca et al. 2007,
+// NEJM — não confundir com a fundação da Fetal Medicine Foundation em si,
+// de Kypros Nicolaides). Rastreio de
 // rotina a partir de 16 semanas — antes disso a medida não faz parte do
 // protocolo padrão dessas duas referências — reforçado no morfológico de 2º
 // trimestre. Independente do diagnóstico de crescimento pelo mesmo motivo do
@@ -2630,26 +2632,29 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
   if (colo >= 25) return null;
 
   const temPPTPrevio = !!gestacao?.ppt_espontaneo_previo;
-  const antecedenteTxt = temPPTPrevio
-    ? ' Antecedente de parto prematuro espontâneo — avaliar cerclagem.'
-    : '';
 
   let label, conduta;
   if (colo < 10) {
     label = 'Colo curto — risco extremo de parto prematuro';
-    conduta = 'Considerar cerclagem mesmo sem antecedente de parto prematuro espontâneo (ISUOG 2022). Avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.';
+    conduta = temPPTPrevio
+      ? 'Antecedente de parto prematuro espontâneo — considerar cerclagem (ISUOG 2022). Avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.'
+      : 'Considerar cerclagem mesmo sem antecedente de parto prematuro espontâneo (ISUOG 2022). Avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.';
   } else if (colo < 15) {
     label = 'Colo muito curto — risco aumentado de parto prematuro';
-    conduta = 'Progesterona vaginal indicada — corte do estudo fundador da FMF (Fonseca et al. 2007). Vigilância mais próxima; considerar cerclagem mesmo sem antecedente, conforme evidência mais recente.' + antecedenteTxt;
+    conduta = temPPTPrevio
+      ? 'Progesterona vaginal indicada — corte do estudo de Fonseca et al. 2007, base do protocolo da FMF. Antecedente de parto prematuro espontâneo — considerar cerclagem. Vigilância mais próxima.'
+      : 'Progesterona vaginal indicada — corte do estudo de Fonseca et al. 2007, base do protocolo da FMF. Vigilância mais próxima; considerar cerclagem mesmo sem antecedente, conforme evidência mais recente.';
   } else {
     label = 'Colo curto — risco de parto prematuro';
-    conduta = 'Progesterona vaginal indicada, independente de antecedente obstétrico (ISUOG 2022 / FMF).' + antecedenteTxt;
+    conduta = temPPTPrevio
+      ? 'Progesterona vaginal indicada (ISUOG 2022 / FMF). Antecedente de parto prematuro espontâneo — avaliar cerclagem.'
+      : 'Progesterona vaginal indicada, independente de antecedente obstétrico (ISUOG 2022 / FMF).';
   }
 
   return {
     label,
     icon: '⚠',
-    subtitulo: `Colo de ${colo}mm em ${Math.floor(gaW)} semanas · referência ISUOG 2022 / FMF (Fonseca et al. 2007)`,
+    subtitulo: `Colo de ${colo}mm em ${Math.floor(gaW)} semanas · referência ISUOG 2022 / protocolo FMF, base em Fonseca et al. 2007`,
     conduta,
   };
 }

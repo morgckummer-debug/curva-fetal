@@ -3740,8 +3740,9 @@ function _drawChart(canvas, cfg) {
 
   ctx.clearRect(0, 0, W, H);
 
-  // Background
-  ctx.fillStyle = '#f0eaf2';
+  // Background — branco, igual aos gráficos de _drawThresholdChart (DV, Colo, ILA,
+  // Bolsão, Discrepância), pra não ter card lavanda ao lado de card branco na mesma tela.
+  ctx.fillStyle = '#faf9fd';
   ctx.fillRect(0, 0, W, H);
 
   // Grid vertical

@@ -1714,6 +1714,27 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         </label>
       </div>
 
+      <!-- Prevenção de parto prematuro — alimenta avaliarRiscoColoCurto(), pra
+           o alerta de colo curto não sugerir de novo o que já foi feito. -->
+      <div class="form-row form-row-1" style="margin-top:2px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;">
+          <input type="checkbox" id="g-progesterona-uso" style="width:16px;height:16px;">
+          Em uso de progesterona vaginal
+        </label>
+      </div>
+      <div class="form-row form-row-1" style="margin-top:2px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;">
+          <input type="checkbox" id="g-cerclagem-realizada" onchange="_gestacaoCerclagemUI()" style="width:16px;height:16px;">
+          Cerclagem realizada
+        </label>
+      </div>
+      <div id="g-section-cerclagem-ig" class="form-row form-row-1" style="display:none;margin-top:-6px;margin-bottom:6px;">
+        <div class="form-group" style="max-width:200px;">
+          <label>IG da cerclagem <span class="optional-tag">semanas</span></label>
+          <input type="number" id="g-cerclagem-ig-semanas" min="10" max="27" placeholder="ex: 14">
+        </div>
+      </div>
+
       <!-- Status — sempre visível -->
       <div class="form-row form-row-1" style="margin-top:4px;">
         <div class="form-group">
@@ -2639,6 +2660,18 @@ function avaliarRiscoPreEclampsia(dx) {
 // protocolo padrão dessas duas referências — reforçado no morfológico de 2º
 // trimestre. Independente do diagnóstico de crescimento pelo mesmo motivo do
 // risco de pré-eclâmpsia acima: o colo pode estar curto com peso fetal normal.
+//
+// Cerclagem (história-indicada, ultrassom-indicada ou de resgate) é um
+// procedimento de 2º trimestre — o benefício documentado por ISUOG/FMF é
+// antes de 24 semanas, com o colo mais curto ainda por vir. Sugerir "avaliar
+// cerclagem" com o feto já viável (colo de 15mm em 31 semanas, por exemplo)
+// é orientação desatualizada: nessa altura a conduta é corticoterapia/MgSO4
+// e vigilância, não cerclagem. cerclagemElegivel represa a sugestão por IG.
+//
+// gestacao.cerclagem_realizada / .cerclagem_ig_semanas / .progesterona_vaginal_em_uso
+// (migração 010) evitam sugerir de novo o que já foi feito — sem isso o
+// alerta soava como se a gestante ainda não tivesse iniciado profilaxia
+// nenhuma, mesmo já em uso de progesterona ou já cerclada.
 function avaliarRiscoColoCurto(lastExam, gestacao) {
   if (!lastExam || lastExam.colo == null) return null;
   const gaW = lastExam._gaW;
@@ -2646,24 +2679,52 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
   const colo = lastExam.colo;
   if (colo >= 25) return null;
 
-  const temPPTPrevio = !!gestacao?.ppt_espontaneo_previo;
+  const temPPTPrevio      = !!gestacao?.ppt_espontaneo_previo;
+  const cerclagemFeita    = !!gestacao?.cerclagem_realizada;
+  const cerclagemIG       = gestacao?.cerclagem_ig_semanas;
+  const progesteronaEmUso = !!gestacao?.progesterona_vaginal_em_uso;
+  const cerclagemElegivel = gaW < 24;
+
+  const cerclagemPreviaFrase = `Colo curto após cerclagem${cerclagemIG ? ` (realizada em ${cerclagemIG} semanas)` : ''}`;
+  const progestFrase = progesteronaEmUso
+    ? 'Mantém progesterona vaginal já em uso'
+    : 'Progesterona vaginal indicada (ISUOG 2022 / FMF)';
 
   let label, conduta;
   if (colo < 10) {
     label = 'Colo curto — risco extremo de parto prematuro';
-    conduta = temPPTPrevio
-      ? 'Antecedente de parto prematuro espontâneo — considerar cerclagem (ISUOG 2022). Avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.'
-      : 'Considerar cerclagem mesmo sem antecedente de parto prematuro espontâneo (ISUOG 2022). Avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.';
+    if (cerclagemFeita) {
+      conduta = `${cerclagemPreviaFrase} — avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.`;
+    } else if (cerclagemElegivel) {
+      conduta = (temPPTPrevio
+        ? 'Antecedente de parto prematuro espontâneo — considerar cerclagem (ISUOG 2022).'
+        : 'Considerar cerclagem mesmo sem antecedente de parto prematuro espontâneo (ISUOG 2022).')
+        + ' Avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.';
+    } else {
+      conduta = 'Cerclagem não é mais indicada nesta idade gestacional (≥24 semanas). Avaliar prolapso de membranas ao exame especular e sinais de infecção; considerar corticoterapia para maturação pulmonar e, se <32 semanas, sulfato de magnésio para neuroproteção. Conduzir conforme protocolo institucional.';
+    }
   } else if (colo < 15) {
     label = 'Colo muito curto — risco aumentado de parto prematuro';
-    conduta = temPPTPrevio
-      ? 'Progesterona vaginal indicada — corte do estudo de Fonseca et al. 2007, base do protocolo da FMF. Antecedente de parto prematuro espontâneo — considerar cerclagem. Vigilância mais próxima.'
-      : 'Progesterona vaginal indicada — corte do estudo de Fonseca et al. 2007, base do protocolo da FMF. Vigilância mais próxima; considerar cerclagem mesmo sem antecedente, conforme evidência mais recente.';
+    conduta = `${progestFrase} — corte do estudo de Fonseca et al. 2007, base do protocolo da FMF. Vigilância mais próxima.`;
+    if (cerclagemFeita) {
+      conduta += ` ${cerclagemPreviaFrase} — reforçar vigilância.`;
+    } else if (cerclagemElegivel) {
+      conduta += temPPTPrevio
+        ? ' Antecedente de parto prematuro espontâneo — considerar cerclagem.'
+        : ' Considerar cerclagem mesmo sem antecedente, conforme evidência mais recente.';
+    } else {
+      conduta += ' Cerclagem não é mais indicada nesta idade gestacional (≥24 semanas).';
+    }
   } else {
     label = 'Colo curto — risco de parto prematuro';
-    conduta = temPPTPrevio
-      ? 'Progesterona vaginal indicada (ISUOG 2022 / FMF). Antecedente de parto prematuro espontâneo — avaliar cerclagem.'
-      : 'Progesterona vaginal indicada, independente de antecedente obstétrico (ISUOG 2022 / FMF).';
+    conduta = `${progestFrase}, independente de antecedente obstétrico.`;
+    if (cerclagemFeita) {
+      conduta += ` ${cerclagemPreviaFrase} — reforçar vigilância.`;
+    } else if (temPPTPrevio && cerclagemElegivel) {
+      conduta += ' Antecedente de parto prematuro espontâneo — avaliar cerclagem.';
+    } else if (temPPTPrevio && !cerclagemElegivel) {
+      conduta += ' Antecedente de parto prematuro espontâneo, porém cerclagem não é mais indicada nesta idade gestacional (≥24 semanas).';
+    }
   }
 
   return {
@@ -2713,7 +2774,7 @@ function _proximoIdLocal(linhas) {
 // que o resto do app espera — se um dia uma coluna nova entrar no banco, não muda
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
-const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
+const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,progesterona_vaginal_em_uso,cerclagem_realizada,cerclagem_ig_semanas,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
 const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
@@ -2937,6 +2998,9 @@ function migrateV1toV2(v1) {
       gestas:      null, partos: null, abortos: null,
       antecedentes_obstetricos: '',
       ppt_espontaneo_previo: false,
+      progesterona_vaginal_em_uso: false,
+      cerclagem_realizada: false,
+      cerclagem_ig_semanas: null,
       status:      'ativa',
       observacoes: '',
       ig_base_data:  p.ig_base_data  || null,
@@ -6183,6 +6247,12 @@ function _openGestacaoModal(gid, extraHtml) {
   setVal('g-observacoes',  g ? (g.observacoes || '') : '');
   const pptEl = document.getElementById('g-ppt-previo');
   if (pptEl) pptEl.checked = !!(g && g.ppt_espontaneo_previo);
+  const progEl = document.getElementById('g-progesterona-uso');
+  if (progEl) progEl.checked = !!(g && g.progesterona_vaginal_em_uso);
+  const cercEl = document.getElementById('g-cerclagem-realizada');
+  if (cercEl) cercEl.checked = !!(g && g.cerclagem_realizada);
+  setVal('g-cerclagem-ig-semanas', g && g.cerclagem_ig_semanas != null ? g.cerclagem_ig_semanas : '');
+  _gestacaoCerclagemUI();
   setVal('g-ig-base-data', g ? (g.ig_base_data || '') : '');
 
   // IG âncora se existir
@@ -6365,6 +6435,12 @@ function _gestacaoTipoUI() {
   });
 }
 
+function _gestacaoCerclagemUI() {
+  const chk = document.getElementById('g-cerclagem-realizada');
+  const sec = document.getElementById('g-section-cerclagem-ig');
+  if (sec) sec.style.display = (chk && chk.checked) ? 'grid' : 'none';
+}
+
 function _gestacaoIgPreview() {
   const dumEl  = document.getElementById('g-dum');
   const prevEl = document.getElementById('g-dum-preview');
@@ -6410,6 +6486,11 @@ function saveGestacao() {
   const abortos   = getNum('g-abortos');
   const pptPrevioEl = document.getElementById('g-ppt-previo');
   const pptEspontaneoPrevio = !!(pptPrevioEl && pptPrevioEl.checked);
+  const progEl = document.getElementById('g-progesterona-uso');
+  const progesteronaVaginalEmUso = !!(progEl && progEl.checked);
+  const cercEl = document.getElementById('g-cerclagem-realizada');
+  const cerclagemRealizada = !!(cercEl && cercEl.checked);
+  const cerclagemIgSemanas = cerclagemRealizada ? getNum('g-cerclagem-ig-semanas') : null;
 
   const igBD    = getVal('g-ig-base-data') || null;
   const igSem   = getNum('g-ig-base-sem');
@@ -6428,6 +6509,9 @@ function saveGestacao() {
     gestas, partos, abortos,
     antecedentes_obstetricos: obsText,
     ppt_espontaneo_previo: pptEspontaneoPrevio,
+    progesterona_vaginal_em_uso: progesteronaVaginalEmUso,
+    cerclagem_realizada: cerclagemRealizada,
+    cerclagem_ig_semanas: cerclagemIgSemanas,
     status, observacoes:     obsNotes,
     ig_base_data:  igBD,
     ig_base_valor: igBaseDays,
@@ -9125,6 +9209,9 @@ function validateImportedDB(raw) {
       abortos: numOrNull(g.abortos),
       antecedentes_obstetricos: sanitizeString(g.antecedentes_obstetricos, 2000),
       ppt_espontaneo_previo: !!g.ppt_espontaneo_previo,
+      progesterona_vaginal_em_uso: !!g.progesterona_vaginal_em_uso,
+      cerclagem_realizada: !!g.cerclagem_realizada,
+      cerclagem_ig_semanas: numOrNull(g.cerclagem_ig_semanas),
       status: STATUS_VALIDOS.has(g.status) ? g.status : 'ativa',
       observacoes: sanitizeString(g.observacoes, 2000),
       ig_base_data:  DATE_RE.test(g.ig_base_data) ? g.ig_base_data : null,

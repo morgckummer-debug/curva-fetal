@@ -3108,6 +3108,15 @@ function igToStr(days) {
   return `${w}s${d > 0 ? '+' + d + 'd' : ''}`;
 }
 
+// Mesma conta de igToStr, sem o "+" — formato compacto para detalhe de evento
+// (ex: "21s3d"), onde o "+" some espaço sem acrescentar leitura.
+function _semDias(days) {
+  if (days == null) return '—';
+  const w = Math.floor(days / 7);
+  const d = days % 7;
+  return `${w}s${d > 0 ? d + 'd' : ''}`;
+}
+
 function igStrToDays(str) {
   if (!str) return null;
   const match = str.match(/^(\d+)[s+w]?[+]?(\d+)?/i);
@@ -5150,7 +5159,7 @@ function detectCrossingCentiles(series) {
       if (prev > lvl.z && curr <= lvl.z) maisSevero = lvl;
     }
     if (maisSevero) {
-      crossings.push({ level: maisSevero.name, zThreshold: maisSevero.z, fromGA: series[i-1].gaW, toGA: series[i].gaW, fromZ: prev, toZ: curr });
+      crossings.push({ level: maisSevero.name, zThreshold: maisSevero.z, fromGA: series[i-1].gaW, toGA: series[i].gaW, fromDays: series[i-1].igDays, toDays: series[i].igDays, fromZ: prev, toZ: curr });
     }
   }
   return crossings;
@@ -5326,7 +5335,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'crossing_ca',
       prioridade: (c.level === 'P3' || c.level === 'P5') ? 4 : 2,
       label: `Queda de percentil — CA cruzou abaixo do ${c.level}`,
-      detalhe: `De P${_zToPercentile(c.fromZ)} (${c.fromGA.toFixed(1)}s) para P${_zToPercentile(c.toZ)} (${c.toGA.toFixed(1)}s)`,
+      detalhe: `De P${_zToPercentile(c.fromZ)} (${_semDias(c.fromDays)}) para P${_zToPercentile(c.toZ)} (${_semDias(c.toDays)})`,
     });
   });
 
@@ -5336,7 +5345,7 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
       tipo: 'crossing_efw',
       prioridade: (c.level === 'P3' || c.level === 'P5') ? 4 : 2,
       label: `Queda de percentil — PFE cruzou abaixo do ${c.level}`,
-      detalhe: `De P${_zToPercentile(c.fromZ)} (${c.fromGA.toFixed(1)}s) para P${_zToPercentile(c.toZ)} (${c.toGA.toFixed(1)}s)`,
+      detalhe: `De P${_zToPercentile(c.fromZ)} (${_semDias(c.fromDays)}) para P${_zToPercentile(c.toZ)} (${_semDias(c.toDays)})`,
     });
   });
 

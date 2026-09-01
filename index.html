@@ -1690,6 +1690,13 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         </div>
       </div>
 
+      <div class="form-row form-row-1" style="margin-top:-6px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;">
+          <input type="checkbox" id="g-ppt-previo" style="width:16px;height:16px;">
+          Antecedente de parto prematuro espontâneo
+        </label>
+      </div>
+
       <!-- Status — sempre visível -->
       <div class="form-row form-row-1" style="margin-top:4px;">
         <div class="form-group">
@@ -2605,22 +2612,43 @@ function avaliarRiscoPreEclampsia(dx) {
   };
 }
 
-// Colo curto → risco de parto prematuro — mesmos cortes do gráfico de colo
-// (Salomon 2011): <30mm até 14 sem, <25mm a partir de 16 sem (a partir daí é
-// quando a medida entra na rotina, no morfológico de 2º trimestre em diante).
-// Independente do diagnóstico de crescimento pelo mesmo motivo do risco de
-// pré-eclâmpsia acima: o colo pode estar curto com peso fetal normal.
-function avaliarRiscoColoCurto(lastExam) {
+// Colo curto → risco de parto prematuro. Escada reconciliando ISUOG (Practice
+// Guidelines 2022: define colo curto <25mm e sugere considerar cerclagem
+// <10mm, independente de antecedente) e FMF (corte de 15mm do estudo
+// fundador da progesterona vaginal, Fonseca et al. 2007, NEJM). Rastreio de
+// rotina a partir de 16 semanas — antes disso a medida não faz parte do
+// protocolo padrão dessas duas referências — reforçado no morfológico de 2º
+// trimestre. Independente do diagnóstico de crescimento pelo mesmo motivo do
+// risco de pré-eclâmpsia acima: o colo pode estar curto com peso fetal normal.
+function avaliarRiscoColoCurto(lastExam, gestacao) {
   if (!lastExam || lastExam.colo == null) return null;
   const gaW = lastExam._gaW;
-  if (gaW == null) return null;
-  const risco = (gaW <= 14 && lastExam.colo < 30) || (gaW >= 16 && lastExam.colo < 25);
-  if (!risco) return null;
+  if (gaW == null || gaW < 16) return null;
+  const colo = lastExam.colo;
+  if (colo >= 25) return null;
+
+  const temPPTPrevio = !!gestacao?.ppt_espontaneo_previo;
+  const antecedenteTxt = temPPTPrevio
+    ? ' Antecedente de parto prematuro espontâneo — avaliar cerclagem.'
+    : '';
+
+  let label, conduta;
+  if (colo < 10) {
+    label = 'Colo curto — risco extremo de parto prematuro';
+    conduta = 'Considerar cerclagem mesmo sem antecedente de parto prematuro espontâneo (ISUOG 2022). Avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.';
+  } else if (colo < 15) {
+    label = 'Colo muito curto — risco aumentado de parto prematuro';
+    conduta = 'Progesterona vaginal indicada — corte do estudo fundador da FMF (Fonseca et al. 2007). Vigilância mais próxima; considerar cerclagem mesmo sem antecedente, conforme evidência mais recente.' + antecedenteTxt;
+  } else {
+    label = 'Colo curto — risco de parto prematuro';
+    conduta = 'Progesterona vaginal indicada, independente de antecedente obstétrico (ISUOG 2022 / FMF).' + antecedenteTxt;
+  }
+
   return {
-    label: 'Colo curto — risco de parto prematuro',
+    label,
     icon: '⚠',
-    subtitulo: `Colo de ${lastExam.colo}mm · referência Salomon 2011 (risco se <30mm até 14 sem ou <25mm a partir de 16 sem)`,
-    conduta: 'Considerar progesterona vaginal, avaliar critérios para cerclagem e reavaliação em 1–2 semanas conforme protocolo institucional.',
+    subtitulo: `Colo de ${colo}mm em ${Math.floor(gaW)} semanas · referência ISUOG 2022 / FMF (Fonseca et al. 2007)`,
+    conduta,
   };
 }
 
@@ -2663,7 +2691,7 @@ function _proximoIdLocal(linhas) {
 // que o resto do app espera — se um dia uma coluna nova entrar no banco, não muda
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
-const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
+const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
 const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
@@ -2886,6 +2914,7 @@ function migrateV1toV2(v1) {
       data_inicio: primeiroExame ? primeiroExame.data_exame : null,
       gestas:      null, partos: null, abortos: null,
       antecedentes_obstetricos: '',
+      ppt_espontaneo_previo: false,
       status:      'ativa',
       observacoes: '',
       ig_base_data:  p.ig_base_data  || null,
@@ -6037,7 +6066,7 @@ function renderSummary(gestacao, exams) {
   // Card à parte para colo curto — mesmo motivo do peBox acima: o colo pode
   // estar curto com peso fetal normal, então não pode depender do diagnóstico
   // de crescimento (ver avaliarRiscoColoCurto).
-  const coloRisco = avaliarRiscoColoCurto(last);
+  const coloRisco = avaliarRiscoColoCurto(last, gestacao);
   const coloBox = coloRisco ? `
     <div style="background:var(--blush-pale);border-left:4px solid var(--blush-deep);border-radius:var(--radius);padding:18px 20px;margin-top:14px;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
@@ -6128,6 +6157,8 @@ function _openGestacaoModal(gid, extraHtml) {
   setVal('g-abortos',      g && g.abortos != null ? g.abortos : '');
   setVal('g-antecedentes', g ? (g.antecedentes_obstetricos || '') : '');
   setVal('g-observacoes',  g ? (g.observacoes || '') : '');
+  const pptEl = document.getElementById('g-ppt-previo');
+  if (pptEl) pptEl.checked = !!(g && g.ppt_espontaneo_previo);
   setVal('g-ig-base-data', g ? (g.ig_base_data || '') : '');
 
   // IG âncora se existir
@@ -6353,6 +6384,8 @@ function saveGestacao() {
   const gestas    = getNum('g-gestas');
   const partos    = getNum('g-partos');
   const abortos   = getNum('g-abortos');
+  const pptPrevioEl = document.getElementById('g-ppt-previo');
+  const pptEspontaneoPrevio = !!(pptPrevioEl && pptPrevioEl.checked);
 
   const igBD    = getVal('g-ig-base-data') || null;
   const igSem   = getNum('g-ig-base-sem');
@@ -6370,6 +6403,7 @@ function saveGestacao() {
     dum, dpp, data_inicio:  dataInicio,
     gestas, partos, abortos,
     antecedentes_obstetricos: obsText,
+    ppt_espontaneo_previo: pptEspontaneoPrevio,
     status, observacoes:     obsNotes,
     ig_base_data:  igBD,
     ig_base_valor: igBaseDays,
@@ -7984,7 +8018,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     estadioIndeterminado,
     conduta: CONDUTA[diagnostico],
     peRisco: avaliarRiscoPreEclampsia(dx),
-    coloRisco: avaliarRiscoColoCurto(last),
+    coloRisco: avaliarRiscoColoCurto(last, gestacao),
   };
 }
 
@@ -9059,6 +9093,7 @@ function validateImportedDB(raw) {
       partos:  numOrNull(g.partos),
       abortos: numOrNull(g.abortos),
       antecedentes_obstetricos: sanitizeString(g.antecedentes_obstetricos, 2000),
+      ppt_espontaneo_previo: !!g.ppt_espontaneo_previo,
       status: STATUS_VALIDOS.has(g.status) ? g.status : 'ativa',
       observacoes: sanitizeString(g.observacoes, 2000),
       ig_base_data:  DATE_RE.test(g.ig_base_data) ? g.ig_base_data : null,

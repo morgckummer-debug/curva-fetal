@@ -30,26 +30,26 @@ code,.mono {font-family:var(--font-mono);}
    ═════════════════════════════════ */
 :root{
   /* ── Clay surfaces ── */
-  --clay-bg:     #dbd0c5;
-  --clay-surf:   #e6ddd4;
-  --clay-card:   #ede6dc;
-  --clay-raised: #f2ebe1;
-  --clay-white:  #f8f3ed;
+  --clay-bg:     #e3dbe6;
+  --clay-surf:   #ebe4ec;
+  --clay-card:   #f0eaf2;
+  --clay-raised: #f5f0f7;
+  --clay-white:  #faf7fb;
 
   /* ── Sage (primary) ── */
-  --sage-deep:  #527d68;
-  --sage:       #7aab92;
-  --sage-mid:   #8fb8a0;
-  --sage-soft:  #a8ccb8;
-  --sage-pale:  #cce4d8;
-  --sage-light: #e4f2ec;
+  --sage-deep:  #3d2352;
+  --sage:       #8b6ba8;
+  --sage-mid:   #9c81b7;
+  --sage-soft:  #b3a0c9;
+  --sage-pale:  #dccfe6;
+  --sage-light: #f1ecf4;
 
   /* ── Blue-clay (secondary) ── */
-  --blue-deep:  #4a7a96;
-  --blue:       #6fa0bc;
-  --blue-soft:  #8ab4ca;
-  --blue-pale:  #c8e0ee;
-  --blue-light: #e4f0f8;
+  --blue-deep:  #47407a;
+  --blue:       #6f66a3;
+  --blue-soft:  #9490bf;
+  --blue-pale:  #d5d0e8;
+  --blue-light: #f0eef8;
 
   /* ── Blush (danger/alert) ── */
   --blush-deep: #946060;
@@ -58,11 +58,11 @@ code,.mono {font-family:var(--font-mono);}
   --blush-pale: #f0e0e0;
 
   /* ── Peach (warm accent) ── */
-  --peach:      #c4a060;
-  --peach-warm: #d0b070;
-  --peach-deep: #9a7840;
-  --peach-pale: #f0e4cc;
-  --peach-light:#f8f0e4;
+  --peach:      #b08d3f;
+  --peach-warm: #c9a75c;
+  --peach-deep: #8a6d2e;
+  --peach-pale: #ecdfc0;
+  --peach-light:#f8f2e4;
 
   /* ── Aliases for JS-generated HTML ── */
   --plum:        var(--sage-deep);
@@ -84,18 +84,18 @@ code,.mono {font-family:var(--font-mono);}
   --bg:           var(--clay-bg);
   --surface:      var(--clay-raised);
   --surface2:     var(--clay-card);
-  --surface-glass:rgba(242,235,225,0.94);
-  --border:       rgba(160,128,100,0.18);
-  --border-soft:  rgba(160,128,100,0.11);
+  --surface-glass:rgba(245,240,247,0.94);
+  --border:       rgba(107,88,130,0.18);
+  --border-soft:  rgba(107,88,130,0.11);
   --border-glass: rgba(255,255,255,0.52);
   --accent:       var(--sage);
   --accent-light: var(--sage-pale);
   --accent2:      var(--peach);
-  --text:         #3a2416;
-  --text-muted:   #7a5438;
-  --text-light:   #b8906a;
-  --warning:      #a06820;
-  --warning-bg:   #f8f0e0;
+  --text:         #2e2138;
+  --text-muted:   #6b5a78;
+  --text-light:   #a08cae;
+  --warning:      #8a6d2e;
+  --warning-bg:   #f7f0de;
   --danger:       #a84848;
   --danger-bg:    #f4e8e8;
 
@@ -106,12 +106,12 @@ code,.mono {font-family:var(--font-mono);}
   --radius-xl: 38px;
 
   /* ── Clay shadow system ── */
-  --sh-sm:  5px 5px 14px rgba(148,106,74,0.20),-3px -3px 9px rgba(255,255,255,0.64);
-  --sh:     8px 8px 22px rgba(148,106,74,0.22),-5px -5px 14px rgba(255,255,255,0.68);
-  --sh-md:  10px 10px 30px rgba(148,106,74,0.25),-6px -6px 18px rgba(255,255,255,0.70);
-  --sh-lg:  14px 14px 44px rgba(148,106,74,0.28),-8px -8px 24px rgba(255,255,255,0.72);
-  --sh-in:  inset 4px 4px 12px rgba(148,106,74,0.22),inset -3px -3px 8px rgba(255,255,255,0.62);
-  --sh-in-d:inset 6px 6px 18px rgba(148,106,74,0.28),inset -4px -4px 11px rgba(255,255,255,0.65);
+  --sh-sm:  5px 5px 14px rgba(61,35,82,0.20),-3px -3px 9px rgba(255,255,255,0.64);
+  --sh:     8px 8px 22px rgba(61,35,82,0.22),-5px -5px 14px rgba(255,255,255,0.68);
+  --sh-md:  10px 10px 30px rgba(61,35,82,0.25),-6px -6px 18px rgba(255,255,255,0.70);
+  --sh-lg:  14px 14px 44px rgba(61,35,82,0.28),-8px -8px 24px rgba(255,255,255,0.72);
+  --sh-in:  inset 4px 4px 12px rgba(61,35,82,0.22),inset -3px -3px 8px rgba(255,255,255,0.62);
+  --sh-in-d:inset 6px 6px 18px rgba(61,35,82,0.28),inset -4px -4px 11px rgba(255,255,255,0.65);
 
   /* Legacy shadow aliases */
   --shadow-xs:   var(--sh-sm);
@@ -136,10 +136,10 @@ body{
   font-family:var(--font-sans);
   background:var(--clay-bg);
   background-image:
-    radial-gradient(ellipse 780px 580px at 4% -4%,  rgba(122,171,146,0.28) 0%,transparent 58%),
-    radial-gradient(ellipse 620px 480px at 96% 104%,rgba(106,160,188,0.24) 0%,transparent 55%),
-    radial-gradient(ellipse 500px 380px at 60% 30%,  rgba(122,171,146,0.14) 0%,transparent 52%),
-    radial-gradient(ellipse 400px 300px at 20% 90%,  rgba(106,160,188,0.12) 0%,transparent 50%);
+    radial-gradient(ellipse 780px 580px at 4% -4%,  rgba(139,107,168,0.28) 0%,transparent 58%),
+    radial-gradient(ellipse 620px 480px at 96% 104%,rgba(111,102,163,0.24) 0%,transparent 55%),
+    radial-gradient(ellipse 500px 380px at 60% 30%,  rgba(139,107,168,0.14) 0%,transparent 52%),
+    radial-gradient(ellipse 400px 300px at 20% 90%,  rgba(111,102,163,0.12) 0%,transparent 50%);
   background-attachment:fixed;
   color:var(--text);
   min-height:100vh;
@@ -155,7 +155,7 @@ header{
   height:64px;
   display:flex;align-items:center;justify-content:space-between;
   gap:16px;position:sticky;top:0;z-index:100;
-  box-shadow:0 4px 18px rgba(148,106,74,0.16),0 1px 0 rgba(58,36,22,0.52);
+  box-shadow:0 4px 18px rgba(61,35,82,0.16),0 1px 0 rgba(46,33,56,0.52);
 }
 header::after{display:none;}
 
@@ -199,19 +199,19 @@ header::after{display:none;}
   width:130px;height:130px;border-radius:50%;
   object-fit:cover;
   box-shadow:
-    12px 12px 36px rgba(148,106,74,0.28),
+    12px 12px 36px rgba(61,35,82,0.28),
     -8px -8px 22px rgba(255,255,255,0.72),
     0 0 0 6px rgba(255,255,255,0.55),
-    0 0 0 10px rgba(196,160,96,0.18);
+    0 0 0 10px rgba(176,141,63,0.18);
   animation:heroFloat 4.2s ease-in-out infinite;
   transition:box-shadow .3s;
 }
 .hero-logo:hover{
   box-shadow:
-    16px 16px 48px rgba(148,106,74,0.34),
+    16px 16px 48px rgba(61,35,82,0.34),
     -10px -10px 28px rgba(255,255,255,0.78),
     0 0 0 6px rgba(255,255,255,0.60),
-    0 0 0 14px rgba(196,160,96,0.22);
+    0 0 0 14px rgba(176,141,63,0.22);
 }
 @keyframes heroFloat{
   0%,100%{transform:translateY(0) scale(1);}
@@ -347,7 +347,7 @@ header::after{display:none;}
 }
 .ph::after{
   content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;
-  background:radial-gradient(circle,rgba(122,171,146,0.08) 0%,transparent 65%);
+  background:radial-gradient(circle,rgba(139,107,168,0.08) 0%,transparent 65%);
   border-radius:50%;pointer-events:none;
 }
 .ph-row1{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px;}
@@ -356,7 +356,7 @@ header::after{display:none;}
 .ph-ig  {font-family:var(--font-mono);font-size:28px;font-weight:500;color:var(--sage);letter-spacing:-0.8px;white-space:nowrap;flex-shrink:0;}
 .ph-row2{font-size:12.5px;color:var(--text-muted);margin-bottom:12px;display:flex;flex-wrap:wrap;gap:0 10px;align-items:center;}
 .ph-row2 span{white-space:nowrap;}
-.ph-sep{color:rgba(122,171,146,0.55);margin:0 2px;}
+.ph-sep{color:rgba(139,107,168,0.55);margin:0 2px;}
 .ph-status{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text-muted);margin-bottom:8px;}
 .ph-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .ph-dot-ok   {background:#4aae7c;box-shadow:0 0 8px rgba(74,174,124,0.55),0 0 16px rgba(74,174,124,0.20);}
@@ -376,7 +376,7 @@ header::after{display:none;}
 }
 .ph-ig-radio:hover:not(.active){background:var(--clay-raised);box-shadow:var(--sh-md);}
 .ph-microtxt{font-size:11px;color:var(--text-light);}
-.ph-actions{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(148,106,74,0.12);}
+.ph-actions{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(61,35,82,0.12);}
 
 /* ── TABS ── */
 .tabs-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:0;}
@@ -395,7 +395,7 @@ header::after{display:none;}
   background:var(--clay-card);color:var(--sage-deep);
   box-shadow:var(--sh-sm);font-weight:700;
 }
-.tab:not(.active):hover{color:var(--sage);background:rgba(122,171,146,0.10);}
+.tab:not(.active):hover{color:var(--sage);background:rgba(139,107,168,0.10);}
 
 /* ── EXAM HISTORY ── */
 .exam-history{
@@ -404,15 +404,15 @@ header::after{display:none;}
 }
 .exam-row{
   display:flex;align-items:center;justify-content:space-between;
-  padding:15px 22px;border-bottom:1px solid rgba(148,106,74,0.10);
+  padding:15px 22px;border-bottom:1px solid rgba(61,35,82,0.10);
   cursor:pointer;transition:background .14s;gap:10px;user-select:none;
 }
 .exam-row:last-child{border-bottom:none;}
-.exam-row:hover{background:rgba(122,171,146,0.08);}
+.exam-row:hover{background:rgba(139,107,168,0.08);}
 .exam-row-selected{background:var(--sage-light) !important;border-left:4px solid var(--sage);}
 .exam-row-left{display:flex;align-items:center;gap:10px;flex:1;flex-wrap:wrap;min-width:0;}
 .exam-row-date{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;}
-.exam-row-sep {color:rgba(122,171,146,0.60);font-size:13px;}
+.exam-row-sep {color:rgba(139,107,168,0.60);font-size:13px;}
 .exam-row-ig  {font-family:var(--font-mono);font-size:13px;color:var(--sage);white-space:nowrap;}
 .exam-row-cap {font-size:12px;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap;}
 .exam-row-cap-val{font-weight:600;color:var(--sage);}
@@ -421,7 +421,7 @@ header::after{display:none;}
   font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
   color:var(--sage-deep);background:var(--sage-pale);padding:3px 10px;
   border-radius:99px;border:none;white-space:nowrap;
-  box-shadow:2px 2px 6px rgba(148,106,74,0.14),-1px -1px 4px rgba(58,36,22,0.52);
+  box-shadow:2px 2px 6px rgba(61,35,82,0.14),-1px -1px 4px rgba(46,33,56,0.52);
 }
 .exam-row-actions{display:flex;gap:7px;flex-shrink:0;align-items:center;}
 
@@ -447,7 +447,7 @@ header::after{display:none;}
 .summary-text{
   font-size:14.5px;line-height:1.8;color:var(--text);font-style:italic;
   border-left:4px solid var(--sage-soft);padding:6px 0 6px 20px;
-  background:linear-gradient(90deg,rgba(122,171,146,0.06) 0%,transparent 55%);
+  background:linear-gradient(90deg,rgba(139,107,168,0.06) 0%,transparent 55%);
   border-radius:0 var(--radius-sm) var(--radius-sm) 0;
 }
 
@@ -469,7 +469,7 @@ header::after{display:none;}
 }
 .chart-card::after{
   content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;
-  background:radial-gradient(circle,rgba(122,171,146,0.07) 0%,transparent 70%);
+  background:radial-gradient(circle,rgba(139,107,168,0.07) 0%,transparent 70%);
   border-radius:50%;pointer-events:none;
 }
 .chart-card:hover{box-shadow:var(--sh-lg);transform:translateY(-4px);}
@@ -486,7 +486,7 @@ header::after{display:none;}
   font-family:var(--font-mono);font-size:13px;font-weight:700;
   color:var(--sage-deep);background:var(--sage-pale);
   padding:4px 13px;border-radius:99px;white-space:nowrap;flex-shrink:0;border:none;
-  box-shadow:2px 2px 7px rgba(148,106,74,0.16),-1px -1px 4px rgba(255,255,255,0.56);
+  box-shadow:2px 2px 7px rgba(61,35,82,0.16),-1px -1px 4px rgba(255,255,255,0.56);
 }
 .chart-card-pct-ok  {color:#3a7a50;background:var(--sage-pale);}
 .chart-card-pct-warn{color:#8a5800;background:var(--peach-pale);}
@@ -508,7 +508,7 @@ header::after{display:none;}
 }
 @keyframes modalIn{from{opacity:0;transform:scale(0.94) translateY(14px);}to{opacity:1;transform:scale(1) translateY(0);}}
 .modal-header{
-  padding:24px 28px 18px;border-bottom:1px solid rgba(148,106,74,0.12);
+  padding:24px 28px 18px;border-bottom:1px solid rgba(61,35,82,0.12);
   display:flex;align-items:center;justify-content:space-between;
   background:var(--clay-card);border-radius:var(--radius-xl) var(--radius-xl) 0 0;
 }
@@ -517,7 +517,7 @@ header::after{display:none;}
 .modal-close:hover{background:var(--clay-surf);color:var(--text);}
 .modal-body{padding:24px 28px;}
 .modal-footer{
-  padding:18px 28px;border-top:1px solid rgba(148,106,74,0.10);
+  padding:18px 28px;border-top:1px solid rgba(61,35,82,0.10);
   display:flex;gap:8px;justify-content:flex-end;
   background:var(--clay-card);border-radius:0 0 var(--radius-xl) var(--radius-xl);
 }
@@ -536,7 +536,7 @@ header::after{display:none;}
 }
 .form-group input:focus,.form-group select:focus{box-shadow:var(--sh-in-d);}
 .form-group input[type=number]{font-family:var(--font-mono);}
-.form-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.1px;color:var(--sage);margin:20px 0 12px;padding-bottom:8px;border-bottom:2px solid rgba(122,171,146,0.18);}
+.form-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.1px;color:var(--sage);margin:20px 0 12px;padding-bottom:8px;border-bottom:2px solid rgba(139,107,168,0.18);}
 .ig-preview{background:var(--sage-light);border-radius:var(--radius-sm);padding:9px 14px;font-size:13px;color:var(--sage-deep);margin-top:8px;font-family:var(--font-mono);border:none;box-shadow:var(--sh-in);}
 .optional-tag{color:var(--text-light);font-weight:400;font-size:11px;margin-left:4px;}
 
@@ -577,22 +577,22 @@ header::after{display:none;}
 .pct-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:6px;}
 .pct-panel-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-light);}
 .pct-panel-ig{font-size:12px;font-family:var(--font-mono);color:var(--sage-deep);background:var(--sage-pale);padding:3px 12px;border-radius:99px;border:none;box-shadow:var(--sh-sm);}
-.pct-row{display:grid;grid-template-columns:68px 80px 100px 34px;align-items:center;gap:0 12px;padding:7px 0;border-bottom:1px solid rgba(148,106,74,0.10);}
+.pct-row{display:grid;grid-template-columns:68px 80px 100px 34px;align-items:center;gap:0 12px;padding:7px 0;border-bottom:1px solid rgba(61,35,82,0.10);}
 .pct-row:last-child{border-bottom:none;}
 .pct-row-label{font-size:12px;font-weight:700;color:var(--text-muted);white-space:nowrap;}
 .pct-row-value{font-size:12px;font-family:var(--font-mono);color:var(--text);text-align:right;white-space:nowrap;}
 .pct-row-pval {font-size:11px;font-family:var(--font-mono);color:var(--text-muted);text-align:right;white-space:nowrap;}
 .pct-track-wrap{width:100px;height:14px;position:relative;display:flex;align-items:center;flex-shrink:0;}
-.pct-track{position:absolute;left:0;right:0;height:3px;background:rgba(148,106,74,0.16);border-radius:3px;overflow:visible;}
-.pct-track::before,.pct-track::after{content:'';position:absolute;top:-4px;bottom:-4px;width:2px;background:rgba(148,106,74,0.22);border-radius:2px;}
+.pct-track{position:absolute;left:0;right:0;height:3px;background:rgba(61,35,82,0.16);border-radius:3px;overflow:visible;}
+.pct-track::before,.pct-track::after{content:'';position:absolute;top:-4px;bottom:-4px;width:2px;background:rgba(61,35,82,0.22);border-radius:2px;}
 .pct-track::before{left:0;}.pct-track::after{right:0;}
-.pct-dot{position:absolute;width:11px;height:11px;border-radius:50%;background:var(--sage);border:2px solid var(--clay-raised);box-shadow:2px 2px 6px rgba(148,106,74,0.25);top:50%;transform:translate(-50%,-50%);z-index:2;}
+.pct-dot{position:absolute;width:11px;height:11px;border-radius:50%;background:var(--sage);border:2px solid var(--clay-raised);box-shadow:2px 2px 6px rgba(61,35,82,0.25);top:50%;transform:translate(-50%,-50%);z-index:2;}
 
 /* ── PESO FETAL / PERCENTIL (compartilhado com o modal de exame) ── */
 .calc-table{width:100%;border-collapse:collapse;}
-.calc-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);padding:9px 16px 9px 0;text-align:left;border-bottom:2px solid rgba(148,106,74,0.12);}
+.calc-table th{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);padding:9px 16px 9px 0;text-align:left;border-bottom:2px solid rgba(61,35,82,0.12);}
 .calc-table th:last-child{text-align:right;}
-.calc-table td{padding:13px 16px 13px 0;border-bottom:1px solid rgba(148,106,74,0.08);font-size:14px;vertical-align:middle;}
+.calc-table td{padding:13px 16px 13px 0;border-bottom:1px solid rgba(61,35,82,0.08);font-size:14px;vertical-align:middle;}
 .calc-table tr:last-child td{border-bottom:none;}
 .calc-table td:first-child{font-weight:700;color:var(--text);font-size:13px;width:80px;}
 .calc-table td:nth-child(2){font-family:var(--font-mono);font-weight:600;font-size:15px;color:var(--text);}
@@ -654,7 +654,7 @@ header::after{display:none;}
 .me-optional-toggle{
   font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);
   cursor:pointer;list-style:none;padding:8px 0;
-  border-top:1px solid rgba(148,106,74,0.12);
+  border-top:1px solid rgba(61,35,82,0.12);
   display:flex;align-items:center;gap:6px;
 }
 .me-optional-toggle::-webkit-details-marker{display:none;}
@@ -705,8 +705,8 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:var(--clay-bg);border-radius:99px;}
-::-webkit-scrollbar-thumb{background:rgba(122,171,146,0.40);border-radius:99px;}
-::-webkit-scrollbar-thumb:hover{background:rgba(122,171,146,0.65);}
+::-webkit-scrollbar-thumb{background:rgba(139,107,168,0.40);border-radius:99px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(139,107,168,0.65);}
 ::selection{background:var(--sage-pale);color:var(--sage-deep);}
 
 /* ═════════════════════════════════
@@ -816,12 +816,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 <!-- Selo de gravação — fica visível enquanto uma alteração ainda não chegou ao
      servidor e some quando chega. Sem ele, uma falha de rede sumia com o dado
      em silêncio: a pessoa via a paciente na tela e achava que estava salva. -->
-<div id="save-status" style="display:none;position:fixed;bottom:14px;right:14px;z-index:999998;padding:8px 15px;border-radius:999px;font-size:12.5px;font-weight:600;color:#fff;box-shadow:0 6px 20px rgba(58,36,22,0.28);"></div>
+<div id="save-status" style="display:none;position:fixed;bottom:14px;right:14px;z-index:999998;padding:8px 15px;border-radius:999px;font-size:12.5px;font-weight:600;color:#fff;box-shadow:0 6px 20px rgba(46,33,56,0.28);"></div>
 
 <!-- Tela de login — cobre a página inteira enquanto não há sessão válida no Supabase.
      Fica por cima de tudo (z-index alto) e não deixa nada por baixo ser clicado. -->
-<div id="login-screen" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--clay-bg,#dbd0c5);padding:20px;">
-  <form id="login-form" onsubmit="event.preventDefault();doLogin();" style="width:100%;max-width:360px;padding:34px 30px;background:var(--clay-raised,#f2ebe1);border-radius:22px;box-shadow:0 12px 48px rgba(58,36,22,0.22);">
+<div id="login-screen" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--clay-bg,#e3dbe6);padding:20px;">
+  <form id="login-form" onsubmit="event.preventDefault();doLogin();" style="width:100%;max-width:360px;padding:34px 30px;background:var(--clay-raised,#f5f0f7);border-radius:22px;box-shadow:0 12px 48px rgba(46,33,56,0.22);">
     <h1 style="font-family:var(--font-serif);font-size:22px;margin:0 0 6px;color:var(--text);">Curva Fetal</h1>
     <p style="font-size:13px;color:var(--text-muted);margin:0 0 22px;">Acesso restrito — entre com seu e-mail e senha.</p>
     <label for="login-email" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;">E-mail</label>
@@ -833,7 +833,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <button type="button" onclick="doForgotPassword()" style="width:100%;background:none;border:none;color:var(--accent,#2c4a63);font-size:12.5px;margin-top:12px;cursor:pointer;font-family:inherit;text-decoration:underline;">Esqueci minha senha</button>
   </form>
 
-  <form id="reset-password-form" onsubmit="event.preventDefault();doSetNewPassword();" style="display:none;width:100%;max-width:360px;padding:34px 30px;background:var(--clay-raised,#f2ebe1);border-radius:22px;box-shadow:0 12px 48px rgba(58,36,22,0.22);">
+  <form id="reset-password-form" onsubmit="event.preventDefault();doSetNewPassword();" style="display:none;width:100%;max-width:360px;padding:34px 30px;background:var(--clay-raised,#f5f0f7);border-radius:22px;box-shadow:0 12px 48px rgba(46,33,56,0.22);">
     <h1 style="font-family:var(--font-serif);font-size:22px;margin:0 0 6px;color:var(--text);">Nova senha</h1>
     <p style="font-size:13px;color:var(--text-muted);margin:0 0 22px;">Escolha uma nova senha para entrar.</p>
     <label for="reset-senha" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Nova senha</label>
@@ -1104,7 +1104,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <input type="text" id="p-nome" placeholder="Nome da paciente">
         </div>
       </div>
-      <div style="background:var(--purple-pale,#f5f0ff);border-radius:10px;padding:11px 14px;font-size:12.5px;color:var(--purple-mid,#527d68);line-height:1.6;">
+      <div style="background:var(--purple-pale,#f5f0ff);border-radius:10px;padding:11px 14px;font-size:12.5px;color:var(--purple-mid,#3d2352);line-height:1.6;">
         💡 DUM, DPP e dados obstétricos são configurados na <strong>gestação</strong>, que será criada automaticamente após salvar a paciente.
       </div>
     </div>
@@ -1445,7 +1445,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   <div class="modal" style="max-width:420px;">
     <div class="modal-header" style="border-bottom:2px solid rgba(176,48,48,0.15);">
       <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:38px;height:38px;border-radius:12px;background:var(--blush-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🗑</div>
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--blush-pale);box-shadow:4px 4px 12px rgba(61,35,82,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🗑</div>
         <h2 id="confirm-delete-title" style="font-size:18px;color:var(--danger);">Excluir exame?</h2>
       </div>
       <button class="modal-close" onclick="closeModal('modal-confirm-delete')">✕</button>
@@ -1466,7 +1466,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   <div class="modal" style="max-width:560px;">
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🗑</div>
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(61,35,82,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🗑</div>
         <h2 style="font-size:18px;">Lixeira</h2>
       </div>
       <button class="modal-close" onclick="closeModal('modal-lixeira')">✕</button>
@@ -1486,7 +1486,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   <div class="modal" style="max-width:560px;">
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🕘</div>
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(61,35,82,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🕘</div>
         <h2 style="font-size:18px;">Cópias automáticas</h2>
       </div>
       <button class="modal-close" onclick="closeModal('modal-snapshots')">✕</button>
@@ -1511,7 +1511,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   <div class="modal" style="max-width:560px;">
     <div class="modal-header">
       <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(148,106,74,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📄</div>
+        <div style="width:38px;height:38px;border-radius:12px;background:var(--sage-pale);box-shadow:4px 4px 12px rgba(61,35,82,0.18),-2px -2px 7px rgba(255,255,255,0.60);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📄</div>
         <h2 style="font-size:18px;">Relatórios emitidos</h2>
       </div>
       <button class="modal-close" onclick="closeModal('modal-relatorios')">✕</button>
@@ -2822,7 +2822,7 @@ function _setSaveStatus(state, msg) {
   clearTimeout(_saveStatusTimer);
   el.textContent = msg;
   el.style.display = 'block';
-  el.style.background = state === 'saved' ? '#2c6e49' : state === 'error' ? '#a3241c' : '#3a2416';
+  el.style.background = state === 'saved' ? '#2c6e49' : state === 'error' ? '#a3241c' : '#2e2138';
   if (state === 'saved') _saveStatusTimer = setTimeout(() => { el.style.display = 'none'; }, 1800);
 }
 
@@ -3212,13 +3212,13 @@ function _showNameSuggestions(q) {
   if (!box) {
     box = document.createElement('div');
     box.id = 'search-suggestions';
-    box.style.cssText = 'position:absolute;z-index:999;background:var(--clay-raised);border:none;border-radius:18px;box-shadow:14px 14px 44px rgba(148,106,74,0.22),-8px -8px 22px rgba(255,255,255,0.68);overflow:hidden;min-width:260px;max-height:220px;overflow-y:auto;';
+    box.style.cssText = 'position:absolute;z-index:999;background:var(--clay-raised);border:none;border-radius:18px;box-shadow:14px 14px 44px rgba(61,35,82,0.22),-8px -8px 22px rgba(255,255,255,0.68);overflow:hidden;min-width:260px;max-height:220px;overflow-y:auto;';
     const sb = document.querySelector('.search-box');
     if (sb) { sb.style.position='relative'; sb.appendChild(box); }
   }
   const matches = _matchPatients(q).slice(0,8);
   if (!matches.length) { box.style.display='none'; return; }
-  box.innerHTML = matches.map(p => `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="padding:10px 16px;cursor:pointer;font-size:13px;color:#527d68;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome || 'Sem nome')}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span></div>`).join('');
+  box.innerHTML = matches.map(p => `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="padding:10px 16px;cursor:pointer;font-size:13px;color:#3d2352;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome || 'Sem nome')}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span></div>`).join('');
   box.style.display = 'block';
 }
 
@@ -3277,7 +3277,7 @@ function renderPatientScreen() {
 
   // Breadcrumb — apenas nome, sem "Início >"
   document.getElementById('breadcrumb').innerHTML =
-    `<span style="color:rgba(58,36,22,0.52);font-size:13px;">${escapeHtml(patient.nome || patient.cpf)}</span>`;
+    `<span style="color:rgba(46,33,56,0.52);font-size:13px;">${escapeHtml(patient.nome || patient.cpf)}</span>`;
 
   const allExams = gestacao ? getExamsByGestacao(gestacao.id) : [];
   const exams    = gestacao ? examsForFetoAnalysis(gestacao, allExams) : [];
@@ -3334,7 +3334,7 @@ function renderPatientScreen() {
         const labelData = g.data_inicio ? formatDateBR(g.data_inicio) : (g.dum ? `DUM ${formatDateBR(g.dum)}` : `Gest. ${i+1}`);
         const statusBadge = g.status === 'ativa'
           ? `<span style="font-size:9px;background:var(--sage-pale);color:var(--sage-deep);padding:2px 8px;border-radius:99px;margin-left:4px;">ativa</span>`
-          : `<span style="font-size:9px;background:#cce0d5;color:#527d68;border:1px solid rgba(107,32,144,0.18);padding:1px 6px;border-radius:99px;margin-left:4px;">${labelStatus(g.status)}</span>`;
+          : `<span style="font-size:9px;background:#cce0d5;color:#3d2352;border:1px solid rgba(107,32,144,0.18);padding:1px 6px;border-radius:99px;margin-left:4px;">${labelStatus(g.status)}</span>`;
         return `<label class="ph-ig-radio ${isSelected ? 'active' : ''}" onclick="switchGestacao(${safeId(g.id)})">
           <input type="radio" style="display:none;" ${isSelected ? 'checked' : ''}>
           ${labelData}${statusBadge}
@@ -3736,11 +3736,11 @@ function _drawChart(canvas, cfg) {
   ctx.clearRect(0, 0, W, H);
 
   // Background
-  ctx.fillStyle = '#ede6dc';
+  ctx.fillStyle = '#f0eaf2';
   ctx.fillRect(0, 0, W, H);
 
   // Grid vertical
-  ctx.strokeStyle = 'rgba(148,106,74,0.10)';
+  ctx.strokeStyle = 'rgba(61,35,82,0.10)';
   ctx.lineWidth   = 0.8;
   for (let x = xMin; x <= xMax; x += 2) {
     ctx.beginPath(); ctx.moveTo(xS(x), PAD.t); ctx.lineTo(xS(x), PAD.t + cH); ctx.stroke();
@@ -3779,7 +3779,7 @@ function _drawChart(canvas, cfg) {
   _smoothPath(ctx, p90, xS, yS);
   [...p10].reverse().forEach(pt => ctx.lineTo(xS(pt.x), yS(pt.y)));
   ctx.closePath();
-  ctx.fillStyle = 'rgba(122,171,146,0.10)'; ctx.fill();
+  ctx.fillStyle = 'rgba(139,107,168,0.10)'; ctx.fill();
 
   // P10 line
   ctx.beginPath(); ctx.setLineDash([3,5]);
@@ -3789,13 +3789,13 @@ function _drawChart(canvas, cfg) {
 
   // P90 line
   ctx.beginPath(); ctx.setLineDash([5,4]);
-  ctx.strokeStyle = 'rgba(74,122,150,0.62)'; ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(71,64,122,0.62)'; ctx.lineWidth = 1.2;
   _smoothPath(ctx, p90, xS, yS);
   ctx.stroke();
 
   // P50 line
   ctx.beginPath(); ctx.setLineDash([]);
-  ctx.strokeStyle = 'rgba(82,125,104,0.70)'; ctx.lineWidth = 1.6;
+  ctx.strokeStyle = 'rgba(61,35,82,0.70)'; ctx.lineWidth = 1.6;
   _smoothPath(ctx, p50, xS, yS);
   ctx.stroke();
 
@@ -3804,8 +3804,8 @@ function _drawChart(canvas, cfg) {
   const labelRight = PAD.l + cW + 4;
   [
     { arr: p10, lbl: 'P10', color: 'rgba(196,144,144,0.85)' },
-    { arr: p50, lbl: 'P50', color: 'rgba(82,125,104,0.82)' },
-    { arr: p90, lbl: 'P90', color: 'rgba(74,122,150,0.80)' },
+    { arr: p50, lbl: 'P50', color: 'rgba(61,35,82,0.82)' },
+    { arr: p90, lbl: 'P90', color: 'rgba(71,64,122,0.80)' },
   ].forEach(({ arr, lbl, color }) => {
     if (!arr.length) return;
     const last = arr[arr.length - 1];
@@ -3820,7 +3820,7 @@ function _drawChart(canvas, cfg) {
   const pts = cfg.patientPoints;
   if (pts.length >= 2) {
     ctx.beginPath(); ctx.setLineDash([4,3]);
-    ctx.strokeStyle = 'rgba(122,171,146,0.55)'; ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(139,107,168,0.55)'; ctx.lineWidth = 1.2;
     pts.forEach((pt, i) => i === 0 ? ctx.moveTo(xS(pt.x), yS(pt.y)) : ctx.lineTo(xS(pt.x), yS(pt.y)));
     ctx.stroke();
   }
@@ -3828,7 +3828,7 @@ function _drawChart(canvas, cfg) {
 
   // Patient points + percentil labels
   pts.forEach((pt, i) => {
-    const color = pt.color || '#527d68';
+    const color = pt.color || '#3d2352';
     // Outer ring
     ctx.beginPath(); ctx.arc(xS(pt.x), yS(pt.y), 6, 0, Math.PI*2);
     ctx.fillStyle = '#fff'; ctx.fill();
@@ -3878,10 +3878,10 @@ function _drawChart(canvas, cfg) {
   const legendY = H - 14;
   let legendX   = PAD.l;
   const items = [
-    { color: 'rgba(74,122,150,0.72)', dash: true,  label: 'P90' },
-    { color: 'rgba(82,125,104,0.75)', dash: false, label: 'P50' },
+    { color: 'rgba(71,64,122,0.72)', dash: true,  label: 'P90' },
+    { color: 'rgba(61,35,82,0.75)', dash: false, label: 'P50' },
     { color: 'rgba(196,144,144,0.78)', dash: true,  label: 'P10' },
-    { color: '#527d68',               dot: true,   label: 'Paciente' },
+    { color: '#3d2352',               dot: true,   label: 'Paciente' },
   ];
   ctx.font = '10px sans-serif'; ctx.textBaseline = 'middle';
   items.forEach(item => {
@@ -5813,7 +5813,7 @@ function renderSummary(gestacao, exams) {
     if (value == null) return '';
     const pct = zVal != null ? _zToPercentile(zVal) : null;
     const interp = pct == null ? '' : pct <= 3 ? 'muito abaixo do esperado' : pct <= 10 ? 'abaixo do esperado (< P10)' : pct >= 97 ? 'muito acima do esperado' : pct >= 90 ? 'acima do esperado (> P90)' : 'adequado para a IG';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(148,106,74,0.07);">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(61,35,82,0.07);">
       <span style="font-size:12.5px;font-weight:700;color:var(--text);width:44px;flex-shrink:0;">${label}</span>
       <span style="font-family:var(--font-mono);font-size:13px;color:var(--text);width:72px;">${value}${unit}</span>
       ${pctBadge(pct, highIsBad)}
@@ -5823,7 +5823,7 @@ function renderSummary(gestacao, exams) {
 
   function block(title, content) {
     return `<div style="margin-bottom:22px;">
-      <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.3px;color:var(--text-light);margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid rgba(148,106,74,0.14);">${title}</div>
+      <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.3px;color:var(--text-light);margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid rgba(61,35,82,0.14);">${title}</div>
       ${content}
     </div>`;
   }
@@ -5871,7 +5871,7 @@ function renderSummary(gestacao, exams) {
     } else {
       tendHtml = relevantes.map(ev => {
         const c = ev.prioridade >= 4 ? '#a02020' : ev.prioridade >= 3 ? '#b84010' : '#b87a20';
-        return `<div style="display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(148,106,74,0.07);">
+        return `<div style="display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(61,35,82,0.07);">
           <span style="width:7px;height:7px;border-radius:50%;background:${c};flex-shrink:0;margin-top:5px;"></span>
           <div><span style="font-size:13px;font-weight:600;color:${c};">${ev.label}</span>
           <span style="font-size:11.5px;color:var(--text-muted);margin-left:6px;">${ev.detalhe}</span></div>
@@ -5887,7 +5887,7 @@ function renderSummary(gestacao, exams) {
     dopplerHtml = `<p style="font-size:12.5px;color:var(--text-muted);">Nenhum dado de Doppler registrado neste exame.</p>`;
   } else {
     function dopRow(label, valStr, pct, highIsBad, interp) {
-      return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(148,106,74,0.07);">
+      return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid rgba(61,35,82,0.07);">
         <span style="font-size:12px;font-weight:700;color:var(--text);width:70px;flex-shrink:0;">${label}</span>
         <span style="font-family:var(--font-mono);font-size:13px;color:var(--text);width:52px;">${valStr}</span>
         ${pctBadge(pct, highIsBad)}
@@ -5947,7 +5947,7 @@ function renderSummary(gestacao, exams) {
       else if (last.dv_ip != null && dvP95 && last.dv_ip > dvP95) dvInterp = `IP elevado (> P95 ≈ ${dvP95.toFixed(2)}) — critério estadiamento III`;
       else dvInterp = 'Fluxo dentro do esperado';
       if (last.dv_ip != null) rows.push(dopRow('IP DV', last.dv_ip.toFixed(2), null, false, dvInterp));
-      else rows.push(`<div style="padding:6px 0;border-bottom:1px solid rgba(148,106,74,0.07);font-size:12.5px;">
+      else rows.push(`<div style="padding:6px 0;border-bottom:1px solid rgba(61,35,82,0.07);font-size:12.5px;">
         <span style="font-weight:700;">Ducto Venoso — </span><span style="color:${last.dv_onda === 'reversa' ? 'var(--danger)' : 'var(--text-muted)'};">${dvInterp}</span>
       </div>`);
     }
@@ -6043,7 +6043,7 @@ function renderSummary(gestacao, exams) {
       <div style="font-size:11.5px;color:var(--text-muted);">Consenso Delphi 2016 · ${dx?.isPrecoce ? 'critérios para gestação antes de 32 semanas' : 'critérios para gestação a partir de 32 semanas'}</div>
       ${critHtml}
       ${estadioHtml}
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(148,106,74,0.14);font-size:12.5px;color:${cfg.color};">
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12.5px;color:${cfg.color};">
         <strong>Conduta sugerida:</strong> ${conduta}
       </div>
     </div>`;
@@ -6059,7 +6059,7 @@ function renderSummary(gestacao, exams) {
         <span style="font-family:var(--font-serif);font-size:19px;font-weight:700;color:#8a5800;">${peRisco.label}</span>
       </div>
       <div style="font-size:11.5px;color:var(--text-muted);">${peRisco.subtitulo}</div>
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(148,106,74,0.14);font-size:12.5px;color:#8a5800;">
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12.5px;color:#8a5800;">
         <strong>Conduta sugerida:</strong> ${peRisco.conduta}
       </div>
     </div>` : '';
@@ -6075,7 +6075,7 @@ function renderSummary(gestacao, exams) {
         <span style="font-family:var(--font-serif);font-size:19px;font-weight:700;color:#a02020;">${coloRisco.label}</span>
       </div>
       <div style="font-size:11.5px;color:var(--text-muted);">${coloRisco.subtitulo}</div>
-      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(148,106,74,0.14);font-size:12.5px;color:#a02020;">
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12.5px;color:#a02020;">
         <strong>Conduta sugerida:</strong> ${coloRisco.conduta}
       </div>
     </div>` : '';
@@ -7612,7 +7612,7 @@ function savePatient() {
     const _btn = document.getElementById('btn-back-patients');
     if (_btn) _btn.style.display = 'inline-block';
     document.getElementById('breadcrumb').innerHTML =
-      `<span style="color:rgba(58,36,22,0.52);font-size:13px;">${escapeHtml(nome || cpf)}</span>`;
+      `<span style="color:rgba(46,33,56,0.52);font-size:13px;">${escapeHtml(nome || cpf)}</span>`;
 
     // Renderiza tela básica e abre modal de gestação
     document.getElementById('patient-header-info').innerHTML = `
@@ -7901,7 +7901,7 @@ function showPatientScreen(pid) {
   const _btn = document.getElementById('btn-back-patients');
   if (_btn) _btn.style.display = 'inline-block';
   const p = getPatientById(pid);
-  if (p) document.getElementById('breadcrumb').innerHTML = `<span style="color:rgba(58,36,22,0.52);font-size:13px;">${escapeHtml(p.nome || p.cpf)}</span>`;
+  if (p) document.getElementById('breadcrumb').innerHTML = `<span style="color:rgba(46,33,56,0.52);font-size:13px;">${escapeHtml(p.nome || p.cpf)}</span>`;
   setTab('exams');
   renderPatientScreen();
 }
@@ -9206,13 +9206,13 @@ try { renderRecentPatients(); } catch(e) { console.warn('[CurvaFetal] init:', e)
 // Inicialização concluída
 </script>
 
-<template id="__bundler_thumbnail" data-bg-color="#dbd0c5">
+<template id="__bundler_thumbnail" data-bg-color="#e3dbe6">
   <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
-    <rect width="1200" height="800" fill="#dbd0c5"/>
-    <circle cx="600" cy="320" r="120" fill="#ede6dc" stroke="#7aab92" stroke-width="10"/>
-    <path d="M540 360 q20 -90 60 -90 q40 0 60 90" fill="none" stroke="#527d68" stroke-width="14" stroke-linecap="round"/>
-    <circle cx="600" cy="290" r="34" fill="#527d68"/>
-    <path d="M300 560 q150 -90 300 -40 q150 50 300 -40" fill="none" stroke="#7aab92" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
+    <rect width="1200" height="800" fill="#e3dbe6"/>
+    <circle cx="600" cy="320" r="120" fill="#f0eaf2" stroke="#8b6ba8" stroke-width="10"/>
+    <path d="M540 360 q20 -90 60 -90 q40 0 60 90" fill="none" stroke="#3d2352" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="600" cy="290" r="34" fill="#3d2352"/>
+    <path d="M300 560 q150 -90 300 -40 q150 50 300 -40" fill="none" stroke="#8b6ba8" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
     <text x="600" y="640" font-family="Georgia, serif" font-size="56" fill="#3a3028" text-anchor="middle" font-weight="700">Curvas de Crescimento Fetal</text>
   </svg>
 </template>

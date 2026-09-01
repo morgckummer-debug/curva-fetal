@@ -2605,6 +2605,25 @@ function avaliarRiscoPreEclampsia(dx) {
   };
 }
 
+// Colo curto → risco de parto prematuro — mesmos cortes do gráfico de colo
+// (Salomon 2011): <30mm até 14 sem, <25mm a partir de 16 sem (a partir daí é
+// quando a medida entra na rotina, no morfológico de 2º trimestre em diante).
+// Independente do diagnóstico de crescimento pelo mesmo motivo do risco de
+// pré-eclâmpsia acima: o colo pode estar curto com peso fetal normal.
+function avaliarRiscoColoCurto(lastExam) {
+  if (!lastExam || lastExam.colo == null) return null;
+  const gaW = lastExam._gaW;
+  if (gaW == null) return null;
+  const risco = (gaW <= 14 && lastExam.colo < 30) || (gaW >= 16 && lastExam.colo < 25);
+  if (!risco) return null;
+  return {
+    label: 'Colo curto — risco de parto prematuro',
+    icon: '⚠',
+    subtitulo: `Colo de ${lastExam.colo}mm · referência Salomon 2011 (risco se <30mm até 14 sem ou <25mm a partir de 16 sem)`,
+    conduta: 'Considerar progesterona vaginal, avaliar critérios para cerclagem e reavaliação em 1–2 semanas conforme protocolo institucional.',
+  };
+}
+
 // ═══════════════════════════════════════════════════════════
 // STORAGE — PACIENTE → GESTAÇÃO → EXAME
 // ═══════════════════════════════════════════════════════════
@@ -6015,6 +6034,22 @@ function renderSummary(gestacao, exams) {
       </div>
     </div>` : '';
 
+  // Card à parte para colo curto — mesmo motivo do peBox acima: o colo pode
+  // estar curto com peso fetal normal, então não pode depender do diagnóstico
+  // de crescimento (ver avaliarRiscoColoCurto).
+  const coloRisco = avaliarRiscoColoCurto(last);
+  const coloBox = coloRisco ? `
+    <div style="background:var(--blush-pale);border-left:4px solid var(--blush-deep);border-radius:var(--radius);padding:18px 20px;margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <span style="font-size:20px;">${coloRisco.icon}</span>
+        <span style="font-family:var(--font-serif);font-size:19px;font-weight:700;color:#a02020;">${coloRisco.label}</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);">${coloRisco.subtitulo}</div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(148,106,74,0.14);font-size:12.5px;color:#a02020;">
+        <strong>Conduta sugerida:</strong> ${coloRisco.conduta}
+      </div>
+    </div>` : '';
+
   // ── Render ─────────────────────────────────────────────────
   const tituloFeto = isMultipla(gestacao) ? ` — ${labelFeto(fetoEmAnalise(gestacao))}` : '';
   container.innerHTML = `
@@ -6027,7 +6062,7 @@ function renderSummary(gestacao, exams) {
     ${block('2 · Peso fetal estimado (Hadlock 1985 · percentil Hadlock 1991 + INTERGROWTH-21st)', pesoHtml)}
     ${n >= 2 ? block('3 · Tendência evolutiva', tendHtml) : ''}
     ${block('4 · Velocimetria Doppler', dopplerHtml)}
-    ${block('5 · Impressão diagnóstica', dxBox + peBox)}
+    ${block('5 · Impressão diagnóstica', dxBox + peBox + coloBox)}
     <p style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
       ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
     </p>`;
@@ -7949,6 +7984,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     estadioIndeterminado,
     conduta: CONDUTA[diagnostico],
     peRisco: avaliarRiscoPreEclampsia(dx),
+    coloRisco: avaliarRiscoColoCurto(last),
   };
 }
 
@@ -8185,6 +8221,23 @@ function _renderPeRiscoFaixaHtml(peRisco) {
   </section>`;
 }
 
+// Faixa à parte para colo curto — mesmo motivo da faixa de pré-eclâmpsia
+// acima: o colo pode estar curto com peso fetal normal (ver
+// avaliarRiscoColoCurto), então precisa aparecer mesmo com crescimento
+// 'adequado'. status--alerta (mesmo tom de RCIU) porque colo curto é risco
+// mais agudo (parto prematuro) que o de pré-eclâmpsia.
+function _renderColoRiscoFaixaHtml(coloRisco) {
+  if (!coloRisco) return '';
+  return `<section class="status status--alerta" style="margin-top:10px;">
+    <div class="status-ic">${coloRisco.icon}</div>
+    <div class="status-body">
+      <div class="status-t">${escapeHtml(coloRisco.label)}</div>
+      <div class="status-s">${escapeHtml(coloRisco.subtitulo)}</div>
+      <div class="status-conduta"><b>Conduta sugerida:</b> ${escapeHtml(coloRisco.conduta)}</div>
+    </div>
+  </section>`;
+}
+
 // Monta o miolo do relatório (cabeçalho até rodapé) a partir dos dados da
 // gestação — usada tanto pelo preview no modal quanto pelo HTML exportado,
 // para as duas versões nunca divergirem. `opts.textareaMode` troca a
@@ -8215,7 +8268,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
 
   const impressao  = computeImpressaoDiagnostica(gestacao, exams);
-  const statusHtml = _renderStatusFaixaHtml(impressao) + _renderPeRiscoFaixaHtml(impressao?.peRisco);
+  const statusHtml = _renderStatusFaixaHtml(impressao) + _renderPeRiscoFaixaHtml(impressao?.peRisco) + _renderColoRiscoFaixaHtml(impressao?.coloRisco);
 
   // Gráficos — um <svg> por parâmetro, gerado a partir da tabela de referência
   // (ver _buildRelChartSvg). O Doppler de UtA só entra se a gestação tiver

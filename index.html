@@ -5977,8 +5977,10 @@ function renderSummary(gestacao, exams) {
     if (last.acm_psv != null && gaW) {
       const psv = calcPsvMom(last.acm_psv, gaW);
       if (psv) {
-        const c = psv.mom >= 1.5 ? 'color:var(--danger);font-weight:600' : 'color:var(--text-muted)';
-        const msg = psv.mom >= 1.5 ? `${psv.mom.toFixed(2)} MoM — compatível com anemia fetal moderada a grave` : `${psv.mom.toFixed(2)} MoM — dentro do esperado`;
+        const c = psv.mom >= 1.5 ? 'color:var(--danger);font-weight:600' : psv.mom > 1.29 ? 'color:#b87a20;font-weight:600' : 'color:var(--text-muted)';
+        const msg = psv.mom >= 1.5  ? `${psv.mom.toFixed(2)} MoM — compatível com anemia fetal moderada a grave`
+                  : psv.mom > 1.29  ? `${psv.mom.toFixed(2)} MoM — zona limítrofe; sem critério para anemia fetal, mas indica vigilância`
+                  :                   `${psv.mom.toFixed(2)} MoM — dentro do esperado, sem sinais de anemia fetal`;
         rows.push(`<div style="display:flex;gap:10px;padding:6px 0;align-items:center;">
           <span style="font-size:12px;font-weight:700;color:var(--text);width:70px;flex-shrink:0;">PSV ACM</span>
           <span style="font-family:var(--font-mono);font-size:13px;color:var(--text);">${last.acm_psv} cm/s</span>

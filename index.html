@@ -756,6 +756,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .sheet-preview{position:relative;width:100%;max-width:210mm;
   background:var(--papel);color:#3B2A2A;font-family:'Lato',Georgia,serif;
   box-shadow:0 4px 24px rgba(61,35,82,.18);}
+/* Espaço entre as páginas empilhadas no preview de gestação múltipla (uma
+   por feto + a de avaliação) — cada .sheet-preview já é uma página inteira. */
+.rel-preview .sheet-preview.rel-page-gap{margin-bottom:28px;}
+.rel-preview .feto-avaliacao + .feto-avaliacao{margin-top:22px;padding-top:22px;border-top:1px solid var(--linha);}
 .rel-preview .hdr{background:var(--roxo);padding:22px 40px 20px;display:flex;align-items:center;
   justify-content:space-between;border-bottom:2px solid var(--dourado)}
 .rel-preview .hdr-brand{display:flex;align-items:center;gap:16px}
@@ -8240,6 +8244,9 @@ function abrirPreviewRelatorio() {
   const patient  = getPatientById(currentPatientId);
   const gestacao = getGestacaoById(currentGestacaoId);
   if (!patient || !gestacao) return;
+
+  if (isMultipla(gestacao)) { _abrirPreviewRelatorioMultiplo(patient, gestacao); return; }
+
   const exams = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
   if (exams.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
 
@@ -8256,6 +8263,42 @@ function abrirPreviewRelatorio() {
 
   openModal('modal-relatorio');
   setTimeout(_atualizarRelPageMark, 60);
+}
+
+// Gestação múltipla: uma página de gráficos por feto (ordem A, B, C) seguida
+// de uma página de avaliação conjunta — card de discrepância de peso +
+// impressão diagnóstica/resumo de cada feto, um após o outro (ver
+// _buildRelChartsPageHtml e _buildRelAssessmentPageHtml). A página de
+// avaliação é "flow" (sem altura fixa): se os textos dos fetos não couberem
+// numa A4, estoura pra uma segunda em vez de cortar, como no relatório de
+// gestação única.
+function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
+  const allExams = getExamsByGestacao(gestacao.id);
+  const porFeto = fetosDaGestacao(gestacao)
+    .map(f => ({ feto: f, exams: allExams.filter(e => e.feto === f && !e.excluido_em) }))
+    .filter(pf => pf.exams.length > 0);
+  if (porFeto.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
+
+  const textosIniciais = {};
+  porFeto.forEach(pf => {
+    const { paragrafos } = generateSummary(gestacao, pf.exams);
+    textosIniciais[pf.feto] = paragrafos.join('\n\n');
+  });
+
+  const body = document.getElementById('modal-relatorio-body');
+  if (body) {
+    const chartPages = porFeto.map(pf =>
+      `<div class="sheet-preview rel-page-gap">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`
+    ).join('');
+    const assessmentHtml = _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: true, textosIniciais });
+    body.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
+      + chartPages
+      + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview">${assessmentHtml}<div id="rel-page-mark-container"></div></div>`
+      + `</div>`;
+  }
+
+  openModal('modal-relatorio');
+  setTimeout(_atualizarRelPageMarkMultipla, 60);
 }
 
 // Linha tracejada nos 297mm reais — mostra ANTES de gerar o PDF se o texto
@@ -8280,6 +8323,29 @@ function _atualizarRelPageMark() {
   mark.querySelector('span').textContent = excede
     ? '⚠ excede 1 página A4 — reduza o texto'
     : 'Fim da página A4';
+}
+
+// Igual a _atualizarRelPageMark, mas pra página de avaliação conjunta
+// (gestação múltipla): como ela pode ter texto de 2 ou 3 fetos, uma marca só
+// não basta — desenha uma por página que o conteúdo atual ocuparia, em vez
+// de só avisar que passou de uma.
+function _atualizarRelPageMarkMultipla() {
+  const sheet     = document.getElementById('rel-sheet-preview');
+  const container = document.getElementById('rel-page-mark-container');
+  if (!sheet || !container) return;
+  sheet.querySelectorAll('.rel-texto').forEach(ta => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
+  const larguraPx = sheet.getBoundingClientRect().width;
+  if (!larguraPx) return;
+  const alturaPaginaPx = (larguraPx / 210) * 297;
+  const totalPaginas = Math.max(1, Math.ceil(sheet.scrollHeight / alturaPaginaPx));
+  container.innerHTML = '';
+  for (let i = 1; i < totalPaginas; i++) {
+    const mark = document.createElement('div');
+    mark.className = 'rel-page-mark';
+    mark.style.top = (alturaPaginaPx * i) + 'px';
+    mark.innerHTML = `<span>Fim da página ${i}</span>`;
+    container.appendChild(mark);
+  }
 }
 
 // ── Gráficos SVG do relatório PDF — layout "médico assistente" ──────────────
@@ -8602,24 +8668,195 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   </footer>`;
 }
 
-function confirmarGerarPDF() {
-  const patient  = getPatientById(currentPatientId);
-  const gestacao = getGestacaoById(currentGestacaoId);
-  if (!patient || !gestacao) return;
-  const exams    = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
-  if (exams.length === 0) return;
+// ── Relatório de gestação múltipla — uma página de gráficos por feto +
+// uma página de avaliação conjunta ──────────────────────────────────────
+// _buildRelSheetHtml (acima) monta as 3 seções (ident+gráficos, status,
+// resumo) juntas numa página só — o que cabe numa A4 para UM feto. Pra dois
+// ou três fetos não cabe mais, então essas duas funções abaixo separam essas
+// seções em páginas próprias: _buildRelChartsPageHtml por feto (só
+// ident+gráficos) e _buildRelAssessmentPageHtml uma vez só, com a
+// discrepância de peso e o status+resumo de cada feto empilhados.
+
+// Página de gráficos de UM feto — mesmo cabeçalho/identificação/grade de
+// curvas de _buildRelSheetHtml, sem status/resumo (isso fica na página de
+// avaliação conjunta, depois de todas as páginas de gráficos).
+function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
   const lastExam = exams[exams.length - 1];
+  const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
+  const igSem    = igDays ? Math.floor(igDays / 7) : null;
+  const igDia    = igDays ? igDays % 7 : null;
+  const igValHtml = igDays ? `${igSem}<small>s</small>+${igDia}<small>d</small>` : '—';
 
-  const relTextoEl = document.getElementById('rel-texto-clinico');
-  const textoFinal = relTextoEl ? relTextoEl.value : '';
+  const tipo = gestacao.ig_base_tipo || (gestacao.dum ? 'DUM' : null);
+  let igMetodo = 'IG não definida';
+  if (tipo === 'DUM' && gestacao.dum) igMetodo = `DUM: ${formatDateBR(gestacao.dum)}`;
+  else if (tipo === 'US' && gestacao.ig_base_data) igMetodo = `Corrigida por US em ${formatDateBR(gestacao.ig_base_data)}`;
+  igMetodo += ` · ${labelFeto(feto)}`;
 
-  const sheetHtml = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoFinal });
+  const efw  = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
+  const efwC = calcEFWPercentile(efw, igDays);
+  const caC  = calcBiometria(lastExam.ca, 'ca', igDays);
+  const ccC  = calcBiometria(lastExam.cc, 'cc', igDays);
+  const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
 
-  const printHTML = `<!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
-<title>Relatório Curva Fetal — ${escapeHtml(patient.nome || patient.cpf)}</title>
-<style>
+  const chartCells = [];
+  ['cc', 'ca', 'fl', 'efw'].forEach(key => {
+    const svg = _buildRelChartSvg(key, gestacao, exams);
+    if (!svg) return;
+    const pct = { cc: ccC, ca: caC, fl: flC, efw: efwC }[key]?.percentil;
+    chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE[key]}</b><i>${pct != null ? 'P' + pct : '—'}</i></div>${svg}</div>`);
+  });
+  const hasDoppler = exams.some(e => e.aut_e != null || e.aut_d != null);
+  const utaSvg = hasDoppler ? _buildRelChartSvg('uta', gestacao, exams) : null;
+  if (utaSvg) {
+    const utaMean = (() => { const e = lastExam.aut_e, d = lastExam.aut_d; if (e != null && d != null) return (e + d) / 2; return e ?? d ?? null; })();
+    const utaC = utaMean != null ? calcDopplerUt(utaMean, igDays / 7) : null;
+    const utaBadge = utaC ? (utaC.percentil >= 95 ? 'IP elevado (>P95)' : `P${utaC.percentil}`) : 'sem dados';
+    chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE.uta}</b><i>${utaBadge}</i></div>${utaSvg}</div>`);
+  }
+
+  const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  return `<header class="hdr">
+    <div class="hdr-brand">
+      <div class="monogram">MK</div>
+      <div>
+        <div class="hdr-name">Dra. Morgana Kummer</div>
+        <div class="hdr-sub">CRM-MG 45.304 · RQE 39.156</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-kicker">Programa Personalizado de</div>
+      <div class="hdr-doc">Crescimento Fetal</div>
+    </div>
+  </header>
+
+  <main class="body">
+
+    <section class="ident">
+      <div>
+        <div class="eyebrow">Gestante</div>
+        <div class="paciente">${escapeHtml(patient.nome || patient.cpf)}</div>
+        <div class="paciente-meta">${escapeHtml(igMetodo)}</div>
+      </div>
+      <div class="ig">
+        <div class="ig-label">Idade gestacional</div>
+        <div class="ig-val">${igValHtml}</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="charts-head">
+        <div class="eyebrow">Evolução longitudinal — ${labelFeto(feto)}</div>
+        <div class="legend">
+          <span><i class="k-band"></i>P10–P90</span>
+          <span><i class="k-med"></i>Mediana</span>
+          <span><i class="k-pat"></i>Paciente</span>
+        </div>
+      </div>
+      <div class="charts">
+        ${chartCells.join('\n        ')}
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="ftr">
+    <span>Programa de Acompanhamento Ultrassonográfico</span>
+    <span>Emitido em ${dataEmissao}</span>
+  </footer>`;
+}
+
+// Faixa de discrepância de peso pro relatório — reaproveita as classes
+// .status/.status--ok/.status--alerta já usadas pelas outras faixas
+// (_renderStatusFaixaHtml etc.) em vez de introduzir um card novo: mesma
+// linguagem visual, sem CSS extra pra manter sincronizado entre preview e
+// export.
+function _buildRelDiscrepanciaHtml(gestacao, allExams) {
+  const r = _discrepanciaPesoResumo(gestacao, allExams);
+  if (!r) {
+    return `<section class="status status--atencao">
+      <div class="status-ic">•</div>
+      <div class="status-body">
+        <div class="status-t">Discrepância de peso entre os fetos</div>
+        <div class="status-s">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita.</div>
+      </div>
+    </section>`;
+  }
+  const variante   = r.alerta ? 'status--alerta' : 'status--ok';
+  const icon       = r.alerta ? '⚠' : '✓';
+  const aviso      = r.alerta ? '≥25% — critério de RCF seletiva' : 'abaixo de 25%';
+  const intermTxt  = r.pctInterm != null ? ` · maior×intermediário ${r.pctInterm.toFixed(1)}%` : '';
+  return `<section class="status ${variante}">
+    <div class="status-ic">${icon}</div>
+    <div class="status-body">
+      <div class="status-t">Discrepância de peso — ${r.pct.toFixed(1)}%</div>
+      <div class="status-s">Maior × menor feto, ${aviso}${intermTxt} · última visita com os fetos medidos: ${formatDateBR(r.data)}</div>
+    </div>
+  </section>`;
+}
+
+// Página de avaliação conjunta — discrepância de peso seguida da impressão
+// diagnóstica + resumo de cada feto, um após o outro. Sempre depois das
+// páginas de gráficos. `porFeto`: [{feto, exams}]. opts.textareaMode segue o
+// mesmo padrão de _buildRelSheetHtml, mas com um <textarea> por feto
+// (rel-texto-clinico-A, -B, -C) em vez de um só.
+function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts) {
+  opts = opts || {};
+  const discrepHtml = _buildRelDiscrepanciaHtml(gestacao, allExams);
+
+  const fetosHtml = porFeto.map(pf => {
+    const impressao  = computeImpressaoDiagnostica(gestacao, pf.exams);
+    const statusHtml = _renderStatusFaixaHtml(impressao) + _renderPeRiscoFaixaHtml(impressao?.peRisco) + _renderColoRiscoFaixaHtml(impressao?.coloRisco);
+    const descricaoHtml = opts.textareaMode
+      ? `<textarea id="rel-texto-clinico-${pf.feto}" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Texto clínico gerado automaticamente...">${escapeHtml((opts.textosIniciais || {})[pf.feto] || '')}</textarea>
+        <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
+      : ((opts.textosFinais || {})[pf.feto] || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+
+    return `<section class="feto-avaliacao">
+      <div class="eyebrow" style="margin-bottom:8px">${labelFeto(pf.feto)}</div>
+      ${statusHtml}
+      <div class="descricao" style="margin-top:14px;">
+        ${descricaoHtml}
+      </div>
+    </section>`;
+  }).join('');
+
+  const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  return `<header class="hdr">
+    <div class="hdr-brand">
+      <div class="monogram">MK</div>
+      <div>
+        <div class="hdr-name">Dra. Morgana Kummer</div>
+        <div class="hdr-sub">CRM-MG 45.304 · RQE 39.156</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-kicker">Programa Personalizado de</div>
+      <div class="hdr-doc">Crescimento Fetal</div>
+    </div>
+  </header>
+
+  <main class="body">
+    <div class="eyebrow">Avaliação — gestação múltipla</div>
+    ${discrepHtml}
+    ${fetosHtml}
+  </main>
+
+  <footer class="ftr">
+    <span>Programa de Acompanhamento Ultrassonográfico</span>
+    <span>Emitido em ${dataEmissao}</span>
+  </footer>`;
+}
+
+// CSS do documento exportado (self-contido, sem stylesheet externo — a CSP do
+// próprio relatório é default-src 'none'). Extraído numa função porque agora
+// tem dois chamadores: confirmarGerarPDF (gestação única, 1 .sheet) e
+// _confirmarGerarPDFMultiplo (2-3 .sheet + 1 .sheet-flow) — mesmo CSS pras
+// duas versões nunca divergirem.
+function _relPrintStyleBlock() {
+  return `
 :root{
   --roxo:#3D2352; --lilas:#8B6BA8; --lavanda:#C3B1D1; --lavanda-bg:#F1ECF4;
   --nude:#F5EDE3; --nude-2:#EDE4F2; --dourado:#B08D3F; --dourado-claro:#D9BE7A;
@@ -8635,7 +8872,17 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .sheet{width:210mm;height:297mm;margin:0 auto;background:var(--papel);
   font-family:'Lato',Georgia,serif;color:var(--texto);
   display:flex;flex-direction:column;overflow:hidden;}
-@media print{ html,body{background:#fff} .sheet{margin:0} .no-print{display:none!important} }
+/* Página de avaliação conjunta (gestação múltipla): sem altura fixa nem
+   overflow:hidden — se o texto dos fetos não couber numa A4, estoura pra uma
+   segunda em vez de cortar (ver _buildRelAssessmentPageHtml). */
+.sheet-flow{width:210mm;min-height:297mm;margin:0 auto;background:var(--papel);
+  font-family:'Lato',Georgia,serif;color:var(--texto);
+  display:flex;flex-direction:column;}
+/* Toda página depois da primeira começa numa folha impressa nova — cada
+   .sheet mede exatamente 297mm, então isso não afeta o relatório de gestação
+   única (sempre um .sheet só, sem irmão anterior pra casar o seletor). */
+.sheet ~ .sheet, .sheet ~ .sheet-flow{page-break-before:always}
+@media print{ html,body{background:#fff} .sheet,.sheet-flow{margin:0} .no-print{display:none!important} }
 
 .hdr{background:var(--roxo);padding:22px 40px 20px;display:flex;align-items:center;
      justify-content:space-between;border-bottom:2px solid var(--dourado);
@@ -8705,6 +8952,8 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 
 .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
 
+.feto-avaliacao + .feto-avaliacao{margin-top:22px;padding-top:22px;border-top:1px solid var(--linha)}
+
 .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--lavanda);-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -8713,19 +8962,14 @@ html,body{margin:0;padding:0;background:#e9e6e4}
   font-size:11px;padding:8px 16px;text-align:center}
 .print-btn{position:fixed;bottom:20px;right:20px;background:var(--roxo);color:#FAF7F5;border:none;
   border-radius:3px;padding:10px 20px;font-size:14px;cursor:pointer;font-family:inherit;
-  box-shadow:0 4px 18px rgba(61,35,82,.35)}
-</style></head>
-<body onload="window.print()">
+  box-shadow:0 4px 18px rgba(61,35,82,.35)}`;
+}
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
-
-<div class="sheet">
-${sheetHtml}
-</div>
-
-<button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
-</body></html>`;
-
+// Abre a janela de impressão a partir do HTML já montado (um ou mais
+// .sheet/.sheet-flow) — compartilhado entre gestação única e múltipla, único
+// jeito de garantir que o mecanismo de abertura/segunda via nunca diverge
+// entre as duas.
+function _abrirJanelaImpressao(gestacao, printHTML) {
   // Abrir direto a janela de impressão — em vez de baixar um .html que a médica
   // precisava abrir e mandar imprimir na mão. window.open síncrono aqui (sem
   // await antes) é o que evita o bloqueador de pop-up: o clique no botão é o
@@ -8744,6 +8988,81 @@ ${sheetHtml}
   // Guarda uma cópia no Storage para servir de segunda via depois — não trava
   // a impressão por causa disso (fire-and-forget, como o snapshot de backup).
   _salvarRelatorioGerado(gestacao.id, printHTML);
+}
+
+function confirmarGerarPDF() {
+  const patient  = getPatientById(currentPatientId);
+  const gestacao = getGestacaoById(currentGestacaoId);
+  if (!patient || !gestacao) return;
+
+  if (isMultipla(gestacao)) { _confirmarGerarPDFMultiplo(patient, gestacao); return; }
+
+  const exams    = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
+  if (exams.length === 0) return;
+  const lastExam = exams[exams.length - 1];
+
+  const relTextoEl = document.getElementById('rel-texto-clinico');
+  const textoFinal = relTextoEl ? relTextoEl.value : '';
+
+  const sheetHtml = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoFinal });
+
+  const printHTML = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Relatório Curva Fetal — ${escapeHtml(patient.nome || patient.cpf)}</title>
+<style>${_relPrintStyleBlock()}</style></head>
+<body onload="window.print()">
+
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+
+<div class="sheet">
+${sheetHtml}
+</div>
+
+<button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
+</body></html>`;
+
+  _abrirJanelaImpressao(gestacao, printHTML);
+}
+
+// Gestação múltipla: uma página de gráficos por feto (.sheet, largura fixa)
+// seguida da página de avaliação conjunta (.sheet-flow, ver
+// _relPrintStyleBlock) — mesmo conteúdo do preview (_abrirPreviewRelatorioMultiplo),
+// só que com o texto já revisado nos textareas em vez do textoInicial gerado.
+function _confirmarGerarPDFMultiplo(patient, gestacao) {
+  const allExams = getExamsByGestacao(gestacao.id);
+  const porFeto = fetosDaGestacao(gestacao)
+    .map(f => ({ feto: f, exams: allExams.filter(e => e.feto === f && !e.excluido_em) }))
+    .filter(pf => pf.exams.length > 0);
+  if (porFeto.length === 0) return;
+
+  const textosFinais = {};
+  porFeto.forEach(pf => {
+    const ta = document.getElementById('rel-texto-clinico-' + pf.feto);
+    textosFinais[pf.feto] = ta ? ta.value : '';
+  });
+
+  const chartSheets = porFeto
+    .map(pf => `<div class="sheet">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`)
+    .join('\n');
+  const assessmentSheet = `<div class="sheet-flow">${_buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: false, textosFinais })}</div>`;
+
+  const printHTML = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Relatório Curva Fetal — ${escapeHtml(patient.nome || patient.cpf)}</title>
+<style>${_relPrintStyleBlock()}</style></head>
+<body onload="window.print()">
+
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+
+${chartSheets}
+${assessmentSheet}
+
+<button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
+</body></html>`;
+
+  _abrirJanelaImpressao(gestacao, printHTML);
 }
 
 // ═══════════════════════════════════════════════════════════

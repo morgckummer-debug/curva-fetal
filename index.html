@@ -3830,7 +3830,8 @@ function refYRange(refKey, isGrams) {
   } else {
     const table = REF_TABLES[refKey];
     if (!table) return { yMin: null, yMax: null };
-    const weeks = Object.keys(table).map(Number);
+    const weeks = Object.keys(table).map(Number)
+      .filter(w => w >= FIXED_X.xMin && w <= FIXED_X.xMax);
     for (const w of weeks) {
       const ref = table[w];
       lo = Math.min(lo, ref[0]);
@@ -3838,11 +3839,23 @@ function refYRange(refKey, isGrams) {
     }
   }
   if (!isFinite(lo) || !isFinite(hi)) return { yMin: null, yMax: null };
-  const margin = (hi - lo) * 0.22;
+  const margin = (hi - lo) * 0.06;
   return {
     yMin: Math.max(0, Math.floor(lo - margin)),
     yMax: Math.ceil(hi + margin),
   };
+}
+
+// Garante que nenhum ponto da paciente fique cortado fora do eixo — a margem acima
+// é calculada só em cima da tabela de referência (P5–P95), então um caso fora da
+// curva (RCF grave, macrossomia) pode exceder yMin/yMax e precisa alargar o eixo.
+function _expandRangeForPoints(yMin, yMax, points) {
+  if (!points.length) return { yMin, yMax };
+  const ys = points.map(p => p.y);
+  const lo = Math.min(yMin, ...ys);
+  const hi = Math.max(yMax, ...ys);
+  const pad = (hi - lo) * 0.06;
+  return { yMin: Math.max(0, lo - pad), yMax: hi + pad };
 }
 
 const FIXED_X = { xMin: 20, xMax: 42 };
@@ -4047,7 +4060,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
   if (!canvas) return;
 
   const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
-  const { yMin, yMax } = refYRange(refKey, false);
+  let { yMin, yMax } = refYRange(refKey, false);
 
   // Use 0.5-week steps + interpolateRef for smooth percentile curves (avoids table jitter)
   const refData = { p10: [], p50: [], p90: [] };
@@ -4076,6 +4089,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
     patientPoints.push({ x: igDays / 7, y: val, p, color });
   });
 
+  ({ yMin, yMax } = _expandRangeForPoints(yMin, yMax, patientPoints));
   _drawChart(canvas, { xMin: 20, xMax: 42, yMin, yMax, refData, patientPoints, yLabel });
 }
 
@@ -4084,7 +4098,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
   if (!canvas) return;
 
   const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
-  const { yMin, yMax } = refYRange('efw', true);
+  let { yMin, yMax } = refYRange('efw', true);
 
   const refData = { p10: [], p50: [], p90: [] };
   for (let w = 20; w <= 42; w += 0.5) {
@@ -4111,6 +4125,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
     patientPoints.push({ x: igDays / 7, y: efw, p, color });
   });
 
+  ({ yMin, yMax } = _expandRangeForPoints(yMin, yMax, patientPoints));
   _drawChart(canvas, {
     xMin: 20, xMax: 42, yMin, yMax, refData, patientPoints,
     yLabel: 'Peso (g)',

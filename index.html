@@ -3918,17 +3918,17 @@ function _drawChart(canvas, cfg) {
   _smoothPath(ctx, p90, xS, yS);
   [...p10].reverse().forEach(pt => ctx.lineTo(xS(pt.x), yS(pt.y)));
   ctx.closePath();
-  ctx.fillStyle = 'rgba(139,107,168,0.10)'; ctx.fill();
+  ctx.fillStyle = 'rgba(139,107,168,0.28)'; ctx.fill();
 
   // P10 line
   ctx.beginPath(); ctx.setLineDash([3,5]);
-  ctx.strokeStyle = 'rgba(196,144,144,0.75)'; ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(196,144,144,0.95)'; ctx.lineWidth = 1.5;
   _smoothPath(ctx, p10, xS, yS);
   ctx.stroke();
 
   // P90 line
   ctx.beginPath(); ctx.setLineDash([5,4]);
-  ctx.strokeStyle = 'rgba(71,64,122,0.62)'; ctx.lineWidth = 1.2;
+  ctx.strokeStyle = 'rgba(71,64,122,0.85)'; ctx.lineWidth = 1.5;
   _smoothPath(ctx, p90, xS, yS);
   ctx.stroke();
 
@@ -4017,9 +4017,9 @@ function _drawChart(canvas, cfg) {
   const legendY = H - 14;
   let legendX   = PAD.l;
   const items = [
-    { color: 'rgba(71,64,122,0.72)', dash: true,  label: 'P90' },
+    { color: 'rgba(71,64,122,0.85)', dash: true,  label: 'P90' },
     { color: 'rgba(61,35,82,0.75)', dash: false, label: 'P50' },
-    { color: 'rgba(196,144,144,0.78)', dash: true,  label: 'P10' },
+    { color: 'rgba(196,144,144,0.95)', dash: true,  label: 'P10' },
     { color: '#3d2352',               dot: true,   label: 'Paciente' },
   ];
   ctx.font = '10px sans-serif'; ctx.textBaseline = 'middle';

@@ -508,6 +508,22 @@ header::after{display:none;}
 .chart-wrapper{position:relative;width:100%;aspect-ratio:1/1;flex:1;min-width:0;}
 .chart-wrapper canvas{display:block;width:100% !important;height:100% !important;}
 
+.discrepancia-emphasis{
+  border-radius:var(--radius);padding:22px 26px;text-align:center;margin-top:4px;
+}
+.discrepancia-emphasis-value{
+  font-family:var(--font-serif);font-size:44px;font-weight:700;line-height:1;letter-spacing:-1px;
+}
+.discrepancia-emphasis-label{font-size:13px;font-weight:600;margin-top:8px;}
+.discrepancia-emphasis-sub{font-size:12.5px;margin-top:4px;opacity:0.85;}
+.discrepancia-emphasis-date{font-size:11px;color:var(--text-muted);margin-top:10px;}
+.discrepancia-emphasis-ok{background:var(--ok-pale);}
+.discrepancia-emphasis-ok .discrepancia-emphasis-value,
+.discrepancia-emphasis-ok .discrepancia-emphasis-label{color:var(--ok-deep);}
+.discrepancia-emphasis-alert{background:var(--blush-pale);}
+.discrepancia-emphasis-alert .discrepancia-emphasis-value,
+.discrepancia-emphasis-alert .discrepancia-emphasis-label{color:#8a2828;}
+
 /* ── MODAL ── */
 .modal-overlay{
   position:fixed;inset:0;background:rgba(38,24,14,0.45);
@@ -1081,16 +1097,18 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-bolsao"></canvas></div>
         </div>
 
-        <!-- ── DISCREPÂNCIA DE PESO (só gestação múltipla) ── -->
+        <!-- ── DISCREPÂNCIA DE PESO (só gestação múltipla) ──
+             Sem gráfico de propósito: só o número da última visita importa
+             clinicamente (cruzou ou não os 25% de RCF seletiva), então vira
+             um card de ênfase em vez de uma curva ao longo do tempo. -->
         <div class="chart-card charts-grid-full" id="card-discrepancia" data-scope="shared-twin-only">
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Discrepância de Peso entre os Fetos</div>
-              <div class="chart-card-subtitle" id="sub-discrepancia">Sempre contra o maior feto da visita · critério de RCF seletiva ≥25%</div>
+              <div class="chart-card-subtitle">Sempre contra o maior feto da visita · critério de RCF seletiva ≥25%</div>
             </div>
-            <span class="chart-card-pct" id="pct-discrepancia" style="display:none"></span>
           </div>
-          <div class="chart-wrapper"><canvas id="chart-discrepancia"></canvas></div>
+          <div id="discrepancia-emphasis"></div>
         </div>
 
       </div>
@@ -1200,7 +1218,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             Feto 3
           </label>
         </div>
-        <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Colo uterino e IP das artérias uterinas são medidas maternas — preencha em apenas um dos fetos.</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Colo uterino e IP das artérias uterinas são medidas maternas — preencha em apenas um dos fetos, os outros usam o mesmo valor automaticamente.</div>
       </div>
 
       <!-- CCN row — datação de 1º trimestre -->
@@ -3501,7 +3519,7 @@ const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica
   renderAlerts(gestacao, exams);
   renderExamList(gestacao, allExams);
   if (currentTab === 'charts')  renderCharts(gestacao, exams, allExams);
-  if (currentTab === 'summary') renderSummary(gestacao, exams);
+  if (currentTab === 'summary') renderSummary(gestacao, allExams);
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -4873,30 +4891,25 @@ function buildDvChart(canvasId, gestacao, exams) {
 // Agrupa os exames de uma mesma data e compara os pesos estimados. Limiar
 // ≥25% (Khalil et al., consenso RCF seletiva em gemelares).
 //
-// Gemelar: uma curva, (maior − menor) / maior.
-// Trigemelar: duas curvas, as duas contra o MAIOR feto da visita, como
-// recomenda o NICE — (maior − menor)/maior e (maior − intermediário)/maior.
-// Uma discrepância única entre os extremos esconderia um feto intermediário
-// já destoando do maior. A curva maior×menor é sempre a mais alta das duas,
-// por isso é ela que vira o número grande do card.
-const DISC_COR_MENOR  = '#6c47b8';           // maior × menor
-const DISC_COR_INTERM = '#2f7d8c';           // maior × intermediário (só trigemelar)
-const DISC_COR_ALERTA = '#c03020';           // ponto que cruzou os 25%
-
-function buildDiscrepancyChart(canvasId, gestacao, allExams) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-
+// Gemelar: um número, (maior − menor) / maior. Trigemelar: dois números, os
+// dois contra o MAIOR feto da visita, como recomenda o NICE — (maior −
+// menor)/maior e (maior − intermediário)/maior. Um número único entre os
+// extremos esconderia um feto intermediário já destoando do maior.
+//
+// Sem gráfico de propósito: line chart ao longo da gestação não muda a
+// conduta — só o número da ÚLTIMA visita com os fetos medidos importa
+// (cruzou ou não os 25%), por isso vira card de ênfase (ver
+// _discrepanciaPesoCardHtml), reaproveitado pela aba Gráficos e pelo Resumo.
+function _discrepanciaPesoResumo(gestacao, allExams) {
   const fetos = fetosDaGestacao(gestacao);
+  if (!fetos.length) return null;
   const byDate = {};
   (allExams || []).forEach(e => {
     if (!e.feto) return;
     (byDate[e.data_exame] ||= {})[e.feto] = e;
   });
 
-  const serieMenor  = [];
-  const serieInterm = [];
-
+  let ultimo = null;
   Object.keys(byDate).sort().forEach(date => {
     const doDia = byDate[date];
     // Só entram na conta os fetos daquela visita que já têm peso estimado —
@@ -4912,44 +4925,40 @@ function buildDiscrepancyChart(canvasId, gestacao, allExams) {
       .sort((a, b) => b.efw - a.efw); // maior primeiro
     if (medidos.length < 2) return;
 
-    const igDays = medidos[0].exam.ig_dias_manual ?? calcIgDays(gestacao, date);
-    if (!igDays) return;
-    const gaW  = igDays / 7;
     const maior = medidos[0].efw;
     const disc  = outro => Math.round(((maior - outro) / maior) * 1000) / 10; // % com 1 casa
-
-    const dMenor = disc(medidos[medidos.length - 1].efw);
-    serieMenor.push({ x: gaW, y: dMenor, color: dMenor >= 25 ? DISC_COR_ALERTA : DISC_COR_MENOR });
-
-    if (medidos.length >= 3) {
-      const dInterm = disc(medidos[1].efw);
-      serieInterm.push({ x: gaW, y: dInterm, color: dInterm >= 25 ? DISC_COR_ALERTA : DISC_COR_INTERM });
-    }
+    ultimo = {
+      data:      date,
+      pct:       disc(medidos[medidos.length - 1].efw),
+      pctInterm: medidos.length >= 3 ? disc(medidos[1].efw) : null,
+    };
   });
+  if (!ultimo) return null;
+  ultimo.alerta = ultimo.pct >= 25;
+  return ultimo;
+}
 
-  const pctEl = document.getElementById('pct-discrepancia');
-  const subEl = document.getElementById('sub-discrepancia');
-  if (pctEl && serieMenor.length > 0) {
-    const last       = serieMenor[serieMenor.length - 1];
-    const lastInterm = serieInterm.length ? serieInterm[serieInterm.length - 1] : null;
-    pctEl.textContent = `${last.y.toFixed(1)}%`;
-    pctEl.className = 'chart-card-pct ' + (last.y >= 25 ? 'chart-card-pct-alert' : 'chart-card-pct-ok');
-    pctEl.style.display = '';
-    if (subEl) {
-      const aviso = last.y >= 25 ? ' — ≥25%, critério de RCF seletiva' : '';
-      subEl.textContent = lastInterm
-        ? `Maior×menor ${last.y.toFixed(1)}% · maior×intermediário ${lastInterm.y.toFixed(1)}%${aviso}`
-        : (last.y >= 25 ? '≥25% — critério de RCF seletiva' : 'Abaixo de 25%');
-    }
-  } else if (pctEl) { pctEl.style.display = 'none'; }
+function _discrepanciaPesoCardHtml(gestacao, allExams) {
+  const r = _discrepanciaPesoResumo(gestacao, allExams);
+  if (!r) {
+    return `<p style="font-size:13px;color:var(--text-muted);padding:8px 4px;">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita — sem isso não dá para calcular a discrepância.</p>`;
+  }
+  const cls   = r.alerta ? 'discrepancia-emphasis-alert' : 'discrepancia-emphasis-ok';
+  const aviso = r.alerta ? '≥25% — critério de RCF seletiva' : 'abaixo de 25%';
+  const intermHtml = r.pctInterm != null
+    ? `<div class="discrepancia-emphasis-sub">Maior × intermediário: ${r.pctInterm.toFixed(1)}%</div>` : '';
+  return `
+    <div class="discrepancia-emphasis ${cls}">
+      <div class="discrepancia-emphasis-value">${r.pct.toFixed(1)}%</div>
+      <div class="discrepancia-emphasis-label">Maior × menor feto — ${aviso}</div>
+      ${intermHtml}
+      <div class="discrepancia-emphasis-date">Última visita com os fetos medidos: ${formatDateBR(r.data)}</div>
+    </div>`;
+}
 
-  _drawThresholdChart(canvas, {
-    xMin: 20, xMax: 42, yMin: 0, yMax: 40,
-    lines: [{ pts: [{x:20,y:25},{x:42,y:25}], label: '25%', color: 'rgba(200,50,50,0.55)', dash: [4,4] }],
-    patientPoints: serieMenor,
-    series: serieInterm.length ? [{ pts: serieInterm, color: 'rgba(47,125,140,0.45)' }] : null,
-    yLabel: 'Discrepância (%)', yFmt: v => Math.round(v) + '%',
-  });
+function renderDiscrepanciaCard(gestacao, allExams) {
+  const el = document.getElementById('discrepancia-emphasis');
+  if (el) el.innerHTML = _discrepanciaPesoCardHtml(gestacao, allExams);
 }
 
 // Só relevante em gestação múltipla: 'A' | 'B' | 'C' | 'gestacao' (IP UtA + colo + discrepância)
@@ -5004,7 +5013,7 @@ function renderCharts(gestacao, exams, allExams) {
   buildColoChart('chart-colo', gestacao, allExams);
   buildILAChart('chart-ila', gestacao, exams);
   buildBolsaoChart('chart-bolsao', gestacao, exams);
-  buildDiscrepancyChart('chart-discrepancia', gestacao, allExams);
+  renderDiscrepanciaCard(gestacao, allExams);
   applyChartsScope(gestacao);
 }
 
@@ -5905,15 +5914,15 @@ function generateSummary(gestacao, exams) {
   return { titulo, paragrafos, status, statusFisio: analise.statusFisio, eventos: analise.eventos };
 }
 
-function renderSummary(gestacao, exams) {
-  const container = document.getElementById('summary-content');
-  if (!gestacao || exams.length === 0) {
-    container.innerHTML = `<p style="color:var(--text-muted);padding:20px 0;">Nenhum exame registrado para esta gestação.</p>`;
-    return;
-  }
+// Monta o HTML do resumo clínico para UM feto (feto=null em gestação única).
+// Devolve string em vez de escrever no DOM: renderSummary chama isso uma vez
+// por feto nas gestações múltiplas e concatena um perfil de crescimento por
+// feto, em vez de mostrar só o do primeiro (ver renderSummary).
+function _buildSummaryHtml(gestacao, exams, feto) {
+  if (!gestacao || exams.length === 0) return null;
 
   const analise = runLongitudinalAnalysis(gestacao, exams);
-  if (!analise) { container.innerHTML = `<p style="color:var(--text-muted);">Erro ao processar os dados.</p>`; return; }
+  if (!analise) return `<p style="color:var(--text-muted);">Erro ao processar os dados.</p>`;
 
   const enriched = analise.exams;
   const last     = enriched[enriched.length - 1];
@@ -6211,13 +6220,13 @@ function renderSummary(gestacao, exams) {
     </div>` : '';
 
   // ── Render ─────────────────────────────────────────────────
-  const tituloFeto = isMultipla(gestacao) ? ` — ${labelFeto(fetoEmAnalise(gestacao))}` : '';
-  container.innerHTML = `
+  const tituloFeto = feto ? ` — ${labelFeto(feto)}` : '';
+  return `
     <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:22px;">
       <h3 style="font-family:var(--font-serif);font-size:22px;color:var(--text);">Resumo Clínico${tituloFeto}</h3>
       <span style="font-size:12px;color:var(--text-muted);font-family:var(--font-mono);">${igStr} · ${dataStr}</span>
     </div>
-    ${isMultipla(gestacao) ? `<div style="font-size:11px;color:var(--text-muted);margin:-14px 0 18px;">Troque de feto na aba <strong>Gráficos</strong>. Critérios de restrição seletiva ainda não implementados — esta análise usa os critérios de gestação única aplicados a este feto isoladamente.</div>` : ''}
+    ${feto ? `<div style="font-size:11px;color:var(--text-muted);margin:-14px 0 18px;">Critérios de restrição seletiva ainda não implementados — esta análise usa os critérios de gestação única aplicados a este feto isoladamente.</div>` : ''}
     ${block('1 · Biometria fetal — último exame', bioHtml)}
     ${block('2 · Peso fetal estimado (Hadlock 1985 · percentil Hadlock 1991 + INTERGROWTH-21st)', pesoHtml)}
     ${n >= 2 ? block('3 · Tendência evolutiva', tendHtml) : ''}
@@ -6226,6 +6235,36 @@ function renderSummary(gestacao, exams) {
     <p style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
       ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
     </p>`;
+}
+
+// Dispatcher: gestação única monta um perfil só; gestação múltipla monta um
+// perfil de crescimento POR FETO (não só o do primeiro) e antepõe o card de
+// discrepância de peso, que é da visita — não faz sentido repeti-lo por feto.
+function renderSummary(gestacao, allExams) {
+  const container = document.getElementById('summary-content');
+  if (!gestacao || allExams.length === 0) {
+    container.innerHTML = `<p style="color:var(--text-muted);padding:20px 0;">Nenhum exame registrado para esta gestação.</p>`;
+    return;
+  }
+
+  if (!isMultipla(gestacao)) {
+    container.innerHTML = _buildSummaryHtml(gestacao, allExams, null)
+      || `<p style="color:var(--text-muted);">Erro ao processar os dados.</p>`;
+    return;
+  }
+
+  const fetos = fetosDaGestacao(gestacao);
+  const discrepHtml = `<div style="margin-bottom:28px;">${_discrepanciaPesoCardHtml(gestacao, allExams)}</div>`;
+  const perfis = fetos.map(f => {
+    const examsFeto = allExams.filter(e => e.feto === f);
+    const html = _buildSummaryHtml(gestacao, examsFeto, f);
+    return html || `
+      <h3 style="font-family:var(--font-serif);font-size:22px;color:var(--text);margin-bottom:10px;">Resumo Clínico — ${labelFeto(f)}</h3>
+      <p style="color:var(--text-muted);">Nenhum exame registrado para este feto.</p>`;
+  });
+
+  container.innerHTML = discrepHtml
+    + perfis.join('<hr style="border:none;border-top:1.5px solid rgba(61,35,82,0.14);margin:30px 0;">');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -6714,10 +6753,14 @@ let _meActiveFeto = 'A';
 // existente (openEditVisitGemelar) — tudo null quando é um exame novo.
 let _meFetoExamIds = { A: null, B: null, C: null };
 
+// e-colo, e-aut-e e e-aut-d ficam de fora: são medidas maternas da visita, não
+// do feto — como a data e a IG, não entram no rascunho por feto (_meFetoDrafts)
+// pra não sumir da tela quando o médico troca de Feto 1 pra Feto 2 no meio do
+// preenchimento (ver _meOnFetoChange e _meBuildExamData).
 const _ME_FETO_FIELD_IDS = [
   'e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula',
-  'e-au-ip','e-au-fluxo','e-acm-ip','e-acm-psv','e-aut-e','e-aut-d','e-dv-ip','e-dv-onda',
-  'e-colo','e-ila','e-bolsao',
+  'e-au-ip','e-au-fluxo','e-acm-ip','e-acm-psv','e-dv-ip','e-dv-onda',
+  'e-ila','e-bolsao',
 ];
 
 function _meCaptureFormToDraft(feto) {
@@ -6743,8 +6786,8 @@ function _meLoadDraftToForm(feto) {
 
 // Ao alternar de feto no MESMO exame ainda não salvo: guarda o que estava
 // na tela pro feto que estava ativo, e recarrega o rascunho (ou limpa, se
-// ainda não preenchido) do feto recém-selecionado. Data e IG continuam
-// intactos — são da visita, não do feto.
+// ainda não preenchido) do feto recém-selecionado. Data, IG, colo uterino e
+// IP das artérias uterinas continuam intactos — são da visita, não do feto.
 function _meOnFetoChange() {
   if (currentExamEditingId != null) return; // radios ficam desabilitados nesse caso, mas por garantia
   _meCaptureFormToDraft(_meActiveFeto);
@@ -6916,6 +6959,17 @@ function openEditVisitGemelar(date) {
 
   const _eDataEdit = document.getElementById('e-data');
   if (_eDataEdit) _eDataEdit.value = date;
+
+  // Colo e IP das artérias uterinas ficam fora de _ME_FETO_FIELD_IDS (são da
+  // visita, não do feto) — _meLoadDraftToForm não os toca. Preenche uma vez
+  // aqui com o valor de qualquer um dos exames do dia que o tiver: como são
+  // medidas maternas, os registros salvos deveriam trazer o mesmo número.
+  [['e-colo','colo'],['e-aut-e','aut_e'],['e-aut-d','aut_d']].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const found = examsDoDia.find(e => e[key] != null);
+    el.value = found ? found[key] : '';
+  });
 
   _meActiveFeto = fetosDaGestacao(gestacao).find(f => _meFetoExamIds[f] != null) || 'A';
   _meApplyGemelarUI(gestacao, _meActiveFeto, false);
@@ -7449,6 +7503,11 @@ function _meBuildExamData(feto, draft, data, igManual) {
   const raw = id => draft ? (draft[id] ?? '') : (document.getElementById(id) ? document.getElementById(id).value : '');
   const num = id => { const v = raw(id); return v !== '' && v != null ? parseFloat(v) : null; };
   const str = id => { const v = raw(id); return v || null; };
+  // Colo uterino e IP das artérias uterinas são medidas maternas da visita, não
+  // do feto: lidos sempre do formulário na tela (nunca do rascunho de outro
+  // feto), pra gravar o mesmo valor em todos os registros dessa visita —
+  // não só no do feto que estava selecionado quando foram digitados.
+  const sharedNum = id => { const el = document.getElementById(id); const v = el ? el.value : ''; return v !== '' && v != null ? parseFloat(v) : null; };
   const auIp  = num('e-au-ip');
   const acmIp = num('e-acm-ip');
   return {
@@ -7460,11 +7519,11 @@ function _meBuildExamData(feto, draft, data, igManual) {
     umero: num('e-umero'), radio: num('e-radio'), ulna: num('e-ulna'), tibia: num('e-tibia'), fibula: num('e-fibula'),
     au_ip: auIp, au_fluxo: str('e-au-fluxo'),
     acm_ip: acmIp, acm_psv: num('e-acm-psv'),
-    aut_e: num('e-aut-e'), aut_d: num('e-aut-d'),
+    aut_e: sharedNum('e-aut-e'), aut_d: sharedNum('e-aut-d'),
     dv_ip: num('e-dv-ip'),
     cpr: (auIp != null && acmIp != null && auIp > 0) ? Math.round((acmIp / auIp) * 100) / 100 : null,
     dv_onda: str('e-dv-onda'),
-    colo: num('e-colo'), ila: num('e-ila'), bolsao: num('e-bolsao'),
+    colo: sharedNum('e-colo'), ila: num('e-ila'), bolsao: num('e-bolsao'),
     feto,
   };
 }
@@ -8081,8 +8140,7 @@ function setTab(tab) {
   if (tab === 'summary') {
     const gestacao = getGestacaoById(currentGestacaoId);
     const allExams = gestacao ? getExamsByGestacao(gestacao.id) : [];
-    const exams    = gestacao ? examsForFetoAnalysis(gestacao, allExams) : [];
-    if (gestacao) renderSummary(gestacao, exams);
+    if (gestacao) renderSummary(gestacao, allExams);
   }
 }
 

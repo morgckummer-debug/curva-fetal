@@ -296,6 +296,12 @@ header::after{display:none;}
   font-size:10.5px;font-weight:700;text-transform:uppercase;
   letter-spacing:1.8px;color:var(--text-light);margin-bottom:16px;text-align:left;
 }
+.recent-patients-pager{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  margin-top:18px;flex-wrap:wrap;
+}
+.recent-patients-pager-info{font-size:12.5px;color:var(--text-muted);white-space:nowrap;}
+.recent-patients-pager button:disabled{opacity:0.4;cursor:default;transform:none !important;}
 .patient-chip{
   display:flex;align-items:center;gap:16px;padding:18px 22px;
   background:var(--clay-card);border:none;border-radius:var(--radius);
@@ -3188,6 +3194,7 @@ let currentGestacaoId = null;  // NEW: gestação selecionada
 let currentTab        = 'exams';
 let currentExamEditingId = null;
 let chartInstances    = {};
+let _recentPatientsPage = 0; // página atual da lista "Pacientes Recentes", 8 por página
 
 // ═══════════════════════════════════════════════════════════
 // NAVIGATION
@@ -3244,10 +3251,25 @@ function renderRecentPatients() {
   // Só quem tem gestação cadastrada: pacientes que existem só por causa de outro
   // laudo (ex.: rastreio de ovulação, que grava em `patients` para casar CPF mas
   // nunca cria gestação) não são pacientes deste app e não devem aparecer aqui.
-  const patients = DB.patients.filter(p => !p.excluido_em && getGestacoesByPatient(p.id).length > 0)
-    .sort((a, b) => b.id - a.id)
-    .slice(0, 8);
-  if (patients.length === 0) { container.innerHTML = ''; return; }
+  const allPatients = DB.patients.filter(p => !p.excluido_em && getGestacoesByPatient(p.id).length > 0)
+    .sort((a, b) => b.id - a.id);
+  if (allPatients.length === 0) { container.innerHTML = ''; return; }
+
+  const PAGE_SIZE = 8;
+  const totalPages = Math.ceil(allPatients.length / PAGE_SIZE);
+  // Clampa em vez de resetar: uma exclusão pode reduzir o total de páginas
+  // enquanto o usuário está numa página do meio/fim, e o correto é recuar
+  // para a última página válida, não voltar pra primeira sem avisar.
+  if (_recentPatientsPage >= totalPages) _recentPatientsPage = totalPages - 1;
+  if (_recentPatientsPage < 0) _recentPatientsPage = 0;
+  const patients = allPatients.slice(_recentPatientsPage * PAGE_SIZE, (_recentPatientsPage + 1) * PAGE_SIZE);
+
+  const pagerHtml = totalPages > 1 ? `
+    <div class="recent-patients-pager">
+      <button class="btn btn-secondary btn-sm" onclick="_changeRecentPatientsPage(-1)" ${_recentPatientsPage === 0 ? 'disabled' : ''}>‹ Anteriores</button>
+      <span class="recent-patients-pager-info">Página ${_recentPatientsPage + 1} de ${totalPages} · ${allPatients.length} pacientes</span>
+      <button class="btn btn-secondary btn-sm" onclick="_changeRecentPatientsPage(1)" ${_recentPatientsPage >= totalPages - 1 ? 'disabled' : ''}>Próximas ›</button>
+    </div>` : '';
 
   container.innerHTML = `<h3>Pacientes Recentes</h3>` + patients.map(p => {
     const gests = getGestacoesByPatient(p.id);
@@ -3269,7 +3291,12 @@ function renderRecentPatients() {
         <button class="pc-btn pc-btn-del" onclick="deletePatientFromList(${safeId(p.id)})">Excluir</button>
       </div>
     </div>`;
-  }).join('');
+  }).join('') + pagerHtml;
+}
+
+function _changeRecentPatientsPage(delta) {
+  _recentPatientsPage += delta;
+  renderRecentPatients();
 }
 
 function smartSearchInput(input) {
@@ -7747,6 +7774,7 @@ function savePatient() {
     document.getElementById('exam-list').innerHTML = `<div class="empty-state"><div class="icon">🤰</div><p>Nova paciente criada.<br>Configure a gestação para começar.</p></div>`;
 
     openNovaGestacaoModal();
+    _recentPatientsPage = 0; // paciente nova tem o maior id: garante que apareça na 1ª página
     renderRecentPatients();
   }
 }

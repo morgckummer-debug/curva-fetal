@@ -832,6 +832,16 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   resize:none;overflow:hidden;background:#fff}
 .rel-preview .rel-texto:focus{outline:none;border-color:var(--lilas)}
 .rel-preview .rel-texto-hint{font-size:10px;color:var(--dourado);margin-top:5px}
+.rel-preview .comparativo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.rel-preview .comparativo-item{background:var(--nude-2);border-radius:3px;padding:14px 12px;text-align:center}
+.rel-preview .comparativo-feto{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo);margin-bottom:8px}
+.rel-preview .comparativo-status{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 12px;border-radius:99px;margin-bottom:9px;white-space:nowrap}
+.rel-preview .comparativo-status--ok{background:#e4f2ec;color:#3a7a50}
+.rel-preview .comparativo-status--atencao{background:var(--nude);color:#8a5800}
+.rel-preview .comparativo-status--alerta{background:#F6E3E8;color:#8a2840}
+.rel-preview .comparativo-pcts{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.rel-preview .comparativo-pct{font-size:10px;color:var(--texto-2);background:var(--papel);border:1px solid var(--linha);border-radius:99px;padding:3px 9px}
+.rel-preview .comparativo-pct b{color:var(--roxo)}
 .rel-preview .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--lavanda);flex-wrap:wrap;gap:4px}
@@ -8823,12 +8833,61 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
 // páginas de gráficos. `porFeto`: [{feto, exams}]. opts.textareaMode segue o
 // mesmo padrão de _buildRelSheetHtml, mas com um <textarea> por feto
 // (rel-texto-clinico-A, -B, -C) em vez de um só.
+// Badge de status + percentis de peso/CA por feto, pro comparativo rápido —
+// mesmo diagnóstico já calculado em _buildRelAssessmentPageHtml, só que como
+// classe/rótulo curto em vez da faixa completa (._renderStatusFaixaHtml).
+const _REL_COMPARATIVO_STATUS = {
+  adequado:     { classe: 'comparativo-status--ok',      rotulo: 'Adequado' },
+  pig:          { classe: 'comparativo-status--alerta',  rotulo: 'PIG' },
+  gig:          { classe: 'comparativo-status--atencao', rotulo: 'GIG' },
+  rciu_precoce: { classe: 'comparativo-status--alerta',  rotulo: 'RCIU precoce' },
+  rciu_tardio:  { classe: 'comparativo-status--alerta',  rotulo: 'RCIU tardio' },
+};
+
+// Comparativo rápido entre os fetos — status + percentil de peso e de CA lado
+// a lado, um card por feto. É a primeira pergunta do obstetra numa gemelar
+// ("os dois estão crescendo bem, um em relação ao outro?"): a resposta em
+// segundos, sem precisar ler o texto corrido dos dois fetos pra montar a
+// comparação de cabeça. O texto completo de cada um continua logo abaixo,
+// pra quem quiser o detalhe (ver _buildRelAssessmentPageHtml).
+function _buildRelComparativoHtml(porFetoComDados) {
+  const itens = porFetoComDados.map(pf => {
+    const st = _REL_COMPARATIVO_STATUS[pf.impressao?.diagnostico] || _REL_COMPARATIVO_STATUS.adequado;
+    return `<div class="comparativo-item">
+      <div class="comparativo-feto">${labelFeto(pf.feto)}</div>
+      <div class="comparativo-status ${st.classe}">${st.rotulo}</div>
+      <div class="comparativo-pcts">
+        <span class="comparativo-pct">PFE <b>${pf.efwC?.percentil != null ? 'P' + pf.efwC.percentil : '—'}</b></span>
+        <span class="comparativo-pct">CA <b>${pf.caC?.percentil != null ? 'P' + pf.caC.percentil : '—'}</b></span>
+      </div>
+    </div>`;
+  }).join('');
+  return `<section class="comparativo">${itens}</section>`;
+}
+
 function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts) {
   opts = opts || {};
   const discrepHtml = _buildRelDiscrepanciaHtml(gestacao, allExams);
 
-  const fetosHtml = porFeto.map(pf => {
-    const impressao  = computeImpressaoDiagnostica(gestacao, pf.exams);
+  // Impressão diagnóstica e percentis de peso/CA calculados uma vez por feto
+  // aqui — o comparativo (badges) e o detalhe completo abaixo usam os mesmos
+  // dados, em vez de rodar a análise longitudinal duas vezes por feto.
+  const porFetoComDados = porFeto.map(pf => {
+    const lastExam = pf.exams[pf.exams.length - 1];
+    const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
+    const efw      = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
+    return {
+      ...pf,
+      impressao: computeImpressaoDiagnostica(gestacao, pf.exams),
+      efwC: calcEFWPercentile(efw, igDays),
+      caC:  calcBiometria(lastExam.ca, 'ca', igDays),
+    };
+  });
+
+  const comparativoHtml = _buildRelComparativoHtml(porFetoComDados);
+
+  const fetosHtml = porFetoComDados.map(pf => {
+    const impressao  = pf.impressao;
     const statusHtml = _renderStatusFaixaHtml(impressao) + _renderPeRiscoFaixaHtml(impressao?.peRisco) + _renderColoRiscoFaixaHtml(impressao?.coloRisco);
     const descricaoHtml = opts.textareaMode
       ? `<textarea id="rel-texto-clinico-${pf.feto}" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Texto clínico gerado automaticamente...">${escapeHtml((opts.textosIniciais || {})[pf.feto] || '')}</textarea>
@@ -8863,6 +8922,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
   <main class="body">
     <div class="eyebrow">Avaliação — gestação múltipla</div>
     ${discrepHtml}
+    ${comparativoHtml}
     ${fetosHtml}
   </main>
 
@@ -8975,6 +9035,20 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
 
 .feto-avaliacao + .feto-avaliacao{margin-top:22px;padding-top:22px;border-top:1px solid var(--linha)}
+
+.comparativo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.comparativo-item{background:var(--nude-2);border-radius:3px;padding:14px 12px;text-align:center;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.comparativo-feto{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo);margin-bottom:8px}
+.comparativo-status{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 12px;border-radius:99px;
+  margin-bottom:9px;white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.comparativo-status--ok{background:#e4f2ec;color:#3a7a50}
+.comparativo-status--atencao{background:var(--nude);color:#8a5800}
+.comparativo-status--alerta{background:#F6E3E8;color:#8a2840}
+.comparativo-pcts{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.comparativo-pct{font-size:10px;color:var(--texto-2);background:var(--papel);border:1px solid var(--linha);
+  border-radius:99px;padding:3px 9px}
+.comparativo-pct b{color:var(--roxo)}
 
 .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;

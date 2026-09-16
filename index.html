@@ -4983,15 +4983,16 @@ function _discrepanciaPesoCardHtml(gestacao, allExams) {
     return `<p style="font-size:13px;color:var(--text-muted);padding:8px 4px;">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita — sem isso não dá para calcular a discrepância.</p>`;
   }
   const cls   = r.alerta ? 'discrepancia-emphasis-alert' : 'discrepancia-emphasis-ok';
-  const aviso = r.alerta ? '≥25% — critério de RCF seletiva' : 'abaixo de 25%';
+  const aviso = r.alerta
+    ? 'Diferença de peso entre os fetos acima de 25% - Aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.'
+    : 'Diferença de peso entre os fetos abaixo de 25% - Dentro do esperado.';
   const intermHtml = r.pctInterm != null
     ? `<div class="discrepancia-emphasis-sub">Maior × intermediário: ${r.pctInterm.toFixed(1)}%</div>` : '';
   return `
     <div class="discrepancia-emphasis ${cls}">
       <div class="discrepancia-emphasis-value">${r.pct.toFixed(1)}%</div>
-      <div class="discrepancia-emphasis-label">Maior × menor feto — ${aviso}</div>
+      <div class="discrepancia-emphasis-label">${aviso}</div>
       ${intermHtml}
-      <div class="discrepancia-emphasis-date">Última visita com os fetos medidos: ${formatDateBR(r.data)}</div>
     </div>`;
 }
 

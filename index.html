@@ -8821,13 +8821,15 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
   }
   const variante   = r.alerta ? 'status--alerta' : 'status--ok';
   const icon       = r.alerta ? '⚠' : '✓';
-  const aviso      = r.alerta ? '≥25% — critério de RCF seletiva' : 'abaixo de 25%';
+  const aviso      = r.alerta
+    ? 'Diferença de peso entre os fetos acima de 25% - Aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.'
+    : 'Diferença de peso entre os fetos abaixo de 25% - Dentro do esperado.';
   const intermTxt  = r.pctInterm != null ? ` · maior×intermediário ${r.pctInterm.toFixed(1)}%` : '';
   return `<section class="status ${variante}">
     <div class="status-ic">${icon}</div>
     <div class="status-body">
       <div class="status-t">Discrepância de peso — ${r.pct.toFixed(1)}%</div>
-      <div class="status-s">Maior × menor feto, ${aviso}${intermTxt} · última visita com os fetos medidos: ${formatDateBR(r.data)}</div>
+      <div class="status-s">${aviso}${intermTxt}</div>
     </div>
   </section>`;
 }

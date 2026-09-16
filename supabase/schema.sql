@@ -87,7 +87,7 @@ create table if not exists public.gestacoes (
   tipo_gestacao             text not null default 'unica'
                               check (tipo_gestacao in ('unica','gemelar','trigemelar')),
   corionicidade             text
-                              check (corionicidade in ('dicorionica_diamniotica','monocorionica_diamniotica','monocorionica_monoamniotica','tricorionica_triamniotica')),
+                              check (corionicidade in ('dicorionica_diamniotica','monocorionica_diamniotica','monocorionica_monoamniotica','tricorionica_triamniotica','dicorionica_triamniotica','monocorionica_triamniotica')),
   excluido_em               timestamptz,
   created_at                timestamptz not null default now(),
   updated_at                timestamptz not null default now()

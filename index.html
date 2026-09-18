@@ -854,15 +854,18 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .body--compacta .rel-ident-ig b{font-size:20px}
 .rel-preview .body--compacta .descricao p{font-size:12px;line-height:1.5}
 .rel-preview .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rel-preview .feto-cards--unica{grid-template-columns:repeat(3,1fr)}
+.feto-cards--unica{grid-template-columns:repeat(3,1fr)}
 .rel-preview .feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:13px}
 .rel-preview .feto-card--a{border-top:3px solid var(--roxo)}
-.rel-preview .feto-card--b{border-top:3px solid var(--dourado)}
+.rel-preview .feto-card--b,.rel-preview .feto-card--unica{border-top:3px solid var(--dourado)}
+.rel-preview .feto-card svg{width:100%;height:auto;display:block}
 .rel-preview .feto-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .rel-preview .feto-card-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo)}
 .rel-preview .feto-card-sub{font-size:11px;color:var(--texto-3);margin:4px 0 8px}
 .rel-preview .feto-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
 .rel-preview .feto-badge--a{background:var(--lavanda-bg);color:var(--roxo)}
-.rel-preview .feto-badge--b{background:var(--nude);color:var(--dourado-escuro)}
+.rel-preview .feto-badge--b,.rel-preview .feto-badge--unica{background:var(--nude);color:var(--dourado-escuro)}
 .rel-preview .legend--card{margin-top:8px;gap:12px;flex-wrap:wrap}
 .rel-preview .k-p90,.rel-preview .k-p10{width:14px;border-top:1.3px dashed var(--lavanda)}
 .rel-preview .k-p50{width:14px;border-top:1.6px solid var(--lilas)}
@@ -888,6 +891,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .feto-card--b .efw-pt{stroke:var(--dourado-escuro)}
 .rel-preview .feto-card--b .efw-pt-t{fill:var(--dourado-escuro)}
 .rel-preview .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
+.rel-preview .rel-lista{list-style:none;margin:0;padding:0;max-width:62ch}
+.rel-preview .rel-lista li{position:relative;padding-left:14px;margin:0 0 6px;font-size:13px;line-height:1.5}
+.rel-preview .rel-lista li::before{content:'•';position:absolute;left:0;color:var(--dourado)}
+.rel-preview .body--compacta .rel-lista li{font-size:12px;margin:0 0 4px}
 .rel-preview .rel-texto{width:100%;min-height:110px;max-width:62ch;border:1px solid var(--linha);border-radius:3px;
   padding:12px;font-size:13px;font-family:'Lato',Georgia,serif;line-height:1.62;color:#3B2A2A;
   resize:none;overflow:hidden;background:#fff}
@@ -8370,9 +8377,12 @@ function abrirPreviewRelatorio() {
   const exams = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
   if (exams.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
 
-  const { paragrafos } = generateSummary(gestacao, exams);
-  const textoInicial = paragrafos.join('\n\n');
-  const textoConclusaoInicial = _gerarConclusaoUnicaInicial(computeImpressaoDiagnostica(gestacao, exams));
+  // Texto curto (mesmo _gerarTextoCardFetoInicial da gemelar) em vez do
+  // generateSummary de três parágrafos — o card não tem mais faixa de status
+  // separada pra carregar o diagnóstico completo.
+  const impressaoPreview = computeImpressaoDiagnostica(gestacao, exams);
+  const textoInicial = _gerarTextoCardFetoInicial(impressaoPreview);
+  const textoConclusaoInicial = _gerarConclusaoUnicaInicial(impressaoPreview);
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
@@ -8737,15 +8747,16 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
 }
 
 // Rascunho de conclusão da gestação única — reorganiza o diagnóstico já
-// calculado (computeImpressaoDiagnostica) em parágrafo corrido, mesmo
-// espírito de _gerarConclusaoGemelarInicial: nenhum número novo, só a
-// leitura resumida do que já está na faixa de status da página principal.
+// calculado (computeImpressaoDiagnostica) numa linha por item, mesmo espírito
+// de _gerarConclusaoGemelarInicial: nenhum número novo, só a leitura resumida
+// do que já está na faixa de status da página principal, e cada linha vira um
+// item da lista na hora de imprimir (ver _relListaHtml).
 function _gerarConclusaoUnicaInicial(impressao) {
   if (!impressao) return '';
-  let txt = `${impressao.label}.`;
-  if (impressao.critItems && impressao.critItems.length) txt += ` ${impressao.critItems[0]}.`;
-  if (impressao.conduta) txt += ` Conduta sugerida: ${impressao.conduta}`;
-  return txt;
+  const linhas = [`${impressao.label}.`];
+  if (impressao.critItems && impressao.critItems.length) linhas.push(`${impressao.critItems[0]}.`);
+  if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
+  return linhas.join('\n');
 }
 
 // Segunda página da gestação única — histórico biométrico completo +
@@ -8761,7 +8772,7 @@ function _buildRelHistoricoUnicaPageHtml(patient, gestacao, exams, opts) {
   const conclusaoHtml  = opts.textareaMode
     ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkExtra()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
-    : (opts.textoConclusaoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+    : _relListaHtml(opts.textoConclusaoFinal);
 
 
   return `${_relHeaderHtml('Avaliação — Gestação Única')}
@@ -8849,17 +8860,24 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
 
   const impressao  = computeImpressaoDiagnostica(gestacao, exams);
-  const statusHtml = _renderStatusFaixaHtml(impressao) + _renderPeRiscoFaixaHtml(impressao?.peRisco) + _renderColoRiscoFaixaHtml(impressao?.coloRisco);
 
-  // Gráficos — um <svg> por parâmetro, gerado a partir da tabela de referência
-  // (ver _buildRelChartSvg). O Doppler de UtA só entra se a gestação tiver
-  // registro.
+  // Gráficos — um card por parâmetro, mesma linguagem visual dos cards da
+  // gemelar (borda dourada, selo de percentil no cabeçalho): ver
+  // _buildRelGemelarPaginaHtml. A legenda (P10-P90/mediana/paciente) fica uma
+  // vez só acima da grade, não repetida em cada card — os quatro são do mesmo
+  // feto, então é a mesma legenda para os quatro.
   const chartCells = [];
   ['cc', 'ca', 'fl', 'efw'].forEach(key => {
     const svg = _buildRelChartSvg(key, gestacao, exams);
     if (!svg) return;
     const pct = { cc: ccC, ca: caC, fl: flC, efw: efwC }[key]?.percentil;
-    chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE[key]}</b><i>${pct != null ? 'P' + pct : '—'}</i></div>${svg}</div>`);
+    chartCells.push(`<div class="feto-card feto-card--unica">
+      <div class="feto-card-head">
+        <div class="feto-card-t">${_REL_CHART_TITLE[key]}</div>
+        <span class="feto-badge feto-badge--unica">${pct != null ? 'P' + pct : '—'}</span>
+      </div>
+      ${svg}
+    </div>`);
   });
   const hasDoppler = exams.some(e => e.aut_e != null || e.aut_d != null);
   const utaSvg = hasDoppler ? _buildRelChartSvg('uta', gestacao, exams) : null;
@@ -8867,20 +8885,27 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
     const utaMean = (() => { const e = lastExam.aut_e, d = lastExam.aut_d; if (e != null && d != null) return (e + d) / 2; return e ?? d ?? null; })();
     const utaC = utaMean != null ? calcDopplerUt(utaMean, igDays / 7) : null;
     const utaBadge = utaC ? (utaC.percentil >= 95 ? 'IP elevado (>P95)' : `P${utaC.percentil}`) : 'sem dados';
-    chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE.uta}</b><i>${utaBadge}</i></div>${utaSvg}</div>`);
+    chartCells.push(`<div class="feto-card feto-card--unica">
+      <div class="feto-card-head">
+        <div class="feto-card-t">${_REL_CHART_TITLE.uta}</div>
+        <span class="feto-badge feto-badge--unica">${utaBadge}</span>
+      </div>
+      ${utaSvg}
+    </div>`);
   }
-
 
   const descricaoHtml = opts.textareaMode
     ? `<textarea id="rel-texto-clinico" class="rel-texto" oninput="_atualizarRelPageMark()" placeholder="Texto clínico gerado automaticamente...">${escapeHtml(opts.textoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
     : (opts.textoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+  const condutaHtml = (!opts.textareaMode && impressao?.conduta)
+    ? `<div class="feto-card-conduta"><b>Conduta:</b> ${escapeHtml(impressao.conduta)}</div>` : '';
 
-  // Ordem pedida: cabeçalho (programa + médica + CRM/RQE) → identificação da
-  // paciente (DUM + IG em destaque) → gráficos → card de status → resumo →
-  // rodapé roxo. Sem os cards de biometria e sem bloco de assinatura — CRM/RQE
-  // já está no cabeçalho, e cortar os dois foi o que abriu espaço pra caber
-  // numa página A4 só.
+  // Ordem: cabeçalho → identificação → gráficos em card → resumo (curto,
+  // mesmo padrão da gemelar) → rodapé com assinatura. A faixa colorida de
+  // diagnóstico e o parágrafo longo de antes saíram — o mesmo diagnóstico,
+  // incluindo pré-eclâmpsia e colo curto quando presentes, está no resumo
+  // (ver _gerarTextoCardFetoInicial) e na linha de conduta abaixo dele.
   return `${_relHeaderHtml('Avaliação — Gestação Única')}
 
   <main class="body">
@@ -8896,16 +8921,15 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
           <span><i class="k-pat"></i>Paciente</span>
         </div>
       </div>
-      <div class="charts">
+      <div class="feto-cards feto-cards--unica">
         ${chartCells.join('\n        ')}
       </div>
     </section>
 
-    ${statusHtml}
-
-    <section class="descricao">
-      <div class="eyebrow" style="margin-bottom:8px">Resumo do acompanhamento</div>
-      ${descricaoHtml}
+    <section class="rel-secao">
+      <h2 class="rel-secao-t">Resumo do acompanhamento</h2>
+      <div class="descricao">${descricaoHtml}</div>
+      ${condutaHtml}
     </section>
 
   </main>
@@ -8922,9 +8946,6 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
 // ident+gráficos) e _buildRelAssessmentPageHtml uma vez só, com a
 // discrepância de peso e o status+resumo de cada feto empilhados.
 
-// Página de gráficos de UM feto — mesmo cabeçalho/identificação/grade de
-// curvas de _buildRelSheetHtml, sem status/resumo (isso fica na página de
-// avaliação conjunta, depois de todas as páginas de gráficos).
 // Gráfico grande do peso fetal estimado — o único gráfico do relatório de
 // gemelar (ver _buildRelGemelarPaginaHtml). Difere do _buildRelChartSvg
 // (small multiple de 220x118, usado nas páginas por feto da trigemelar e na
@@ -9025,6 +9046,19 @@ function _numBR(valor, casas) {
   return valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
 }
 
+// Conclusão em lista — cada linha do texto vira um item, com o "•" desenhado
+// pelo CSS (.rel-lista) em vez de escrito no texto: se ela editar e digitar
+// "*" ou "-" no começo da linha (jeito comum de fazer lista à mão), essa marca
+// é só removida, nunca aparece no PDF. Linha em branco é ignorada, então
+// parágrafos separados por linha dupla continuam funcionando como antes.
+function _relListaHtml(texto) {
+  const itens = (texto || '').split('\n')
+    .map(l => l.trim().replace(/^[*•-]\s*/, ''))
+    .filter(Boolean);
+  if (!itens.length) return '';
+  return `<ul class="rel-lista">${itens.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+}
+
 // Tabela de Doppler + colo. Os valores vêm do último exame de cada feto; a
 // coluna de referência repete o mesmo corte que o app já usa para classificar
 // (calcDopplerUt/Au/Acm/Cpr, e os 25mm de avaliarRiscoColoCurto), e é o mesmo
@@ -9085,6 +9119,12 @@ function _buildRelDopplerGemelarHtml(gestacao, porFeto) {
 // largura da página com o irmão, e três parágrafos ali empurravam o histórico
 // e o Doppler para uma segunda folha. Vai num <textarea> como todo texto
 // clínico do relatório — ela revisa e ajusta antes de imprimir.
+//
+// peRisco e coloRisco entram aqui mesmo sem pedido: são faixas que existem
+// justamente porque o diagnóstico de crescimento (adequado/PIG/GIG/RCIU) não
+// enxerga risco de pré-eclâmpsia nem colo curto — um IP-UtA alterado ou colo
+// <25mm com peso normal lia como diagnóstico "adequado" sem isso. Resumir o
+// card só pelo label de crescimento apagaria esse alerta do papel.
 function _gerarTextoCardFetoInicial(impressao) {
   if (!impressao) return '';
   const partes = [`${impressao.label}.`];
@@ -9094,6 +9134,8 @@ function _gerarTextoCardFetoInicial(impressao) {
     partes.push(`Critérios Delphi 2016 dentro da normalidade (gestação ${impressao.isPrecoce ? '< 32' : '≥ 32'} semanas).`);
   }
   if (impressao.estadio) partes.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
+  if (impressao.peRisco) partes.push(`${impressao.peRisco.label}. ${impressao.peRisco.conduta}`);
+  if (impressao.coloRisco) partes.push(`${impressao.coloRisco.label}. ${impressao.coloRisco.conduta}`);
   return partes.join(' ');
 }
 
@@ -9150,8 +9192,7 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
   const conclusaoHtml = opts.textareaMode
     ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Textos gerados automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
-    : (opts.textoConclusaoFinal || '').split('\n\n').filter(p => p.trim())
-        .map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+    : _relListaHtml(opts.textoConclusaoFinal);
 
 
   return `${_relHeaderHtml('Avaliação — Gestação Múltipla')}
@@ -9160,9 +9201,9 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
 
     ${_relIdentHtml(patient, gestacao, lastExamGeral)}
 
-    ${_buildRelDiscrepanciaHtml(gestacao, allExams)}
-
     <section class="feto-cards">${cards}</section>
+
+    ${_buildRelDiscrepanciaHtml(gestacao, allExams)}
 
     ${_buildRelHistoricoGemelarHtml(gestacao, porFeto)}
 
@@ -9178,6 +9219,9 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
   ${_relFooterHtml()}`;
 }
 
+// Página de gráficos de UM feto (trigemelar) — mesmo cabeçalho/identificação/
+// grade de curvas de _buildRelSheetHtml, sem status/resumo (isso fica na
+// página de avaliação conjunta, depois de todas as páginas de gráficos).
 function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
   const lastExam = exams[exams.length - 1];
   const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
@@ -9339,12 +9383,13 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
   </section>`;
 }
 
-// Rascunho de conclusão — uma frase por feto (diagnóstico já calculado em
+// Rascunho de conclusão — uma linha por feto (diagnóstico já calculado em
 // porFetoComDados) seguida da leitura da discrepância (mesmo texto de
-// _buildRelDiscrepanciaHtml). Só reorganiza dado já computado em parágrafo
-// corrido; nunca inventa um número novo. Fica num <textarea> igual aos de
-// resumo por feto — revisável antes de imprimir, nunca vai direto pro PDF
-// sem passar pelos olhos da médica.
+// _buildRelDiscrepanciaHtml) e da sugestão de seguimento. Só reorganiza dado
+// já computado; nunca inventa um número novo. Cada linha vira um item da
+// lista na hora de imprimir (ver _relListaHtml). Fica num <textarea> igual
+// aos de resumo por feto — revisável antes de imprimir, nunca vai direto pro
+// PDF sem passar pelos olhos da médica.
 function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   const DX_LABEL = {
     adequado: 'crescimento adequado para a idade gestacional',
@@ -9353,18 +9398,18 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
     rciu_precoce: 'critérios de RCIU precoce',
     rciu_tardio: 'critérios de RCIU tardio',
   };
-  const porFrase = porFetoComDados.map(pf =>
+  const linhas = porFetoComDados.map(pf =>
     `${labelFeto(pf.feto)} apresenta ${DX_LABEL[pf.impressao?.diagnostico] || DX_LABEL.adequado}.`
-  ).join(' ');
+  );
 
-  let discrepFrase = '';
   if (discrepResumo) {
-    discrepFrase = discrepResumo.alerta
-      ? ` A discrepância de peso entre os fetos está em ${_numBR(discrepResumo.pct, 1)}%, acima do limiar de vigilância de 25%.`
-      : ` A discrepância de peso entre os fetos permanece em ${_numBR(discrepResumo.pct, 1)}%, abaixo do limiar de vigilância de 25%.`;
+    linhas.push(discrepResumo.alerta
+      ? `Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}%, acima do limiar de vigilância de 25%.`
+      : `Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}%, abaixo do limiar de vigilância de 25%.`);
   }
 
-  return `${porFrase}${discrepFrase} Sugerida reavaliação conforme protocolo de seguimento gestacional.`;
+  linhas.push('Sugerida reavaliação conforme protocolo de seguimento gestacional.');
+  return linhas.join('\n');
 }
 
 function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts) {
@@ -9409,7 +9454,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
   const conclusaoHtml = opts.textareaMode
     ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
-    : (opts.textoConclusaoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+    : _relListaHtml(opts.textoConclusaoFinal);
 
 
   return `${_relHeaderHtml('Avaliação — Gestação Múltipla')}
@@ -9540,6 +9585,13 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
 
 .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
+/* Lista da conclusão — marcador "•" desenhado por CSS em vez de escrito no
+   texto, pra nunca depender de qual caractere a médica digitou na hora de
+   revisar (ver _relListaHtml). */
+.rel-lista{list-style:none;margin:0;padding:0;max-width:62ch}
+.rel-lista li{position:relative;padding-left:14px;margin:0 0 6px;font-size:13px;line-height:1.5}
+.rel-lista li::before{content:'•';position:absolute;left:0;color:var(--dourado)}
+.body--compacta .rel-lista li{font-size:12px;margin:0 0 4px}
 
 .feto-avaliacao + .feto-avaliacao{margin-top:22px;padding-top:22px;border-top:1px solid var(--linha)}
 
@@ -9577,17 +9629,19 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .body--compacta .descricao p{font-size:12px;line-height:1.5}
 
 .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.feto-cards--unica{grid-template-columns:repeat(3,1fr)}
 .feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:13px;
   page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .feto-card--a{border-top:3px solid var(--roxo)}
-.feto-card--b{border-top:3px solid var(--dourado)}
+.feto-card--b,.feto-card--unica{border-top:3px solid var(--dourado)}
+.feto-card svg{width:100%;height:auto;display:block}
 .feto-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .feto-card-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo)}
 .feto-card-sub{font-size:11px;color:var(--texto-3);margin:4px 0 8px}
 .feto-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:999px;
   white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .feto-badge--a{background:var(--lavanda-bg);color:var(--roxo)}
-.feto-badge--b{background:var(--nude);color:var(--dourado-escuro)}
+.feto-badge--b,.feto-badge--unica{background:var(--nude);color:var(--dourado-escuro)}
 .legend--card{margin-top:8px;gap:12px;flex-wrap:wrap}
 .k-p90,.k-p10{width:14px;border-top:1.3px dashed var(--lavanda)}
 .k-p50{width:14px;border-top:1.6px solid var(--lilas)}

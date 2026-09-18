@@ -810,8 +810,8 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status--alerta  .status-conduta{color:#8a2840;border-top-color:rgba(168,66,95,.22)}
 /* Discrepância de peso em destaque — espelha .rel-discrep do CSS exportado
    (ver _relPrintStyleBlock/_buildRelDiscrepanciaHtml). */
-.rel-preview .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:18px 24px;border-radius:6px;background:var(--nude)}
-.rel-preview .rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:38px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
+.rel-preview .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:13px 18px;border-radius:6px;background:var(--nude)}
+.rel-preview .rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:33px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
 .rel-preview .rel-discrep-body{flex:1}
 .rel-preview .rel-discrep-label{font-size:12.5px;color:var(--texto-2);line-height:1.5}
 .rel-preview .rel-discrep-sub{font-size:10.5px;color:var(--texto-3);margin-top:4px}
@@ -838,9 +838,15 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .axis{stroke:var(--linha);stroke-width:1}
 .rel-preview .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
 /* Card de feto + gráfico de peso da gemelar — espelha .feto-card/.efw-* do
-   CSS exportado (ver _buildRelGemelarChartsPageHtml). */
-.rel-preview .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.rel-preview .feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:16px}
+   CSS exportado (ver _buildRelGemelarPaginaHtml). */
+.rel-preview .body--compacta{gap:9px;padding-top:16px}
+.rel-preview .body--compacta .rel-secao{margin-top:0}
+.rel-preview .body--compacta .descricao p{font-size:12px;line-height:1.5}
+.rel-preview .rel-linha-paciente{font-size:12.5px;color:var(--texto-2);margin-top:5px}
+.rel-preview .rel-linha-paciente strong{color:var(--roxo)}
+.rel-preview .rel-linha-paciente small{font-size:10px}
+.rel-preview .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.rel-preview .feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:13px}
 .rel-preview .feto-card--a{border-top:3px solid var(--roxo)}
 .rel-preview .feto-card--b{border-top:3px solid var(--dourado)}
 .rel-preview .feto-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
@@ -896,11 +902,22 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .comparativo-item--b{border-top:3px solid var(--dourado)}
 /* Tabela de histórico biométrico — espelha .rel-tabela do CSS exportado. */
 .rel-preview .rel-tabela{width:100%;border-collapse:collapse;font-size:11.5px}
-.rel-preview .rel-tabela th{background:var(--roxo);color:#F6EACD;text-align:left;padding:7px 10px;
+.rel-preview .rel-tabela th{background:var(--roxo);color:#F6EACD;text-align:left;padding:5px 9px;
   font-weight:600;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase}
-.rel-preview .rel-tabela td{padding:7px 10px;border-bottom:1px solid var(--linha);color:#3B2A2A}
+.rel-preview .rel-tabela td{padding:5px 9px;border-bottom:1px solid var(--linha);color:#3B2A2A}
 .rel-preview .rel-tabela tr:nth-child(even) td{background:var(--nude-2)}
 .rel-preview .rel-tabela td b{color:var(--roxo)}
+.rel-preview .rel-tabela td.ref{color:var(--texto-3)}
+.rel-preview .rel-tabela td.fora{color:#8a2840;font-weight:700}
+.rel-preview .rel-secao{margin-top:22px}
+.rel-preview .rel-secao-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:13.5px;font-weight:600;color:var(--roxo);margin:0 0 7px}
+.rel-preview .feto-card-texto{margin-top:9px;font-size:11px;line-height:1.45;color:#3B2A2A}
+.rel-preview .feto-card-texto p{margin:0 0 6px}
+.rel-preview .feto-card-conduta{margin-top:7px;padding-top:7px;border-top:1px solid var(--linha);
+  font-size:11px;line-height:1.4;color:var(--roxo)}
+/* Textarea dentro do card: acompanha a largura da coluna, não os 62ch do
+   texto de página inteira. */
+.rel-preview .rel-texto--card{max-width:none;min-height:64px;font-size:11px;line-height:1.45;padding:8px}
 .rel-preview .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--lavanda);flex-wrap:wrap;gap:4px}
@@ -8379,30 +8396,36 @@ function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
     .filter(pf => pf.exams.length > 0);
   if (porFeto.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
 
-  const textosIniciais = {};
-  porFeto.forEach(pf => {
-    const { paragrafos } = generateSummary(gestacao, pf.exams);
-    textosIniciais[pf.feto] = paragrafos.join('\n\n');
-  });
+  // Na gemelar o texto de cada feto vai resumido dentro do card do gráfico
+  // (_gerarTextoCardFetoInicial); na trigemelar continua o texto longo do
+  // generateSummary, que lá tem uma página inteira para ele.
+  const ehGemelar = porFeto.length === 2;
+  const porFetoComDados = porFeto.map(pf => ({ ...pf, impressao: computeImpressaoDiagnostica(gestacao, pf.exams) }));
 
-  // Mesmos dados que _buildRelAssessmentPageHtml calcula por feto, refeitos
-  // aqui só pra montar o rascunho da conclusão antes de a página existir no
-  // DOM (o texto final entra editável, então essa duplicação de cálculo — e
-  // não de dado — não corre risco de divergir do que aparece na página).
-  const porFetoComDadosPreview = porFeto.map(pf => ({ ...pf, impressao: computeImpressaoDiagnostica(gestacao, pf.exams) }));
-  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDadosPreview, _discrepanciaPesoResumo(gestacao, allExams));
+  const textosIniciais = {};
+  porFetoComDados.forEach(pf => {
+    textosIniciais[pf.feto] = ehGemelar
+      ? _gerarTextoCardFetoInicial(pf.impressao)
+      : generateSummary(gestacao, pf.exams).paragrafos.join('\n\n');
+  });
+  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams));
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
-    const chartPages = porFeto.length === 2
-      ? `<div class="sheet-preview rel-page-gap">${_buildRelGemelarChartsPageHtml(patient, gestacao, porFeto, allExams)}</div>`
-      : porFeto.map(pf =>
-          `<div class="sheet-preview rel-page-gap">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`
-        ).join('');
-    const assessmentHtml = _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: true, textosIniciais, textoConclusaoInicial });
+    // O id rel-sheet-preview vai sempre na página que cresce com o texto — a
+    // única, na gemelar; a de avaliação conjunta, na trigemelar — porque é ela
+    // que _atualizarRelPageMarkMultipla mede para desenhar as marcas de página.
+    const anteriores = ehGemelar ? '' : porFeto.map(pf =>
+      `<div class="sheet-preview rel-page-gap">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`
+    ).join('');
+    const opts = { textareaMode: true, textosIniciais, textoConclusaoInicial };
+    const paginaFinal = ehGemelar
+      ? _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts)
+      : _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts);
+
     body.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
-      + chartPages
-      + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview">${assessmentHtml}<div id="rel-page-mark-container"></div></div>`
+      + anteriores
+      + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview">${paginaFinal}<div id="rel-page-mark-container"></div></div>`
       + `</div>`;
   }
 
@@ -8889,15 +8912,15 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
 // curvas de _buildRelSheetHtml, sem status/resumo (isso fica na página de
 // avaliação conjunta, depois de todas as páginas de gráficos).
 // Gráfico grande do peso fetal estimado — o único gráfico do relatório de
-// gemelar (ver _buildRelGemelarChartsPageHtml). Difere do _buildRelChartSvg
+// gemelar (ver _buildRelGemelarPaginaHtml). Difere do _buildRelChartSvg
 // (small multiple de 220x118, usado nas páginas por feto da trigemelar e na
 // gestação única): aqui cabe grade horizontal com o peso em gramas, as três
 // curvas de referência rotuladas na ponta e o percentil escrito em cima de
 // cada ponto da paciente. É o gráfico que ela lê e mostra na consulta, então
 // vale a área extra — e é por isso que na gemelar ele aparece sozinho.
 function _buildRelChartEfwSvg(gestacao, exams) {
-  const VW = 340, VH = 260;
-  const padL = 34, padR = 30, padT = 14, padB = 26;
+  const VW = 340, VH = 186;
+  const padL = 34, padR = 30, padT = 12, padB = 22;
   const chartW = VW - padL - padR, chartH = VH - padT - padB;
 
   const ref = [];
@@ -8922,7 +8945,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
   // numa gemelar os dois cards ficam lado a lado e uma escala por feto faria
   // um crescimento menor parecer igual ao do irmão.
   const topo = Math.max(ref[ref.length - 1].p90, ...pts.map(p => p.peso));
-  const maxY = Math.ceil((topo * 1.12) / 100) * 100;
+  const maxY = Math.ceil((topo * 1.05) / 100) * 100;
 
   const x = w => padL + (w - 20) / 20 * chartW;
   const y = v => padT + chartH - (v / maxY) * chartH;
@@ -8982,14 +9005,98 @@ const _REL_EFW_SUBTITULO = {
   rciu_tardio:  'Critérios de restrição de crescimento — tardio',
 };
 
-// Página 1 do relatório de gemelar: identificação, discrepância de peso em
-// destaque e um card por feto, lado a lado, com o gráfico de peso. Só o peso:
-// é o parâmetro que decide conduta numa gemelar, e os outros três (CC, CA,
-// fêmur) espremiam quatro gráficos minúsculos por feto em duas páginas
-// separadas — difícil de comparar um irmão com o outro, que é justamente a
-// leitura que essa página existe para dar. A CA continua com percentil por
-// visita na tabela de histórico biométrico da página seguinte.
-function _buildRelGemelarChartsPageHtml(patient, gestacao, porFeto, allExams) {
+// Número no formato daqui: 1,9 e não 1.9. O relatório é entregue à paciente e
+// vai para o prontuário — ponto decimal lê como erro de digitação.
+function _numBR(valor, casas) {
+  return valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+}
+
+// Tabela de Doppler + colo. Os valores vêm do último exame de cada feto; a
+// coluna de referência repete o mesmo corte que o app já usa para classificar
+// (calcDopplerUt/Au/Acm/Cpr, e os 25mm de avaliarRiscoColoCurto), e é o mesmo
+// cálculo que decide se o valor sai marcado como fora da faixa — nenhuma linha
+// aqui tem número clínico escrito à mão. Sem nenhum Doppler registrado a seção
+// inteira some, em vez de imprimir uma tabela de trações.
+function _buildRelDopplerGemelarHtml(gestacao, porFeto) {
+  const dados = porFeto.map(pf => {
+    const e   = pf.exams[pf.exams.length - 1];
+    const ig  = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    const gaW = ig ? ig / 7 : null;
+    const ut  = (e.aut_e != null && e.aut_d != null) ? (e.aut_e + e.aut_d) / 2 : (e.aut_e ?? e.aut_d ?? null);
+    const cpr = e.cpr ?? ((e.acm_ip != null && e.au_ip != null && e.au_ip > 0) ? e.acm_ip / e.au_ip : null);
+    return { e, gaW, ut, cpr };
+  });
+
+  const celula = (valor, foraDaFaixa) => valor == null
+    ? '<td>—</td>'
+    : `<td${foraDaFaixa ? ' class="fora"' : ''}>${_numBR(valor, 2)}</td>`;
+
+  const linhas = [
+    { rotulo: 'IP artérias uterinas (média)', ref: '&lt; P95',
+      valor: d => d.ut,     fora: d => (calcDopplerUt(d.ut, d.gaW)?.percentil ?? 0) >= 95 },
+    { rotulo: 'IP artéria umbilical', ref: '&lt; P95',
+      valor: d => d.e.au_ip, fora: d => (calcDopplerAu(d.e.au_ip, d.gaW)?.percentil ?? 0) >= 95 },
+    { rotulo: 'IP artéria cerebral média', ref: '&gt; P5',
+      valor: d => d.e.acm_ip, fora: d => (calcDopplerAcm(d.e.acm_ip, d.gaW)?.percentil ?? 100) <= 5 },
+    { rotulo: 'Relação cerebroplacentária', ref: '&gt; P5',
+      valor: d => d.cpr,    fora: d => (calcDopplerCpr(d.e.acm_ip, d.e.au_ip, d.gaW)?.percentil ?? 100) <= 5 },
+  ].filter(l => dados.some(d => l.valor(d) != null))
+   .map(l => `<tr><td>${l.rotulo}</td>`
+      + dados.map(d => celula(l.valor(d), l.valor(d) != null && l.fora(d))).join('')
+      + `<td class="ref">${l.ref}</td></tr>`);
+
+  // Colo é medida materna: uma só, não uma por feto — por isso atravessa as
+  // duas colunas em vez de repetir o mesmo número dos dois lados.
+  const colo = dados.map(d => d.e.colo).find(v => v != null);
+  if (colo != null) {
+    linhas.push(`<tr><td>Colo uterino (medida única)</td>`
+      + `<td colspan="${dados.length}" style="text-align:center"${colo < 25 ? ' class="fora"' : ''}>${_numBR(colo / 10, 1)} cm</td>`
+      + `<td class="ref">&gt; 2,5 cm</td></tr>`);
+  }
+
+  if (!linhas.length) return '';
+
+  const dataUltima = formatDateBR(porFeto[0].exams[porFeto[0].exams.length - 1].data_exame);
+  return `<section class="rel-secao">
+    <h2 class="rel-secao-t">Dopplervelocimetria e colo uterino — ${dataUltima}</h2>
+    <table class="rel-tabela">
+      <thead><tr><th>Parâmetro</th>${porFeto.map(pf => `<th>${labelFeto(pf.feto)}</th>`).join('')}<th>Referência</th></tr></thead>
+      <tbody>${linhas.join('')}</tbody>
+    </table>
+  </section>`;
+}
+
+// Texto curto de cada feto, abaixo do gráfico no card. É um resumo de duas ou
+// três frases, não o texto longo do generateSummary: no card ele divide a
+// largura da página com o irmão, e três parágrafos ali empurravam o histórico
+// e o Doppler para uma segunda folha. Vai num <textarea> como todo texto
+// clínico do relatório — ela revisa e ajusta antes de imprimir.
+function _gerarTextoCardFetoInicial(impressao) {
+  if (!impressao) return '';
+  const partes = [`${impressao.label}.`];
+  if (impressao.critItems?.length) {
+    partes.push(impressao.critItems[0] + '.');
+  } else {
+    partes.push(`Critérios Delphi 2016 dentro da normalidade (gestação ${impressao.isPrecoce ? '< 32' : '≥ 32'} semanas).`);
+  }
+  if (impressao.estadio) partes.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
+  return partes.join(' ');
+}
+
+// Relatório de gemelar numa página só, nesta ordem: identificação,
+// discrepância de peso em destaque, os dois gráficos de peso lado a lado (cada
+// um com o resumo clínico e a conduta do feto), histórico biométrico, Doppler
+// e conclusão. Só o peso entre os gráficos: é o parâmetro que decide conduta
+// aqui, e os outros três (CC, CA, fêmur) espremiam quatro curvas minúsculas
+// por feto em páginas separadas — comparar um irmão com o outro, que é a
+// leitura que essa página existe para dar, ficava impossível. A CA continua
+// com percentil por visita no histórico logo abaixo.
+//
+// Vai num .sheet-flow, não num .sheet: o alvo é uma folha só, mas os textos
+// clínicos são de comprimento livre e um .sheet cortaria em silêncio o que
+// passasse de 297mm (ver _relPrintStyleBlock).
+function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) {
+  opts = opts || {};
   const lastExamGeral = porFeto[0].exams[porFeto[0].exams.length - 1];
   const igDays   = lastExamGeral.ig_dias_manual ?? calcIgDays(gestacao, lastExamGeral.data_exame);
   const igValHtml = igDays ? `${Math.floor(igDays / 7)}<small>s</small>+${igDays % 7}<small>d</small>` : '—';
@@ -9004,16 +9111,21 @@ function _buildRelGemelarChartsPageHtml(patient, gestacao, porFeto, allExams) {
     const igFeto = ultimo.ig_dias_manual ?? calcIgDays(gestacao, ultimo.data_exame);
     const efw    = ultimo.efw ?? calcEFW(ultimo.dbp, ultimo.cc, ultimo.ca, ultimo.femur);
     const pct    = calcEFWPercentile(efw, igFeto)?.percentil;
-    const dx     = computeImpressaoDiagnostica(gestacao, pf.exams)?.diagnostico;
+    const impressao = computeImpressaoDiagnostica(gestacao, pf.exams);
     const svg    = _buildRelChartEfwSvg(gestacao, pf.exams);
     const cor    = i === 0 ? 'a' : 'b';
+
+    const textoHtml = opts.textareaMode
+      ? `<textarea id="rel-texto-clinico-${pf.feto}" class="rel-texto rel-texto--card" oninput="_atualizarRelPageMarkMultipla()">${escapeHtml((opts.textosIniciais || {})[pf.feto] || '')}</textarea>`
+      : ((opts.textosFinais || {})[pf.feto] || '').split('\n\n').filter(p => p.trim())
+          .map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
 
     return `<div class="feto-card feto-card--${cor}">
       <div class="feto-card-head">
         <div class="feto-card-t">Peso fetal estimado — Hadlock</div>
         <span class="feto-badge feto-badge--${cor}">${labelFeto(pf.feto)} · Atual: ${pct != null ? 'P' + pct : '—'}</span>
       </div>
-      <div class="feto-card-sub">${_REL_EFW_SUBTITULO[dx] || _REL_EFW_SUBTITULO.adequado}</div>
+      <div class="feto-card-sub">${_REL_EFW_SUBTITULO[impressao?.diagnostico] || _REL_EFW_SUBTITULO.adequado}</div>
       ${svg || '<div class="feto-card-sub">Sem peso estimado suficiente para montar a curva.</div>'}
       <div class="legend legend--card">
         <span><i class="k-p90"></i>P90</span>
@@ -9021,8 +9133,19 @@ function _buildRelGemelarChartsPageHtml(patient, gestacao, porFeto, allExams) {
         <span><i class="k-p10"></i>P10</span>
         <span><i class="k-pt"></i>Paciente</span>
       </div>
+      <div class="feto-card-texto">${textoHtml}</div>
+      ${impressao?.conduta ? `<div class="feto-card-conduta"><b>Conduta:</b> ${escapeHtml(impressao.conduta)}</div>` : ''}
     </div>`;
   }).join('');
+
+  const ultimaData = porFeto[0].exams[porFeto[0].exams.length - 1].data_exame;
+  const dopplerHtml = _buildRelDopplerGemelarHtml(gestacao, porFeto);
+
+  const conclusaoHtml = opts.textareaMode
+    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+      <div class="rel-texto-hint">⚠ Textos gerados automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
+    : (opts.textoConclusaoFinal || '').split('\n\n').filter(p => p.trim())
+        .map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
 
   const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
 
@@ -9040,23 +9163,30 @@ function _buildRelGemelarChartsPageHtml(patient, gestacao, porFeto, allExams) {
     </div>
   </header>
 
-  <main class="body">
+  <main class="body body--compacta">
 
-    <section class="ident">
-      <div>
-        <div class="eyebrow">Gestante · gestação múltipla</div>
-        <div class="paciente">${escapeHtml(patient.nome || patient.cpf)}</div>
-        <div class="paciente-meta">${escapeHtml(igMetodo)}</div>
-      </div>
-      <div class="ig">
-        <div class="ig-label">Idade gestacional</div>
-        <div class="ig-val">${igValHtml}</div>
+    <section>
+      <div class="eyebrow">Avaliação — gestação múltipla</div>
+      <div class="rel-linha-paciente">
+        Paciente: <strong>${escapeHtml(patient.nome || patient.cpf)}</strong>
+        · Idade gestacional: <strong>${igValHtml}</strong>
+        · ${escapeHtml(igMetodo)}
+        · Última avaliação: ${formatDateBR(ultimaData)}
       </div>
     </section>
 
     ${_buildRelDiscrepanciaHtml(gestacao, allExams)}
 
     <section class="feto-cards">${cards}</section>
+
+    ${_buildRelHistoricoGemelarHtml(gestacao, porFeto)}
+
+    ${dopplerHtml}
+
+    <section class="rel-secao">
+      <h2 class="rel-secao-t">Conclusão</h2>
+      <div class="descricao">${conclusaoHtml}</div>
+    </section>
 
   </main>
 
@@ -9172,9 +9302,9 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
   const aviso      = r.alerta
     ? 'Diferença de peso entre os fetos acima de 25% — aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.'
     : 'Diferença de peso entre os fetos abaixo de 25% — dentro do esperado.';
-  const intermTxt  = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${r.pctInterm.toFixed(1)}%</div>` : '';
+  const intermTxt  = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${_numBR(r.pctInterm, 1)}%</div>` : '';
   return `<section class="rel-discrep ${variante}">
-    <div class="rel-discrep-val">${r.pct.toFixed(1)}%</div>
+    <div class="rel-discrep-val">${_numBR(r.pct, 1)}%</div>
     <div class="rel-discrep-body">
       <div class="rel-discrep-label">Discrepância de peso entre os fetos (maior × menor) — ${aviso}</div>
       ${intermTxt}
@@ -9246,15 +9376,15 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
       const efwC   = calcEFWPercentile(efw, igDays);
       const caC    = calcBiometria(e.ca, 'ca', igDays);
       const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
-      const caTxt  = e.ca != null ? `${(e.ca / 10).toFixed(1)} cm${caC?.percentil != null ? ' · P' + caC.percentil : ''}` : '—';
+      const caTxt  = e.ca != null ? `${_numBR(e.ca / 10, 1)} cm${caC?.percentil != null ? ' · P' + caC.percentil : ''}` : '—';
       return `<td>${efwTxt}</td><td>${caTxt}</td>`;
     }).join('');
     return `<tr><td><b>${formatDateBR(data)}</b></td>${cels}</tr>`;
   }).join('');
 
   const headCols = porFeto.map(pf => `<th>${labelFeto(pf.feto)} — PFE</th><th>${labelFeto(pf.feto)} — CA</th>`).join('');
-  return `<section style="margin-top:28px">
-    <h2 style="font-family:'Comfortaa',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--roxo);margin:0 0 12px">Histórico biométrico</h2>
+  return `<section class="rel-secao">
+    <h2 class="rel-secao-t">Histórico biométrico</h2>
     <table class="rel-tabela">
       <thead><tr><th>Data</th>${headCols}</tr></thead>
       <tbody>${linhas}</tbody>
@@ -9283,8 +9413,8 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   let discrepFrase = '';
   if (discrepResumo) {
     discrepFrase = discrepResumo.alerta
-      ? ` A discrepância de peso entre os fetos está em ${discrepResumo.pct.toFixed(1)}%, acima do limiar de vigilância de 25%.`
-      : ` A discrepância de peso entre os fetos permanece em ${discrepResumo.pct.toFixed(1)}%, abaixo do limiar de vigilância de 25%.`;
+      ? ` A discrepância de peso entre os fetos está em ${_numBR(discrepResumo.pct, 1)}%, acima do limiar de vigilância de 25%.`
+      : ` A discrepância de peso entre os fetos permanece em ${_numBR(discrepResumo.pct, 1)}%, abaixo do limiar de vigilância de 25%.`;
   }
 
   return `${porFrase}${discrepFrase} Sugerida reavaliação conforme protocolo de seguimento gestacional.`;
@@ -9292,10 +9422,7 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
 
 function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts) {
   opts = opts || {};
-  // Na gemelar a discrepância já abre a página dos gráficos
-  // (_buildRelGemelarChartsPageHtml); repetir aqui seria o mesmo número duas
-  // vezes. A trigemelar não tem aquela página, então continua mostrando aqui.
-  const discrepHtml = porFeto.length === 2 ? '' : _buildRelDiscrepanciaHtml(gestacao, allExams);
+  const discrepHtml = _buildRelDiscrepanciaHtml(gestacao, allExams);
 
   // Impressão diagnóstica e percentis de peso/CA calculados uma vez por feto
   // aqui — o comparativo (badges) e o detalhe completo abaixo usam os mesmos
@@ -9494,11 +9621,27 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .comparativo-item--a{border-top:3px solid var(--roxo)}
 .comparativo-item--b{border-top:3px solid var(--dourado)}
 
-/* Card de feto da gemelar (ver _buildRelGemelarChartsPageHtml) — Feto 1 no
+/* Card de feto da gemelar (ver _buildRelGemelarPaginaHtml) — Feto 1 no
    roxo, Feto 2 no dourado, as duas cores que o relatório já usa. */
-.feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:16px;
-  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* Compacta o miolo da página do relatório de gemelar: ela junta gráficos,
+   histórico, Doppler e conclusão numa folha só, então cada respiro do layout
+   padrão (usado nos relatórios de uma página por seção) vira uma seção
+   empurrada para a segunda folha. */
+.body--compacta{gap:9px;padding-top:16px}
+/* .body é flex com gap — o margin-top padrão de .rel-secao somaria por cima
+   dele e dobraria o respiro entre as seções. */
+.body--compacta .rel-secao{margin-top:0}
+.body--compacta .descricao p{font-size:12px;line-height:1.5}
+/* Identificação numa linha só: o bloco alto com nome em corpo 31 e a caixa de
+   IG é de relatório que tem a página inteira para a capa — aqui o espaço vai
+   para o gráfico, o histórico e o Doppler. */
+.rel-linha-paciente{font-size:12.5px;color:var(--texto-2);margin-top:5px}
+.rel-linha-paciente strong{color:var(--roxo)}
+.rel-linha-paciente small{font-size:10px}
+
+.feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:13px;
+  page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .feto-card--a{border-top:3px solid var(--roxo)}
 .feto-card--b{border-top:3px solid var(--dourado)}
 .feto-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
@@ -9537,9 +9680,9 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 /* Discrepância de peso em destaque — mesma ideia do card
    .discrepancia-emphasis já usado na tela, só com a paleta do relatório
    impresso em vez das variáveis de tela. */
-.rel-discrep{display:flex;align-items:baseline;gap:16px;padding:18px 22px;border-radius:6px;
+.rel-discrep{display:flex;align-items:baseline;gap:16px;padding:13px 18px;border-radius:6px;
   background:var(--nude);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:38px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
+.rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:33px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
 .rel-discrep-body{flex:1}
 .rel-discrep-label{font-size:12.5px;color:var(--texto-2);line-height:1.5}
 .rel-discrep-sub{font-size:10.5px;color:var(--texto-3);margin-top:4px}
@@ -9550,12 +9693,24 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 /* Tabela de histórico biométrico — mesma linguagem visual das outras tabelas
    do relatório (header roxo, zebra em --nude-2, hairline --linha). */
 .rel-tabela{width:100%;border-collapse:collapse;font-size:11.5px}
-.rel-tabela th{background:var(--roxo);color:#F6EACD;text-align:left;padding:7px 10px;
+.rel-tabela th{background:var(--roxo);color:#F6EACD;text-align:left;padding:5px 9px;
   font-weight:600;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
-.rel-tabela td{padding:7px 10px;border-bottom:1px solid var(--linha);color:var(--texto)}
+.rel-tabela tr{page-break-inside:avoid}
+.rel-tabela td{padding:5px 9px;border-bottom:1px solid var(--linha);color:var(--texto)}
 .rel-tabela tr:nth-child(even) td{background:var(--nude-2);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rel-tabela td b{color:var(--roxo)}
+.rel-tabela td.ref{color:var(--texto-3)}
+/* Valor fora da faixa de referência marcado na própria célula: num documento
+   clínico, um Doppler alterado não pode ler igual a um normal. */
+.rel-tabela td.fora{color:#8a2840;font-weight:700}
+
+.rel-secao{margin-top:22px}
+.rel-secao-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:13.5px;font-weight:600;color:var(--roxo);margin:0 0 7px}
+.feto-card-texto{margin-top:9px;font-size:11px;line-height:1.45;color:var(--texto)}
+.feto-card-texto p{margin:0 0 6px}
+.feto-card-conduta{margin-top:7px;padding-top:7px;border-top:1px solid var(--linha);
+  font-size:11px;line-height:1.4;color:var(--roxo)}
 
 .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
@@ -9651,14 +9806,15 @@ function _confirmarGerarPDFMultiplo(patient, gestacao) {
   const taConclusao = document.getElementById('rel-texto-conclusao');
   const textoConclusaoFinal = taConclusao ? taConclusao.value : '';
 
-  // Gemelar: uma página só, os dois fetos lado a lado, gráfico de peso.
-  // Trigemelar: segue com uma página por feto (ver _buildRelChartsPageHtml).
-  const chartSheets = porFeto.length === 2
-    ? `<div class="sheet">${_buildRelGemelarChartsPageHtml(patient, gestacao, porFeto, allExams)}</div>`
-    : porFeto
-        .map(pf => `<div class="sheet">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`)
-        .join('\n');
-  const assessmentSheet = `<div class="sheet-flow">${_buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: false, textosFinais, textoConclusaoFinal })}</div>`;
+  // Gemelar: o relatório inteiro numa folha (ver _buildRelGemelarPaginaHtml).
+  // Trigemelar: uma página de gráficos por feto + a avaliação conjunta.
+  const opts = { textareaMode: false, textosFinais, textoConclusaoFinal };
+  const chartSheets = porFeto.length === 2 ? '' : porFeto
+    .map(pf => `<div class="sheet">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`)
+    .join('\n');
+  const assessmentSheet = `<div class="sheet-flow">${porFeto.length === 2
+    ? _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts)
+    : _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)}</div>`;
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">

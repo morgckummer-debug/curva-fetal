@@ -8861,17 +8861,25 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
 
   const impressao  = computeImpressaoDiagnostica(gestacao, exams);
 
-  // Gráficos — um card por parâmetro, mesma linguagem visual dos cards da
-  // gemelar (borda dourada, selo de percentil no cabeçalho): ver
-  // _buildRelGemelarPaginaHtml. A legenda (P10-P90/mediana/paciente) fica uma
-  // vez só acima da grade, não repetida em cada card — os quatro são do mesmo
-  // feto, então é a mesma legenda para os quatro.
-  const chartCells = [];
-  ['cc', 'ca', 'fl', 'efw'].forEach(key => {
+  // Gráficos — mesma linguagem visual dos cards da gemelar (borda dourada,
+  // selo de percentil no cabeçalho): ver _buildRelGemelarPaginaHtml. A
+  // legenda (P10-P90/mediana/paciente) fica uma vez só acima das duas
+  // grades, não repetida em cada card — todos são do mesmo feto.
+  //
+  // Duas grades, não uma: CC/CA/fêmur cabem pequenos (grade de 3 colunas), mas
+  // o peso usa o gráfico grande da gemelar (_buildRelChartEfwSvg — rótulos
+  // P90/P50/P10 na ponta da curva, percentil escrito em cima de cada ponto) e
+  // precisa da largura de meia página pra esses rótulos não ficarem
+  // ilegíveis; numa grade de 3 colunas ele saía do mesmo tamanho dos outros
+  // três e os textos praticamente desapareciam. O Doppler de UtA acompanha
+  // o peso nessa segunda grade só por simetria (2 colunas, como a gemelar),
+  // não porque precisasse do espaço extra.
+  const smallCells = [];
+  ['cc', 'ca', 'fl'].forEach(key => {
     const svg = _buildRelChartSvg(key, gestacao, exams);
     if (!svg) return;
-    const pct = { cc: ccC, ca: caC, fl: flC, efw: efwC }[key]?.percentil;
-    chartCells.push(`<div class="feto-card feto-card--unica">
+    const pct = { cc: ccC, ca: caC, fl: flC }[key]?.percentil;
+    smallCells.push(`<div class="feto-card feto-card--unica">
       <div class="feto-card-head">
         <div class="feto-card-t">${_REL_CHART_TITLE[key]}</div>
         <span class="feto-badge feto-badge--unica">${pct != null ? 'P' + pct : '—'}</span>
@@ -8879,13 +8887,25 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       ${svg}
     </div>`);
   });
+
+  const bigCells = [];
+  const efwSvg = _buildRelChartEfwSvg(gestacao, exams);
+  if (efwSvg) {
+    bigCells.push(`<div class="feto-card feto-card--unica">
+      <div class="feto-card-head">
+        <div class="feto-card-t">${_REL_CHART_TITLE.efw}</div>
+        <span class="feto-badge feto-badge--unica">${efwC?.percentil != null ? 'P' + efwC.percentil : '—'}</span>
+      </div>
+      ${efwSvg}
+    </div>`);
+  }
   const hasDoppler = exams.some(e => e.aut_e != null || e.aut_d != null);
   const utaSvg = hasDoppler ? _buildRelChartSvg('uta', gestacao, exams) : null;
   if (utaSvg) {
     const utaMean = (() => { const e = lastExam.aut_e, d = lastExam.aut_d; if (e != null && d != null) return (e + d) / 2; return e ?? d ?? null; })();
     const utaC = utaMean != null ? calcDopplerUt(utaMean, igDays / 7) : null;
     const utaBadge = utaC ? (utaC.percentil >= 95 ? 'IP elevado (>P95)' : `P${utaC.percentil}`) : 'sem dados';
-    chartCells.push(`<div class="feto-card feto-card--unica">
+    bigCells.push(`<div class="feto-card feto-card--unica">
       <div class="feto-card-head">
         <div class="feto-card-t">${_REL_CHART_TITLE.uta}</div>
         <span class="feto-badge feto-badge--unica">${utaBadge}</span>
@@ -8922,7 +8942,10 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
         </div>
       </div>
       <div class="feto-cards feto-cards--unica">
-        ${chartCells.join('\n        ')}
+        ${smallCells.join('\n        ')}
+      </div>
+      <div class="feto-cards" style="margin-top:16px">
+        ${bigCells.join('\n        ')}
       </div>
     </section>
 

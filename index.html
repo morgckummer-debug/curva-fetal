@@ -807,6 +807,16 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status--alerta  .status-ic{background:#A8425F}
 .rel-preview .status--alerta  .status-t{color:#8a2840}
 .rel-preview .status--alerta  .status-conduta{color:#8a2840;border-top-color:rgba(168,66,95,.22)}
+/* Discrepância de peso em destaque — espelha .rel-discrep do CSS exportado
+   (ver _relPrintStyleBlock/_buildRelDiscrepanciaHtml). */
+.rel-preview .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:18px 24px;border-radius:6px;background:var(--nude)}
+.rel-preview .rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:38px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
+.rel-preview .rel-discrep-body{flex:1}
+.rel-preview .rel-discrep-label{font-size:12.5px;color:var(--texto-2);line-height:1.5}
+.rel-preview .rel-discrep-sub{font-size:10.5px;color:var(--texto-3);margin-top:4px}
+.rel-preview .rel-discrep--alerta{background:#F6E3E8}
+.rel-preview .rel-discrep--alerta .rel-discrep-val,
+.rel-preview .rel-discrep--alerta .rel-discrep-label{color:#8a2840}
 .rel-preview .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px}
 .rel-preview .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}
 .rel-preview .legend span{display:flex;align-items:center;gap:6px}
@@ -826,6 +836,11 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .pt-now{fill:var(--papel);stroke:var(--dourado);stroke-width:2.2}
 .rel-preview .axis{stroke:var(--linha);stroke-width:1}
 .rel-preview .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
+/* Cor por feto na gemelar — espelha .charts--feto-a do CSS exportado. */
+.rel-preview .charts--feto-a .trace{stroke:var(--roxo)}
+.rel-preview .charts--feto-a .pt{fill:var(--roxo)}
+.rel-preview .charts--feto-a .pt-now{stroke:var(--roxo)}
+.rel-preview .charts--feto-a .chart-t i{color:var(--roxo)}
 .rel-preview .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
 .rel-preview .rel-texto{width:100%;min-height:110px;max-width:62ch;border:1px solid var(--linha);border-radius:3px;
   padding:12px;font-size:13px;font-family:'Lato',Georgia,serif;line-height:1.62;color:#3B2A2A;
@@ -845,6 +860,15 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .comparativo-pct{font-size:10px;color:var(--texto-2);background:var(--papel);border-radius:99px;padding:4px 11px;
   box-shadow:1.5px 1.5px 4px rgba(61,35,82,0.12),-1px -1px 3px rgba(255,255,255,0.7)}
 .rel-preview .comparativo-pct b{color:var(--roxo)}
+.rel-preview .comparativo-item--a{border-top:3px solid var(--roxo)}
+.rel-preview .comparativo-item--b{border-top:3px solid var(--dourado)}
+/* Tabela de histórico biométrico — espelha .rel-tabela do CSS exportado. */
+.rel-preview .rel-tabela{width:100%;border-collapse:collapse;font-size:11.5px}
+.rel-preview .rel-tabela th{background:var(--roxo);color:#F6EACD;text-align:left;padding:7px 10px;
+  font-weight:600;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase}
+.rel-preview .rel-tabela td{padding:7px 10px;border-bottom:1px solid var(--linha);color:#3B2A2A}
+.rel-preview .rel-tabela tr:nth-child(even) td{background:var(--nude-2)}
+.rel-preview .rel-tabela td b{color:var(--roxo)}
 .rel-preview .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
   color:var(--lavanda);flex-wrap:wrap;gap:4px}
@@ -8288,17 +8312,25 @@ function abrirPreviewRelatorio() {
 
   const { paragrafos } = generateSummary(gestacao, exams);
   const textoInicial = paragrafos.join('\n\n');
+  const textoConclusaoInicial = _gerarConclusaoUnicaInicial(computeImpressaoDiagnostica(gestacao, exams));
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
-    body.innerHTML = `<div class="rel-preview"><div class="sheet-preview" id="rel-sheet-preview">`
+    body.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
+      + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview">`
       + _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: true, textoInicial })
       + `<div class="rel-page-mark" id="rel-page-mark"><span>Fim da página A4</span></div>`
-      + `</div></div>`;
+      + `</div>`
+      + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview-extra">`
+      + _buildRelHistoricoUnicaPageHtml(patient, gestacao, exams, { textareaMode: true, textoConclusaoInicial })
+      + `<div id="rel-page-mark-container-extra"></div>`
+      + `</div>`
+      + `</div>`;
   }
 
   openModal('modal-relatorio');
   setTimeout(_atualizarRelPageMark, 60);
+  setTimeout(_atualizarRelPageMarkExtra, 60);
 }
 
 // Gestação múltipla: uma página de gráficos por feto (ordem A, B, C) seguida
@@ -8321,12 +8353,19 @@ function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
     textosIniciais[pf.feto] = paragrafos.join('\n\n');
   });
 
+  // Mesmos dados que _buildRelAssessmentPageHtml calcula por feto, refeitos
+  // aqui só pra montar o rascunho da conclusão antes de a página existir no
+  // DOM (o texto final entra editável, então essa duplicação de cálculo — e
+  // não de dado — não corre risco de divergir do que aparece na página).
+  const porFetoComDadosPreview = porFeto.map(pf => ({ ...pf, impressao: computeImpressaoDiagnostica(gestacao, pf.exams) }));
+  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDadosPreview, _discrepanciaPesoResumo(gestacao, allExams));
+
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
     const chartPages = porFeto.map(pf =>
       `<div class="sheet-preview rel-page-gap">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`
     ).join('');
-    const assessmentHtml = _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: true, textosIniciais });
+    const assessmentHtml = _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: true, textosIniciais, textoConclusaoInicial });
     body.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
       + chartPages
       + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview">${assessmentHtml}<div id="rel-page-mark-container"></div></div>`
@@ -8361,13 +8400,15 @@ function _atualizarRelPageMark() {
     : 'Fim da página A4';
 }
 
-// Igual a _atualizarRelPageMark, mas pra página de avaliação conjunta
-// (gestação múltipla): como ela pode ter texto de 2 ou 3 fetos, uma marca só
-// não basta — desenha uma por página que o conteúdo atual ocuparia, em vez
-// de só avisar que passou de uma.
-function _atualizarRelPageMarkMultipla() {
-  const sheet     = document.getElementById('rel-sheet-preview');
-  const container = document.getElementById('rel-page-mark-container');
+// Igual a _atualizarRelPageMark, mas pra página em .sheet-flow (sem altura
+// fixa): como ela pode crescer com texto de 2-3 fetos (avaliação conjunta da
+// múltipla) ou com o histórico+conclusão da gestação única, uma marca só não
+// basta — desenha uma por página que o conteúdo atual ocuparia, em vez de só
+// avisar que passou de uma. sheetId/containerId permitem reusar isto pra mais
+// de uma página .sheet-flow no mesmo preview (ver _atualizarRelPageMarkExtra).
+function _atualizarRelPageMarkMultipla(sheetId, containerId) {
+  const sheet     = document.getElementById(sheetId || 'rel-sheet-preview');
+  const container = document.getElementById(containerId || 'rel-page-mark-container');
   if (!sheet || !container) return;
   sheet.querySelectorAll('.rel-texto').forEach(ta => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; });
   const larguraPx = sheet.getBoundingClientRect().width;
@@ -8382,6 +8423,13 @@ function _atualizarRelPageMarkMultipla() {
     mark.innerHTML = `<span>Fim da página ${i}</span>`;
     container.appendChild(mark);
   }
+}
+
+// Segunda página da gestação única (histórico + conclusão, ver
+// _buildRelHistoricoUnicaPageHtml) — mesmo mecanismo de _atualizarRelPageMarkMultipla,
+// só que apontando pro container dessa página em vez do da avaliação conjunta.
+function _atualizarRelPageMarkExtra() {
+  _atualizarRelPageMarkMultipla('rel-sheet-preview-extra', 'rel-page-mark-container-extra');
 }
 
 // ── Gráficos SVG do relatório PDF — layout "médico assistente" ──────────────
@@ -8589,6 +8637,96 @@ function _renderColoRiscoFaixaHtml(coloRisco) {
 // para as duas versões nunca divergirem. `opts.textareaMode` troca a
 // descrição evolutiva entre <textarea> editável (preview) e parágrafos
 // estáticos (export, a partir do texto já revisado).
+// Tabela de histórico biométrico da gestação única — mesma ideia da versão
+// gemelar (_buildRelHistoricoGemelarHtml), só que uma linha por exame em vez
+// de por data cruzada entre fetos, e com os quatro parâmetros já plotados
+// nos gráficos da página principal (PFE, CA, CC, fêmur) em vez de só dois.
+function _buildRelHistoricoUnicaHtml(gestacao, exams) {
+  if (!exams.length) return '';
+  const linhas = exams.map(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+    const efwC   = calcEFWPercentile(efw, igDays);
+    const caC    = calcBiometria(e.ca, 'ca', igDays);
+    const ccC    = calcBiometria(e.cc, 'cc', igDays);
+    const flC    = calcBiometria(e.femur, 'fl', igDays);
+    const igTxt  = igDays ? `${Math.floor(igDays / 7)}s${igDays % 7}d` : '—';
+    const cel = (valorMm, calc, casasDecimais) => valorMm != null
+      ? `${(valorMm / 10).toFixed(casasDecimais)} cm${calc?.percentil != null ? ' · P' + calc.percentil : ''}`
+      : '—';
+    const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
+    return `<tr><td><b>${formatDateBR(e.data_exame)}</b></td><td>${igTxt}</td><td>${efwTxt}</td>`
+      + `<td>${cel(e.ca, caC, 1)}</td><td>${cel(e.cc, ccC, 1)}</td><td>${cel(e.femur, flC, 1)}</td></tr>`;
+  }).join('');
+
+  return `<section style="margin-top:28px">
+    <h2 style="font-family:'Comfortaa',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--roxo);margin:0 0 12px">Histórico biométrico</h2>
+    <table class="rel-tabela">
+      <thead><tr><th>Data</th><th>IG</th><th>PFE</th><th>CA</th><th>CC</th><th>Fêmur</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+  </section>`;
+}
+
+// Rascunho de conclusão da gestação única — reorganiza o diagnóstico já
+// calculado (computeImpressaoDiagnostica) em parágrafo corrido, mesmo
+// espírito de _gerarConclusaoGemelarInicial: nenhum número novo, só a
+// leitura resumida do que já está na faixa de status da página principal.
+function _gerarConclusaoUnicaInicial(impressao) {
+  if (!impressao) return '';
+  let txt = `${impressao.label}.`;
+  if (impressao.critItems && impressao.critItems.length) txt += ` ${impressao.critItems[0]}.`;
+  if (impressao.conduta) txt += ` Conduta sugerida: ${impressao.conduta}`;
+  return txt;
+}
+
+// Segunda página da gestação única — histórico biométrico completo +
+// conclusão. Em .sheet-flow (cresce se precisar, nunca corta) para não
+// arriscar a página principal (.sheet, altura fixa, cf. handoff de design)
+// que já foi ajustada a fio pra caber tudo numa A4 só. opts segue o mesmo
+// contrato de textareaMode/textoConclusaoInicial/textoConclusaoFinal usado
+// na avaliação conjunta da múltipla.
+function _buildRelHistoricoUnicaPageHtml(patient, gestacao, exams, opts) {
+  opts = opts || {};
+  const impressao      = computeImpressaoDiagnostica(gestacao, exams);
+  const historicoHtml  = _buildRelHistoricoUnicaHtml(gestacao, exams);
+  const conclusaoHtml  = opts.textareaMode
+    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkExtra()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+      <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
+    : (opts.textoConclusaoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+
+  const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  return `<header class="hdr">
+    <div class="hdr-brand">
+      <div class="monogram">MK</div>
+      <div>
+        <div class="hdr-name">Dra. Morgana Kummer</div>
+        <div class="hdr-sub">CRM-MG 45.304 · RQE 39.156</div>
+      </div>
+    </div>
+    <div class="hdr-right">
+      <div class="hdr-kicker">Programa Personalizado de</div>
+      <div class="hdr-doc">Crescimento Fetal</div>
+    </div>
+  </header>
+
+  <main class="body">
+    <div class="eyebrow">Gestante</div>
+    <div class="paciente" style="font-size:22px;margin:4px 0 20px">${escapeHtml(patient.nome || patient.cpf)}</div>
+    ${historicoHtml}
+    <section style="margin-top:28px">
+      <h2 style="font-family:'Comfortaa',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--roxo);margin:0 0 10px">Conclusão</h2>
+      <div class="descricao">${conclusaoHtml}</div>
+    </section>
+  </main>
+
+  <footer class="ftr">
+    <span>Programa de Acompanhamento Ultrassonográfico</span>
+    <span>Emitido em ${dataEmissao}</span>
+  </footer>`;
+}
+
 function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   opts = opts || {};
   const lastExam = exams[exams.length - 1];
@@ -8717,6 +8855,10 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
 // curvas de _buildRelSheetHtml, sem status/resumo (isso fica na página de
 // avaliação conjunta, depois de todas as páginas de gráficos).
 function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
+  // Cor por feto só na gemelar (2 fetos) — ver .charts--feto-a no CSS. Na
+  // trigemelar os três fetos ficam no esquema único atual (dourado), porque
+  // uma 3ª cor ainda não foi definida.
+  const classeFeto = (fetosDaGestacao(gestacao).length === 2 && feto === 'A') ? ' charts--feto-a' : '';
   const lastExam = exams[exams.length - 1];
   const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
   const igSem    = igDays ? Math.floor(igDays / 7) : null;
@@ -8790,7 +8932,7 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
           <span><i class="k-pat"></i>Paciente</span>
         </div>
       </div>
-      <div class="charts">
+      <div class="charts${classeFeto}">
         ${chartCells.join('\n        ')}
       </div>
     </section>
@@ -8803,11 +8945,10 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
   </footer>`;
 }
 
-// Faixa de discrepância de peso pro relatório — reaproveita as classes
-// .status/.status--ok/.status--alerta já usadas pelas outras faixas
-// (_renderStatusFaixaHtml etc.) em vez de introduzir um card novo: mesma
-// linguagem visual, sem CSS extra pra manter sincronizado entre preview e
-// export.
+// Discrepância de peso pro relatório — mesmo dado de _discrepanciaPesoResumo
+// (usado também no card .discrepancia-emphasis da tela), agora em número de
+// destaque em vez de faixa de status: é a primeira pergunta do obstetra numa
+// gemelar e ganha ler antes até do comparativo por feto logo abaixo.
 function _buildRelDiscrepanciaHtml(gestacao, allExams) {
   const r = _discrepanciaPesoResumo(gestacao, allExams);
   if (!r) {
@@ -8819,17 +8960,16 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
       </div>
     </section>`;
   }
-  const variante   = r.alerta ? 'status--alerta' : 'status--ok';
-  const icon       = r.alerta ? '⚠' : '✓';
+  const variante   = r.alerta ? 'rel-discrep--alerta' : '';
   const aviso      = r.alerta
-    ? 'Diferença de peso entre os fetos acima de 25% - Aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.'
-    : 'Diferença de peso entre os fetos abaixo de 25% - Dentro do esperado.';
-  const intermTxt  = r.pctInterm != null ? ` · maior×intermediário ${r.pctInterm.toFixed(1)}%` : '';
-  return `<section class="status ${variante}">
-    <div class="status-ic">${icon}</div>
-    <div class="status-body">
-      <div class="status-t">Discrepância de peso — ${r.pct.toFixed(1)}%</div>
-      <div class="status-s">${aviso}${intermTxt}</div>
+    ? 'Diferença de peso entre os fetos acima de 25% — aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.'
+    : 'Diferença de peso entre os fetos abaixo de 25% — dentro do esperado.';
+  const intermTxt  = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${r.pctInterm.toFixed(1)}%</div>` : '';
+  return `<section class="rel-discrep ${variante}">
+    <div class="rel-discrep-val">${r.pct.toFixed(1)}%</div>
+    <div class="rel-discrep-body">
+      <div class="rel-discrep-label">Discrepância de peso entre os fetos (maior × menor) — ${aviso}</div>
+      ${intermTxt}
     </div>
   </section>`;
 }
@@ -8857,9 +8997,12 @@ const _REL_COMPARATIVO_STATUS = {
 // comparação de cabeça. O texto completo de cada um continua logo abaixo,
 // pra quem quiser o detalhe (ver _buildRelAssessmentPageHtml).
 function _buildRelComparativoHtml(porFetoComDados) {
+  // Mesma regra de _buildRelChartsPageHtml: cor por feto só na gemelar.
+  const ehGemelar = porFetoComDados.length === 2;
   const itens = porFetoComDados.map(pf => {
     const st = _REL_COMPARATIVO_STATUS[pf.impressao?.diagnostico] || _REL_COMPARATIVO_STATUS.adequado;
-    return `<div class="comparativo-item">
+    const classeFeto = ehGemelar ? (pf.feto === 'A' ? ' comparativo-item--a' : pf.feto === 'B' ? ' comparativo-item--b' : '') : '';
+    return `<div class="comparativo-item${classeFeto}">
       <div class="comparativo-feto">${labelFeto(pf.feto)}</div>
       <div class="comparativo-status ${st.classe}">${st.rotulo}</div>
       <div class="comparativo-pcts">
@@ -8869,6 +9012,74 @@ function _buildRelComparativoHtml(porFetoComDados) {
     </div>`;
   }).join('');
   return `<section class="comparativo">${itens}</section>`;
+}
+
+// Tabela de histórico biométrico — PFE e CA (com percentil) por visita, um
+// par de colunas por feto. Agrupa por data_exame (mesma lógica de
+// _discrepanciaPesoResumo): numa gemelar, os dois fetos são medidos na mesma
+// visita, então a data já alinha as linhas sem precisar casar por outro
+// critério. Devolve '' se não houver nenhuma data com exame de feto — não
+// deveria acontecer aqui (porFeto já vem filtrado por quem tem exame), mas
+// evita uma tabela vazia se algum dia vier.
+function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
+  const porData = {};
+  porFeto.forEach(pf => {
+    pf.exams.forEach(e => { (porData[e.data_exame] ||= {})[pf.feto] = e; });
+  });
+  const datas = Object.keys(porData).sort();
+  if (!datas.length) return '';
+
+  const linhas = datas.map(data => {
+    const cels = porFeto.map(pf => {
+      const e = porData[data][pf.feto];
+      if (!e) return '<td>—</td><td>—</td>';
+      const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+      const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+      const efwC   = calcEFWPercentile(efw, igDays);
+      const caC    = calcBiometria(e.ca, 'ca', igDays);
+      const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
+      const caTxt  = e.ca != null ? `${(e.ca / 10).toFixed(1)} cm${caC?.percentil != null ? ' · P' + caC.percentil : ''}` : '—';
+      return `<td>${efwTxt}</td><td>${caTxt}</td>`;
+    }).join('');
+    return `<tr><td><b>${formatDateBR(data)}</b></td>${cels}</tr>`;
+  }).join('');
+
+  const headCols = porFeto.map(pf => `<th>${labelFeto(pf.feto)} — PFE</th><th>${labelFeto(pf.feto)} — CA</th>`).join('');
+  return `<section style="margin-top:28px">
+    <h2 style="font-family:'Comfortaa',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--roxo);margin:0 0 12px">Histórico biométrico</h2>
+    <table class="rel-tabela">
+      <thead><tr><th>Data</th>${headCols}</tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+  </section>`;
+}
+
+// Rascunho de conclusão — uma frase por feto (diagnóstico já calculado em
+// porFetoComDados) seguida da leitura da discrepância (mesmo texto de
+// _buildRelDiscrepanciaHtml). Só reorganiza dado já computado em parágrafo
+// corrido; nunca inventa um número novo. Fica num <textarea> igual aos de
+// resumo por feto — revisável antes de imprimir, nunca vai direto pro PDF
+// sem passar pelos olhos da médica.
+function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
+  const DX_LABEL = {
+    adequado: 'crescimento adequado para a idade gestacional',
+    pig: 'padrão de PIG (pequeno para a idade gestacional)',
+    gig: 'padrão de GIG (grande para a idade gestacional)',
+    rciu_precoce: 'critérios de RCIU precoce',
+    rciu_tardio: 'critérios de RCIU tardio',
+  };
+  const porFrase = porFetoComDados.map(pf =>
+    `${labelFeto(pf.feto)} apresenta ${DX_LABEL[pf.impressao?.diagnostico] || DX_LABEL.adequado}.`
+  ).join(' ');
+
+  let discrepFrase = '';
+  if (discrepResumo) {
+    discrepFrase = discrepResumo.alerta
+      ? ` A discrepância de peso entre os fetos está em ${discrepResumo.pct.toFixed(1)}%, acima do limiar de vigilância de 25%.`
+      : ` A discrepância de peso entre os fetos permanece em ${discrepResumo.pct.toFixed(1)}%, abaixo do limiar de vigilância de 25%.`;
+  }
+
+  return `${porFrase}${discrepFrase} Sugerida reavaliação conforme protocolo de seguimento gestacional.`;
 }
 
 function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts) {
@@ -8891,6 +9102,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
   });
 
   const comparativoHtml = _buildRelComparativoHtml(porFetoComDados);
+  const historicoHtml   = _buildRelHistoricoGemelarHtml(gestacao, porFeto);
 
   const fetosHtml = porFetoComDados.map(pf => {
     const impressao  = pf.impressao;
@@ -8908,6 +9120,11 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
       </div>
     </section>`;
   }).join('');
+
+  const conclusaoHtml = opts.textareaMode
+    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+      <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
+    : (opts.textoConclusaoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
 
   const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
 
@@ -8930,6 +9147,11 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
     ${discrepHtml}
     ${comparativoHtml}
     ${fetosHtml}
+    ${historicoHtml}
+    <section style="margin-top:28px">
+      <h2 style="font-family:'Comfortaa',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--roxo);margin:0 0 10px">Conclusão</h2>
+      <div class="descricao">${conclusaoHtml}</div>
+    </section>
   </main>
 
   <footer class="ftr">
@@ -9057,6 +9279,41 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .comparativo-pct{font-size:10px;color:var(--texto-2);background:var(--papel);border-radius:99px;padding:4px 11px;
   box-shadow:1.5px 1.5px 4px rgba(61,35,82,0.12),-1px -1px 3px rgba(255,255,255,0.7)}
 .comparativo-pct b{color:var(--roxo)}
+.comparativo-item--a{border-top:3px solid var(--roxo)}
+.comparativo-item--b{border-top:3px solid var(--dourado)}
+
+/* Cor por feto na gemelar (2 fetos) — Feto A no roxo (já a cor-base do
+   relatório), Feto B no dourado (já o acento) — sem paleta nova, só
+   deixando explícito no traço/pontos/badge de cada gráfico qual feto é
+   qual. Só a página do Feto A recebe a classe (ver _buildRelChartsPageHtml);
+   o padrão dourado já em vigor cobre o Feto B e a trigemelar sem mudança. */
+.charts--feto-a .trace{stroke:var(--roxo)}
+.charts--feto-a .pt{fill:var(--roxo)}
+.charts--feto-a .pt-now{stroke:var(--roxo)}
+.charts--feto-a .chart-t i{color:var(--roxo)}
+
+/* Discrepância de peso em destaque — mesma ideia do card
+   .discrepancia-emphasis já usado na tela, só com a paleta do relatório
+   impresso em vez das variáveis de tela. */
+.rel-discrep{display:flex;align-items:baseline;gap:16px;padding:18px 22px;border-radius:6px;
+  background:var(--nude);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:38px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
+.rel-discrep-body{flex:1}
+.rel-discrep-label{font-size:12.5px;color:var(--texto-2);line-height:1.5}
+.rel-discrep-sub{font-size:10.5px;color:var(--texto-3);margin-top:4px}
+.rel-discrep--alerta{background:#F6E3E8}
+.rel-discrep--alerta .rel-discrep-val,
+.rel-discrep--alerta .rel-discrep-label{color:#8a2840}
+
+/* Tabela de histórico biométrico — mesma linguagem visual das outras tabelas
+   do relatório (header roxo, zebra em --nude-2, hairline --linha). */
+.rel-tabela{width:100%;border-collapse:collapse;font-size:11.5px}
+.rel-tabela th{background:var(--roxo);color:#F6EACD;text-align:left;padding:7px 10px;
+  font-weight:600;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.rel-tabela td{padding:7px 10px;border-bottom:1px solid var(--linha);color:var(--texto)}
+.rel-tabela tr:nth-child(even) td{background:var(--nude-2);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.rel-tabela td b{color:var(--roxo)}
 
 .ftr{background:var(--roxo);padding:9px 40px;display:flex;align-items:center;
   justify-content:space-between;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
@@ -9107,8 +9364,11 @@ function confirmarGerarPDF() {
 
   const relTextoEl = document.getElementById('rel-texto-clinico');
   const textoFinal = relTextoEl ? relTextoEl.value : '';
+  const taConclusao = document.getElementById('rel-texto-conclusao');
+  const textoConclusaoFinal = taConclusao ? taConclusao.value : '';
 
-  const sheetHtml = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoFinal });
+  const sheetHtml     = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoFinal });
+  const historicoSheet = `<div class="sheet-flow">${_buildRelHistoricoUnicaPageHtml(patient, gestacao, exams, { textareaMode: false, textoConclusaoFinal })}</div>`;
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
@@ -9122,6 +9382,7 @@ function confirmarGerarPDF() {
 <div class="sheet">
 ${sheetHtml}
 </div>
+${historicoSheet}
 
 <button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
 </body></html>`;
@@ -9145,11 +9406,13 @@ function _confirmarGerarPDFMultiplo(patient, gestacao) {
     const ta = document.getElementById('rel-texto-clinico-' + pf.feto);
     textosFinais[pf.feto] = ta ? ta.value : '';
   });
+  const taConclusao = document.getElementById('rel-texto-conclusao');
+  const textoConclusaoFinal = taConclusao ? taConclusao.value : '';
 
   const chartSheets = porFeto
     .map(pf => `<div class="sheet">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`)
     .join('\n');
-  const assessmentSheet = `<div class="sheet-flow">${_buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: false, textosFinais })}</div>`;
+  const assessmentSheet = `<div class="sheet-flow">${_buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, { textareaMode: false, textosFinais, textoConclusaoFinal })}</div>`;
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">

@@ -4003,11 +4003,12 @@ function _drawChart(canvas, cfg) {
 
   // Background — branco, igual aos gráficos de _drawThresholdChart (DV, Colo, ILA,
   // Bolsão, Discrepância), pra não ter card lavanda ao lado de card branco na mesma tela.
-  ctx.fillStyle = '#faf9fd';
+  // Mesma cor de fundo do relatório impresso (--papel).
+  ctx.fillStyle = '#FFFDFB';
   ctx.fillRect(0, 0, W, H);
 
-  // Grid vertical
-  ctx.strokeStyle = 'rgba(61,35,82,0.10)';
+  // Grid vertical — mesma cor de hairline do relatório impresso (--linha).
+  ctx.strokeStyle = '#E3D9DE';
   ctx.lineWidth   = 0.8;
   for (let x = xMin; x <= xMax; x += 2) {
     ctx.beginPath(); ctx.moveTo(xS(x), PAD.t); ctx.lineTo(xS(x), PAD.t + cH); ctx.stroke();
@@ -4041,38 +4042,47 @@ function _drawChart(canvas, cfg) {
     }
   }
 
+  // Cores do relatório impresso (--lilas, --lavanda, --roxo) — mesmo gráfico
+  // de peso da gemelar/PDF (_buildRelChartEfwSvg), pra não ter dois desenhos
+  // diferentes pro mesmo dado entre a tela e o papel.
+  const COR_BANDA   = 'rgba(139,107,168,0.13)'; // --lilas @13%
+  const COR_LAVANDA = '#C3B1D1';                // --lavanda — P90 e P10
+  const COR_LILAS   = '#8B6BA8';                // --lilas — P50
+  const COR_ROXO    = '#3D2352';                // --roxo — cor padrão do ponto
+
   // Shade P10–P90
   ctx.beginPath();
   _smoothPath(ctx, p90, xS, yS);
   [...p10].reverse().forEach(pt => ctx.lineTo(xS(pt.x), yS(pt.y)));
   ctx.closePath();
-  ctx.fillStyle = 'rgba(139,107,168,0.28)'; ctx.fill();
+  ctx.fillStyle = COR_BANDA; ctx.fill();
 
   // P10 line
-  ctx.beginPath(); ctx.setLineDash([3,5]);
-  ctx.strokeStyle = 'rgba(196,144,144,0.95)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.setLineDash([4,3]);
+  ctx.strokeStyle = COR_LAVANDA; ctx.lineWidth = 1.3;
   _smoothPath(ctx, p10, xS, yS);
   ctx.stroke();
 
   // P90 line
-  ctx.beginPath(); ctx.setLineDash([5,4]);
-  ctx.strokeStyle = 'rgba(71,64,122,0.85)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.setLineDash([4,3]);
+  ctx.strokeStyle = COR_LAVANDA; ctx.lineWidth = 1.3;
   _smoothPath(ctx, p90, xS, yS);
   ctx.stroke();
 
   // P50 line
   ctx.beginPath(); ctx.setLineDash([]);
-  ctx.strokeStyle = 'rgba(61,35,82,0.70)'; ctx.lineWidth = 1.6;
+  ctx.strokeStyle = COR_LILAS; ctx.lineWidth = 1.6;
   _smoothPath(ctx, p50, xS, yS);
   ctx.stroke();
 
-  // Line labels at right edge
+  // Line labels at right edge — P90/P10 na cor da faixa, P50 na cor da mediana,
+  // igual às classes .efw-ref-t/.efw-ref-t--90/--10 do relatório.
   ctx.setLineDash([]);
   const labelRight = PAD.l + cW + 4;
   [
-    { arr: p10, lbl: 'P10', color: 'rgba(196,144,144,0.85)' },
-    { arr: p50, lbl: 'P50', color: 'rgba(61,35,82,0.82)' },
-    { arr: p90, lbl: 'P90', color: 'rgba(71,64,122,0.80)' },
+    { arr: p10, lbl: 'P10', color: COR_LAVANDA },
+    { arr: p50, lbl: 'P50', color: COR_LILAS },
+    { arr: p90, lbl: 'P90', color: COR_LAVANDA },
   ].forEach(({ arr, lbl, color }) => {
     if (!arr.length) return;
     const last = arr[arr.length - 1];
@@ -4083,26 +4093,16 @@ function _drawChart(canvas, cfg) {
     ctx.fillText(lbl, labelRight, yS(last.y));
   });
 
-  // Patient line
+  // Pontos da paciente — bolinha vazada (fundo da cor do papel, borda na cor
+  // do ponto) com o percentil escrito em cima, igual ao relatório. Sem linha
+  // ligando os pontos entre si: no papel só as três curvas de referência são
+  // contínuas, os pontos da paciente ficam isolados.
   const pts = cfg.patientPoints;
-  if (pts.length >= 2) {
-    ctx.beginPath(); ctx.setLineDash([4,3]);
-    ctx.strokeStyle = 'rgba(139,107,168,0.55)'; ctx.lineWidth = 1.2;
-    pts.forEach((pt, i) => i === 0 ? ctx.moveTo(xS(pt.x), yS(pt.y)) : ctx.lineTo(xS(pt.x), yS(pt.y)));
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // Patient points + percentil labels
   pts.forEach((pt, i) => {
-    const color = pt.color || '#3d2352';
-    // Outer ring
-    ctx.beginPath(); ctx.arc(xS(pt.x), yS(pt.y), 6, 0, Math.PI*2);
-    ctx.fillStyle = '#fff'; ctx.fill();
+    const color = pt.color || COR_ROXO;
+    ctx.beginPath(); ctx.arc(xS(pt.x), yS(pt.y), 5, 0, Math.PI*2);
+    ctx.fillStyle = '#FFFDFB'; ctx.fill();
     ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
-    // Inner fill
-    ctx.beginPath(); ctx.arc(xS(pt.x), yS(pt.y), 3.5, 0, Math.PI*2);
-    ctx.fillStyle = color; ctx.fill();
     // Percentil label above point
     if (pt.p != null) {
       ctx.font = '700 9px monospace';
@@ -4113,9 +4113,9 @@ function _drawChart(canvas, cfg) {
     }
   });
 
-  // X axis ticks & labels
+  // X axis ticks & labels — cor de texto terciário do relatório (--texto-3).
   ctx.setLineDash([]);
-  ctx.fillStyle = '#9a7858'; ctx.font = '10px monospace';
+  ctx.fillStyle = '#9B8C8C'; ctx.font = '10px monospace';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   for (let x = xMin; x <= xMax; x += 4) {
     ctx.fillText(x + 's', xS(x), PAD.t + cH + 5);
@@ -4135,7 +4135,7 @@ function _drawChart(canvas, cfg) {
     ctx.translate(11, PAD.t + cH / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.font = '10px sans-serif';
-    ctx.fillStyle = '#9a7858';
+    ctx.fillStyle = '#9B8C8C';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(cfg.yLabel, 0, 0);
     ctx.restore();
@@ -4145,26 +4145,26 @@ function _drawChart(canvas, cfg) {
   const legendY = H - 14;
   let legendX   = PAD.l;
   const items = [
-    { color: 'rgba(71,64,122,0.85)', dash: true,  label: 'P90' },
-    { color: 'rgba(61,35,82,0.75)', dash: false, label: 'P50' },
-    { color: 'rgba(196,144,144,0.95)', dash: true,  label: 'P10' },
-    { color: '#3d2352',               dot: true,   label: 'Paciente' },
+    { color: COR_LAVANDA, dash: true,  label: 'P90' },
+    { color: COR_LILAS,   dash: false, label: 'P50' },
+    { color: COR_LAVANDA, dash: true,  label: 'P10' },
+    { color: COR_ROXO,    dot: true,   label: 'Paciente' },
   ];
   ctx.font = '10px sans-serif'; ctx.textBaseline = 'middle';
   items.forEach(item => {
     if (item.dot) {
       ctx.beginPath(); ctx.arc(legendX + 5, legendY, 4, 0, Math.PI*2);
-      ctx.fillStyle = item.color; ctx.fill();
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.fillStyle = '#FFFDFB'; ctx.fill();
+      ctx.strokeStyle = item.color; ctx.lineWidth = 1.5; ctx.stroke();
       legendX += 12;
     } else {
-      ctx.beginPath(); ctx.setLineDash(item.dash ? [3,3] : []);
+      ctx.beginPath(); ctx.setLineDash(item.dash ? [4,3] : []);
       ctx.strokeStyle = item.color; ctx.lineWidth = 1.5;
       ctx.moveTo(legendX, legendY); ctx.lineTo(legendX + 18, legendY); ctx.stroke();
       ctx.setLineDash([]);
       legendX += 20;
     }
-    ctx.fillStyle = '#7a5838'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#6B5A5A'; ctx.textAlign = 'left';
     ctx.fillText(item.label, legendX, legendY);
     legendX += ctx.measureText(item.label).width + 14;
   });
@@ -4196,7 +4196,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
     if (!val) return;
     const calc = calcBiometria(val, refKey, igDays);
     const p = calc ? calc.percentil : null;
-    let color = '#6c47b8';
+    let color = '#3D2352';
     if (p != null) {
       if (p <= 5 || p >= 95) color = '#c03020';
       else if (p <= 10 || p >= 90) color = '#b07010';
@@ -4232,7 +4232,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
     if (!efw) return;
     const calc = calcEFWPercentile(efw, igDays);
     const p = calc ? calc.percentil : null;
-    let color = '#6c47b8';
+    let color = '#3D2352';
     if (p != null) {
       if (p <= 5 || p >= 95) color = '#c03020';
       else if (p <= 10 || p >= 90) color = '#b07010';
@@ -4326,7 +4326,7 @@ function buildDopplerChart(canvasId, gestacao, exams, dataExtractor, refFn, yLab
     const ref = refFn(gaW);
     if (!ref) return;
     const isPath = higherIsBetter ? val <= ref.p10 : val >= ref.p90;
-    const color  = isPath ? '#c03020' : '#6c47b8';
+    const color  = isPath ? '#c03020' : '#3D2352';
     patientPoints.push({ x: gaW, y: val, color });
   });
 

@@ -8493,15 +8493,27 @@ function _renderColoRiscoFaixaHtml(coloRisco) {
 // gemelar (_buildRelHistoricoGemelarHtml), só que uma linha por exame em vez
 // de por data cruzada entre fetos, e com os quatro parâmetros já plotados
 // nos gráficos da página principal (PFE, CA, CC, fêmur) em vez de só dois.
-// Uma faixa de risco (colo curto, pré-eclâmpsia) em texto corrido. O número
-// mora no subtítulo — "Colo de 18mm em 24 semanas" —, e as conclusões montavam
-// a linha só com label + conduta: o papel dizia "colo curto" e "progesterona
-// vaginal indicada" sem nunca dizer quanto media o colo. Quem lê o relatório
-// depois (a própria médica numa segunda via, o obstetra) não tinha como saber
-// se eram 24mm ou 8mm — que é a diferença entre vigiar e internar.
+// Uma faixa de risco (colo curto, pré-eclâmpsia) como um item da conclusão, no
+// formato pedido pela médica em 2026-09-19:
+//
+//   __Colo curto__ — risco de parto prematuro (Progesterona vaginal indicada
+//   (ISUOG 2022 / FMF), independente de antecedente obstétrico.)
+//
+// O achado sublinhado, o risco em seguida e a conduta entre parênteses. O
+// sublinhado é só a parte antes do travessão: "Colo curto" é o que a vista
+// precisa pegar primeiro numa lista de itens, "risco de parto prematuro" é a
+// leitura.
+//
+// O subtítulo não entra: ele repetia a referência que a própria conduta já
+// carrega ("ISUOG 2022 / FMF" saía duas vezes na mesma frase). A medida do
+// colo, que morava nele, está na coluna Colo do histórico biométrico — e lá
+// vale mais, porque mostra a queda entre as visitas, não um valor solto.
 function _riscoLinhaTexto(risco) {
   if (!risco) return '';
-  return `${risco.label}. ${risco.subtitulo}. ${risco.conduta}`;
+  const partes = risco.label.split(' — ');
+  const achado = `__${partes[0]}__`;
+  const resto  = partes.slice(1).join(' — ');
+  return `${achado}${resto ? ' — ' + resto : ''} (${risco.conduta})`;
 }
 
 // Coluna do colo no histórico: o valor de uma visita diz menos que a queda
@@ -8898,7 +8910,20 @@ function _relListaHtml(texto) {
     .map(l => l.trim().replace(/^[*•-]\s*/, ''))
     .filter(Boolean);
   if (!itens.length) return '';
-  return `<ul class="rel-lista">${itens.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+  return `<ul class="rel-lista">${itens.map(i => `<li>${_relMarcacaoHtml(i)}</li>`).join('')}</ul>`;
+}
+
+// `__assim__` vira sublinhado, e é a única marcação aceita. Existe porque a
+// conclusão passa por um <textarea> antes de imprimir: HTML digitado ali seria
+// escapado e sairia cru no papel ("<u>Colo curto</u>"), então a ênfase precisa
+// viajar como texto puro e virar tag só na hora de montar a lista. Como é a
+// médica quem edita esse texto, a marcação fica visível e removível por ela.
+//
+// A ordem importa e não é estética: escapa PRIMEIRO, aplica a marcação no
+// resultado já escapado. Ao contrário, um `<` digitado na conclusão viraria
+// tag de verdade no relatório.
+function _relMarcacaoHtml(texto) {
+  return escapeHtml(texto).replace(/__(.+?)__/g, '<u>$1</u>');
 }
 
 // Tabela de Doppler + colo. Os valores vêm do último exame de cada feto; a

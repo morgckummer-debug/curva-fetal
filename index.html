@@ -3057,11 +3057,60 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
     }
   }
 
+  // ── Texto do relatório: mesma informação, sem prescrever ────────────────
+  // Decisão da Dra. Morgana, 2026-09-19. O laudo de ultrassom que sai da
+  // clínica não indica progesterona nem cerclagem: isso é do obstetra que
+  // acompanha, e escrever "progesterona vaginal indicada" no papel lê como
+  // invasão de conduta. O que fica é o que o ultrassom viu — a medida, o corte
+  // da diretriz e a faixa em que a discussão terapêutica acontece —, com a
+  // decisão devolvida a quem é dela. O achado não perde nada: o obstetra que
+  // recebe o papel sabe exatamente onde a paciente está.
+  //
+  // `conduta` (acima) continua completa e é o que aparece na TELA: ali é
+  // ferramenta de trabalho dela, não sai da clínica. Só o relatório usa
+  // `condutaRelatorio` — ver _riscoLinhaTexto e _renderColoRiscoFaixaHtml.
+  // Vale só para o colo; AAS, internação e conduta de RCIU seguem como estavam.
+  // Montado em frases curtas, não numa só com travessões encaixados: a ressalva
+  // da janela de cerclagem interpolada no meio da lista de opções produzia
+  // "discutem cerclagem — já fora da janela (≥24 semanas) e, no limite da
+  // viabilidade, maturação pulmonar", que não se lê.
+  let medida, discussao;
+  if (colo < 10) {
+    medida    = `Colo de ${colo} mm em ${Math.floor(gaW)} semanas, muito abaixo do corte de 25 mm das diretrizes (ISUOG 2022 / FMF).`;
+    discussao = 'Faixa em que se discutem cerclagem e, próximo ao limite da viabilidade, maturação pulmonar e neuroproteção.';
+  } else if (colo < 15) {
+    medida    = `Colo de ${colo} mm em ${Math.floor(gaW)} semanas, abaixo do corte de 15 mm de Fonseca et al. 2007, base do protocolo da FMF.`;
+    discussao = 'Faixa em que se discutem progesterona vaginal e cerclagem.';
+  } else {
+    medida    = `Colo de ${colo} mm em ${Math.floor(gaW)} semanas, abaixo do corte de 25 mm das diretrizes (ISUOG 2022 / FMF).`;
+    discussao = temPPTPrevio
+      ? 'Faixa em que se discute progesterona vaginal e, diante do antecedente obstétrico, cerclagem.'
+      : 'Faixa em que se discute progesterona vaginal.';
+  }
+
+  const partes = [medida, discussao];
+  // A ressalva de janela só entra onde a cerclagem foi citada e ainda não foi
+  // feita — senão vira aviso sobre algo que ninguém propôs.
+  const citouCerclagem = colo < 15 || temPPTPrevio;
+  if (citouCerclagem && !cerclagemElegivel && !cerclagemFeita) {
+    partes.push('Idade gestacional já fora da janela habitual de cerclagem (≥ 24 semanas).');
+  }
+  // Fatos da paciente — não são conduta, são o que já existe. O antecedente só
+  // entra quando a frase da discussão não o mencionou, para não repetir.
+  if (temPPTPrevio && colo < 15) partes.push('Antecedente de parto prematuro espontâneo.');
+  if (progesteronaEmUso)         partes.push('Já em uso de progesterona vaginal.');
+  if (cerclagemFeita)            partes.push(`Cerclagem realizada${cerclagemIG ? ` em ${cerclagemIG} semanas` : ''}.`);
+  if (colo < 10)                 partes.push('Recomenda-se avaliação obstétrica imediata.');
+  partes.push('Conduta a critério do obstetra assistente.');
+
+  const condutaRelatorio = partes.join(' ');
+
   return {
     label,
     icon: '⚠',
     subtitulo: `Colo de ${colo}mm em ${Math.floor(gaW)} semanas · referência ISUOG 2022 / protocolo FMF, base em Fonseca et al. 2007`,
     conduta,
+    condutaRelatorio,
   };
 }
 
@@ -8478,8 +8527,8 @@ function _renderColoRiscoFaixaHtml(coloRisco) {
     <div class="status-ic">${coloRisco.icon}</div>
     <div class="status-body">
       <div class="status-t">${escapeHtml(coloRisco.label)}</div>
-      <div class="status-s">${escapeHtml(coloRisco.subtitulo)}</div>
-      <div class="status-conduta"><b>Conduta sugerida:</b> ${escapeHtml(coloRisco.conduta)}</div>
+      ${coloRisco.condutaRelatorio ? '' : `<div class="status-s">${escapeHtml(coloRisco.subtitulo)}</div>`}
+      <div class="status-conduta"><b>Leitura:</b> ${escapeHtml(coloRisco.condutaRelatorio || coloRisco.conduta)}</div>
     </div>
   </section>`;
 }
@@ -8510,10 +8559,13 @@ function _renderColoRiscoFaixaHtml(coloRisco) {
 // vale mais, porque mostra a queda entre as visitas, não um valor solto.
 function _riscoLinhaTexto(risco) {
   if (!risco) return '';
+  // condutaRelatorio existe só onde o texto do papel difere do da tela (hoje,
+  // o colo). Sem ela, papel e tela dizem a mesma coisa — é o caso do AAS.
+  const texto  = risco.condutaRelatorio || risco.conduta;
   const partes = risco.label.split(' — ');
   const achado = `__${partes[0]}__`;
   const resto  = partes.slice(1).join(' — ');
-  return `${achado}${resto ? ' — ' + resto : ''} (${risco.conduta})`;
+  return `${achado}${resto ? ' — ' + resto : ''} (${texto})`;
 }
 
 // Coluna do colo no histórico: o valor de uma visita diz menos que a queda

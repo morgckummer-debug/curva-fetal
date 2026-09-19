@@ -8390,7 +8390,7 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
 function _relHeaderHtml(nomePaciente) {
   return `<header class="hdr">
     <div>
-      <div class="hdr-kicker">Programa personalizado de crescimento fetal</div>
+      <div class="hdr-kicker">Programa personalizado de acompanhamento fetal</div>
       <h1 class="hdr-t">${escapeHtml(nomePaciente)}</h1>
     </div>
     <div class="hdr-dra">
@@ -8403,7 +8403,7 @@ function _relHeaderHtml(nomePaciente) {
 function _relFooterHtml() {
   const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
   return `<footer class="ftr">
-    <span>Programa de acompanhamento ultrassonográfico · Emitido em ${dataEmissao}</span>
+    <span>Programa personalizado de acompanhamento fetal · Emitido em ${dataEmissao}</span>
     <div class="ftr-sig">
       <div class="ftr-sig-nome">Dra. Morgana Fialho Caldas Kummer</div>
       <div class="ftr-sig-cred">Especialista em Ultrassonografia Geral pelo CBR.</div>

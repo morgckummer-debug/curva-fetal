@@ -250,6 +250,23 @@ O `subtitulo` não entra (repetia a referência que a conduta já carrega — "I
 está na coluna Colo do histórico. Qualquer faixa de risco nova entra na
 conclusão por essa função.
 
+**O relatório não prescreve; a tela sim.** Decisão da médica em 2026-09-19: o
+laudo de ultrassom que sai da clínica não indica progesterona nem cerclagem —
+isso é do obstetra que acompanha, e "Progesterona vaginal indicada" no papel lê
+como invasão de conduta. `avaliarRiscoColoCurto` devolve dois textos:
+`conduta` (completo, com dose e indicação) alimenta a **tela**, que é ferramenta
+de trabalho e não sai da clínica; `condutaRelatorio` alimenta o **PDF** e diz a
+medida, o corte da diretriz, a faixa em que a discussão terapêutica acontece e
+os fatos já existentes (progesterona em uso, cerclagem realizada, antecedente),
+fechando em "Conduta a critério do obstetra assistente". Nenhuma informação se
+perde: o obstetra sabe exatamente onde a paciente está.
+
+Isso vale **só para o colo** — AAS das uterinas, internação e conduta de RCIU
+seguem prescritivos, por decisão dela na mesma conversa. Quem lê os dois textos:
+`_riscoLinhaTexto` e `_renderColoRiscoFaixaHtml` usam `condutaRelatorio ||
+conduta`, então uma faixa de risco nova sem `condutaRelatorio` continua
+imprimindo a conduta normal — o fallback é intencional, não esquecimento.
+
 **`__assim__` vira sublinhado** (`_relMarcacaoHtml`), e é a única marcação
 aceita. A conclusão passa por um `<textarea>` antes de imprimir: HTML digitado
 ali é escapado e sairia cru no papel, então a ênfase viaja como texto puro e

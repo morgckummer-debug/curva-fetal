@@ -5002,18 +5002,17 @@ function calcGrowthVelocity(enriched, key) {
 // ── 7. COERÊNCIA FISIOLÓGICA BIOMETRIA × DOPPLER
 // Padrão: z(CA) e z(EFW) caindo + z(AU) subindo = insuficiência placentária
 // Padrão: z(ACM) caindo + z(CPR) caindo = redistribuição iniciando
-// Padrão: z(CA) cai, z(CC) estável = assimetria (cabeça preservada)
+//
+// Não entra aqui: a classificação clássica de CIUR simétrico × assimétrico
+// (CC preservada vs CA reduzida, num exame só). A dicotomia caiu em desuso
+// na prática clínica atual — Delphi 2016 classifica por percentil/Doppler e
+// tempo de instalação (precoce/tardio), não por essa proporção cabeça/
+// abdômen. Existiu aqui até 2026-09 como 'assimetria' e foi removida.
 function calcPhysiologicalCoherence(enriched) {
   const last = enriched[enriched.length - 1];
   if (!last) return null;
   const z = last._z;
   const findings = [];
-
-  // Assimetria CA/CC (restrição clássica)
-  if (z.ca != null && z.cc != null) {
-    const diff = z.cc - z.ca;
-    if (diff >= 0.8) findings.push({ type: 'assimetria', severity: diff >= 1.5 ? 'marcada' : 'leve', zCA: z.ca, zCC: z.cc, diff: +diff.toFixed(2) });
-  }
 
   // Dissociação EFW vs CA (CA cai antes do EFW)
   if (z.ca != null && z.efw != null) {
@@ -5166,17 +5165,6 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
     });
   });
 
-  // Assimetria biométrica
-  const assimetria = coherence.find(f => f.type === 'assimetria');
-  if (assimetria) {
-    eventos.push({
-      tipo: 'assimetria',
-      prioridade: assimetria.severity === 'marcada' ? 3 : 1,
-      label: `Assimetria biométrica ${assimetria.severity === 'marcada' ? 'marcada' : 'leve'}`,
-      detalhe: `CC preservada (P${_zToPercentile(assimetria.zCC)}) vs CA reduzida (P${_zToPercentile(assimetria.zCA)})`,
-    });
-  }
-
   // Redistribuição fetal
   const redistrib = coherence.find(f => f.type === 'redistribuicao');
   if (redistrib) {
@@ -5306,18 +5294,6 @@ const _FR_DISSOCIACAO = [
   'A circunferência abdominal demonstra maior desvio em comparação ao peso fetal estimado. Este padrão pode ser um sinal precoce de comprometimento do crescimento fetal.',
 ];
 
-// Assimetria leve
-const _FR_ASSIM_LEVE = [
-  'Observa-se discreta assimetria biométrica, com circunferência cefálica proporcionalmente preservada em relação à circunferência abdominal.',
-  'Há leve desproporção entre as medidas cefálicas e abdominais, com maior comprometimento desta última.',
-  'A biometria demonstra discreta assimetria entre os segmentos cefálico e abdominal.',
-];
-// Assimetria marcada
-const _FR_ASSIM_MARCADA = [
-  'Identifica-se assimetria biométrica evidente, com preservação relativa da circunferência cefálica em contraste com a redução da circunferência abdominal — padrão compatível com redistribuição de aporte metabólico para proteção encefálica.',
-  'A biometria fetal demonstra assimetria importante, com desproporção entre a circunferência cefálica, relativamente preservada, e a circunferência abdominal, que apresenta maior comprometimento.',
-];
-
 // Doppler normal
 const _FR_DOP_NORMAL = [
   'Dopplervelocimetria fetal sem alterações significativas no momento.',
@@ -5439,7 +5415,6 @@ function generateNarrativa(analise, gestacao) {
   const P = [];  // parágrafos finais
 
   // ── § 1  BIOMETRIA / CRESCIMENTO ─────────────────────────────────────────
-  const assimetria    = coherence.find(f => f.type === 'assimetria');
   const dissoc        = coherence.find(f => f.type === 'dissociacao_ca_efw');
   const hasBio        = caZ != null || efwZ != null;
   const efwBaixo      = efwZ != null && efwZ < -1.28;
@@ -5516,11 +5491,6 @@ function generateNarrativa(analise, gestacao) {
 
     // Dissociação CA/EFW
     if (dissoc && n >= 2) P.push(_pick(_FR_DISSOCIACAO));
-
-    // Assimetria
-    if (assimetria) {
-      P.push(_pick(assimetria.severity === 'marcada' ? _FR_ASSIM_MARCADA : _FR_ASSIM_LEVE));
-    }
   }
 
   // ── § 2  DOPPLER ──────────────────────────────────────────────────────────
@@ -5621,9 +5591,6 @@ function generateLongitudinalAlerts(gestacao, rawExams) {
       const int = ev.params && ev.params.slope < -0.22 ? 'progressiva e significativa' : 'progressiva';
       return `Desaceleração ${int} do crescimento abdominal fetal ao longo do seguimento.`;
     },
-    assimetria:       (ev) => ev.severity === 'marcada'
-      ? 'Assimetria biométrica fetal evidente, com preservação cefálica e comprometimento abdominal.'
-      : 'Discreta assimetria biométrica fetal — circunferência abdominal proporcionalmente mais comprometida.',
     redistribuicao:   () => 'Padrão hemodinâmico compatível com redistribuição do fluxo fetal.',
     cpr_declinio:     () => 'Redução progressiva da relação cérebro-placentária nas avaliações seriadas.',
     au_ascendente:    () => 'Tendência de aumento da resistência placentária ao longo do seguimento.',
@@ -5782,7 +5749,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
   } else {
     const evs = analise.eventos || [];
     const relevantes = evs.filter(ev =>
-      ['desaceleracao_ca','crossing_ca','crossing_efw','redistribuicao','assimetria','au_ascendente','cpr_declinio'].includes(ev.tipo)
+      ['desaceleracao_ca','crossing_ca','crossing_efw','redistribuicao','au_ascendente','cpr_declinio'].includes(ev.tipo)
     );
     if (relevantes.length === 0) {
       tendHtml = `<p style="font-size:13px;color:var(--ok-deep);">Trajetória de crescimento estável em ${n} exames. Nenhuma queda importante de percentil detectada.</p>`;

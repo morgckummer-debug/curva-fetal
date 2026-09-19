@@ -159,3 +159,36 @@ não existe código compartilhado entre os dois repos.
   buscas do editor filtram `.is('excluido_em', null)` pelo mesmo motivo, e o
   unique da 004 é parcial (`where excluido_em is null`) para não impedir o
   recadastro de um CPF que foi para a lixeira.
+
+## Diagnóstico de crescimento: Delphi, mas não só Delphi (e nunca sem olhar a IG)
+
+`calcDiagnosticoFGR()` classifica adequado/PIG/GIG/RCIU precoce/RCIU tardio, e
+`_condutaDiagnostico()` escreve a conduta. As duas telas que mostram isso — o
+Resumo (`_buildSummaryHtml`) e o relatório/PDF (`computeImpressaoDiagnostica`) —
+chamam as **mesmas** funções (`_critItemsDiagnostico`, `_condutaDiagnostico`,
+`_fonteDiagnostico`). Antes eram duas cópias literais da lista de critérios e da
+tabela de conduta; mexer numa e esquecer a outra fazia a tela e o papel
+discordarem na frente da paciente. Não volte a duplicar.
+
+**IP das uterinas > P95 conta como critério menor também depois de 32 semanas.**
+O texto estrito do Delphi 2016 só lista as uterinas no RCIU *precoce*; por causa
+disso uma paciente de 38 semanas com PFE < P10 **e** IP-UtA > P95 saía como
+"PIG". São dois critérios — um de tamanho e um de Doppler — e a leitura clínica
+é restrição. Quem embasa é o protocolo de Barcelona (Figueras & Gratacós, Fetal
+Diagn Ther 2014), o mesmo do estadiamento que o app já usava: o estadiamento já
+contava `utAboveP95` como Estágio I, ou seja, o app reconhecia o achado para
+estadiar e não para diagnosticar. Por isso a linha de atribuição embaixo do
+diagnóstico (`_fonteDiagnostico`) diz "Delphi 2016 + protocolo Barcelona" a
+partir de 32 semanas — creditar ao consenso um critério que ele não tem seria
+errado. Se um dia isso voltar ao Delphi puro, é tirar `utAboveP95` de uma linha
+só em `calcDiagnosticoFGR` e ajustar `_fonteDiagnostico` junto.
+
+**Nenhum intervalo de reavaliação passa do fim da gestação.** As condutas eram
+strings fixas ("Reavaliação em 4 semanas") e em 38 semanas marcavam um exame
+para depois do parto. `_intervaloAteOTermo(gaW, semanas)` encurta o intervalo
+para caber até 40 semanas e devolve `null` quando não cabe mais nenhum — aí o
+texto passa a ser obstétrico (definir a resolução), não ultrassonográfico. No
+RCIU a conduta também diz o alvo de resolução do estágio (Barcelona/FIGO:
+I ≥ 37s, II ≥ 34s, III ≥ 30s, IV ≥ 26s) e avisa quando a IG já o alcançou.
+Qualquer conduta nova entra por essa mesma porta: intervalo fixo em texto puro
+é o bug de 2026-09-19 voltando.

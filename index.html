@@ -888,13 +888,14 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .feto-card--b .efw-pt{stroke:var(--dourado-escuro)}
 .rel-preview .feto-card--b .efw-pt-t{fill:var(--dourado-escuro)}
 .rel-preview .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
-.rel-preview .rel-lista{list-style:none;margin:0;padding:0;max-width:62ch}
+.rel-preview .rel-lista{list-style:none;margin:0;padding:0}
 .rel-preview .rel-lista li{position:relative;padding-left:14px;margin:0 0 6px;font-size:13px;line-height:1.5}
 .rel-preview .rel-lista li::before{content:'•';position:absolute;left:0;color:var(--dourado)}
 .rel-preview .body--compacta .rel-lista li{font-size:12px;margin:0 0 4px}
 .rel-preview .rel-texto{width:100%;min-height:110px;max-width:62ch;border:1px solid var(--linha);border-radius:3px;
   padding:12px;font-size:13px;font-family:'Lato',Georgia,serif;line-height:1.62;color:#3B2A2A;
   resize:none;overflow:hidden;background:#fff}
+.rel-preview .rel-texto--full{max-width:none}
 .rel-preview .rel-texto:focus{outline:none;border-color:var(--lilas)}
 .rel-preview .rel-texto-hint{font-size:10px;color:var(--dourado);margin-top:5px}
 .rel-preview .comparativo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px}
@@ -8495,7 +8496,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   const historicoHtml = _buildRelHistoricoUnicaHtml(gestacao, exams);
 
   const conclusaoHtml = opts.textareaMode
-    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+    ? `<textarea id="rel-texto-conclusao" class="rel-texto rel-texto--full" oninput="_atualizarRelPageMarkMultipla()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
     : _relListaHtml(opts.textoConclusaoFinal);
 
@@ -8799,7 +8800,7 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
   const dopplerHtml = _buildRelDopplerGemelarHtml(gestacao, porFeto);
 
   const conclusaoHtml = opts.textareaMode
-    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+    ? `<textarea id="rel-texto-conclusao" class="rel-texto rel-texto--full" oninput="_atualizarRelPageMarkMultipla()">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Textos gerados automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
     : _relListaHtml(opts.textoConclusaoFinal);
 
@@ -9059,7 +9060,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
   }).join('');
 
   const conclusaoHtml = opts.textareaMode
-    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+    ? `<textarea id="rel-texto-conclusao" class="rel-texto rel-texto--full" oninput="_atualizarRelPageMarkMultipla()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
     : _relListaHtml(opts.textoConclusaoFinal);
 
@@ -9189,7 +9190,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 /* Lista da conclusão — marcador "•" desenhado por CSS em vez de escrito no
    texto, pra nunca depender de qual caractere a médica digitou na hora de
    revisar (ver _relListaHtml). */
-.rel-lista{list-style:none;margin:0;padding:0;max-width:62ch}
+.rel-lista{list-style:none;margin:0;padding:0}
 .rel-lista li{position:relative;padding-left:14px;margin:0 0 6px;font-size:13px;line-height:1.5}
 .rel-lista li::before{content:'•';position:absolute;left:0;color:var(--dourado)}
 .body--compacta .rel-lista li{font-size:12px;margin:0 0 4px}

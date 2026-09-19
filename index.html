@@ -943,8 +943,9 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   margin:0 40px;padding:12px 0 18px;border-top:1px solid var(--linha)}
 .rel-preview .ftr>span{font-size:10px;color:var(--texto-3)}
 .rel-preview .ftr-sig{text-align:right;white-space:nowrap}
-.rel-preview .ftr-sig-nome{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:15px;color:var(--roxo)}
-.rel-preview .ftr-sig-crm{font-size:10px;color:var(--texto-3);margin-top:2px}
+.rel-preview .ftr-sig-nome{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:700;font-size:14px;color:var(--roxo)}
+.rel-preview .ftr-sig-cred{font-size:9.5px;color:var(--lilas);margin-top:3px}
+.rel-preview .ftr-sig-crm{font-size:9.5px;color:var(--lilas);margin-top:3px}
 /* Linha tracejada na marca dos 297mm — mesma altura de uma folha A4 impressa,
    para o preview mostrar ANTES de gerar o PDF se o conteúdo vai ultrapassar
    uma página (o relatório final corta tudo que passar disso). */
@@ -8414,8 +8415,10 @@ function _relFooterHtml() {
   return `<footer class="ftr">
     <span>Programa de acompanhamento ultrassonográfico · Emitido em ${dataEmissao}</span>
     <div class="ftr-sig">
-      <div class="ftr-sig-nome">Dra. Morgana Kummer</div>
-      <div class="ftr-sig-crm">CRM-MG 45.304 · RQE 39.156</div>
+      <div class="ftr-sig-nome">Dra. Morgana Fialho Caldas Kummer</div>
+      <div class="ftr-sig-cred">Especialista em Ultrassonografia Geral pelo CBR.</div>
+      <div class="ftr-sig-cred">Pós-Graduação em Medicina Fetal pela FCMMG.</div>
+      <div class="ftr-sig-crm">CRMMG: 45.304 - RQE: 39.156</div>
     </div>
   </footer>`;
 }
@@ -9336,8 +9339,9 @@ html,body{margin:0;padding:0;background:#e9e6e4}
   margin:0 40px;padding:12px 0 18px;border-top:1px solid var(--linha)}
 .ftr>span{font-size:10px;color:var(--texto-3)}
 .ftr-sig{text-align:right;white-space:nowrap}
-.ftr-sig-nome{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:15px;color:var(--roxo)}
-.ftr-sig-crm{font-size:10px;color:var(--texto-3);margin-top:2px}
+.ftr-sig-nome{font-family:Georgia,'Times New Roman',serif;font-style:italic;font-weight:700;font-size:14px;color:var(--roxo)}
+.ftr-sig-cred{font-size:9.5px;color:var(--lilas);margin-top:3px}
+.ftr-sig-crm{font-size:9.5px;color:var(--lilas);margin-top:3px}
 
 .rel-reminder{background:var(--roxo);color:var(--dourado-claro);
   font-size:11px;padding:8px 16px;text-align:center}

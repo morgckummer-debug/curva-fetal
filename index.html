@@ -3371,7 +3371,12 @@ function renderRecentPatients() {
     const gests = getGestacoesByPatient(p.id);
     const ativa = gests.find(g => g.status === 'ativa') || gests[gests.length - 1];
     const exams = ativa ? getExamsByGestacao(ativa.id) : [];
-    const ec = exams.length;
+    // Não é exams.length: na gemelar/trigemelar cada visita grava uma linha
+    // por feto (mesma data_exame, feto diferente), então contar linhas conta
+    // a mesma visita 2 ou 3 vezes. O número de visitas reais é o de datas
+    // distintas — mesmo raciocínio de _buildRelHistoricoGemelarHtml, que
+    // agrupa por data em vez de por linha.
+    const ec = new Set(exams.map(e => e.data_exame)).size;
     const lastExam = exams[exams.length - 1];
     const igStr = lastExam && ativa ? igToStr(lastExam.ig_dias_manual ?? calcIgDays(ativa, lastExam.data_exame)) : '';
     const nGests = gests.length;
@@ -7666,7 +7671,9 @@ function deletePatient(pid) {
   const p = getPatientById(pid);
   const nome   = p ? (p.nome || 'Paciente') : 'Paciente';
   const gests  = getGestacoesByPatient(pid);
-  const nexams = DB.exams.filter(e => !e.excluido_em && gests.some(g => g.id === e.gestacao_id)).length;
+  // Datas distintas, não linhas — gemelar/trigemelar grava uma linha por
+  // feto na mesma visita (mesmo bug do card de "Pacientes Recentes").
+  const nexams = new Set(DB.exams.filter(e => !e.excluido_em && gests.some(g => g.id === e.gestacao_id)).map(e => e.data_exame)).size;
 
   const titleEl = document.getElementById('confirm-delete-title');
   const descEl  = document.getElementById('confirm-delete-desc');
@@ -7690,7 +7697,9 @@ function deletePatientFromList(pid) {
   const p = getPatientById(pid);
   const nome  = p ? (p.nome || 'Paciente') : 'Paciente';
   const gests = getGestacoesByPatient(pid);
-  const nexams = DB.exams.filter(e => !e.excluido_em && gests.some(g => g.id === e.gestacao_id)).length;
+  // Datas distintas, não linhas — gemelar/trigemelar grava uma linha por
+  // feto na mesma visita (mesmo bug do card de "Pacientes Recentes").
+  const nexams = new Set(DB.exams.filter(e => !e.excluido_em && gests.some(g => g.id === e.gestacao_id)).map(e => e.data_exame)).size;
 
   const titleEl = document.getElementById('confirm-delete-title');
   const descEl  = document.getElementById('confirm-delete-desc');

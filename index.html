@@ -1184,40 +1184,6 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-dop-cpr"></canvas></div>
         </div>
 
-        <!-- ── COLO + LÍQUIDO AMNIÓTICO ── -->
-        <div class="chart-card" id="card-colo" data-scope="shared">
-          <div class="chart-card-header">
-            <div class="chart-card-left">
-              <div class="chart-card-title">Colo Uterino (Comprimento)</div>
-              <div class="chart-card-subtitle" id="sub-colo">Referência Salomon 2011 · risco se &lt;30mm até 14s ou &lt;25mm ≥16s</div>
-            </div>
-            <span class="chart-card-pct" id="pct-colo" style="display:none"></span>
-          </div>
-          <div class="chart-wrapper"><canvas id="chart-colo"></canvas></div>
-        </div>
-
-        <div class="chart-card" id="card-ila" data-scope="singleton-only">
-          <div class="chart-card-header">
-            <div class="chart-card-left">
-              <div class="chart-card-title">Índice de Líquido Amniótico (ILA)</div>
-              <div class="chart-card-subtitle" id="sub-ila">Referência Moore &amp; Cayle 1990 · P5/P50/P95 · valores em cm</div>
-            </div>
-            <span class="chart-card-pct" id="pct-ila" style="display:none"></span>
-          </div>
-          <div class="chart-wrapper"><canvas id="chart-ila"></canvas></div>
-        </div>
-
-        <div class="chart-card" id="card-bolsao" data-scope="fetal">
-          <div class="chart-card-header">
-            <div class="chart-card-left">
-              <div class="chart-card-title">Maior Bolsão de Líquido Amniótico</div>
-              <div class="chart-card-subtitle" id="sub-bolsao">Faixa clínica fixa · normal 2–8cm</div>
-            </div>
-            <span class="chart-card-pct" id="pct-bolsao" style="display:none"></span>
-          </div>
-          <div class="chart-wrapper"><canvas id="chart-bolsao"></canvas></div>
-        </div>
-
         <!-- ── DISCREPÂNCIA DE PESO (só gestação múltipla) ──
              Sem gráfico de propósito: só o número da última visita importa
              clinicamente (cruzou ou não os 25% de RCF seletiva), então vira
@@ -4007,8 +3973,8 @@ function _drawChart(canvas, cfg) {
 
   ctx.clearRect(0, 0, W, H);
 
-  // Background — branco, igual aos gráficos de _drawThresholdChart (DV, Colo, ILA,
-  // Bolsão, Discrepância), pra não ter card lavanda ao lado de card branco na mesma tela.
+  // Background — branco, igual aos gráficos de _drawThresholdChart (Ducto Venoso
+  // e Discrepância), pra não ter card lavanda ao lado de card branco na mesma tela.
   // Mesma cor de fundo do relatório impresso (--papel).
   ctx.fillStyle = '#FFFDFB';
   ctx.fillRect(0, 0, W, H);
@@ -4525,167 +4491,9 @@ function buildPctRowDopMom(label, valueStr, momStr, isPathological, note) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// COLO UTERINO — Salomon 2011 (referência ISUOG)
-// Eixo X: 12–38 semanas | Eixo Y: 0–50 mm
-// ═══════════════════════════════════════════════════════════
-
-// Tabela P5/P50/P95 — Salomon LJ et al. Ultrasound Obstet Gynecol 2011
-const COLO_REF = {
-  // semana: [P5, P50, P95]  (mm)
-  12:[27,37,47], 13:[26,36,46], 14:[25,35,45], 15:[25,35,44],
-  16:[25,35,44], 17:[24,34,43], 18:[24,34,43], 19:[23,33,42],
-  20:[23,33,42], 21:[22,33,41], 22:[22,32,41], 23:[21,32,40],
-  24:[21,31,40], 25:[20,31,39], 26:[20,30,39], 27:[19,30,38],
-  28:[18,29,37], 29:[17,28,36], 30:[16,27,35], 31:[15,26,34],
-  32:[14,25,33], 33:[13,24,32], 34:[12,23,31], 35:[11,22,30],
-  36:[10,21,29], 37:[9,20,28],  38:[8,19,27],
-};
-
-function buildColoChart(canvasId, gestacao, exams) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-
-  const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
-
-  // Build smooth ref curves 12–38w
-  const refData = { p5: [], p50: [], p95: [] };
-  for (let w = 12; w <= 38; w += 0.5) {
-    const wLow = Math.floor(w), wHigh = wLow + 1, frac = w - wLow;
-    const lo = COLO_REF[wLow], hi = COLO_REF[wHigh] || lo;
-    if (!lo) continue;
-    const interp = (i) => lo[i] + (hi[i] - lo[i]) * frac;
-    refData.p5.push({ x: w, y: interp(0) });
-    refData.p50.push({ x: w, y: interp(1) });
-    refData.p95.push({ x: w, y: interp(2) });
-  }
-
-  const patientPoints = [];
-  sorted.forEach(e => {
-    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    if (!igDays) return;
-    const gaW = igDays / 7;
-    if (gaW < 12 || gaW > 38) return;
-    if (e.colo == null) return;
-    // Risk color logic
-    let color;
-    if (gaW <= 14 && e.colo < 30) color = '#c03020';       // <30mm até 14s → risco
-    else if (gaW >= 16 && e.colo < 25) color = '#c03020';  // <25mm a partir de 16s → risco
-    else color = '#6c47b8';
-    patientPoints.push({ x: gaW, y: e.colo, color, isRisk: color === '#c03020' });
-  });
-
-  // Update header badge
-  const pctEl = document.getElementById('pct-colo');
-  const subEl = document.getElementById('sub-colo');
-  if (pctEl && patientPoints.length > 0) {
-    const last = patientPoints[patientPoints.length - 1];
-    if (last.isRisk) {
-      pctEl.textContent = 'Risco ⚠';
-      pctEl.className   = 'chart-card-pct chart-card-pct-alert';
-      pctEl.style.display = '';
-    } else {
-      pctEl.textContent = `${last.y.toFixed(1)} mm`;
-      pctEl.className   = 'chart-card-pct chart-card-pct-ok';
-      pctEl.style.display = '';
-    }
-  } else if (pctEl) { pctEl.style.display = 'none'; }
-
-  // Draw
-  _drawColoChart(canvas, refData, patientPoints);
-}
-
-function _drawColoChart(canvas, refData, patientPoints) {
-  const ctx = canvas.getContext('2d');
-  const DPR = window.devicePixelRatio || 1;
-  const W = canvas.offsetWidth || 460, H = canvas.offsetHeight || 220;
-  canvas.width = W * DPR; canvas.height = H * DPR;
-  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-  ctx.scale(DPR, DPR);
-
-  const PAD = { t: 28, r: 44, b: 36, l: 48 };
-  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
-  const xMin = 12, xMax = 38, yMin = 0, yMax = 55;
-  const xS = x => PAD.l + (x - xMin) / (xMax - xMin) * cW;
-  const yS = y => PAD.t + cH - (y - yMin) / (yMax - yMin) * cH;
-
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#faf9fd'; ctx.fillRect(0, 0, W, H);
-
-  // Grid
-  ctx.strokeStyle = 'rgba(160,130,210,0.10)'; ctx.lineWidth = 0.8;
-  for (let x = xMin; x <= xMax; x += 2) { ctx.beginPath(); ctx.moveTo(xS(x), PAD.t); ctx.lineTo(xS(x), PAD.t + cH); ctx.stroke(); }
-  for (let i = 0; i <= 5; i++) { const y = yMin + (yMax - yMin) * i / 5; ctx.beginPath(); ctx.moveTo(PAD.l, yS(y)); ctx.lineTo(PAD.l + cW, yS(y)); ctx.stroke(); }
-
-  // Risk zone fill <25mm
-  ctx.fillStyle = 'rgba(200,50,50,0.05)';
-  ctx.fillRect(PAD.l, yS(25), cW, yS(0) - yS(25));
-
-  function _sp(ctx, pts) {
-    if (!pts.length) return;
-    ctx.moveTo(xS(pts[0].x), yS(pts[0].y));
-    if (pts.length < 3) { pts.slice(1).forEach(p => ctx.lineTo(xS(p.x), yS(p.y))); return; }
-    const a = 0.5;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[Math.max(0,i-1)], p1 = pts[i], p2 = pts[i+1], p3 = pts[Math.min(pts.length-1,i+2)];
-      ctx.bezierCurveTo(xS(p1.x)+(xS(p2.x)-xS(p0.x))*a/3,yS(p1.y)+(yS(p2.y)-yS(p0.y))*a/3,
-        xS(p2.x)-(xS(p3.x)-xS(p1.x))*a/3,yS(p2.y)-(yS(p3.y)-yS(p1.y))*a/3,xS(p2.x),yS(p2.y));
-    }
-  }
-
-  // Shade P5–P95
-  ctx.beginPath(); _sp(ctx, refData.p95);
-  [...refData.p5].reverse().forEach(p => ctx.lineTo(xS(p.x), yS(p.y)));
-  ctx.closePath(); ctx.fillStyle = 'rgba(130,90,200,0.07)'; ctx.fill();
-
-  // P5 line
-  ctx.beginPath(); ctx.setLineDash([3,5]); ctx.strokeStyle = 'rgba(210,60,60,0.65)'; ctx.lineWidth = 1.2;
-  _sp(ctx, refData.p5); ctx.stroke();
-  // P95 line
-  ctx.beginPath(); ctx.setLineDash([5,4]); ctx.strokeStyle = 'rgba(70,130,200,0.55)'; ctx.lineWidth = 1.2;
-  _sp(ctx, refData.p95); ctx.stroke();
-  // P50 line
-  ctx.beginPath(); ctx.setLineDash([]); ctx.strokeStyle = 'rgba(70,50,130,0.60)'; ctx.lineWidth = 1.6;
-  _sp(ctx, refData.p50); ctx.stroke();
-
-  // 25mm risk line
-  ctx.beginPath(); ctx.setLineDash([4,4]); ctx.strokeStyle = 'rgba(200,50,50,0.45)'; ctx.lineWidth = 1;
-  ctx.moveTo(PAD.l, yS(25)); ctx.lineTo(PAD.l + cW, yS(25)); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.font = '700 9px monospace'; ctx.fillStyle = 'rgba(200,50,50,0.70)'; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
-  ctx.fillText('25mm', PAD.l - 3, yS(25));
-
-  // Labels right
-  const labelRight = PAD.l + cW + 4;
-  [{arr:refData.p5,lbl:'P5',color:'rgba(210,60,60,0.80)'},{arr:refData.p50,lbl:'P50',color:'rgba(70,50,130,0.75)'},{arr:refData.p95,lbl:'P95',color:'rgba(70,130,200,0.75)'}]
-    .forEach(({arr,lbl,color}) => { if (!arr.length) return; const last=arr[arr.length-1]; ctx.font='700 9px monospace'; ctx.fillStyle=color; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(lbl,labelRight,yS(last.y)); });
-
-  // Patient points
-  ctx.setLineDash([]);
-  if (patientPoints.length >= 2) {
-    ctx.beginPath(); ctx.setLineDash([4,3]); ctx.strokeStyle='rgba(90,60,160,0.45)'; ctx.lineWidth=1.2;
-    patientPoints.forEach((pt,i) => i===0?ctx.moveTo(xS(pt.x),yS(pt.y)):ctx.lineTo(xS(pt.x),yS(pt.y))); ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  patientPoints.forEach(pt => {
-    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),6,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=pt.color; ctx.lineWidth=2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),3.5,0,Math.PI*2); ctx.fillStyle=pt.color; ctx.fill();
-  });
-
-  // Axes
-  ctx.fillStyle='#9988bb'; ctx.font='10px monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
-  for (let x=xMin; x<=xMax; x+=4) ctx.fillText(x+'s', xS(x), PAD.t+cH+5);
-  ctx.textAlign='right'; ctx.textBaseline='middle';
-  for (let i=0;i<=5;i++) { const y=yMin+(yMax-yMin)*i/5; ctx.fillStyle='#9988bb'; ctx.fillText(Math.round(y), PAD.l-5, yS(y)); }
-
-  // Y label
-  ctx.save(); ctx.translate(11, PAD.t+cH/2); ctx.rotate(-Math.PI/2);
-  ctx.font='10px sans-serif'; ctx.fillStyle='#998cb0'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('Colo (mm)', 0, 0); ctx.restore();
-}
-
-// ═══════════════════════════════════════════════════════════
 // ILA — Moore & Cayle 1990 adaptado (P5/P50/P95, mm)
-// Eixo X: 22–40 semanas
+// Sem gráfico: a tabela só alimenta o badge de percentil do ILA
+// na ficha do exame (calcILAPercentile).
 // ═══════════════════════════════════════════════════════════
 
 const ILA_REF = {
@@ -4718,137 +4526,11 @@ function calcILAPercentile(ila_cm, igDays) {
   return { percentil: p };
 }
 
-function buildILAChart(canvasId, gestacao, exams) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-
-  const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
-
-  const refData = { p5: [], p50: [], p95: [] };
-  for (let w = 22; w <= 40; w += 0.5) {
-    const wLow = Math.floor(w), wHigh = wLow + 1, frac = w - wLow;
-    const lo = ILA_REF[wLow], hi = ILA_REF[wHigh] || lo;
-    if (!lo) continue;
-    const interp = (i) => lo[i] + (hi[i] - lo[i]) * frac;
-    refData.p5.push({ x: w, y: interp(0) });
-    refData.p50.push({ x: w, y: interp(1) });
-    refData.p95.push({ x: w, y: interp(2) });
-  }
-
-  const patientPoints = [];
-  sorted.forEach(e => {
-    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    if (!igDays) return;
-    const gaW = igDays / 7;
-    if (gaW < 22 || gaW > 40) return;
-    if (e.ila == null) return;
-    // Input em cm, ref em mm
-    const ilaMm = e.ila * 10;
-    const wLow = Math.floor(gaW);
-    const ref = ILA_REF[wLow];
-    const calc = calcILAPercentile(e.ila, igDays);
-    const p = calc ? calc.percentil : null;
-    let color = '#6c47b8';
-    if (ref) {
-      if (ilaMm < ref[0]) color = '#c03020';       // abaixo P5 — oligoâmnio
-      else if (ilaMm > ref[2]) color = '#b07010';   // acima P95 — polidrâmnio
-    }
-    patientPoints.push({ x: gaW, y: ilaMm, color, p });
-  });
-
-  // Header badge
-  const pctEl = document.getElementById('pct-ila');
-  if (pctEl && patientPoints.length > 0) {
-    const last = patientPoints[patientPoints.length - 1];
-    const wL = Math.floor(last.x);
-    const ref = ILA_REF[wL];
-    const ilaCm = (last.y / 10).toFixed(1);
-    let label = `${ilaCm} cm`;
-    if (last.p != null) label += ` · P${last.p}`;
-    let cls = 'chart-card-pct-ok';
-    if (ref && last.y < ref[0]) { label += ' — Oligoâmnio'; cls = 'chart-card-pct-alert'; }
-    else if (ref && last.y > ref[2]) { label += ' — Polidrâmnio'; cls = 'chart-card-pct-warn'; }
-    pctEl.textContent = label; pctEl.className = 'chart-card-pct ' + cls; pctEl.style.display = '';
-  } else if (pctEl) { pctEl.style.display = 'none'; }
-
-  _drawILAChart(canvas, refData, patientPoints);
-}
-
-function _drawILAChart(canvas, refData, patientPoints) {
-  const ctx = canvas.getContext('2d');
-  const DPR = window.devicePixelRatio || 1;
-  const W = canvas.offsetWidth || 460, H = canvas.offsetHeight || 220;
-  canvas.width = W * DPR; canvas.height = H * DPR;
-  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
-  ctx.scale(DPR, DPR);
-
-  const PAD = { t: 28, r: 44, b: 36, l: 48 };
-  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
-  const xMin = 22, xMax = 40, yMin = 0, yMax = 280;
-  const xS = x => PAD.l + (x - xMin) / (xMax - xMin) * cW;
-  const yS = y => PAD.t + cH - (y - yMin) / (yMax - yMin) * cH;
-
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#faf9fd'; ctx.fillRect(0, 0, W, H);
-
-  ctx.strokeStyle = 'rgba(160,130,210,0.10)'; ctx.lineWidth = 0.8;
-  for (let x = xMin; x <= xMax; x += 2) { ctx.beginPath(); ctx.moveTo(xS(x), PAD.t); ctx.lineTo(xS(x), PAD.t + cH); ctx.stroke(); }
-  for (let i = 0; i <= 5; i++) { const y = yMin + (yMax - yMin) * i / 5; ctx.beginPath(); ctx.moveTo(PAD.l, yS(y)); ctx.lineTo(PAD.l + cW, yS(y)); ctx.stroke(); }
-
-  function _sp(ctx, pts) {
-    if (!pts.length) return;
-    ctx.moveTo(xS(pts[0].x), yS(pts[0].y));
-    if (pts.length < 3) { pts.slice(1).forEach(p => ctx.lineTo(xS(p.x), yS(p.y))); return; }
-    const a = 0.5;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
-      ctx.bezierCurveTo(xS(p1.x)+(xS(p2.x)-xS(p0.x))*a/3,yS(p1.y)+(yS(p2.y)-yS(p0.y))*a/3,
-        xS(p2.x)-(xS(p3.x)-xS(p1.x))*a/3,yS(p2.y)-(yS(p3.y)-yS(p1.y))*a/3,xS(p2.x),yS(p2.y));
-    }
-  }
-
-  ctx.beginPath(); _sp(ctx, refData.p95);
-  [...refData.p5].reverse().forEach(p => ctx.lineTo(xS(p.x), yS(p.y)));
-  ctx.closePath(); ctx.fillStyle = 'rgba(130,90,200,0.07)'; ctx.fill();
-
-  ctx.beginPath(); ctx.setLineDash([3,5]); ctx.strokeStyle='rgba(210,60,60,0.65)'; ctx.lineWidth=1.2; _sp(ctx,refData.p5); ctx.stroke();
-  ctx.beginPath(); ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(70,130,200,0.55)'; ctx.lineWidth=1.2; _sp(ctx,refData.p95); ctx.stroke();
-  ctx.beginPath(); ctx.setLineDash([]); ctx.strokeStyle='rgba(70,50,130,0.60)'; ctx.lineWidth=1.6; _sp(ctx,refData.p50); ctx.stroke();
-
-  const labelRight = PAD.l + cW + 4;
-  [{arr:refData.p5,lbl:'P5',color:'rgba(210,60,60,0.80)'},{arr:refData.p50,lbl:'P50',color:'rgba(70,50,130,0.75)'},{arr:refData.p95,lbl:'P95',color:'rgba(70,130,200,0.75)'}]
-    .forEach(({arr,lbl,color}) => { if (!arr.length) return; const last=arr[arr.length-1]; ctx.font='700 9px monospace'; ctx.fillStyle=color; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(lbl,labelRight,yS(last.y)); });
-
-  ctx.setLineDash([]);
-  if (patientPoints.length >= 2) {
-    ctx.beginPath(); ctx.setLineDash([4,3]); ctx.strokeStyle='rgba(90,60,160,0.45)'; ctx.lineWidth=1.2;
-    patientPoints.forEach((pt,i) => i===0?ctx.moveTo(xS(pt.x),yS(pt.y)):ctx.lineTo(xS(pt.x),yS(pt.y))); ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  patientPoints.forEach(pt => {
-    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),6,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill(); ctx.strokeStyle=pt.color; ctx.lineWidth=2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(xS(pt.x),yS(pt.y),3.5,0,Math.PI*2); ctx.fillStyle=pt.color; ctx.fill();
-    if (pt.p != null) {
-      ctx.font='700 9px monospace'; ctx.fillStyle=pt.color; ctx.textAlign='center'; ctx.textBaseline='bottom';
-      ctx.fillText('P'+pt.p, xS(pt.x), yS(pt.y)-8);
-    }
-  });
-
-  ctx.fillStyle='#9988bb'; ctx.font='10px monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
-  for (let x=xMin; x<=xMax; x+=4) ctx.fillText(x+'s', xS(x), PAD.t+cH+5);
-  ctx.textAlign='right'; ctx.textBaseline='middle';
-  for (let i=0;i<=5;i++) { const y=yMin+(yMax-yMin)*i/5; ctx.fillStyle='#9988bb'; ctx.fillText(Math.round(y/10)+'cm',PAD.l-5,yS(y)); }
-
-  ctx.save(); ctx.translate(11,PAD.t+cH/2); ctx.rotate(-Math.PI/2);
-  ctx.font='10px sans-serif'; ctx.fillStyle='#998cb0'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('ILA (mm)', 0, 0); ctx.restore();
-}
-
 // ═══════════════════════════════════════════════════════════
 // GRÁFICO GENÉRICO DE LIMIAR — pontos do paciente + linha(s) de
 // referência fixas ou curvas por IG, sem banda de percentis P10/P50/P90.
-// Reaproveitado por: Ducto Venoso (P95), Maior Bolsão (2cm/8cm) e
-// Discrepância de Peso entre Fetos (25%).
+// Reaproveitado por: Ducto Venoso (P95) e Discrepância de Peso
+// entre Fetos (25%).
 // ═══════════════════════════════════════════════════════════
 function _drawThresholdChart(canvas, cfg) {
   // cfg: { xMin, xMax, yMin, yMax, bands: [{yLow,yHigh,color}], lines: [{pts,label,color,dash}], patientPoints, yLabel, yFmt }
@@ -4940,46 +4622,6 @@ function _drawThresholdChart(canvas, cfg) {
     ctx.font = '10px sans-serif'; ctx.fillStyle = '#998cb0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(cfg.yLabel, 0, 0); ctx.restore();
   }
-}
-
-// ── Maior Bolsão Único — faixa clínica fixa (não depende de IG) ──
-// Oligoâmnio <2cm · Normal 2–8cm · Polidrâmnio >8cm
-function buildBolsaoChart(canvasId, gestacao, exams) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-
-  const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
-  const patientPoints = [];
-  sorted.forEach(e => {
-    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    if (!igDays || e.bolsao == null) return;
-    const gaW = igDays / 7;
-    let color = '#6c47b8';
-    if (e.bolsao < 2) color = '#c03020';
-    else if (e.bolsao > 8) color = '#b07010';
-    patientPoints.push({ x: gaW, y: e.bolsao, color });
-  });
-
-  const pctEl = document.getElementById('pct-bolsao');
-  const subEl = document.getElementById('sub-bolsao');
-  if (pctEl && patientPoints.length > 0) {
-    const last = patientPoints[patientPoints.length - 1];
-    let label = `${last.y.toFixed(1)} cm`, cls = 'chart-card-pct-ok', sub = 'Dentro da normalidade (2–8cm)';
-    if (last.y < 2)      { label += ' — Oligoâmnio'; cls = 'chart-card-pct-alert'; sub = 'Abaixo de 2cm — oligoâmnio'; }
-    else if (last.y > 8) { label += ' — Polidrâmnio'; cls = 'chart-card-pct-warn';  sub = 'Acima de 8cm — polidrâmnio'; }
-    pctEl.textContent = label; pctEl.className = 'chart-card-pct ' + cls; pctEl.style.display = '';
-    if (subEl) subEl.textContent = sub;
-  } else if (pctEl) { pctEl.style.display = 'none'; }
-
-  const lines = [
-    { pts: [{x:20,y:8},{x:42,y:8}], label: '8cm', color: 'rgba(176,112,16,0.55)', dash: [5,4] },
-    { pts: [{x:20,y:2},{x:42,y:2}], label: '2cm', color: 'rgba(200,50,50,0.55)', dash: [3,5] },
-  ];
-  const bands = [
-    { yLow: 2, yHigh: 8, color: 'rgba(130,90,200,0.06)' },
-  ];
-
-  _drawThresholdChart(canvas, { xMin: 20, xMax: 42, yMin: 0, yMax: 14, bands, lines, patientPoints, yLabel: 'Maior bolsão (cm)', yFmt: v => v.toFixed(0) });
 }
 
 // ── Ducto Venoso — IP com limiar P95 (Baschat/FMF, aproximação linear) ──
@@ -5145,7 +4787,7 @@ function applyChartsScope(gestacao) {
   grid.querySelectorAll('[data-scope]').forEach(card => {
     const scope = card.dataset.scope;
     let show = false;
-    if (view === 'unica')    show = scope === 'fetal' || scope === 'shared' || scope === 'singleton-only';
+    if (view === 'unica')    show = scope === 'fetal' || scope === 'shared';
     if (view === 'fetal')    show = scope === 'fetal';
     if (view === 'gestacao') show = scope === 'shared' || scope === 'shared-twin-only';
     card.style.display = show ? '' : 'none';
@@ -5162,9 +4804,6 @@ function renderCharts(gestacao, exams, allExams) {
   updateEFWNote(gestacao, exams);
   updateChartHeaders(gestacao, exams);
   renderDopplerCharts(gestacao, exams, allExams);
-  buildColoChart('chart-colo', gestacao, allExams);
-  buildILAChart('chart-ila', gestacao, exams);
-  buildBolsaoChart('chart-bolsao', gestacao, exams);
   renderDiscrepanciaCard(gestacao, allExams);
   applyChartsScope(gestacao);
 }

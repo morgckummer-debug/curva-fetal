@@ -251,7 +251,7 @@ está na coluna Colo do histórico. Qualquer faixa de risco nova entra na
 conclusão por essa função.
 
 **Colo curto é um rótulo só.** Abaixo de 25 mm a partir de 16 semanas, o achado
-se chama "Colo curto — risco de parto prematuro", e ponto. Havia uma escada de
+se chama "Colo curto — Risco aumentado de parto prematuro", e ponto. Havia uma escada de
 três nomes que dava ao caso mais grave e ao mais leve exatamente o mesmo nome
 ("Colo curto" abaixo de 10 mm e entre 15–25 mm), com só o do meio como "muito
 curto" — e é justamente essa palavra que o sublinhado da conclusão destaca. A
@@ -263,12 +263,18 @@ histórico. O **conteúdo** continua graduado pelos mesmos cortes de sempre (10 
 laudo de ultrassom que sai da clínica não indica progesterona nem cerclagem —
 isso é do obstetra que acompanha, e "Progesterona vaginal indicada" no papel lê
 como invasão de conduta. `avaliarRiscoColoCurto` devolve dois textos:
-`conduta` (completo, com dose e indicação) alimenta a **tela**, que é ferramenta
-de trabalho e não sai da clínica; `condutaRelatorio` alimenta o **PDF** e diz a
-medida, o corte da diretriz, a faixa em que a discussão terapêutica acontece e
-os fatos já existentes (progesterona em uso, cerclagem realizada, antecedente),
-fechando em "Conduta a critério do obstetra assistente". Nenhuma informação se
-perde: o obstetra sabe exatamente onde a paciente está.
+`conduta` (completo, com dose e indicação, graduado por faixa) alimenta a
+**tela**, que é ferramenta de trabalho e não sai da clínica; `condutaRelatorio`
+alimenta o **PDF** e é um texto só, igual nas três faixas: a medida, o corte de
+25 mm que ela cruza, os fatos da gestação (antecedente, progesterona em uso,
+cerclagem realizada) e "Conduta a critério do obstetra assistente".
+
+Nenhuma recomendação entra aí — nem nomeando a terapia sem verbo prescritivo
+("faixa em que se discute progesterona vaginal"), nem encaminhando
+("recomenda-se avaliação obstétrica imediata"). Mesmo sem prescrever, nomear a
+terapia já é opinar sobre o que não é do laudo. A gravidade continua no papel
+pelo número: 8 mm e 22 mm imprimem a mesma frase com medidas diferentes, e a
+coluna Colo do histórico mostra a queda entre as visitas.
 
 Isso vale **só para o colo** — AAS das uterinas, internação e conduta de RCIU
 seguem prescritivos, por decisão dela na mesma conversa. Quem lê os dois textos:

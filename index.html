@@ -520,6 +520,9 @@ header::after{display:none;}
 .discrepancia-emphasis-ok{background:var(--ok-pale);}
 .discrepancia-emphasis-ok .discrepancia-emphasis-value,
 .discrepancia-emphasis-ok .discrepancia-emphasis-label{color:var(--ok-deep);}
+.discrepancia-emphasis-atencao{background:var(--peach-pale);}
+.discrepancia-emphasis-atencao .discrepancia-emphasis-value,
+.discrepancia-emphasis-atencao .discrepancia-emphasis-label{color:#8a5800;}
 .discrepancia-emphasis-alert{background:var(--blush-pale);}
 .discrepancia-emphasis-alert .discrepancia-emphasis-value,
 .discrepancia-emphasis-alert .discrepancia-emphasis-label{color:#8a2828;}
@@ -820,6 +823,9 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .rel-discrep-body{flex:1}
 .rel-preview .rel-discrep-label{font-size:12.5px;color:var(--texto-2);line-height:1.5}
 .rel-preview .rel-discrep-sub{font-size:10.5px;color:var(--texto-3);margin-top:4px}
+.rel-preview .rel-discrep--atencao{background:#F6EACD}
+.rel-preview .rel-discrep--atencao .rel-discrep-val,
+.rel-preview .rel-discrep--atencao .rel-discrep-label{color:#8a5800}
 .rel-preview .rel-discrep--alerta{background:#F6E3E8}
 .rel-preview .rel-discrep--alerta .rel-discrep-val,
 .rel-preview .rel-discrep--alerta .rel-discrep-label{color:#8a2840}
@@ -5064,25 +5070,40 @@ function _discrepanciaPesoResumo(gestacao, allExams) {
     };
   });
   if (!ultimo) return null;
-  ultimo.alerta = ultimo.pct >= 25;
+  ultimo.severidade = _discrepanciaSeveridade(ultimo.pct);
+  ultimo.alerta = ultimo.severidade === 'alerta'; // mantido: só o texto da conclusão automática ainda lê isso
   return ultimo;
 }
+
+// Três faixas em vez de duas: abaixo de 20% lê como dentro do esperado, 20 a
+// 24,9% já merece acompanhar (não é mais "normal", mas também não é o corte
+// clássico de 25% que levanta suspeita de CIUR seletivo), 25%+ é o alerta de
+// sempre. O corte de 25% não mudou — só ganhou um degrau de aviso antes dele,
+// em vez de pular direto de "tudo bem" pra "alerta".
+function _discrepanciaSeveridade(pct) {
+  if (pct >= 25) return 'alerta';
+  if (pct >= 20) return 'atencao';
+  return 'ok';
+}
+
+const _DISCREP_AVISO = {
+  ok:      'Diferença de peso entre os fetos abaixo de 20% - Dentro do esperado.',
+  atencao: 'Diferença de peso entre os fetos entre 20% e 25% - Acompanhar a evolução com atenção.',
+  alerta:  'Diferença de peso entre os fetos acima de 25% - Aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.',
+};
 
 function _discrepanciaPesoCardHtml(gestacao, allExams) {
   const r = _discrepanciaPesoResumo(gestacao, allExams);
   if (!r) {
     return `<p style="font-size:13px;color:var(--text-muted);padding:8px 4px;">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita — sem isso não dá para calcular a discrepância.</p>`;
   }
-  const cls   = r.alerta ? 'discrepancia-emphasis-alert' : 'discrepancia-emphasis-ok';
-  const aviso = r.alerta
-    ? 'Diferença de peso entre os fetos acima de 25% - Aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.'
-    : 'Diferença de peso entre os fetos abaixo de 25% - Dentro do esperado.';
+  const cls = { ok: 'discrepancia-emphasis-ok', atencao: 'discrepancia-emphasis-atencao', alerta: 'discrepancia-emphasis-alert' }[r.severidade];
   const intermHtml = r.pctInterm != null
     ? `<div class="discrepancia-emphasis-sub">Maior × intermediário: ${r.pctInterm.toFixed(1)}%</div>` : '';
   return `
     <div class="discrepancia-emphasis ${cls}">
       <div class="discrepancia-emphasis-value">${r.pct.toFixed(1)}%</div>
-      <div class="discrepancia-emphasis-label">${aviso}</div>
+      <div class="discrepancia-emphasis-label">${_DISCREP_AVISO[r.severidade]}</div>
       ${intermHtml}
     </div>`;
 }
@@ -9312,10 +9333,8 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
       </div>
     </section>`;
   }
-  const variante   = r.alerta ? 'rel-discrep--alerta' : '';
-  const aviso      = r.alerta
-    ? 'Diferença de peso entre os fetos acima de 25% — aumenta a suspeita de CIUR seletivo. Sugere-se vigilância ativa.'
-    : 'Diferença de peso entre os fetos abaixo de 25% — dentro do esperado.';
+  const variante   = { ok: '', atencao: 'rel-discrep--atencao', alerta: 'rel-discrep--alerta' }[r.severidade];
+  const aviso      = _DISCREP_AVISO[r.severidade].replace(' - ', ' — ');
   const intermTxt  = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${_numBR(r.pctInterm, 1)}%</div>` : '';
   return `<section class="rel-discrep ${variante}">
     <div class="rel-discrep-val">${_numBR(r.pct, 1)}%</div>
@@ -9700,6 +9719,9 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .rel-discrep-body{flex:1}
 .rel-discrep-label{font-size:12.5px;color:var(--texto-2);line-height:1.5}
 .rel-discrep-sub{font-size:10.5px;color:var(--texto-3);margin-top:4px}
+.rel-discrep--atencao{background:#F6EACD}
+.rel-discrep--atencao .rel-discrep-val,
+.rel-discrep--atencao .rel-discrep-label{color:#8a5800}
 .rel-discrep--alerta{background:#F6E3E8}
 .rel-discrep--alerta .rel-discrep-val,
 .rel-discrep--alerta .rel-discrep-label{color:#8a2840}

@@ -5906,19 +5906,27 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     estadioHtml = `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Estadiamento indeterminado — dados Doppler insuficientes para classificar.</div>`;
   }
 
-  // Conduta sugerida
+  // Conduta sugerida — intervalos de reavaliação (política da Dra. Morgana,
+  // 2026-09): crescimento normal a cada 4 semanas até 36 semanas e a cada 2
+  // semanas até o parto daí em diante; PIG a cada 4 semanas com Doppler;
+  // CIUR sem estágio Doppler classificável ainda, semanal com Doppler até o
+  // parto. Estágios 1/2/3+ de RCIU já tinham cadência própria (mais
+  // frequente que semanal) e não mudam. GIG não tem prazo definido por ela
+  // ainda — segue em texto livre. Mesma tabela de computeImpressaoDiagnostica.
   const CONDUTA = {
-    adequado:     'Seguimento de rotina conforme protocolo gestacional.',
-    pig:          'Recomendado Doppler seriado para excluir RCIU. Repetir exame em intervalo reduzido.',
+    adequado:     (gaW != null && gaW >= 36)
+                    ? 'Reavaliação em 2 semanas até o parto, conforme protocolo de seguimento gestacional.'
+                    : 'Reavaliação em 4 semanas, conforme protocolo de seguimento gestacional.',
+    pig:          'Reavaliação em 4 semanas, com estudo Doppler, para excluir evolução para RCIU.',
     gig:          'Avaliar fatores de risco para macrossomia (DMG, obesidade). Monitorizar crescimento.',
     rciu_precoce: dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
                 : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
                 : dx?.estadio === 1 ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento em curto prazo.',
+                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
     rciu_tardio:  dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
                 : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
                 : dx?.estadio === 1 ? 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento em curto prazo.',
+                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
   };
   const conduta = CONDUTA[dx?.diagnostico || 'adequado'];
 
@@ -7953,18 +7961,27 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   const estadio = dx?.estadio ? ESTADIO_CFG[dx.estadio] : null;
   const estadioIndeterminado = !estadio && (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio');
 
+  // Intervalos de reavaliação (política da Dra. Morgana, 2026-09): crescimento
+  // normal a cada 4 semanas até 36 semanas e a cada 2 semanas até o parto daí
+  // em diante; PIG a cada 4 semanas com Doppler; CIUR sem estágio Doppler
+  // classificável ainda, semanal com Doppler até o parto. Estágios 1/2/3+ de
+  // RCIU já tinham cadência própria (mais frequente que semanal) e não
+  // mudam. GIG não tem prazo definido por ela ainda — segue em texto livre.
+  // Mesma tabela de _buildSummaryHtml (Resumo em tela).
   const CONDUTA = {
-    adequado:     'Seguimento de rotina conforme protocolo gestacional.',
-    pig:          'Recomendado Doppler seriado para excluir RCIU. Repetir exame em intervalo reduzido.',
+    adequado:     (last._gaW != null && last._gaW >= 36)
+                    ? 'Reavaliação em 2 semanas até o parto, conforme protocolo de seguimento gestacional.'
+                    : 'Reavaliação em 4 semanas, conforme protocolo de seguimento gestacional.',
+    pig:          'Reavaliação em 4 semanas, com estudo Doppler, para excluir evolução para RCIU.',
     gig:          'Avaliar fatores de risco para macrossomia (DMG, obesidade). Monitorizar crescimento.',
     rciu_precoce: dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
                 : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
                 : dx?.estadio === 1 ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento em curto prazo.',
+                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
     rciu_tardio:  dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
                 : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
                 : dx?.estadio === 1 ? 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento em curto prazo.',
+                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
   };
 
   return {
@@ -7996,7 +8013,7 @@ function abrirPreviewRelatorio() {
   if (exams.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
 
   const impressaoPreview = computeImpressaoDiagnostica(gestacao, exams);
-  const textoConclusaoInicial = _gerarConclusaoUnicaInicial(impressaoPreview);
+  const textoConclusaoInicial = _gerarConclusaoUnicaInicial(impressaoPreview, exams);
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
@@ -8336,9 +8353,17 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
 // commit — ele duplicava esta mesma leitura em vez de complementar), é aqui
 // que um IP-UtA alterado ou colo curto precisam aparecer para não sumir do
 // papel.
-function _gerarConclusaoUnicaInicial(impressao) {
+//
+// `trajetória estável e Doppler dentro da normalidade` só entra quando não
+// há nenhum achado (critItems/peRisco/coloRisco vazios) e há pelo menos 2
+// exames — a mesma exigência de calcTrend() (ver runLongitudinalAnalysis):
+// "estável" não é uma leitura que faz sentido com um exame só.
+function _gerarConclusaoUnicaInicial(impressao, exams) {
   if (!impressao) return '';
-  const linhas = [`${impressao.label}.`];
+  const semAchados   = !(impressao.critItems && impressao.critItems.length) && !impressao.peRisco && !impressao.coloRisco;
+  const trajetoriaOk = semAchados && impressao.diagnostico === 'adequado' && (exams?.length || 0) >= 2;
+
+  const linhas = [`${impressao.label}${trajetoriaOk ? ', com trajetória estável e Doppler dentro da normalidade' : ''}.`];
   if (impressao.critItems && impressao.critItems.length) linhas.push(`${impressao.critItems[0]}.`);
   if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
   if (impressao.peRisco) linhas.push(`${impressao.peRisco.label}. ${impressao.peRisco.conduta}`);
@@ -8991,13 +9016,19 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
   </section>`;
 }
 
-// Rascunho de conclusão — uma linha por feto (diagnóstico já calculado em
-// porFetoComDados) seguida da leitura da discrepância (mesmo texto de
-// _buildRelDiscrepanciaHtml) e da sugestão de seguimento. Só reorganiza dado
-// já computado; nunca inventa um número novo. Cada linha vira um item da
-// lista na hora de imprimir (ver _relListaHtml). Fica num <textarea> igual
-// aos de resumo por feto — revisável antes de imprimir, nunca vai direto pro
-// PDF sem passar pelos olhos da médica.
+// Rascunho de conclusão — uma linha por diagnóstico distinto entre os fetos
+// (fetos com o mesmo diagnóstico E os mesmos critérios adicionais saem juntos
+// numa linha coletiva, "Ambos os fetos apresentam..."/"Os três fetos
+// apresentam...", em vez de repetir a mesma frase uma vez por feto — só
+// diagnósticos ou critérios diferentes continuam em linhas separadas, porque
+// aí juntar esconderia a diferença que a linha existe pra mostrar), seguida
+// da leitura da discrepância (mesmo texto de _buildRelDiscrepanciaHtml) e do
+// fecho com a conduta já calculada por feto (impressao.conduta — mesma do
+// card e de _gerarTextoCardFetoInicial, condutas iguais saem juntas). Só
+// reorganiza dado já computado; nunca inventa um número novo. Cada linha
+// vira um item da lista na hora de imprimir (ver _relListaHtml). Fica num
+// <textarea> igual aos de resumo por feto — revisável antes de imprimir,
+// nunca vai direto pro PDF sem passar pelos olhos da médica.
 function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   const DX_LABEL = {
     adequado: 'crescimento adequado para a idade gestacional',
@@ -9006,9 +9037,38 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
     rciu_precoce: 'critérios de RCIU precoce',
     rciu_tardio: 'critérios de RCIU tardio',
   };
-  const linhas = porFetoComDados.map(pf =>
-    `${labelFeto(pf.feto)} apresenta ${DX_LABEL[pf.impressao?.diagnostico] || DX_LABEL.adequado}.`
-  );
+  const NUM_COLETIVO = { 2: 'Ambos os fetos', 3: 'Os três fetos' };
+
+  const chaveGrupo = pf => `${pf.impressao?.diagnostico || 'adequado'}|${(pf.impressao?.critItems || []).join(';')}`;
+  const grupos = [];
+  porFetoComDados.forEach(pf => {
+    const k = chaveGrupo(pf);
+    const grupo = grupos.find(g => g.chave === k);
+    if (grupo) grupo.fetos.push(pf); else grupos.push({ chave: k, fetos: [pf] });
+  });
+
+  const linhas = grupos.map(g => {
+    const impressao  = g.fetos[0].impressao;
+    const dxLabel    = DX_LABEL[impressao?.diagnostico] || DX_LABEL.adequado;
+    const coletivo   = g.fetos.length > 1;
+    const sujeito    = coletivo ? (NUM_COLETIVO[g.fetos.length] || `Os ${g.fetos.length} fetos`) : labelFeto(g.fetos[0].feto);
+    const critItems  = impressao?.critItems || [];
+    let linha = `${sujeito} ${coletivo ? 'apresentam' : 'apresenta'} ${dxLabel}`;
+    if (critItems.length) {
+      linha += ` — ${critItems[0]}`;
+    } else {
+      // "Trajetória estável e Doppler dentro da normalidade" só quando não há
+      // achado nenhum (critItems/peRisco/coloRisco vazios em todos do grupo)
+      // e todos já têm 2+ exames — mesma exigência de calcTrend(), pra não
+      // dizer "estável" com um exame só.
+      const semAchados = !impressao?.peRisco && !impressao?.coloRisco
+        && g.fetos.every(pf => !(pf.impressao?.peRisco) && !(pf.impressao?.coloRisco));
+      const trajetoriaOk = semAchados && impressao?.diagnostico === 'adequado'
+        && g.fetos.every(pf => (pf.exams?.length || 0) >= 2);
+      if (trajetoriaOk) linha += ', com trajetória estável e Doppler dentro da normalidade';
+    }
+    return linha + '.';
+  });
 
   if (discrepResumo) {
     linhas.push(discrepResumo.alerta
@@ -9016,7 +9076,19 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
       : `Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}%, abaixo do limiar de vigilância de 25%.`);
   }
 
-  linhas.push('Sugerida reavaliação conforme protocolo de seguimento gestacional.');
+  const condutas = [];
+  porFetoComDados.forEach(pf => {
+    const c = pf.impressao?.conduta;
+    if (!c) return;
+    const grupo = condutas.find(g => g.conduta === c);
+    if (grupo) grupo.fetos.push(pf.feto); else condutas.push({ conduta: c, fetos: [pf.feto] });
+  });
+  if (condutas.length === 1) {
+    linhas.push(`Conduta sugerida: ${condutas[0].conduta}`);
+  } else {
+    condutas.forEach(g => linhas.push(`Conduta sugerida (${g.fetos.map(labelFeto).join(' e ')}): ${g.conduta}`));
+  }
+
   return linhas.join('\n');
 }
 

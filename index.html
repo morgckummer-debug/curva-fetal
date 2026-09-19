@@ -3020,9 +3020,19 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
     ? 'Mantém progesterona vaginal já em uso'
     : 'Progesterona vaginal indicada (ISUOG 2022 / FMF)';
 
-  let label, conduta;
+  // Um rótulo só (decisão da médica, 2026-09-19): colo curto é binário — abaixo
+  // de 25 mm a partir de 16 semanas, e pronto. A escada de três nomes ("Colo
+  // curto — risco extremo" abaixo de 10, "Colo muito curto — risco aumentado"
+  // entre 10 e 15, "Colo curto" entre 15 e 25) dava ao caso mais grave e ao
+  // mais leve exatamente o mesmo nome, e só o do meio era "muito curto". A
+  // gravidade quem dá é a medida, que agora aparece na frase do relatório e na
+  // coluna Colo do histórico — não o adjetivo.
+  //
+  // O que continua graduado é o conteúdo: o que se discute com 8 mm não é o que
+  // se discute com 22 mm. Só o nome do achado é um só.
+  const label = 'Colo curto — risco de parto prematuro';
+  let conduta;
   if (colo < 10) {
-    label = 'Colo curto — risco extremo de parto prematuro';
     if (cerclagemFeita) {
       conduta = `${cerclagemPreviaFrase} — avaliar prolapso de membranas ao exame especular e sinais de infecção. Conduzir conforme protocolo institucional.`;
     } else if (cerclagemElegivel) {
@@ -3034,7 +3044,6 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
       conduta = 'Cerclagem não é mais indicada nesta idade gestacional (≥24 semanas). Avaliar prolapso de membranas ao exame especular e sinais de infecção; considerar corticoterapia para maturação pulmonar e, se <32 semanas, sulfato de magnésio para neuroproteção. Conduzir conforme protocolo institucional.';
     }
   } else if (colo < 15) {
-    label = 'Colo muito curto — risco aumentado de parto prematuro';
     conduta = `${progestFrase} — corte do estudo de Fonseca et al. 2007, base do protocolo da FMF. Vigilância mais próxima.`;
     if (cerclagemFeita) {
       conduta += ` ${cerclagemPreviaFrase} — reforçar vigilância.`;
@@ -3046,7 +3055,6 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
       conduta += ' Cerclagem não é mais indicada nesta idade gestacional (≥24 semanas).';
     }
   } else {
-    label = 'Colo curto — risco de parto prematuro';
     conduta = `${progestFrase}, independente de antecedente obstétrico.`;
     if (cerclagemFeita) {
       conduta += ` ${cerclagemPreviaFrase} — reforçar vigilância.`;

@@ -3091,12 +3091,17 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
   //
   // O que fica além da medida são fatos da gestação, não conduta: antecedente,
   // progesterona em uso, cerclagem já realizada. São registro — o obstetra
-  // precisa deles para ler a medida no contexto certo.
-  const partes = [`Colo de ${colo} mm em ${Math.floor(gaW)} semanas, abaixo do corte de 25 mm das diretrizes (ISUOG 2022 / FMF).`];
+  // precisa deles para ler a medida no contexto certo, e como já estão no
+  // prontuário, repeti-los na conclusão não indica nada a ninguém.
+  //
+  // Não fecha com "Conduta a critério do obstetra assistente": sem nenhuma
+  // recomendação antes, a frase deixa de delimitar competência e passa a soar
+  // como desinteresse — "a paciente é do obstetra, não me importo". Um laudo
+  // que só descreve o achado já devolve a decisão sem precisar dizer isso.
+  const partes = [`Colo de ${colo} mm em ${Math.floor(gaW)} semanas, abaixo do corte de 25 mm das diretrizes ISUOG 2022 / FMF.`];
   if (temPPTPrevio)      partes.push('Antecedente de parto prematuro espontâneo.');
   if (progesteronaEmUso) partes.push('Já em uso de progesterona vaginal.');
   if (cerclagemFeita)    partes.push(`Cerclagem realizada${cerclagemIG ? ` em ${cerclagemIG} semanas` : ''}.`);
-  partes.push('Conduta a critério do obstetra assistente.');
 
   const condutaRelatorio = partes.join(' ');
 

@@ -266,8 +266,12 @@ como invasão de conduta. `avaliarRiscoColoCurto` devolve dois textos:
 `conduta` (completo, com dose e indicação, graduado por faixa) alimenta a
 **tela**, que é ferramenta de trabalho e não sai da clínica; `condutaRelatorio`
 alimenta o **PDF** e é um texto só, igual nas três faixas: a medida, o corte de
-25 mm que ela cruza, os fatos da gestação (antecedente, progesterona em uso,
-cerclagem realizada) e "Conduta a critério do obstetra assistente".
+25 mm que ela cruza e os fatos da gestação (antecedente, progesterona em uso,
+cerclagem realizada) — que são registro, já estão no prontuário, e repetidos ali
+não indicam nada a ninguém. Não fecha com "Conduta a critério do obstetra
+assistente": sem nenhuma recomendação antes, essa frase deixa de delimitar
+competência e passa a soar como desinteresse. Um laudo que só descreve o achado
+já devolve a decisão sem precisar dizê-lo.
 
 Nenhuma recomendação entra aí — nem nomeando a terapia sem verbo prescritivo
 ("faixa em que se discute progesterona vaginal"), nem encaminhando

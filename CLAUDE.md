@@ -192,3 +192,39 @@ RCIU a conduta também diz o alvo de resolução do estágio (Barcelona/FIGO:
 I ≥ 37s, II ≥ 34s, III ≥ 30s, IV ≥ 26s) e avisa quando a IG já o alcançou.
 Qualquer conduta nova entra por essa mesma porta: intervalo fixo em texto puro
 é o bug de 2026-09-19 voltando.
+
+## PIG constitucional, notas clínicas e o intervalo mínimo do cruzamento
+
+Revisão de 2026-09-19 contra material de RCIU trazido pela médica. Quatro
+mudanças, todas no mesmo eixo: o app dizia o diagnóstico e calava o resto.
+
+- **`_notasDiagnostico(dx)` existe para não emendar tudo na conduta.** A conduta
+  é lida em voz alta na consulta e cabe num cartão estreito do relatório
+  gemelar (ver `_buildRelGemelarPaginaHtml`); três frases a mais ali empurram o
+  histórico para a segunda folha. As notas são um array à parte, renderizado no
+  Resumo em tela, na faixa de status do relatório e na conclusão editável de
+  gestação única — de propósito **não** no cartão por feto da gemelar.
+- **RCIU precoce sugere investigação genética e infecciosa.** Até 20% dos casos
+  antes de 32 semanas têm causa cromossômica/genética, não placentária, e o
+  Doppler não levanta essa hipótese sozinho. Sai como "a critério do médico
+  assistente": quem indica a amniocentese é quem conduz o pré-natal.
+- **PIG constitucional é nomeado quando o padrão fecha** (`_trajetoriaPIG`):
+  percentil ≤ 20 em todos os exames, janela ≥ 28 dias entre o primeiro e o
+  último, e nenhum Doppler alterado em nenhuma visita. O teto é 20, não 10, de
+  propósito — "sempre foi pequeno" é a faixa se manter, não estar abaixo do
+  corte em toda visita. Dois cuidados: exige que **alguma** visita tenha medido
+  Doppler (exame sem Doppler não é Doppler normal, e tratar dado ausente como
+  tranquilidade é exatamente o erro que essa nota não pode cometer), e o texto
+  diz "padrão sugestivo de", nunca o diagnóstico, porque a outra metade da
+  confirmação é a avaliação materna, que este app não vê.
+- **Cruzamento de 2 quartis exige 14 dias entre os exames comparados.** A CA tem
+  erro de medida de 5–7%; dois exames com poucos dias de diferença faziam o
+  ruído parecer queda de trajetória. Virou risco real quando o IP das uterinas
+  entrou na contagem: com CA/PFE < P10, um cruzamento falso sozinho fecha RCIU
+  tardio. Compara com o exame válido mais antigo que respeite o intervalo, não
+  com o anterior imediato — a queda que o critério procura é da trajetória.
+
+Onde o app diverge de propósito do material: cadência do Estágio I (o material
+sugere semanal para CPR alterada com AU normal; aqui são 2–3×/semana, política
+da médica). Ficaram de fora por decisão dela: usar ILA/maior bolsão no
+diagnóstico e a ressalva de dependência da curva no percentil limítrofe.

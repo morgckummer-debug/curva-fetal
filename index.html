@@ -2632,6 +2632,58 @@ function _dvP95(gaW) {
   return Math.max(0.48, 0.97 - 0.015 * Math.max(0, gaW - 20));
 }
 
+// ── Trajetória de "sempre foi pequeno" — leitura de PIG constitucional ────
+// Um feto que se mantém em percentil baixo desde cedo, sem queda de
+// trajetória e com Doppler normal em todas as visitas, é suspeita de PIG
+// constitucional: pequeno por constituição, não por insuficiência placentária.
+// Essa distinção não é um detalhe de vocabulário — PIG constitucional tem
+// prognóstico próximo do normal e não indica antecipação do parto, e o app
+// dizia só "PIG" seguido de "excluir evolução para RCIU", que lê como ameaça.
+//
+// Os cortes (percentil ≤ 20 em todos os exames, janela ≥ 28 dias entre o
+// primeiro e o último) são da Dra. Morgana, 2026-09-19. O teto é 20 e não 10
+// de propósito: "sempre foi pequeno" é sobre a faixa se manter, não sobre
+// estar abaixo do corte diagnóstico em toda visita.
+//
+// A avaliação materna, que é a outra metade da confirmação, este app não vê —
+// por isso o que sai daqui é "padrão sugestivo de", nunca o diagnóstico.
+const _PIG_CONST_PCT_TETO   = 20;
+const _PIG_CONST_DIAS_MIN   = 28;
+
+function _dopplerAlteradoNoExame(e) {
+  const z = e._z || {};
+  return (z.au  != null && z.au  >  1.645)
+      || (z.ut  != null && z.ut  >  1.645)
+      || (z.cpr != null && z.cpr < -1.645)
+      || e.au_fluxo === 'ausente' || e.au_fluxo === 'reversa'
+      || e.dv_onda === 'reversa';
+}
+
+function _trajetoriaPIG(allExams, igDays) {
+  const nada = { semprePequeno: false, dopplerSempreNormal: false, temDoppler: false,
+                 pctMin: null, pctMax: null, igPrimeiro: null };
+  if (!allExams || allExams.length < 2) return nada;
+  const comBio = allExams.filter(e => e._z && (e._z.efw != null || e._z.ca != null));
+  if (comBio.length < 2) return nada;
+  const primeiro = comBio[0];
+  if (primeiro._igDays == null || (igDays - primeiro._igDays) < _PIG_CONST_DIAS_MIN) return nada;
+
+  const pcts = comBio.map(e => _zToPercentile(e._z.efw != null ? e._z.efw : e._z.ca));
+  // Doppler "normal em todas as visitas" exige que alguma visita tenha medido
+  // Doppler: exame sem Doppler não é Doppler normal, e tratar ausência de dado
+  // como tranquilidade é justamente o erro que esta nota não pode cometer.
+  const temDoppler = allExams.some(e => (e._z && (e._z.au != null || e._z.cpr != null)) || !!e.au_fluxo);
+
+  return {
+    semprePequeno:       pcts.every(pct => pct <= _PIG_CONST_PCT_TETO),
+    dopplerSempreNormal: !allExams.some(_dopplerAlteradoNoExame),
+    temDoppler,
+    pctMin: Math.min.apply(null, pcts),
+    pctMax: Math.max.apply(null, pcts),
+    igPrimeiro: primeiro._igDays,
+  };
+}
+
 // Diagnóstico Delphi + Estadiamento Barcelona/FIGO
 // lastExam e allExams: exames *enriquecidos* pelo runLongitudinalAnalysis
 function calcDiagnosticoFGR(lastExam, allExams) {
@@ -2658,13 +2710,20 @@ function calcDiagnosticoFGR(lastExam, allExams) {
   // CPR: z.cpr negativo = CPR baixo = ruim
   const cprBelowP5  = z.cpr != null && z.cpr < -1.645;
 
-  // Cruzamento ≥ 2 quartis na CA entre 1º e último exame
+  // Cruzamento ≥ 2 quartis na CA — só entre exames separados por pelo menos 14
+  // dias. A medida da CA tem erro de 5–7%, e dois exames com poucos dias de
+  // diferença fazem o ruído parecer queda de trajetória. Isso passou a custar
+  // caro quando o IP das uterinas entrou na contagem: com CA/PFE < P10, um
+  // cruzamento falso sozinho já fecha RCIU tardio. Compara com o exame válido
+  // mais antigo que respeite o intervalo (não com o anterior imediato): a
+  // queda de percentil que o critério procura é a da trajetória inteira.
+  const _QUARTIS_INTERVALO_MIN_DIAS = 14;
   let cruzamentoQuartis = false;
-  if (allExams && allExams.length >= 2) {
-    const z0 = allExams[0]._z?.ca;
-    const z1 = z.ca;
+  if (allExams && allExams.length >= 2 && z.ca != null) {
+    const base = allExams.find(e => e !== lastExam && e._z?.ca != null && e._igDays != null
+                                    && (igDays - e._igDays) >= _QUARTIS_INTERVALO_MIN_DIAS);
     // 2 quartis ≈ 1.35 unidades de z (IQR = 1.349)
-    if (z0 != null && z1 != null && z0 > z1) cruzamentoQuartis = (z0 - z1) >= 1.35;
+    if (base && base._z.ca > z.ca) cruzamentoQuartis = (base._z.ca - z.ca) >= 1.35;
   }
 
   // Diástole zero (AEDF) — REDF implica ausência de diástole também, conta junto
@@ -2735,6 +2794,7 @@ function calcDiagnosticoFGR(lastExam, allExams) {
     estadio,       // 1–4 ou null
     isPrecoce,
     gaW,
+    trajetoria: _trajetoriaPIG(allExams, igDays),
     criterios: {
       caBelowP3, caBelowP10, caAboveP90,
       efwBelowP3, efwBelowP10, efwAboveP90,
@@ -2797,6 +2857,39 @@ function _intervaloAteOTermo(gaW, semanas) {
 }
 
 function _txtSemanas(n) { return n === 1 ? '1 semana' : n + ' semanas'; }
+
+// Observações clínicas que acompanham o diagnóstico mas não são a cadência de
+// vigilância. Ficam num array próprio, e não emendadas na conduta, porque a
+// conduta é lida em voz alta na consulta e cabe num cartão estreito do
+// relatório gemelar — três frases a mais ali empurram o histórico para a
+// segunda folha (ver _buildRelGemelarPaginaHtml).
+function _notasDiagnostico(dx) {
+  const notas = [];
+  if (!dx) return notas;
+  const d = dx.diagnostico;
+
+  // RCIU precoce: nem toda restrição antes de 32 semanas é placentária. Até
+  // 20% têm causa cromossômica/genética, e há ainda a infecção congênita —
+  // hipóteses que o Doppler não levanta e que mudam o aconselhamento inteiro.
+  // Fica como "a critério do médico assistente" porque quem indica a
+  // amniocentese é quem conduz o pré-natal, não este resumo.
+  if (d === 'rciu_precoce') {
+    notas.push('RCIU de início precoce — considerar investigação genética (cariótipo/microarray por amniocentese) e rastreio de infecção congênita (CMV, toxoplasmose), a critério do médico assistente: até 20% dos casos antes de 32 semanas têm causa cromossômica ou genética, e não placentária.');
+  }
+
+  if (d === 'rciu_precoce' || d === 'rciu_tardio') {
+    notas.push('Após o nascimento, orientar seguimento do neurodesenvolvimento nos primeiros anos de vida — risco aumentado de atraso motor e cognitivo, maior nas formas precoces e graves, além de risco cardiometabólico na vida adulta (programação fetal).');
+  }
+
+  if (d === 'pig') {
+    const t = dx.trajetoria;
+    if (t && t.semprePequeno && t.dopplerSempreNormal && t.temDoppler) {
+      notas.push(`Padrão sugestivo de PIG constitucional: o feto se mantém pequeno desde ${_semDias(t.igPrimeiro)}, com percentis entre P${t.pctMin} e P${t.pctMax} e sem Doppler alterado em nenhuma avaliação. Depende ainda de avaliação materna normal, que este resumo não examina. Confirmado o padrão constitucional, o prognóstico é próximo do normal e não há indicação de antecipar o parto por esse motivo.`);
+    }
+  }
+
+  return notas;
+}
 
 // Conduta sugerida. Intervalos de reavaliação (política da Dra. Morgana,
 // 2026-09): crescimento normal a cada 4 semanas até 36 semanas e a cada 2
@@ -2877,7 +2970,7 @@ function _condutaDiagnostico(dx) {
 function avaliarRiscoPreEclampsia(dx) {
   if (!dx?.criterios?.utAboveP95) return null;
   const conduta = dx.gaW != null && dx.gaW < 16
-    ? 'Considerar AAS profilático (100–150mg à noite) se ainda não iniciado — janela ideal 12–16 semanas. Vigilância de PA e proteinúria a cada consulta.'
+    ? 'Considerar AAS profilático (100–150 mg/dia à noite) se ainda não iniciado — janela ideal 12–16 semanas, mantido até 36 semanas (ASPRE, NEJM 2017: redução de 62% da pré-eclâmpsia antes de 37 semanas). Vigilância de PA e proteinúria a cada consulta.'
     : 'Fora da janela de início do AAS profilático (ideal 12–16 sem). Priorizar vigilância de PA, proteinúria e sinais/sintomas de pré-eclâmpsia; Doppler de artérias uterinas seriado.';
   return {
     label: 'Risco aumentado de pré-eclâmpsia',
@@ -6035,6 +6128,11 @@ function _buildSummaryHtml(gestacao, exams, feto) {
 
   // Conduta sugerida — ver _condutaDiagnostico (mesma tabela do relatório).
   const conduta = _condutaDiagnostico(dx);
+  const notas   = _notasDiagnostico(dx);
+  const notasHtml = notas.length
+    ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12px;color:var(--text-muted);">
+        ${notas.map(nota => `<div style="margin-bottom:6px;">${nota}</div>`).join('')}
+      </div>` : '';
 
   const dxBox = `
     <div style="background:${cfg.bg};border-left:4px solid ${cfg.border};border-radius:var(--radius);padding:18px 20px;">
@@ -6048,6 +6146,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12.5px;color:${cfg.color};">
         <strong>Conduta sugerida:</strong> ${conduta}
       </div>
+      ${notasHtml}
     </div>`;
 
   // Card à parte para risco de pré-eclâmpsia (IP-UtA > P95) — não depende do
@@ -8068,6 +8167,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     estadio,
     estadioIndeterminado,
     conduta: _condutaDiagnostico(dx),
+    notas: _notasDiagnostico(dx),
     peRisco: avaliarRiscoPreEclampsia(dx),
     coloRisco: avaliarRiscoColoCurto(last, gestacao),
   };
@@ -8335,6 +8435,9 @@ function _renderStatusFaixaHtml(impressao) {
     ? `<div class="status-conduta"><b>Conduta sugerida:</b> ${escapeHtml(impressao.conduta)}</div>`
     : '';
 
+  const notasHtml = (impressao.notas || [])
+    .map(nota => `<div class="status-extra">${escapeHtml(nota)}</div>`).join('');
+
   return `<section class="status ${variante}">
     <div class="status-ic">${impressao.icon}</div>
     <div class="status-body">
@@ -8343,6 +8446,7 @@ function _renderStatusFaixaHtml(impressao) {
       ${extraCrit}
       ${estadioHtml}
       ${condutaHtml}
+      ${notasHtml}
     </div>
   </section>`;
 }
@@ -8444,6 +8548,7 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   if (impressao.peRisco) linhas.push(`${impressao.peRisco.label}. ${impressao.peRisco.conduta}`);
   if (impressao.coloRisco) linhas.push(`${impressao.coloRisco.label}. ${impressao.coloRisco.conduta}`);
   if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
+  (impressao.notas || []).forEach(nota => linhas.push(nota));
   return linhas.join('\n');
 }
 

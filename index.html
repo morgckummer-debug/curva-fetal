@@ -780,13 +780,15 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .hdr-dra{text-align:right;white-space:nowrap;padding-top:2px}
 .rel-preview .hdr-dra-nome{font-size:12px;font-weight:700;color:var(--roxo)}
 .rel-preview .hdr-dra-crm{font-size:10.5px;color:var(--texto-2);margin-top:2px}
-.rel-preview .rel-ident{display:flex;flex-direction:column;gap:2px}
+.rel-preview .rel-ident{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.rel-preview .rel-ident-info{display:flex;flex-direction:column;gap:2px}
 .rel-preview .rel-ident-l{font-size:12px;color:var(--texto-2)}
 .rel-preview .rel-ident-l strong{color:var(--roxo);font-weight:700}
-.rel-preview .rel-ident-ig{font-size:12px;color:var(--texto-2);display:flex;align-items:baseline;gap:8px;margin:3px 0 4px}
-.rel-preview .rel-ident-ig b{font-family:'Comfortaa',system-ui,sans-serif;font-size:23px;font-weight:600;
-  color:var(--dourado);line-height:1}
-.rel-preview .rel-ident-ig b small{font-size:14px}
+.rel-preview .rel-ident-ig{flex:0 0 auto;text-align:center;background:var(--nude);border-radius:10px;padding:7px 24px}
+.rel-preview .rel-ident-ig-label{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--texto-3)}
+.rel-preview .rel-ident-ig-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:26px;font-weight:600;
+  color:var(--dourado-escuro);line-height:1.25}
+.rel-preview .rel-ident-ig-val small{font-size:15px}
 .rel-preview .body{padding:22px 40px 0;display:flex;flex-direction:column;gap:16px}
 .rel-preview .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--lilas)}
 .rel-preview .ident{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;flex-wrap:wrap}
@@ -844,12 +846,9 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
    CSS exportado (ver _buildRelGemelarPaginaHtml). */
 .rel-preview .body--compacta{gap:9px;padding-top:10px}
 .rel-preview .body--compacta .rel-secao{margin-top:0}
-.rel-preview .body--compacta .rel-ident{gap:1px}
-.rel-preview .body--compacta .rel-ident-ig{margin:2px 0 3px}
-.rel-preview .body--compacta .rel-ident-ig b{font-size:20px}
-.body--compacta .rel-ident{gap:1px}
-.body--compacta .rel-ident-ig{margin:2px 0 3px}
-.body--compacta .rel-ident-ig b{font-size:20px}
+.rel-preview .body--compacta .rel-ident-info{gap:1px}
+.rel-preview .body--compacta .rel-ident-ig{padding:5px 18px}
+.rel-preview .body--compacta .rel-ident-ig-val{font-size:22px}
 .rel-preview .body--compacta .descricao p{font-size:12px;line-height:1.5}
 .rel-preview .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .rel-preview .feto-cards--unica{grid-template-columns:repeat(3,1fr)}
@@ -8414,8 +8413,10 @@ function _relFooterHtml() {
   </footer>`;
 }
 
-// Identificação: uma informação por linha, com a idade gestacional em corpo
-// grande — é o número que ela procura primeiro ao pegar o papel na mão.
+// Identificação: uma informação por linha à esquerda, com a idade
+// gestacional destacada num card à direita — é o número que ela procura
+// primeiro ao pegar o papel na mão, e o espaço ao lado das linhas de texto
+// (mesma altura do cabeçalho da Dra. acima) ficava vazio antes disso.
 // `extra` entra como uma linha a mais (o feto, nas páginas por feto).
 function _relIdentHtml(patient, gestacao, lastExam, extra) {
   const igDays = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
@@ -8429,11 +8430,16 @@ function _relIdentHtml(patient, gestacao, lastExam, extra) {
   else if (tipo === 'US' && gestacao.ig_base_data) cronologia = `Cronologia por 1º ultrassom: ${formatDateBR(gestacao.ig_base_data)}`;
 
   return `<section class="rel-ident">
-    <div class="rel-ident-l">Nome: <strong>${escapeHtml(patient.nome || patient.cpf)}</strong></div>
-    <div class="rel-ident-ig">Idade gestacional: <b>${igHtml}</b></div>
-    <div class="rel-ident-l">${escapeHtml(cronologia)}</div>
-    <div class="rel-ident-l">Última avaliação: ${formatDateBR(lastExam.data_exame)}</div>
-    ${extra ? `<div class="rel-ident-l">${escapeHtml(extra)}</div>` : ''}
+    <div class="rel-ident-info">
+      <div class="rel-ident-l">Nome: <strong>${escapeHtml(patient.nome || patient.cpf)}</strong></div>
+      <div class="rel-ident-l">${escapeHtml(cronologia)}</div>
+      <div class="rel-ident-l">Última avaliação: ${formatDateBR(lastExam.data_exame)}</div>
+      ${extra ? `<div class="rel-ident-l">${escapeHtml(extra)}</div>` : ''}
+    </div>
+    <div class="rel-ident-ig">
+      <div class="rel-ident-ig-label">Idade gestacional</div>
+      <div class="rel-ident-ig-val">${igHtml}</div>
+    </div>
   </section>`;
 }
 
@@ -9143,13 +9149,15 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .hdr-dra-nome{font-size:12px;font-weight:700;color:var(--roxo)}
 .hdr-dra-crm{font-size:10.5px;color:var(--texto-2);margin-top:2px}
 
-.rel-ident{display:flex;flex-direction:column;gap:2px}
+.rel-ident{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.rel-ident-info{display:flex;flex-direction:column;gap:2px}
 .rel-ident-l{font-size:12px;color:var(--texto-2)}
 .rel-ident-l strong{color:var(--roxo);font-weight:700}
-.rel-ident-ig{font-size:12px;color:var(--texto-2);display:flex;align-items:baseline;gap:8px;margin:3px 0 4px}
-.rel-ident-ig b{font-family:'Comfortaa',system-ui,sans-serif;font-size:23px;font-weight:600;
-  color:var(--dourado);line-height:1}
-.rel-ident-ig b small{font-size:14px}
+.rel-ident-ig{flex:0 0 auto;text-align:center;background:var(--nude);border-radius:10px;padding:7px 24px}
+.rel-ident-ig-label{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--texto-3)}
+.rel-ident-ig-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:26px;font-weight:600;
+  color:var(--dourado-escuro);line-height:1.25}
+.rel-ident-ig-val small{font-size:15px}
 
 .body{padding:22px 40px 0;display:flex;flex-direction:column;gap:16px;flex:1}
 .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--lilas)}
@@ -9235,9 +9243,9 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 /* .body é flex com gap — o margin-top padrão de .rel-secao somaria por cima
    dele e dobraria o respiro entre as seções. */
 .body--compacta .rel-secao{margin-top:0}
-.body--compacta .rel-ident{gap:1px}
-.body--compacta .rel-ident-ig{margin:2px 0 3px}
-.body--compacta .rel-ident-ig b{font-size:20px}
+.body--compacta .rel-ident-info{gap:1px}
+.body--compacta .rel-ident-ig{padding:5px 18px}
+.body--compacta .rel-ident-ig-val{font-size:22px}
 .body--compacta .descricao p{font-size:12px;line-height:1.5}
 
 .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}

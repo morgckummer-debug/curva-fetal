@@ -3030,7 +3030,7 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
   //
   // O que continua graduado é o conteúdo: o que se discute com 8 mm não é o que
   // se discute com 22 mm. Só o nome do achado é um só.
-  const label = 'Colo curto — risco de parto prematuro';
+  const label = 'Colo curto — Risco aumentado de parto prematuro';
   let conduta;
   if (colo < 10) {
     if (cerclagemFeita) {
@@ -3078,37 +3078,24 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
   // ferramenta de trabalho dela, não sai da clínica. Só o relatório usa
   // `condutaRelatorio` — ver _riscoLinhaTexto e _renderColoRiscoFaixaHtml.
   // Vale só para o colo; AAS, internação e conduta de RCIU seguem como estavam.
-  // Montado em frases curtas, não numa só com travessões encaixados: a ressalva
-  // da janela de cerclagem interpolada no meio da lista de opções produzia
-  // "discutem cerclagem — já fora da janela (≥24 semanas) e, no limite da
-  // viabilidade, maturação pulmonar", que não se lê.
-  let medida, discussao;
-  if (colo < 10) {
-    medida    = `Colo de ${colo} mm em ${Math.floor(gaW)} semanas, muito abaixo do corte de 25 mm das diretrizes (ISUOG 2022 / FMF).`;
-    discussao = 'Faixa em que se discutem cerclagem e, próximo ao limite da viabilidade, maturação pulmonar e neuroproteção.';
-  } else if (colo < 15) {
-    medida    = `Colo de ${colo} mm em ${Math.floor(gaW)} semanas, abaixo do corte de 15 mm de Fonseca et al. 2007, base do protocolo da FMF.`;
-    discussao = 'Faixa em que se discutem progesterona vaginal e cerclagem.';
-  } else {
-    medida    = `Colo de ${colo} mm em ${Math.floor(gaW)} semanas, abaixo do corte de 25 mm das diretrizes (ISUOG 2022 / FMF).`;
-    discussao = temPPTPrevio
-      ? 'Faixa em que se discute progesterona vaginal e, diante do antecedente obstétrico, cerclagem.'
-      : 'Faixa em que se discute progesterona vaginal.';
-  }
-
-  const partes = [medida, discussao];
-  // A ressalva de janela só entra onde a cerclagem foi citada e ainda não foi
-  // feita — senão vira aviso sobre algo que ninguém propôs.
-  const citouCerclagem = colo < 15 || temPPTPrevio;
-  if (citouCerclagem && !cerclagemElegivel && !cerclagemFeita) {
-    partes.push('Idade gestacional já fora da janela habitual de cerclagem (≥ 24 semanas).');
-  }
-  // Fatos da paciente — não são conduta, são o que já existe. O antecedente só
-  // entra quando a frase da discussão não o mencionou, para não repetir.
-  if (temPPTPrevio && colo < 15) partes.push('Antecedente de parto prematuro espontâneo.');
-  if (progesteronaEmUso)         partes.push('Já em uso de progesterona vaginal.');
-  if (cerclagemFeita)            partes.push(`Cerclagem realizada${cerclagemIG ? ` em ${cerclagemIG} semanas` : ''}.`);
-  if (colo < 10)                 partes.push('Recomenda-se avaliação obstétrica imediata.');
+  // Um texto só, igual nas três faixas, e sem recomendação nenhuma (decisão da
+  // médica, 2026-09-19). O relatório diz o que o ultrassom viu — a medida e o
+  // corte que ela cruza — e para por aí. A discussão terapêutica ("faixa em que
+  // se discute progesterona vaginal / cerclagem / maturação pulmonar") e o
+  // "recomenda-se avaliação obstétrica imediata" saíram: mesmo sem verbo
+  // prescritivo, nomear a terapia já é opinar sobre o que não é do laudo.
+  //
+  // A gravidade continua no papel, pelo número: 8 mm e 22 mm imprimem a mesma
+  // frase com medidas diferentes, e a coluna Colo do histórico mostra a queda
+  // entre as visitas. Nada disso depende de adjetivo.
+  //
+  // O que fica além da medida são fatos da gestação, não conduta: antecedente,
+  // progesterona em uso, cerclagem já realizada. São registro — o obstetra
+  // precisa deles para ler a medida no contexto certo.
+  const partes = [`Colo de ${colo} mm em ${Math.floor(gaW)} semanas, abaixo do corte de 25 mm das diretrizes (ISUOG 2022 / FMF).`];
+  if (temPPTPrevio)      partes.push('Antecedente de parto prematuro espontâneo.');
+  if (progesteronaEmUso) partes.push('Já em uso de progesterona vaginal.');
+  if (cerclagemFeita)    partes.push(`Cerclagem realizada${cerclagemIG ? ` em ${cerclagemIG} semanas` : ''}.`);
   partes.push('Conduta a critério do obstetra assistente.');
 
   const condutaRelatorio = partes.join(' ');

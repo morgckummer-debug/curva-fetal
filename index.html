@@ -8350,15 +8350,21 @@ function _gerarConclusaoUnicaInicial(impressao) {
 // em cada função que monta uma página (eram cinco cópias do mesmo bloco), e
 // qualquer ajuste precisava ser repetido nas cinco sem esquecer nenhuma.
 //
+// O título grande é o nome da paciente, não "Avaliação — Gestação X": esse
+// texto de categoria estava mais em evidência que a própria paciente, e é o
+// nome que ela procura primeiro ao pegar o papel na mão. O que era o nome
+// dentro de .rel-ident (ver _relIdentHtml) virou "Gestação Única/Gemelar/
+// Trigemelar" — os dois trocaram de lugar, nenhum saiu do relatório.
+//
 // O título serifado usa Georgia, não a Playfair do resto do app: o documento
 // exportado tem CSP `font-src data:` e só carrega as duas fontes embutidas em
 // base64 (Comfortaa e Lato), então pedir Playfair daria Georgia na impressão e
 // Playfair no preview — duas caras para o mesmo relatório.
-function _relHeaderHtml(titulo) {
+function _relHeaderHtml(nomePaciente) {
   return `<header class="hdr">
     <div>
       <div class="hdr-kicker">Programa personalizado de crescimento fetal</div>
-      <h1 class="hdr-t">${escapeHtml(titulo)}</h1>
+      <h1 class="hdr-t">${escapeHtml(nomePaciente)}</h1>
     </div>
     <div class="hdr-dra">
       <div class="hdr-dra-nome">Dra. Morgana Kummer</div>
@@ -8385,11 +8391,19 @@ function _relFooterHtml() {
 // primeiro ao pegar o papel na mão, e o espaço ao lado das linhas de texto
 // (mesma altura do cabeçalho da Dra. acima) ficava vazio antes disso.
 // `extra` entra como uma linha a mais (o feto, nas páginas por feto).
+//
+// O nome da paciente saiu daqui — virou o título grande do cabeçalho (ver
+// _relHeaderHtml). No lugar dele entra o tipo de gestação, calculado pela
+// mesma lista de fetosDaGestacao que decide "gemelar"/"trigemelar" em todo
+// o resto do app, não por um segundo `if (tipo_gestacao === ...)` isolado.
 function _relIdentHtml(patient, gestacao, lastExam, extra) {
   const igDays = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
   const igHtml = igDays
     ? `${Math.floor(igDays / 7)}<small>s</small>+${igDays % 7}<small>d</small>`
     : '—';
+
+  const nFetos = fetosDaGestacao(gestacao).length;
+  const tipoGestacaoLabel = nFetos === 3 ? 'Gestação Trigemelar' : nFetos === 2 ? 'Gestação Gemelar' : 'Gestação Única';
 
   const tipo = gestacao.ig_base_tipo || (gestacao.dum ? 'DUM' : null);
   let cronologia = 'Cronologia não definida';
@@ -8398,7 +8412,7 @@ function _relIdentHtml(patient, gestacao, lastExam, extra) {
 
   return `<section class="rel-ident">
     <div class="rel-ident-info">
-      <div class="rel-ident-l">Nome: <strong>${escapeHtml(patient.nome || patient.cpf)}</strong></div>
+      <div class="rel-ident-l"><strong>${escapeHtml(tipoGestacaoLabel)}</strong></div>
       <div class="rel-ident-l">${escapeHtml(cronologia)}</div>
       <div class="rel-ident-l">Última avaliação: ${formatDateBR(lastExam.data_exame)}</div>
       ${extra ? `<div class="rel-ident-l">${escapeHtml(extra)}</div>` : ''}
@@ -8497,7 +8511,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   // saído; agora sai o resumo redundante também, e o que ele carregava de
   // exclusivo (pré-eclâmpsia, colo curto) foi para dentro da Conclusão — ver
   // _gerarConclusaoUnicaInicial.
-  return `${_relHeaderHtml('Avaliação — Gestação Única')}
+  return `${_relHeaderHtml(patient.nome || patient.cpf)}
 
   <main class="body body--compacta">
 
@@ -8790,7 +8804,7 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
     : _relListaHtml(opts.textoConclusaoFinal);
 
 
-  return `${_relHeaderHtml('Avaliação — Gestação Múltipla')}
+  return `${_relHeaderHtml(patient.nome || patient.cpf)}
 
   <main class="body body--compacta">
 
@@ -8844,7 +8858,7 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
   }
 
 
-  return `${_relHeaderHtml('Avaliação — Gestação Múltipla')}
+  return `${_relHeaderHtml(patient.nome || patient.cpf)}
 
   <main class="body">
 
@@ -9050,7 +9064,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
     : _relListaHtml(opts.textoConclusaoFinal);
 
 
-  return `${_relHeaderHtml('Avaliação — Gestação Múltipla')}
+  return `${_relHeaderHtml(patient.nome || patient.cpf)}
 
   <main class="body">
     ${_relIdentHtml(patient, gestacao, porFeto[0].exams[porFeto[0].exams.length - 1])}

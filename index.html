@@ -2691,7 +2691,19 @@ function calcDiagnosticoFGR(lastExam, allExams) {
       let nCrit = 0;
       if (caBelowP10 || efwBelowP10) nCrit++;
       if (cruzamentoQuartis) nCrit++;
-      if (cprBelowP5 || auAboveP95) nCrit++;
+      // Doppler alterado conta uma vez, venha de onde vier. O IP médio das
+      // uterinas > P95 entra aqui por decisão clínica de 2026-09-19: o texto
+      // estrito do Delphi 2016 só lista as uterinas nos critérios de RCIU
+      // *precoce*, e por causa disso uma paciente de 38 semanas com PFE < P10
+      // E uterinas > P95 saía como "PIG" — dois critérios, um maior e um
+      // menor, que na leitura da médica já é restrição. O protocolo de
+      // Barcelona (Figueras & Gratacós, Fetal Diagn Ther 2014 — o mesmo que
+      // dá o estadiamento usado logo abaixo) inclui IP-UtA > P95 entre os
+      // critérios de insuficiência placentária do RCIU tardio, e é ele que
+      // esta linha segue. Note que o estadiamento já contava utAboveP95 como
+      // Estágio I: sem esta linha o app reconhecia o achado para estadiar mas
+      // não para diagnosticar.
+      if (cprBelowP5 || auAboveP95 || utAboveP95) nCrit++;
       if (nCrit >= 2)                diagnostico = 'rciu_tardio';
       else if (caBelowP10 || efwBelowP10) diagnostico = 'pig';
     }
@@ -2732,6 +2744,129 @@ function calcDiagnosticoFGR(lastExam, allExams) {
       dvOnda:  lastExam.dv_onda,
     },
   };
+}
+
+// ── Critérios identificados, conduta e fonte: uma implementação só ────────
+// O Resumo em tela (_buildSummaryHtml) e o relatório/PDF
+// (computeImpressaoDiagnostica) mostram a mesma lista de critérios e a mesma
+// conduta. Eram duas cópias literais, e mexer numa sem lembrar da outra fazia
+// a tela e o papel discordarem na frente da paciente.
+
+function _critItemsDiagnostico(dx) {
+  const items = [];
+  const c = dx?.criterios;
+  if (!c) return items;
+  if (c.caBelowP3 || c.efwBelowP3)        items.push('CA e/ou PFE abaixo do P3 (critério Delphi primário)');
+  else if (c.caBelowP10 || c.efwBelowP10) items.push('CA e/ou PFE abaixo do P10');
+  if (c.caAboveP90 || c.efwAboveP90)      items.push('CA e/ou PFE acima do P90');
+  if (c.auAboveP95)                        items.push('IP artéria umbilical acima do P95');
+  if (c.utAboveP95)                        items.push('IP médio artérias uterinas acima do P95');
+  if (c.cprBelowP5)                        items.push('CPR abaixo do P5 — redistribuição cerebro-placentária');
+  if (c.cruzamentoQuartis)                 items.push('Cruzamento ≥ 2 quartis na trajetória da CA');
+  if (c.auFluxo === 'ausente')             items.push('Diástole ausente na artéria umbilical (AEDF)');
+  if (c.auFluxo === 'reversa')             items.push('Diástole reversa na artéria umbilical (REDF)');
+  if (c.dvOnda   === 'reversa')            items.push('Onda A reversa no ducto venoso');
+  return items;
+}
+
+// Linha de atribuição embaixo do diagnóstico. A partir de 32 semanas o app não
+// segue o Delphi puro: o IP das uterinas entra como critério menor (ver
+// calcDiagnosticoFGR), o que é o protocolo de Barcelona. Dizer "Delphi 2016" ali
+// seria atribuir ao consenso um critério que ele não tem.
+function _fonteDiagnostico(dx) {
+  return dx?.isPrecoce
+    ? 'Consenso Delphi 2016 · critérios para gestação antes de 32 semanas'
+    : 'Delphi 2016 + protocolo Barcelona (Figueras & Gratacós) · critérios para gestação a partir de 32 semanas';
+}
+
+// Alvo de resolução por estágio — Barcelona/FIGO. Estágio I ≥ 37 semanas,
+// II ≥ 34, III ≥ 30, IV ≥ 26.
+const _ALVO_RESOLUCAO = { 1: 37, 2: 34, 3: 30, 4: 26 };
+const _ROMANO_ESTADIO = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' };
+
+// Intervalo de reavaliação que ainda cabe antes do fim da gestação. Encurta o
+// intervalo desejado para caber até 40 semanas e devolve null quando não cabe
+// mais nenhum controle — aí a conduta é obstétrica, não ultrassonográfica.
+// Existe por causa de uma paciente de 38 semanas (2026-09-19) que recebeu
+// "reavaliação em 4 semanas": o exame cairia depois do parto.
+function _intervaloAteOTermo(gaW, semanas) {
+  if (gaW == null) return semanas;
+  const restante = Math.floor(40 - gaW);
+  if (restante < 1) return null;
+  return Math.min(semanas, restante);
+}
+
+function _txtSemanas(n) { return n === 1 ? '1 semana' : n + ' semanas'; }
+
+// Conduta sugerida. Intervalos de reavaliação (política da Dra. Morgana,
+// 2026-09): crescimento normal a cada 4 semanas até 36 semanas e a cada 2
+// semanas até o parto daí em diante; PIG a cada 4 semanas com Doppler; GIG a
+// cada 4 semanas; RCIU sem estágio Doppler classificável ainda, semanal com
+// Doppler até o parto; estágio I mantém a cadência anterior (mais intensa que
+// semanal); estágio II, Doppler 2×/semana; estágio III/IV, Doppler diário em
+// ambiente hospitalar.
+//
+// Nenhum desses intervalos passa por cima do relógio da gestação: todos são
+// cortados por _intervaloAteOTermo, e no RCIU a conduta diz o alvo de
+// resolução do estágio e avisa quando a IG já o alcançou — nesse ponto o que
+// se decide é o parto, não o próximo ultrassom.
+function _condutaDiagnostico(dx) {
+  const diagnostico = dx?.diagnostico || 'adequado';
+  const gaW     = dx?.gaW != null ? dx.gaW : null;
+  const estadio = dx?.estadio || null;
+  const aTermo  = gaW != null && gaW >= 37;
+  const igTxt   = gaW != null ? Math.floor(gaW) + ' semanas' : null;
+
+  if (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio') {
+    let txt;
+    if (!estadio) {
+      txt = 'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.';
+    } else if (estadio >= 4) {
+      txt = 'Onda A reversa no ducto venoso — conduta hospitalar com Doppler diário e corticoterapia; avaliar resolução imediata.';
+    } else if (estadio === 3) {
+      txt = 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.';
+    } else if (estadio === 2) {
+      txt = 'AEDF confirmada — Doppler 2×/semana.';
+    } else {
+      txt = diagnostico === 'rciu_precoce'
+        ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
+        : 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.';
+    }
+    const alvo = estadio ? _ALVO_RESOLUCAO[estadio] : null;
+    if (alvo != null && gaW != null) {
+      txt += gaW >= alvo
+        ? ` A IG atual (${igTxt}) já alcança o alvo de resolução do Estágio ${_ROMANO_ESTADIO[estadio]} (a partir de ${alvo} semanas, Barcelona/FIGO) — o que se define agora com o obstetra é a resolução da gestação, não um novo controle.`
+        : ` Alvo de resolução do Estágio ${_ROMANO_ESTADIO[estadio]}: a partir de ${alvo} semanas (Barcelona/FIGO), ou antes disso se houver deterioração do Doppler.`;
+    }
+    return txt;
+  }
+
+  if (diagnostico === 'pig') {
+    const n = _intervaloAteOTermo(gaW, 4);
+    if (n == null) {
+      return `Fim do termo (${igTxt}) — não cabe outro controle de crescimento antes do parto. Definir a resolução com o obstetra (PIG isolado, com Doppler normal: habitualmente entre 38 e 40 semanas) e manter vigilância do bem-estar fetal até lá.`;
+    }
+    let txt = `Reavaliação em ${_txtSemanas(n)}, com estudo Doppler, para excluir evolução para RCIU.`;
+    if (aTermo) txt += ` Gestação a termo (${igTxt}) — em paralelo, definir o momento da resolução com o obstetra: PIG isolado, com Doppler normal, costuma ser resolvido entre 38 e 40 semanas.`;
+    return txt;
+  }
+
+  if (diagnostico === 'gig') {
+    const n = _intervaloAteOTermo(gaW, 4);
+    if (n == null) {
+      return `Fim do termo (${igTxt}) — não cabe outro controle de crescimento antes do parto. Avaliar via de parto e risco de macrossomia com o obstetra.`;
+    }
+    let txt = `Reavaliação em ${_txtSemanas(n)}. Avaliar fatores de risco para macrossomia (DMG, obesidade) e monitorizar crescimento.`;
+    if (aTermo) txt += ` Gestação a termo (${igTxt}) — discutir via de parto com o obstetra.`;
+    return txt;
+  }
+
+  const desejado = (gaW != null && gaW >= 36) ? 2 : 4;
+  const n = _intervaloAteOTermo(gaW, desejado);
+  if (n == null) {
+    return `Fim do termo (${igTxt}) — seguimento obstétrico até o parto; novo ultrassom apenas se houver indicação clínica.`;
+  }
+  return `Reavaliação em ${_txtSemanas(n)}${desejado === 2 ? ' até o parto' : ''}, conforme protocolo de seguimento gestacional.`;
 }
 
 // Risco de pré-eclâmpsia pelo Doppler de artérias uterinas — independente do
@@ -5873,20 +6008,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
   const cfg = DX_CFG[dx?.diagnostico || 'adequado'];
 
   // Critérios identificados
-  let critItems = [];
-  if (dx?.criterios) {
-    const c = dx.criterios;
-    if (c.caBelowP3 || c.efwBelowP3)           critItems.push('CA e/ou PFE abaixo do P3 (critério Delphi primário)');
-    else if (c.caBelowP10 || c.efwBelowP10)    critItems.push('CA e/ou PFE abaixo do P10');
-    if (c.caAboveP90 || c.efwAboveP90)          critItems.push('CA e/ou PFE acima do P90');
-    if (c.auAboveP95)                            critItems.push('IP artéria umbilical acima do P95');
-    if (c.utAboveP95)                            critItems.push('IP médio artérias uterinas acima do P95');
-    if (c.cprBelowP5)                            critItems.push('CPR abaixo do P5 — redistribuição cerebro-placentária');
-    if (c.cruzamentoQuartis)                     critItems.push('Cruzamento ≥ 2 quartis na trajetória da CA');
-    if (c.auFluxo === 'ausente')                 critItems.push('Diástole ausente na artéria umbilical (AEDF)');
-    if (c.auFluxo === 'reversa')                 critItems.push('Diástole reversa na artéria umbilical (REDF)');
-    if (c.dvOnda   === 'reversa')                critItems.push('Onda A reversa no ducto venoso');
-  }
+  const critItems = _critItemsDiagnostico(dx);
   const critHtml = critItems.length
     ? `<div style="margin-top:10px;font-size:12.5px;">
         <span style="font-weight:700;color:${cfg.color};">Critérios identificados:</span>
@@ -5911,30 +6033,8 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     estadioHtml = `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Estadiamento indeterminado — dados Doppler insuficientes para classificar.</div>`;
   }
 
-  // Conduta sugerida — intervalos de reavaliação (política da Dra. Morgana,
-  // 2026-09): crescimento normal a cada 4 semanas até 36 semanas e a cada 2
-  // semanas até o parto daí em diante; PIG a cada 4 semanas com Doppler;
-  // GIG a cada 4 semanas; CIUR sem estágio Doppler classificável ainda,
-  // semanal com Doppler até o parto; estágio I mantém a cadência anterior
-  // (mais intensa que semanal); estágio II, Doppler 2×/semana; estágio
-  // III/IV, Doppler diário em ambiente hospitalar. Mesma tabela de
-  // computeImpressaoDiagnostica.
-  const CONDUTA = {
-    adequado:     (gaW != null && gaW >= 36)
-                    ? 'Reavaliação em 2 semanas até o parto, conforme protocolo de seguimento gestacional.'
-                    : 'Reavaliação em 4 semanas, conforme protocolo de seguimento gestacional.',
-    pig:          'Reavaliação em 4 semanas, com estudo Doppler, para excluir evolução para RCIU.',
-    gig:          'Reavaliação em 4 semanas. Avaliar fatores de risco para macrossomia (DMG, obesidade) e monitorizar crescimento.',
-    rciu_precoce: dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
-                : dx?.estadio === 1 ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
-    rciu_tardio:  dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
-                : dx?.estadio === 1 ? 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
-  };
-  const conduta = CONDUTA[dx?.diagnostico || 'adequado'];
+  // Conduta sugerida — ver _condutaDiagnostico (mesma tabela do relatório).
+  const conduta = _condutaDiagnostico(dx);
 
   const dxBox = `
     <div style="background:${cfg.bg};border-left:4px solid ${cfg.border};border-radius:var(--radius);padding:18px 20px;">
@@ -5942,7 +6042,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
         <span style="font-size:20px;">${cfg.icon}</span>
         <span style="font-family:var(--font-serif);font-size:19px;font-weight:700;color:${cfg.color};">${cfg.label}</span>
       </div>
-      <div style="font-size:11.5px;color:var(--text-muted);">Consenso Delphi 2016 · ${dx?.isPrecoce ? 'critérios para gestação antes de 32 semanas' : 'critérios para gestação a partir de 32 semanas'}</div>
+      <div style="font-size:11.5px;color:var(--text-muted);">${_fonteDiagnostico(dx)}</div>
       ${critHtml}
       ${estadioHtml}
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12.5px;color:${cfg.color};">
@@ -5996,7 +6096,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     ${block('4 · Velocimetria Doppler', dopplerHtml)}
     ${block('5 · Impressão diagnóstica', dxBox + peBox + coloBox)}
     <p style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
+      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
     </p>`;
 }
 
@@ -7947,20 +8047,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     rciu_tardio:  { label: 'RCIU Tardio (≥ 32 semanas)',           icon: '⚠' },
   };
 
-  let critItems = [];
-  if (dx?.criterios) {
-    const c = dx.criterios;
-    if (c.caBelowP3 || c.efwBelowP3)        critItems.push('CA e/ou PFE abaixo do P3 (critério Delphi primário)');
-    else if (c.caBelowP10 || c.efwBelowP10) critItems.push('CA e/ou PFE abaixo do P10');
-    if (c.caAboveP90 || c.efwAboveP90)      critItems.push('CA e/ou PFE acima do P90');
-    if (c.auAboveP95)                        critItems.push('IP artéria umbilical acima do P95');
-    if (c.utAboveP95)                        critItems.push('IP médio artérias uterinas acima do P95');
-    if (c.cprBelowP5)                        critItems.push('CPR abaixo do P5 — redistribuição cerebro-placentária');
-    if (c.cruzamentoQuartis)                 critItems.push('Cruzamento ≥ 2 quartis na trajetória da CA');
-    if (c.auFluxo === 'ausente')             critItems.push('Diástole ausente na artéria umbilical (AEDF)');
-    if (c.auFluxo === 'reversa')             critItems.push('Diástole reversa na artéria umbilical (REDF)');
-    if (c.dvOnda   === 'reversa')            critItems.push('Onda A reversa no ducto venoso');
-  }
+  const critItems = _critItemsDiagnostico(dx);
 
   const ESTADIO_CFG = {
     1: { label: 'Estágio I',   desc: 'Doppler alterado com fluxo diastólico presente na AU', cor: '#b87a20' },
@@ -7971,28 +8058,6 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   const estadio = dx?.estadio ? ESTADIO_CFG[dx.estadio] : null;
   const estadioIndeterminado = !estadio && (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio');
 
-  // Intervalos de reavaliação (política da Dra. Morgana, 2026-09): crescimento
-  // normal a cada 4 semanas até 36 semanas e a cada 2 semanas até o parto daí
-  // em diante; PIG a cada 4 semanas com Doppler; GIG a cada 4 semanas; CIUR
-  // sem estágio Doppler classificável ainda, semanal com Doppler até o
-  // parto; estágio I mantém a cadência anterior (mais intensa que semanal);
-  // estágio II, Doppler 2×/semana; estágio III/IV, Doppler diário em
-  // ambiente hospitalar. Mesma tabela de _buildSummaryHtml (Resumo em tela).
-  const CONDUTA = {
-    adequado:     (last._gaW != null && last._gaW >= 36)
-                    ? 'Reavaliação em 2 semanas até o parto, conforme protocolo de seguimento gestacional.'
-                    : 'Reavaliação em 4 semanas, conforme protocolo de seguimento gestacional.',
-    pig:          'Reavaliação em 4 semanas, com estudo Doppler, para excluir evolução para RCIU.',
-    gig:          'Reavaliação em 4 semanas. Avaliar fatores de risco para macrossomia (DMG, obesidade) e monitorizar crescimento.',
-    rciu_precoce: dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
-                : dx?.estadio === 1 ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
-    rciu_tardio:  dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
-                : dx?.estadio === 1 ? 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.'
-                :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
-  };
 
   return {
     diagnostico,
@@ -8002,7 +8067,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     critItems,
     estadio,
     estadioIndeterminado,
-    conduta: CONDUTA[diagnostico],
+    conduta: _condutaDiagnostico(dx),
     peRisco: avaliarRiscoPreEclampsia(dx),
     coloRisco: avaliarRiscoColoCurto(last, gestacao),
   };
@@ -9453,7 +9518,7 @@ function confirmarGerarPDF() {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
 
 <div class="sheet-flow">
 ${sheetHtml}
@@ -9501,7 +9566,7 @@ function _confirmarGerarPDFMultiplo(patient, gestacao) {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
 
 ${chartSheets}
 ${assessmentSheet}

@@ -952,8 +952,6 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .rel-page-mark span{position:absolute;right:0;top:0;background:var(--lilas);color:#fff;
   font-size:9px;padding:2px 8px;border-radius:0 0 3px 3px;letter-spacing:.04em;text-transform:uppercase;
   white-space:nowrap}
-.rel-preview .rel-page-mark--over{border-top-color:#A8425F}
-.rel-preview .rel-page-mark--over span{background:#A8425F}
 @media (max-width:640px){
   .rel-preview .hdr,.rel-preview .body,.rel-preview .ftr{padding-left:20px;padding-right:20px}
   .rel-preview .charts{grid-template-columns:1fr}
@@ -8037,30 +8035,21 @@ function abrirPreviewRelatorio() {
   const exams = examsForFetoAnalysis(gestacao, getExamsByGestacao(gestacao.id));
   if (exams.length === 0) { alert('Nenhum exame registrado para gerar o relatório.'); return; }
 
-  // Texto curto (mesmo _gerarTextoCardFetoInicial da gemelar) em vez do
-  // generateSummary de três parágrafos — o card não tem mais faixa de status
-  // separada pra carregar o diagnóstico completo.
   const impressaoPreview = computeImpressaoDiagnostica(gestacao, exams);
-  const textoInicial = _gerarTextoCardFetoInicial(impressaoPreview);
   const textoConclusaoInicial = _gerarConclusaoUnicaInicial(impressaoPreview);
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
     body.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
       + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview">`
-      + _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: true, textoInicial })
-      + `<div class="rel-page-mark" id="rel-page-mark"><span>Fim da página A4</span></div>`
-      + `</div>`
-      + `<div class="sheet-preview rel-page-gap" id="rel-sheet-preview-extra">`
-      + _buildRelHistoricoUnicaPageHtml(patient, gestacao, exams, { textareaMode: true, textoConclusaoInicial })
-      + `<div id="rel-page-mark-container-extra"></div>`
+      + _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: true, textoConclusaoInicial })
+      + `<div id="rel-page-mark-container"></div>`
       + `</div>`
       + `</div>`;
   }
 
   openModal('modal-relatorio');
-  setTimeout(_atualizarRelPageMark, 60);
-  setTimeout(_atualizarRelPageMarkExtra, 60);
+  setTimeout(_atualizarRelPageMarkMultipla, 60);
 }
 
 // Gestação múltipla: uma página de gráficos por feto (ordem A, B, C) seguida
@@ -8114,36 +8103,13 @@ function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
   setTimeout(_atualizarRelPageMarkMultipla, 60);
 }
 
-// Linha tracejada nos 297mm reais — mostra ANTES de gerar o PDF se o texto
-// evolutivo (o único conteúdo de comprimento livre) vai empurrar o relatório
-// para além de uma página A4, já que o export final corta tudo que passar
-// disso (.sheet tem overflow:hidden lá). Recalculada a cada edição do texto.
-function _atualizarRelPageMark() {
-  const sheet = document.getElementById('rel-sheet-preview');
-  const mark  = document.getElementById('rel-page-mark');
-  const ta    = document.getElementById('rel-texto-clinico');
-  // O <textarea> não cresce sozinho com o conteúdo como os <p> do PDF final
-  // cresceriam — sem isso, o texto colado aqui ficaria escondido num scroll
-  // interno e a altura medida abaixo nunca bateria com a do export.
-  if (ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
-  if (!sheet || !mark) return;
-  const larguraPx = sheet.getBoundingClientRect().width;
-  if (!larguraPx) return;
-  const alturaPaginaPx = (larguraPx / 210) * 297;
-  mark.style.top = alturaPaginaPx + 'px';
-  const excede = sheet.scrollHeight > alturaPaginaPx + 2;
-  mark.classList.toggle('rel-page-mark--over', excede);
-  mark.querySelector('span').textContent = excede
-    ? '⚠ excede 1 página A4 — reduza o texto'
-    : 'Fim da página A4';
-}
-
-// Igual a _atualizarRelPageMark, mas pra página em .sheet-flow (sem altura
-// fixa): como ela pode crescer com texto de 2-3 fetos (avaliação conjunta da
-// múltipla) ou com o histórico+conclusão da gestação única, uma marca só não
-// basta — desenha uma por página que o conteúdo atual ocuparia, em vez de só
-// avisar que passou de uma. sheetId/containerId permitem reusar isto pra mais
-// de uma página .sheet-flow no mesmo preview (ver _atualizarRelPageMarkExtra).
+// Linhas tracejadas nos 297mm reais — mostram ANTES de gerar o PDF quantas
+// páginas o texto de comprimento livre vai ocupar num .sheet-flow (cresce
+// sozinho, nunca corta). Como ele pode crescer com texto de 2-3 fetos
+// (avaliação conjunta da múltipla) ou com o histórico+conclusão da gestação
+// única, uma marca só não basta — desenha uma por página que o conteúdo
+// atual ocuparia, em vez de só avisar que passou de uma. sheetId/containerId
+// permitem reusar isto pra mais de uma página .sheet-flow no mesmo preview.
 function _atualizarRelPageMarkMultipla(sheetId, containerId) {
   const sheet     = document.getElementById(sheetId || 'rel-sheet-preview');
   const container = document.getElementById(containerId || 'rel-page-mark-container');
@@ -8161,13 +8127,6 @@ function _atualizarRelPageMarkMultipla(sheetId, containerId) {
     mark.innerHTML = `<span>Fim da página ${i}</span>`;
     container.appendChild(mark);
   }
-}
-
-// Segunda página da gestação única (histórico + conclusão, ver
-// _buildRelHistoricoUnicaPageHtml) — mesmo mecanismo de _atualizarRelPageMarkMultipla,
-// só que apontando pro container dessa página em vez do da avaliação conjunta.
-function _atualizarRelPageMarkExtra() {
-  _atualizarRelPageMarkMultipla('rel-sheet-preview-extra', 'rel-page-mark-container-extra');
 }
 
 // ── Gráficos SVG do relatório PDF — layout "médico assistente" ──────────────
@@ -8397,8 +8356,8 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
       + `<td>${cel(e.ca, caC, 1)}</td><td>${cel(e.cc, ccC, 1)}</td><td>${cel(e.femur, flC, 1)}</td></tr>`;
   }).join('');
 
-  return `<section style="margin-top:28px">
-    <h2 style="font-family:'Comfortaa',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--roxo);margin:0 0 12px">Histórico biométrico</h2>
+  return `<section class="rel-secao">
+    <h2 class="rel-secao-t">Histórico biométrico</h2>
     <table class="rel-tabela">
       <thead><tr><th>Data</th><th>IG</th><th>PFE</th><th>CA</th><th>CC</th><th>Fêmur</th></tr></thead>
       <tbody>${linhas}</tbody>
@@ -8411,42 +8370,22 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
 // de _gerarConclusaoGemelarInicial: nenhum número novo, só a leitura resumida
 // do que já está na faixa de status da página principal, e cada linha vira um
 // item da lista na hora de imprimir (ver _relListaHtml).
+//
+// peRisco e coloRisco entram aqui pelo mesmo motivo de _gerarTextoCardFetoInicial
+// (gemelar): são faixas que o diagnóstico de crescimento não enxerga, e como a
+// gestação única não tem mais o card de resumo separado (ver histórico do
+// commit — ele duplicava esta mesma leitura em vez de complementar), é aqui
+// que um IP-UtA alterado ou colo curto precisam aparecer para não sumir do
+// papel.
 function _gerarConclusaoUnicaInicial(impressao) {
   if (!impressao) return '';
   const linhas = [`${impressao.label}.`];
   if (impressao.critItems && impressao.critItems.length) linhas.push(`${impressao.critItems[0]}.`);
+  if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
+  if (impressao.peRisco) linhas.push(`${impressao.peRisco.label}. ${impressao.peRisco.conduta}`);
+  if (impressao.coloRisco) linhas.push(`${impressao.coloRisco.label}. ${impressao.coloRisco.conduta}`);
   if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
   return linhas.join('\n');
-}
-
-// Segunda página da gestação única — histórico biométrico completo +
-// conclusão. Em .sheet-flow (cresce se precisar, nunca corta) para não
-// arriscar a página principal (.sheet, altura fixa, cf. handoff de design)
-// que já foi ajustada a fio pra caber tudo numa A4 só. opts segue o mesmo
-// contrato de textareaMode/textoConclusaoInicial/textoConclusaoFinal usado
-// na avaliação conjunta da múltipla.
-function _buildRelHistoricoUnicaPageHtml(patient, gestacao, exams, opts) {
-  opts = opts || {};
-  const impressao      = computeImpressaoDiagnostica(gestacao, exams);
-  const historicoHtml  = _buildRelHistoricoUnicaHtml(gestacao, exams);
-  const conclusaoHtml  = opts.textareaMode
-    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkExtra()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
-      <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
-    : _relListaHtml(opts.textoConclusaoFinal);
-
-
-  return `${_relHeaderHtml('Avaliação — Gestação Única')}
-
-  <main class="body">
-    ${_relIdentHtml(patient, gestacao, exams[exams.length - 1])}
-    ${historicoHtml}
-    <section class="rel-secao">
-      <h2 class="rel-secao-t">Conclusão</h2>
-      <div class="descricao">${conclusaoHtml}</div>
-    </section>
-  </main>
-
-  ${_relFooterHtml()}`;
 }
 
 // Cabeçalho, identificação e rodapé do relatório — os três estavam copiados
@@ -8519,8 +8458,6 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   const ccC  = calcBiometria(lastExam.cc, 'cc', igDays);
   const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
 
-  const impressao  = computeImpressaoDiagnostica(gestacao, exams);
-
   // Gráficos — mesma linguagem visual dos cards da gemelar (borda dourada,
   // selo de percentil no cabeçalho): ver _buildRelGemelarPaginaHtml. A
   // legenda (P10-P90/mediana/paciente) fica uma vez só acima das duas
@@ -8574,21 +8511,28 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
     </div>`);
   }
 
-  const descricaoHtml = opts.textareaMode
-    ? `<textarea id="rel-texto-clinico" class="rel-texto" oninput="_atualizarRelPageMark()" placeholder="Texto clínico gerado automaticamente...">${escapeHtml(opts.textoInicial || '')}</textarea>
-      <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
-    : (opts.textoFinal || '').split('\n\n').filter(p => p.trim()).map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
-  const condutaHtml = (!opts.textareaMode && impressao?.conduta)
-    ? `<div class="feto-card-conduta"><b>Conduta:</b> ${escapeHtml(impressao.conduta)}</div>` : '';
+  const historicoHtml = _buildRelHistoricoUnicaHtml(gestacao, exams);
 
-  // Ordem: cabeçalho → identificação → gráficos em card → resumo (curto,
-  // mesmo padrão da gemelar) → rodapé com assinatura. A faixa colorida de
-  // diagnóstico e o parágrafo longo de antes saíram — o mesmo diagnóstico,
-  // incluindo pré-eclâmpsia e colo curto quando presentes, está no resumo
-  // (ver _gerarTextoCardFetoInicial) e na linha de conduta abaixo dele.
+  const conclusaoHtml = opts.textareaMode
+    ? `<textarea id="rel-texto-conclusao" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+      <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
+    : _relListaHtml(opts.textoConclusaoFinal);
+
+  // Ordem: cabeçalho → identificação → gráficos em card → histórico
+  // biométrico → conclusão → rodapé com assinatura — mesmo esqueleto de
+  // _buildRelGemelarPaginaHtml, numa página só. Até aqui existiam duas
+  // páginas (esta + _buildRelHistoricoUnicaPageHtml) e a mesma leitura
+  // aparecia duas vezes: um "Resumo do acompanhamento" logo abaixo dos
+  // gráficos e a Conclusão de novo na segunda folha, quase repetindo as
+  // mesmas frases — o diagnóstico só muda de nome de um feto pra outro na
+  // gemelar, então na única virava literalmente o mesmo texto duas vezes.
+  // A faixa colorida de diagnóstico e o parágrafo longo de antes já tinham
+  // saído; agora sai o resumo redundante também, e o que ele carregava de
+  // exclusivo (pré-eclâmpsia, colo curto) foi para dentro da Conclusão — ver
+  // _gerarConclusaoUnicaInicial.
   return `${_relHeaderHtml('Avaliação — Gestação Única')}
 
-  <main class="body">
+  <main class="body body--compacta">
 
     ${_relIdentHtml(patient, gestacao, lastExam)}
 
@@ -8609,10 +8553,11 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       </div>
     </section>
 
+    ${historicoHtml}
+
     <section class="rel-secao">
-      <h2 class="rel-secao-t">Resumo do acompanhamento</h2>
-      <div class="descricao">${descricaoHtml}</div>
-      ${condutaHtml}
+      <h2 class="rel-secao-t">Conclusão</h2>
+      <div class="descricao">${conclusaoHtml}</div>
     </section>
 
   </main>
@@ -9437,13 +9382,10 @@ function confirmarGerarPDF() {
   if (exams.length === 0) return;
   const lastExam = exams[exams.length - 1];
 
-  const relTextoEl = document.getElementById('rel-texto-clinico');
-  const textoFinal = relTextoEl ? relTextoEl.value : '';
   const taConclusao = document.getElementById('rel-texto-conclusao');
   const textoConclusaoFinal = taConclusao ? taConclusao.value : '';
 
-  const sheetHtml     = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoFinal });
-  const historicoSheet = `<div class="sheet-flow">${_buildRelHistoricoUnicaPageHtml(patient, gestacao, exams, { textareaMode: false, textoConclusaoFinal })}</div>`;
+  const sheetHtml = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoConclusaoFinal });
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
@@ -9454,10 +9396,9 @@ function confirmarGerarPDF() {
 
 <div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
 
-<div class="sheet">
+<div class="sheet-flow">
 ${sheetHtml}
 </div>
-${historicoSheet}
 
 <button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
 </body></html>`;

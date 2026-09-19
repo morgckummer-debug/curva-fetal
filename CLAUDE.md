@@ -250,6 +250,15 @@ O `subtitulo` não entra (repetia a referência que a conduta já carrega — "I
 está na coluna Colo do histórico. Qualquer faixa de risco nova entra na
 conclusão por essa função.
 
+**Colo curto é um rótulo só.** Abaixo de 25 mm a partir de 16 semanas, o achado
+se chama "Colo curto — risco de parto prematuro", e ponto. Havia uma escada de
+três nomes que dava ao caso mais grave e ao mais leve exatamente o mesmo nome
+("Colo curto" abaixo de 10 mm e entre 15–25 mm), com só o do meio como "muito
+curto" — e é justamente essa palavra que o sublinhado da conclusão destaca. A
+gravidade quem dá é a medida, que está na frase do relatório e na coluna Colo do
+histórico. O **conteúdo** continua graduado pelos mesmos cortes de sempre (10 e
+15 mm): o que se discute com 8 mm não é o que se discute com 22 mm.
+
 **O relatório não prescreve; a tela sim.** Decisão da médica em 2026-09-19: o
 laudo de ultrassom que sai da clínica não indica progesterona nem cerclagem —
 isso é do obstetra que acompanha, e "Progesterona vaginal indicada" no papel lê

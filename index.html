@@ -5909,22 +5909,23 @@ function _buildSummaryHtml(gestacao, exams, feto) {
   // Conduta sugerida — intervalos de reavaliação (política da Dra. Morgana,
   // 2026-09): crescimento normal a cada 4 semanas até 36 semanas e a cada 2
   // semanas até o parto daí em diante; PIG a cada 4 semanas com Doppler;
-  // CIUR sem estágio Doppler classificável ainda, semanal com Doppler até o
-  // parto. Estágios 1/2/3+ de RCIU já tinham cadência própria (mais
-  // frequente que semanal) e não mudam. GIG não tem prazo definido por ela
-  // ainda — segue em texto livre. Mesma tabela de computeImpressaoDiagnostica.
+  // GIG a cada 4 semanas; CIUR sem estágio Doppler classificável ainda,
+  // semanal com Doppler até o parto; estágio I mantém a cadência anterior
+  // (mais intensa que semanal); estágio II, Doppler 2×/semana; estágio
+  // III/IV, Doppler diário em ambiente hospitalar. Mesma tabela de
+  // computeImpressaoDiagnostica.
   const CONDUTA = {
     adequado:     (gaW != null && gaW >= 36)
                     ? 'Reavaliação em 2 semanas até o parto, conforme protocolo de seguimento gestacional.'
                     : 'Reavaliação em 4 semanas, conforme protocolo de seguimento gestacional.',
     pig:          'Reavaliação em 4 semanas, com estudo Doppler, para excluir evolução para RCIU.',
-    gig:          'Avaliar fatores de risco para macrossomia (DMG, obesidade). Monitorizar crescimento.',
-    rciu_precoce: dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
+    gig:          'Reavaliação em 4 semanas. Avaliar fatores de risco para macrossomia (DMG, obesidade) e monitorizar crescimento.',
+    rciu_precoce: dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
+                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
                 : dx?.estadio === 1 ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
                 :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
-    rciu_tardio:  dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
+    rciu_tardio:  dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
+                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
                 : dx?.estadio === 1 ? 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.'
                 :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
   };
@@ -7963,23 +7964,23 @@ function computeImpressaoDiagnostica(gestacao, exams) {
 
   // Intervalos de reavaliação (política da Dra. Morgana, 2026-09): crescimento
   // normal a cada 4 semanas até 36 semanas e a cada 2 semanas até o parto daí
-  // em diante; PIG a cada 4 semanas com Doppler; CIUR sem estágio Doppler
-  // classificável ainda, semanal com Doppler até o parto. Estágios 1/2/3+ de
-  // RCIU já tinham cadência própria (mais frequente que semanal) e não
-  // mudam. GIG não tem prazo definido por ela ainda — segue em texto livre.
-  // Mesma tabela de _buildSummaryHtml (Resumo em tela).
+  // em diante; PIG a cada 4 semanas com Doppler; GIG a cada 4 semanas; CIUR
+  // sem estágio Doppler classificável ainda, semanal com Doppler até o
+  // parto; estágio I mantém a cadência anterior (mais intensa que semanal);
+  // estágio II, Doppler 2×/semana; estágio III/IV, Doppler diário em
+  // ambiente hospitalar. Mesma tabela de _buildSummaryHtml (Resumo em tela).
   const CONDUTA = {
     adequado:     (last._gaW != null && last._gaW >= 36)
                     ? 'Reavaliação em 2 semanas até o parto, conforme protocolo de seguimento gestacional.'
                     : 'Reavaliação em 4 semanas, conforme protocolo de seguimento gestacional.',
     pig:          'Reavaliação em 4 semanas, com estudo Doppler, para excluir evolução para RCIU.',
-    gig:          'Avaliar fatores de risco para macrossomia (DMG, obesidade). Monitorizar crescimento.',
-    rciu_precoce: dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
+    gig:          'Reavaliação em 4 semanas. Avaliar fatores de risco para macrossomia (DMG, obesidade) e monitorizar crescimento.',
+    rciu_precoce: dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
+                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
                 : dx?.estadio === 1 ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
                 :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
-    rciu_tardio:  dx?.estadio >= 3 ? 'Situação de gravidade elevada — avaliar internação e timing do parto conforme protocolo institucional.'
-                : dx?.estadio === 2 ? 'AEDF confirmada — vigilância hospitalar intensiva. Doppler diário ou a cada 48h.'
+    rciu_tardio:  dx?.estadio >= 3 ? 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.'
+                : dx?.estadio === 2 ? 'AEDF confirmada — Doppler 2×/semana.'
                 : dx?.estadio === 1 ? 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.'
                 :                     'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.',
   };

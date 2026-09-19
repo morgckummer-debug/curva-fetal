@@ -228,3 +228,26 @@ Onde o app diverge de propósito do material: cadência do Estágio I (o materia
 sugere semanal para CPR alterada com AU normal; aqui são 2–3×/semana, política
 da médica). Ficaram de fora por decisão dela: usar ILA/maior bolsão no
 diagnóstico e a ressalva de dependência da curva no percentil limítrofe.
+
+## Colo curto e pré-eclâmpsia são da gestação, não do feto
+
+Achados maternos (`avaliarRiscoColoCurto`, `avaliarRiscoPreEclampsia`) entram no
+relatório **uma vez por gestação**. Antes vinham de dentro do laço por feto: a
+mesma medida de colo saía duas vezes no relatório gemelar e três faixas
+idênticas na trigemelar, como se fossem achados diferentes. Agora a faixa é
+montada fora do laço (`_buildRelAssessmentPageHtml`) e a linha de texto entra
+na Conclusão, não no cartão de cada feto (`_gerarConclusaoGemelarInicial`).
+Na gemelar isso também conserta uma ausência: a Conclusão — a primeira coisa
+que o obstetra lê — não trazia colo curto de jeito nenhum, só os cartões.
+
+**A medida vai junto com o achado** (`_riscoLinhaTexto`): o número mora no
+`subtitulo` ("Colo de 18mm em 26 semanas"), e as conclusões montavam a linha só
+com `label` + `conduta`. O papel dizia "colo curto" e "progesterona vaginal
+indicada" sem nunca dizer quanto media — e 24mm e 8mm pedem condutas
+diferentes. Qualquer faixa de risco nova entra na conclusão por essa função.
+
+**Coluna `Colo` no histórico biométrico** (`_relTemColo`/`_relColoCel`, nas duas
+tabelas). O valor de uma visita diz menos que a queda entre visitas, e o colo
+não aparecia em nenhuma coluna do relatório. A coluna só existe se alguma visita
+mediu — coluna inteira de "—" é ruído — e abaixo de 25mm (mesmo corte do
+`avaliarRiscoColoCurto`) o valor sai em negrito.

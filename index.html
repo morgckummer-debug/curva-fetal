@@ -8493,8 +8493,34 @@ function _renderColoRiscoFaixaHtml(coloRisco) {
 // gemelar (_buildRelHistoricoGemelarHtml), só que uma linha por exame em vez
 // de por data cruzada entre fetos, e com os quatro parâmetros já plotados
 // nos gráficos da página principal (PFE, CA, CC, fêmur) em vez de só dois.
+// Uma faixa de risco (colo curto, pré-eclâmpsia) em texto corrido. O número
+// mora no subtítulo — "Colo de 18mm em 24 semanas" —, e as conclusões montavam
+// a linha só com label + conduta: o papel dizia "colo curto" e "progesterona
+// vaginal indicada" sem nunca dizer quanto media o colo. Quem lê o relatório
+// depois (a própria médica numa segunda via, o obstetra) não tinha como saber
+// se eram 24mm ou 8mm — que é a diferença entre vigiar e internar.
+function _riscoLinhaTexto(risco) {
+  if (!risco) return '';
+  return `${risco.label}. ${risco.subtitulo}. ${risco.conduta}`;
+}
+
+// Coluna do colo no histórico: o valor de uma visita diz menos que a queda
+// entre visitas, e a tabela do relatório não trazia o colo em nenhuma coluna.
+// Só aparece se alguma visita mediu — coluna inteira de "—" é ruído. Abaixo de
+// 25mm (corte do avaliarRiscoColoCurto) sai em negrito.
+const _COLO_CURTO_MM = 25;
+
+function _relTemColo(exams) { return exams.some(e => e.colo != null); }
+
+function _relColoCel(exam) {
+  if (!exam || exam.colo == null) return '<td>—</td>';
+  const txt = `${_numBR(exam.colo, Number.isInteger(exam.colo) ? 0 : 1)} mm`;
+  return exam.colo < _COLO_CURTO_MM ? `<td><b>${txt}</b></td>` : `<td>${txt}</td>`;
+}
+
 function _buildRelHistoricoUnicaHtml(gestacao, exams) {
   if (!exams.length) return '';
+  const temColo = _relTemColo(exams);
   const linhas = exams.map(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
@@ -8508,13 +8534,14 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
       : '—';
     const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
     return `<tr><td><b>${formatDateBR(e.data_exame)}</b></td><td>${igTxt}</td><td>${efwTxt}</td>`
-      + `<td>${cel(e.ca, caC, 1)}</td><td>${cel(e.cc, ccC, 1)}</td><td>${cel(e.femur, flC, 1)}</td></tr>`;
+      + `<td>${cel(e.ca, caC, 1)}</td><td>${cel(e.cc, ccC, 1)}</td><td>${cel(e.femur, flC, 1)}</td>`
+      + (temColo ? _relColoCel(e) : '') + `</tr>`;
   }).join('');
 
   return `<section class="rel-secao">
     <h2 class="rel-secao-t">Histórico biométrico</h2>
     <table class="rel-tabela">
-      <thead><tr><th>Data</th><th>IG</th><th>PFE</th><th>CA</th><th>CC</th><th>Fêmur</th></tr></thead>
+      <thead><tr><th>Data</th><th>IG</th><th>PFE</th><th>CA</th><th>CC</th><th>Fêmur</th>${temColo ? '<th>Colo</th>' : ''}</tr></thead>
       <tbody>${linhas}</tbody>
     </table>
   </section>`;
@@ -8545,8 +8572,8 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   const linhas = [`${impressao.label}${trajetoriaOk ? ', com trajetória estável e Doppler dentro da normalidade' : ''}.`];
   if (impressao.critItems && impressao.critItems.length) linhas.push(`${impressao.critItems[0]}.`);
   if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
-  if (impressao.peRisco) linhas.push(`${impressao.peRisco.label}. ${impressao.peRisco.conduta}`);
-  if (impressao.coloRisco) linhas.push(`${impressao.coloRisco.label}. ${impressao.coloRisco.conduta}`);
+  if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
+  if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
   if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
   (impressao.notas || []).forEach(nota => linhas.push(nota));
   return linhas.join('\n');
@@ -8935,11 +8962,13 @@ function _buildRelDopplerGemelarHtml(gestacao, porFeto) {
 // e o Doppler para uma segunda folha. Vai num <textarea> como todo texto
 // clínico do relatório — ela revisa e ajusta antes de imprimir.
 //
-// peRisco e coloRisco entram aqui mesmo sem pedido: são faixas que existem
-// justamente porque o diagnóstico de crescimento (adequado/PIG/GIG/RCIU) não
-// enxerga risco de pré-eclâmpsia nem colo curto — um IP-UtA alterado ou colo
-// <25mm com peso normal lia como diagnóstico "adequado" sem isso. Resumir o
-// card só pelo label de crescimento apagaria esse alerta do papel.
+// Colo curto e IP-UtA alterado NÃO entram aqui: são achados da gestação, não
+// do feto. Repetidos num card por feto, a mesma medida de colo saía duas vezes
+// na gemelar e três na trigemelar, como se fossem achados diferentes. Eles
+// passaram para a Conclusão, uma vez só — ver _gerarConclusaoGemelarInicial e
+// _buildRelAssessmentPageHtml. Continuam precisando aparecer em algum lugar
+// (o diagnóstico de crescimento não os enxerga: colo de 18mm com peso normal
+// lê como "adequado"), só não aqui.
 function _gerarTextoCardFetoInicial(impressao) {
   if (!impressao) return '';
   const partes = [`${impressao.label}.`];
@@ -8949,8 +8978,6 @@ function _gerarTextoCardFetoInicial(impressao) {
     partes.push(`Critérios Delphi 2016 dentro da normalidade (gestação ${impressao.isPrecoce ? '< 32' : '≥ 32'} semanas).`);
   }
   if (impressao.estadio) partes.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
-  if (impressao.peRisco) partes.push(`${impressao.peRisco.label}. ${impressao.peRisco.conduta}`);
-  if (impressao.coloRisco) partes.push(`${impressao.coloRisco.label}. ${impressao.coloRisco.conduta}`);
   return partes.join(' ');
 }
 
@@ -9170,6 +9197,7 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
   });
   const datas = Object.keys(porData).sort();
   if (!datas.length) return '';
+  const temColo = porFeto.some(pf => _relTemColo(pf.exams));
 
   const linhas = datas.map(data => {
     const cels = porFeto.map(pf => {
@@ -9183,14 +9211,19 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
       const caTxt  = e.ca != null ? `${_numBR(e.ca / 10, 1)} cm${caC?.percentil != null ? ' · P' + caC.percentil : ''}` : '—';
       return `<td>${efwTxt}</td><td>${caTxt}</td>`;
     }).join('');
-    return `<tr><td><b>${formatDateBR(data)}</b></td>${cels}</tr>`;
+    // O colo é da gestação, não do feto: uma coluna só no fim, tirada de
+    // qualquer um dos fetos daquela data (o campo é compartilhado na visita).
+    const coloDaData = temColo
+      ? _relColoCel(porFeto.map(pf => porData[data][pf.feto]).find(e => e && e.colo != null))
+      : '';
+    return `<tr><td><b>${formatDateBR(data)}</b></td>${cels}${coloDaData}</tr>`;
   }).join('');
 
   const headCols = porFeto.map(pf => `<th>${labelFeto(pf.feto)} — PFE</th><th>${labelFeto(pf.feto)} — CA</th>`).join('');
   return `<section class="rel-secao">
     <h2 class="rel-secao-t">Histórico biométrico</h2>
     <table class="rel-tabela">
-      <thead><tr><th>Data</th>${headCols}</tr></thead>
+      <thead><tr><th>Data</th>${headCols}${temColo ? '<th>Colo</th>' : ''}</tr></thead>
       <tbody>${linhas}</tbody>
     </table>
   </section>`;
@@ -9256,6 +9289,15 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
       : `Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}%, abaixo do limiar de vigilância de 25%.`);
   }
 
+  // Achados da gestação, não do feto: entram uma vez só, depois das linhas por
+  // feto. Antes viviam no card de cada feto (_gerarTextoCardFetoInicial) e a
+  // mesma medida de colo saía repetida; a Conclusão, que é o que o obstetra lê
+  // primeiro, não os trazia de jeito nenhum.
+  const peRiscoGest   = porFetoComDados.map(pf => pf.impressao?.peRisco).find(Boolean);
+  const coloRiscoGest = porFetoComDados.map(pf => pf.impressao?.coloRisco).find(Boolean);
+  if (peRiscoGest)   linhas.push(_riscoLinhaTexto(peRiscoGest));
+  if (coloRiscoGest) linhas.push(_riscoLinhaTexto(coloRiscoGest));
+
   const condutas = [];
   porFetoComDados.forEach(pf => {
     const c = pf.impressao?.conduta;
@@ -9294,9 +9336,15 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
   const comparativoHtml = _buildRelComparativoHtml(porFetoComDados);
   const historicoHtml   = _buildRelHistoricoGemelarHtml(gestacao, porFeto);
 
+  // Pré-eclâmpsia e colo curto são da gestação: uma faixa só, antes dos fetos.
+  // Dentro do laço por feto elas saíam três vezes idênticas na trigemelar — a
+  // mesma medida de colo repetida, lida como três achados.
+  const riscosGestHtml = _renderPeRiscoFaixaHtml(porFetoComDados.map(pf => pf.impressao?.peRisco).find(Boolean))
+    + _renderColoRiscoFaixaHtml(porFetoComDados.map(pf => pf.impressao?.coloRisco).find(Boolean));
+
   const fetosHtml = porFetoComDados.map(pf => {
     const impressao  = pf.impressao;
-    const statusHtml = _renderStatusFaixaHtml(impressao) + _renderPeRiscoFaixaHtml(impressao?.peRisco) + _renderColoRiscoFaixaHtml(impressao?.coloRisco);
+    const statusHtml = _renderStatusFaixaHtml(impressao);
     const descricaoHtml = opts.textareaMode
       ? `<textarea id="rel-texto-clinico-${pf.feto}" class="rel-texto" oninput="_atualizarRelPageMarkMultipla()" placeholder="Texto clínico gerado automaticamente...">${escapeHtml((opts.textosIniciais || {})[pf.feto] || '')}</textarea>
         <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
@@ -9323,6 +9371,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
     ${_relIdentHtml(patient, gestacao, porFeto[0].exams[porFeto[0].exams.length - 1])}
     ${discrepHtml}
     ${comparativoHtml}
+    ${riscosGestHtml}
     ${fetosHtml}
     ${historicoHtml}
     <section style="margin-top:28px">

@@ -832,20 +832,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px}
 .rel-preview .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}
 .rel-preview .legend span{display:flex;align-items:center;gap:6px}
-.rel-preview .k-band{width:16px;height:8px;background:var(--lavanda);opacity:.55;border-radius:1px}
-.rel-preview .k-med{width:16px;border-top:1px dashed var(--lilas)}
-.rel-preview .k-pat{width:16px;border-top:2px solid var(--dourado)}
 .rel-preview .charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px 18px}
 .rel-preview .chart-t{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
 .rel-preview .chart-t b{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo)}
 .rel-preview .chart-t i{font-style:normal;font-size:10.5px;color:var(--dourado)}
 .rel-preview .chart svg{width:100%;height:auto;display:block}
-.rel-preview .band-out{fill:var(--lavanda);opacity:.22}
-.rel-preview .band-in{fill:var(--lavanda);opacity:.5}
-.rel-preview .median{fill:none;stroke:var(--lilas);stroke-width:1;stroke-dasharray:3 3}
-.rel-preview .trace{fill:none;stroke:var(--dourado);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.rel-preview .pt{fill:var(--dourado)}
-.rel-preview .pt-now{fill:var(--papel);stroke:var(--dourado);stroke-width:2.2}
+.rel-preview .trace{fill:none;stroke:var(--roxo);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round;opacity:.55}
 .rel-preview .axis{stroke:var(--linha);stroke-width:1}
 .rel-preview .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
 /* Card de feto + gráfico de peso da gemelar — espelha .feto-card/.efw-* do
@@ -8222,20 +8214,18 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   const xS = w => (w - 20) / 20 * W;
   const yS = v => AXIS_Y - (v - yMin) / (yMax - yMin) * 100;
 
-  // Halo decorativo em torno da faixa P10–P90 real — não reivindica P3/P97
-  // exatos (a tabela de referência do app só guarda P5–P95), só dá profundidade
-  // visual à faixa clínica de verdade, que é a única rotulada na legenda.
-  const HALO = 1.45;
-  const bandOutTop = refData.map(r => ({ x: xS(r.w), y: yS(r.p50 + (r.p90 - r.p50) * HALO) }));
-  const bandOutBot = refData.map(r => ({ x: xS(r.w), y: yS(Math.max(0, r.p50 - (r.p50 - r.p10) * HALO)) }));
-  const bandInTop  = refData.map(r => ({ x: xS(r.w), y: yS(r.p90) }));
-  const bandInBot  = refData.map(r => ({ x: xS(r.w), y: yS(r.p10) }));
-  const medianPts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p50) }));
-  const tracePts   = patPts.map(p => ({ x: xS(p.w), y: yS(p.y) }));
+  // Mesmas classes do gráfico grande de peso (_buildRelChartEfwSvg) — banda,
+  // linhas de P90/P10 tracejadas, mediana sólida e ponto vazado com a cor do
+  // roxo. Não são dois desenhos: é o mesmo, só num viewBox menor (220×118 vs
+  // 340×176) para caber na grade de 3 colunas — as unidades do SVG escalam
+  // junto, então o traço não fica nem mais grosso nem mais fino que o do peso.
+  const p90Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p90) }));
+  const p10Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p10) }));
+  const p50Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p50) }));
+  const tracePts = patPts.map(p => ({ x: xS(p.w), y: yS(p.y) }));
 
-  const ptsHtml = tracePts.map((p, i) => i === tracePts.length - 1
-    ? `<circle class="pt-now" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4.4"/>`
-    : `<circle class="pt" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.4"/>`
+  const ptsHtml = tracePts.map(p =>
+    `<circle class="efw-pt" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3"/>`
   ).join('');
 
   const axisWeeks = [20, 26, 32, 38];
@@ -8244,9 +8234,10 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   ).join('');
 
   return `<svg viewBox="0 0 220 118">
-    <path class="band-out" d="${_relBandPath(bandOutTop, bandOutBot)}"/>
-    <path class="band-in" d="${_relBandPath(bandInTop, bandInBot)}"/>
-    <path class="median" d="${_relSvgPath(medianPts)}"/>
+    <path class="efw-band" d="${_relBandPath(p90Pts, p10Pts)}"/>
+    <path class="efw-p90" d="${_relSvgPath(p90Pts)}"/>
+    <path class="efw-p50" d="${_relSvgPath(p50Pts)}"/>
+    <path class="efw-p10" d="${_relSvgPath(p10Pts)}"/>
     ${tracePts.length ? `<polyline class="trace" points="${tracePts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}"/>` : ''}
     ${ptsHtml}
     <line class="axis" x1="0" y1="${AXIS_Y}" x2="220" y2="${AXIS_Y}"/>
@@ -8543,9 +8534,9 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       <div class="charts-head">
         <div class="eyebrow">Evolução longitudinal</div>
         <div class="legend">
-          <span><i class="k-band"></i>P10–P90</span>
-          <span><i class="k-med"></i>Mediana</span>
-          <span><i class="k-pat"></i>Paciente</span>
+          <span><i class="k-p90"></i>P10–P90</span>
+          <span><i class="k-p50"></i>Mediana</span>
+          <span><i class="k-pt"></i>Paciente</span>
         </div>
       </div>
       <div class="feto-cards feto-cards--unica">
@@ -8890,9 +8881,9 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
       <div class="charts-head">
         <div class="eyebrow">Evolução longitudinal — ${labelFeto(feto)}</div>
         <div class="legend">
-          <span><i class="k-band"></i>P10–P90</span>
-          <span><i class="k-med"></i>Mediana</span>
-          <span><i class="k-pat"></i>Paciente</span>
+          <span><i class="k-p90"></i>P10–P90</span>
+          <span><i class="k-p50"></i>Mediana</span>
+          <span><i class="k-pt"></i>Paciente</span>
         </div>
       </div>
       <div class="charts">
@@ -9196,20 +9187,12 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .charts-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
 .legend{display:flex;align-items:center;gap:16px;font-size:9.5px;color:var(--texto-2);letter-spacing:.04em}
 .legend span{display:flex;align-items:center;gap:6px}
-.k-band{width:16px;height:8px;background:var(--lavanda);opacity:.55;border-radius:1px}
-.k-med{width:16px;border-top:1px dashed var(--lilas)}
-.k-pat{width:16px;border-top:2px solid var(--dourado)}
 .charts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px 18px}
 .chart-t{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
 .chart-t b{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo)}
 .chart-t i{font-style:normal;font-size:10.5px;color:var(--dourado)}
 .chart svg{width:100%;height:auto;display:block}
-.band-out{fill:var(--lavanda);opacity:.22}
-.band-in{fill:var(--lavanda);opacity:.5}
-.median{fill:none;stroke:var(--lilas);stroke-width:1;stroke-dasharray:3 3}
-.trace{fill:none;stroke:var(--dourado);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.pt{fill:var(--dourado)}
-.pt-now{fill:var(--papel);stroke:var(--dourado);stroke-width:2.2}
+.trace{fill:none;stroke:var(--roxo);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round;opacity:.55}
 .axis{stroke:var(--linha);stroke-width:1}
 .axis-t{font-family:'Lato',Georgia,serif;font-size:7.5px;fill:var(--texto-3)}
 

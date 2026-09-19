@@ -240,11 +240,22 @@ na Conclusão, não no cartão de cada feto (`_gerarConclusaoGemelarInicial`).
 Na gemelar isso também conserta uma ausência: a Conclusão — a primeira coisa
 que o obstetra lê — não trazia colo curto de jeito nenhum, só os cartões.
 
-**A medida vai junto com o achado** (`_riscoLinhaTexto`): o número mora no
-`subtitulo` ("Colo de 18mm em 26 semanas"), e as conclusões montavam a linha só
-com `label` + `conduta`. O papel dizia "colo curto" e "progesterona vaginal
-indicada" sem nunca dizer quanto media — e 24mm e 8mm pedem condutas
-diferentes. Qualquer faixa de risco nova entra na conclusão por essa função.
+**Formato da linha na conclusão** (`_riscoLinhaTexto`, definido pela médica em
+2026-09-19): `__Colo curto__ — risco de parto prematuro (Progesterona vaginal
+indicada (ISUOG 2022 / FMF), independente de antecedente obstétrico.)` — achado
+sublinhado, risco em seguida, conduta entre parênteses. Sublinha só a parte
+antes do travessão: é o que a vista precisa pegar primeiro numa lista de itens.
+O `subtitulo` não entra (repetia a referência que a conduta já carrega — "ISUOG
+2022 / FMF" saía duas vezes na mesma frase); a medida do colo, que morava nele,
+está na coluna Colo do histórico. Qualquer faixa de risco nova entra na
+conclusão por essa função.
+
+**`__assim__` vira sublinhado** (`_relMarcacaoHtml`), e é a única marcação
+aceita. A conclusão passa por um `<textarea>` antes de imprimir: HTML digitado
+ali é escapado e sairia cru no papel, então a ênfase viaja como texto puro e
+vira tag só ao montar a lista. A ordem em `_relMarcacaoHtml` não é estética —
+escapa primeiro, marca depois, senão um `<` digitado na conclusão vira tag de
+verdade no relatório.
 
 **Coluna `Colo` no histórico biométrico** (`_relTemColo`/`_relColoCel`, nas duas
 tabelas). O valor de uma visita diz menos que a queda entre visitas, e o colo

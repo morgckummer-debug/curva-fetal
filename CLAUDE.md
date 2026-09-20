@@ -509,3 +509,66 @@ uterinas (média)" ainda imprime o mesmo valor materno numa coluna por feto. O
 colo já atravessa as colunas por esse motivo; as uterinas deveriam também —
 mas só quando os valores das duas linhas coincidem, senão o relatório estaria
 escolhendo um em silêncio.
+
+## Colo curto: corte muda abaixo de 16 semanas
+
+2026-09-21. `avaliarRiscoColoCurto` só avaliava a partir de 16 semanas — abaixo
+disso, `return null` incondicional, mesmo com colo medido e claramente curto.
+O corte de 25mm (Fonseca et al. 2007) é da janela clássica de rastreio de
+2º trimestre; no 1º trimestre a referência da Dra. Morgana é outra: 30mm.
+
+- **Dois cortes, dois blocos.** `gaW < 16` usa 30mm; `gaW >= 16` continua
+  com 25mm e a conduta graduada de sempre (10mm/15mm, cerclagem, progesterona).
+  Não é o mesmo bloco com um número trocado: a conduta graduada da faixa
+  ≥16 semanas cita Fonseca 2007 e a janela de cerclagem (<24 semanas) —
+  referências pensadas pra aquela idade gestacional, que não fariam sentido
+  estendidas pra cá.
+- **Texto simples no 1º trimestre, decisão dela.** Sem citar progesterona
+  nem cerclagem — só o achado (medida, corte de 30mm) e a reavaliação na
+  janela padrão de rastreio (20-24 semanas). `conduta` e `condutaRelatorio`
+  saem iguais aqui: não sobra nada prescritivo pra esconder do papel, ao
+  contrário da faixa ≥16 semanas onde a tela é mais completa que o relatório.
+- O rótulo continua o mesmo dos dois lados: "Colo curto — Risco aumentado de
+  parto prematuro" (ver decisão de nome único, 2026-09-19, acima).
+
+## RCP: fórmula única com o editor de laudos
+
+2026-09-21. O editor de laudos (`laudos-dramorgana/obstetrico.html`) calculava
+o percentil do RCP com uma tabela própria (média/DP por semana, sem citação de
+origem, via z-score) que divergia da fórmula usada aqui (`calcDopplerCpr`,
+Figueras/Barcelona, linear). O mesmo RCP medido dava percentis incompatíveis
+nos dois papéis — RCP 1,2 em 34-35 semanas: ~P40 aqui, <P5 lá. Confirmado com
+a médica em 2026-09-21: a fórmula desta app é a referência; o editor foi
+ajustado para usar a mesma (`dopplerCprRef`/`cprPercentil` lá, ported linha a
+linha desta `dopplerCprRef`/`calcDopplerCpr`). Mudar a fórmula aqui sem mudar
+lá volta a abrir a divergência — ver o `CLAUDE.md` do outro repositório.
+
+## PIG vs CIUR: o laudo passou a aplicar os mesmos critérios menores
+
+2026-09-21, mesma conversa. Confirmado pela médica: "o app está correto" — o
+laudo obstétrico (`obstetrico.html`, 2º/3º trimestre) decidia PIG vs CIUR só
+pelo percentil do exame do dia (≤P3 = CIUR, 5-10 = PIG), sem olhar Doppler.
+Um feto em P8 com IP-uterinas>P95 saía "PIG" no laudo e "CIUR" no relatório
+evolutivo daqui — mesma paciente, dois papéis discordando no mesmo dia.
+
+O editor passou a portar `calcDiagnosticoFGR` (só a parte que um exame único
+consegue calcular, sem histórico): em gestação única, um feto em percentil
+5-10 fecha CIUR se, antes de 32 semanas, IP-umbilical>P95 ou IP-uterinas>P95;
+a partir de 32 semanas, se fechar 2 dos 3 critérios menores (RCP<P5 ou
+IP-umbilical>P95 ou IP-uterinas>P95 contam como um critério só; ACM<P5 conta
+como um segundo, independente — mesmo invariante daqui: o percentil ≤10 já é
+sempre o critério de crescimento que falta). Para isso o editor ganhou os
+percentis de IP-umbilical (Acharya 2005) e IP-ACM (Ebbing 2007), que antes só
+existiam aqui — mesmas fórmulas, funções próprias (`calcAuPercentil`/
+`calcAcmPercentil`), sem campo novo na tela (o laudo continua imprimindo o IP
+bruto e a classificação normal/alterada que a médica já escolhia).
+
+**Só em gestação única** — mesma regra desta app (ver "Gemelar não é gestação
+única duas vezes", acima): numa gemelar/trigemelar o editor continua com o
+corte fixo em percentil (o CIUR seletivo da múltipla ele ainda não calcula).
+
+**Pendência que ficou aberta no editor**: falta o critério isolado de diástole
+zero/reversa da umbilical (AEDF/REDF), que aqui fecha RCIU precoce sozinho —
+o editor só tem o IP numérico da umbilical, sem campo pra classificar o fluxo
+diastólico. Se esse campo for criado lá, ele precisa entrar nessa regra
+também. Mudar os critérios aqui sem espelhar lá volta a abrir a divergência.

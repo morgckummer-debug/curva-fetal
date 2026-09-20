@@ -3303,8 +3303,30 @@ function avaliarRiscoPreEclampsia(dx) {
 function avaliarRiscoColoCurto(lastExam, gestacao) {
   if (!lastExam || lastExam.colo == null) return null;
   const gaW = lastExam._gaW;
-  if (gaW == null || gaW < 16) return null;
+  if (gaW == null) return null;
   const colo = lastExam.colo;
+
+  // Abaixo de 16 semanas o corte de referência é outro: 30mm, não 25mm.
+  // Decisão da Dra. Morgana, 2026-09-21. A conduta graduada da faixa ≥16
+  // semanas (Fonseca et al. 2007, ISUOG 2022/FMF, janela de cerclagem <24
+  // semanas) é pensada para a janela clássica de rastreio do 2º trimestre —
+  // estendê-la pra cá seria citar uma referência fora da idade gestacional
+  // em que ela vale. Texto simples aqui, por escolha dela: só o achado e a
+  // reavaliação na janela padrão (20-24 semanas), sem citar progesterona
+  // nem cerclagem. `conduta` e `condutaRelatorio` saem iguais — não há nada
+  // prescritivo pra separar entre tela e papel nesta faixa, ao contrário da
+  // ≥16 semanas (ver mais abaixo).
+  if (gaW < 16) {
+    if (colo >= 30) return null;
+    const textoPrecoce = `Colo medido em ${colo}mm no primeiro trimestre (referência ≥30mm). Reavaliação do comprimento cervical na janela padrão de rastreio (20 a 24 semanas).`;
+    return {
+      label: 'Colo curto — Risco aumentado de parto prematuro',
+      icon: '⚠',
+      subtitulo: `Colo de ${colo}mm em ${Math.floor(gaW)} semanas · corte de 30mm no 1º trimestre`,
+      conduta: textoPrecoce,
+      condutaRelatorio: textoPrecoce,
+    };
+  }
   if (colo >= 25) return null;
 
   const temPPTPrevio      = !!gestacao?.ppt_espontaneo_previo;

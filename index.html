@@ -2717,11 +2717,10 @@ function calcDiagnosticoFGR(lastExam, allExams) {
   // cruzamento falso sozinho já fecha RCIU tardio. Compara com o exame válido
   // mais antigo que respeite o intervalo (não com o anterior imediato): a
   // queda de percentil que o critério procura é a da trajetória inteira.
-  const _QUARTIS_INTERVALO_MIN_DIAS = 14;
   let cruzamentoQuartis = false;
   if (allExams && allExams.length >= 2 && z.ca != null) {
     const base = allExams.find(e => e !== lastExam && e._z?.ca != null && e._igDays != null
-                                    && (igDays - e._igDays) >= _QUARTIS_INTERVALO_MIN_DIAS);
+                                    && (igDays - e._igDays) >= _INTERVALO_MIN_CRESCIMENTO_DIAS);
     // 2 quartis ≈ 1.35 unidades de z (IQR = 1.349)
     if (base && base._z.ca > z.ca) cruzamentoQuartis = (base._z.ca - z.ca) >= 1.35;
   }
@@ -2824,6 +2823,72 @@ function calcDiagnosticoFGR(lastExam, allExams) {
 // da Conclusão ("RCIU Precoce (< 32 semanas) (P4)"). O que precisa ser lido
 // junto do diagnóstico é o estágio, e esse continua saindo na linha seguinte
 // ("Estágio I — Barcelona/FIGO").
+// Intervalo mínimo entre dois exames para que a diferença entre eles seja
+// crescimento, e não erro de medida. Usado pelo cruzamento de quartis
+// (calcDiagnosticoFGR) e pela leitura de velocidade (_velocidadeCrescimento) —
+// era um const local do primeiro até 2026-09-20, e o segundo precisaria
+// repetir o mesmo 14.
+const _INTERVALO_MIN_CRESCIMENTO_DIAS = 14;
+
+// Quanto o percentil de PFE pode variar, para cima ou para baixo, sem que isso
+// seja desvio de crescimento. 20 pontos, definido pela médica em 2026-09-20: o
+// PFE de Hadlock combina quatro medidas e erra ~10-15%, então um feto no P45
+// oscilando entre P25 e P65 entre duas visitas não mudou de trajetória —
+// mudou de ruído. É por isso que o corte não pode ser "não caiu nada".
+const _VELOCIDADE_TOLERANCIA_PERCENTIL = 20;
+
+// Velocidade de crescimento lida pelo percentil, não em g/semana.
+//
+// O gramas-por-semana foi considerado e descartado em 2026-09-20: obriga quem
+// lê a ter a curva de Hadlock na cabeça para saber se 150 g/semana é muito ou
+// pouco. O percentil já é o peso comparado com o esperado para aquela IG — se
+// ele se manteve ao longo de ≥14 dias, a velocidade foi a da curva, por
+// definição. É também a pergunta que o obstetra faz ("caiu de percentil?").
+//
+// Compara o último exame com o exame válido MAIS ANTIGO que respeite os 14
+// dias, não com o anterior imediato — mesma escolha do cruzamento de quartis,
+// pelo mesmo motivo: a queda que interessa é a da trajetória, não a do último
+// par de pontos.
+//
+// Devolve null quando não há o que afirmar (menos de dois exames com PFE, ou
+// nenhum par separado por 14 dias). Null não é "está tudo bem": é o app não
+// tendo base para dizer nada, e quem chama não imprime frase nenhuma.
+function _velocidadeCrescimento(enriched) {
+  if (!enriched || enriched.length < 2) return null;
+  const ultimo = enriched[enriched.length - 1];
+  if (ultimo._z?.efw == null || ultimo._igDays == null) return null;
+
+  const base = enriched.find(e => e !== ultimo && e._z?.efw != null && e._igDays != null
+                                 && (ultimo._igDays - e._igDays) >= _INTERVALO_MIN_CRESCIMENTO_DIAS);
+  if (!base) return null;
+
+  const pUltimo = _zToPercentile(ultimo._z.efw);
+  const pBase   = _zToPercentile(base._z.efw);
+  if (pUltimo == null || pBase == null) return null;
+
+  const delta = pUltimo - pBase;
+  const classe = delta >  _VELOCIDADE_TOLERANCIA_PERCENTIL ? 'acelerada'
+               : delta < -_VELOCIDADE_TOLERANCIA_PERCENTIL ? 'queda'
+               : 'esperada';
+  return { classe, delta, dias: ultimo._igDays - base._igDays, dePercentil: pBase, aPercentil: pUltimo };
+}
+
+// A parte final da linha da Conclusão de um feto sem achados. Antes era sempre
+// ", com trajetória estável e Doppler dentro da normalidade", dita a partir de
+// "tem 2+ exames e nenhum achado" — ou seja, uma paciente com dois exames
+// separados por uma semana recebia "trajetória estável" sem que ninguém
+// pudesse ver trajetória nenhuma em sete dias. Agora "estável" só é afirmado
+// quando há um intervalo que sustente a afirmação.
+//
+// Queda acima da tolerância não vira frase: o relatório deixa de afirmar que
+// está bem, mas não passa a afirmar o contrário — nomear a desaceleração é
+// texto clínico que a médica ainda não definiu (pendente de 2026-09-20).
+function _fraseTrajetoriaTxt(classe) {
+  if (classe === 'esperada')  return ', com velocidade de crescimento dentro do esperado e Doppler dentro da normalidade';
+  if (classe === 'acelerada') return ', com aceleração do crescimento e Doppler dentro da normalidade';
+  return ', com Doppler dentro da normalidade';
+}
+
 const _DX_NOME = {
   adequado:     'Crescimento fetal adequado',
   pig:          'PIG — Pequeno para Idade Gestacional',
@@ -8279,6 +8344,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     critItems,
     estadio,
     estadioIndeterminado,
+    velocidade: _velocidadeCrescimento(enriched),
     efwPercentil: (last._efw != null && last._igDays != null)
       ? (calcEFWPercentile(last._efw, last._igDays) || {}).percentil ?? null
       : null,
@@ -8691,10 +8757,11 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
 // que um IP-UtA alterado ou colo curto precisam aparecer para não sumir do
 // papel.
 //
-// `trajetória estável e Doppler dentro da normalidade` só entra quando não
-// há nenhum achado (critItems/peRisco/coloRisco vazios) e há pelo menos 2
-// exames — a mesma exigência de calcTrend() (ver runLongitudinalAnalysis):
-// "estável" não é uma leitura que faz sentido com um exame só.
+// O fecho da linha (ver _fraseTrajetoriaTxt) só entra quando não há nenhum
+// achado (critItems/peRisco/coloRisco vazios) e há pelo menos 2 exames — a
+// mesma exigência de calcTrend() (ver runLongitudinalAnalysis). Qual fecho,
+// decide a velocidade: "velocidade de crescimento dentro do esperado" exige
+// ainda um intervalo de 14 dias, e sem ele sobra só o Doppler.
 function _gerarConclusaoUnicaInicial(impressao, exams) {
   if (!impressao) return '';
   const semAchados   = !(impressao.critItems && impressao.critItems.length) && !impressao.peRisco && !impressao.coloRisco;
@@ -8709,7 +8776,7 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // múltipla, pelo mesmo motivo: informação a mais na lista que o obstetra lê
   // primeiro. Continua no Resumo em tela. `critItems` segue pesando em
   // `semAchados` acima — um feto com critério não é um feto "estável".
-  const linhas = [`${impressao.label}${pctTxt}${trajetoriaOk ? ', com trajetória estável e Doppler dentro da normalidade' : ''}.`];
+  const linhas = [`${impressao.label}${pctTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
   if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
@@ -9454,13 +9521,20 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
     if (rotulo) {
       linha += ` — ${rotulo[g.fetos.length > 1 ? 1 : 0]}`;
     } else {
-      // "Trajetória estável e Doppler dentro da normalidade" só quando não há
-      // achado nenhum (peRisco/coloRisco vazios em todos do grupo) e todos já
-      // têm 2+ exames — mesma exigência de calcTrend(), pra não dizer
-      // "estável" com um exame só.
+      // O fecho da linha só entra quando não há achado nenhum
+      // (peRisco/coloRisco vazios em todos do grupo) e todos já têm 2+ exames
+      // — mesma exigência de calcTrend(). Qual fecho, quem decide é
+      // _fraseTrajetoriaTxt, pela velocidade de cada feto.
+      //
+      // Velocidades diferentes dentro do mesmo grupo caem no fecho neutro (só
+      // Doppler): o grupo é formado por diagnóstico igual, não por trajetória
+      // igual, e uma frase só não pode afirmar duas leituras diferentes.
       const semAchados   = g.fetos.every(pf => !(pf.impressao?.peRisco) && !(pf.impressao?.coloRisco));
       const trajetoriaOk = semAchados && g.fetos.every(pf => (pf.exams?.length || 0) >= 2);
-      if (trajetoriaOk) linha += ', com trajetória estável e Doppler dentro da normalidade';
+      if (trajetoriaOk) {
+        const classes = new Set(g.fetos.map(pf => pf.impressao?.velocidade?.classe || null));
+        linha += _fraseTrajetoriaTxt(classes.size === 1 ? [...classes][0] : null);
+      }
     }
     return linha + '.';
   });

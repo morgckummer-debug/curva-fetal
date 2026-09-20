@@ -922,6 +922,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .rel-tabela td b{color:var(--roxo)}
 .rel-preview .rel-tabela td.ref{color:var(--texto-3)}
 .rel-preview .rel-tabela td.fora{color:#8a2840;font-weight:700}
+/* Comentário da especialista — faixa dourada à esquerda para separar a voz
+   dela do texto gerado pelo app (espelha .rel-comentario do CSS exportado,
+   ver _relPrintStyleBlock). */
+.rel-preview .rel-comentario{border-left:2px solid var(--dourado);padding-left:13px}
 .rel-preview .rel-secao{margin-top:22px}
 .rel-preview .rel-secao-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:13.5px;font-weight:600;color:var(--roxo);margin:0 0 7px}
 .rel-preview .feto-card-texto{margin-top:9px;font-size:11px;line-height:1.45;color:#3B2A2A}
@@ -8980,6 +8984,8 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       <div class="descricao">${conclusaoHtml}</div>
     </section>
 
+    ${_relComentarioHtml(opts)}
+
   </main>
 
   ${_relFooterHtml()}`;
@@ -9118,6 +9124,41 @@ function _relListaHtml(texto) {
 // tag de verdade no relatório.
 function _relMarcacaoHtml(texto) {
   return escapeHtml(texto).replace(/__(.+?)__/g, '<u>$1</u>');
+}
+
+// ── Comentário da especialista — facultativo ─────────────────────────────
+// Decisão da médica em 2026-09-20. A Conclusão é o app escrevendo e ela
+// revisando; esta seção é o contrário — nasce vazia e só existe se ela
+// escrever.
+//
+// Em branco não imprime seção nenhuma, nem o título: mesma regra da coluna
+// Colo do histórico. Um título com o campo vazio é pior que a ausência,
+// porque no papel parece que faltou preencher alguma coisa.
+//
+// É a única parte do relatório onde a regra de "o relatório não prescreve"
+// (ver CLAUDE.md, colo curto) não se aplica: aquela regra é sobre o que o app
+// gera sozinho. O que ela escreve aqui é a leitura dela, assinada por ela, e
+// pode dizer o que ela quiser — inclusive conduta.
+//
+// Cada linha vira um parágrafo (não é lista, é prosa) e passa pelo
+// _relMarcacaoHtml como a Conclusão: `__assim__` sublinha aqui também, e um
+// `<` digitado é escapado antes de ter chance de virar tag.
+function _relComentarioHtml(opts) {
+  if (opts.textareaMode) {
+    return `<section class="rel-secao">
+      <h2 class="rel-secao-t">Comentário da especialista</h2>
+      <textarea id="rel-texto-comentario" class="rel-texto rel-texto--full" oninput="_atualizarRelPageMarkMultipla()" placeholder="Opcional — em branco, esta seção não aparece no relatório."></textarea>
+      <div class="rel-texto-hint">Facultativo. O que você escrever aqui sai no papel com as suas palavras.</div>
+    </section>`;
+  }
+  const paras = (opts.textoComentarioFinal || '').split('\n')
+    .map(l => l.trim()).filter(Boolean)
+    .map(l => `<p>${_relMarcacaoHtml(l)}</p>`).join('');
+  if (!paras) return '';
+  return `<section class="rel-secao rel-comentario">
+    <h2 class="rel-secao-t">Comentário da especialista</h2>
+    <div class="descricao">${paras}</div>
+  </section>`;
 }
 
 // Tabela de Doppler + colo. Os valores vêm do último exame de cada feto; a
@@ -9271,6 +9312,8 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
       <h2 class="rel-secao-t">Conclusão</h2>
       <div class="descricao">${conclusaoHtml}</div>
     </section>
+
+    ${_relComentarioHtml(opts)}
 
   </main>
 
@@ -9633,6 +9676,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
       <h2 style="font-family:'Comfortaa',system-ui,sans-serif;font-size:15px;font-weight:600;color:var(--roxo);margin:0 0 10px">Conclusão</h2>
       <div class="descricao">${conclusaoHtml}</div>
     </section>
+    ${_relComentarioHtml(opts)}
   </main>
 
   ${_relFooterHtml()}`;
@@ -9857,6 +9901,10 @@ html,body{margin:0;padding:0;background:#e9e6e4}
    clínico, um Doppler alterado não pode ler igual a um normal. */
 .rel-tabela td.fora{color:#8a2840;font-weight:700}
 
+/* Comentário da especialista — faixa dourada à esquerda para separar a voz
+   dela do texto gerado pelo app (espelhado em .rel-preview .rel-comentario). */
+.rel-comentario{border-left:2px solid var(--dourado);padding-left:13px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rel-secao{margin-top:22px}
 .rel-secao-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:13.5px;font-weight:600;color:var(--roxo);margin:0 0 7px}
 .feto-card-texto{margin-top:9px;font-size:11px;line-height:1.45;color:var(--texto)}
@@ -9917,8 +9965,10 @@ function confirmarGerarPDF() {
 
   const taConclusao = document.getElementById('rel-texto-conclusao');
   const textoConclusaoFinal = taConclusao ? taConclusao.value : '';
+  const taComentario = document.getElementById('rel-texto-comentario');
+  const textoComentarioFinal = taComentario ? taComentario.value : '';
 
-  const sheetHtml = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoConclusaoFinal });
+  const sheetHtml = _buildRelSheetHtml(patient, gestacao, exams, { textareaMode: false, textoConclusaoFinal, textoComentarioFinal });
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
@@ -9957,10 +10007,12 @@ function _confirmarGerarPDFMultiplo(patient, gestacao) {
   });
   const taConclusao = document.getElementById('rel-texto-conclusao');
   const textoConclusaoFinal = taConclusao ? taConclusao.value : '';
+  const taComentario = document.getElementById('rel-texto-comentario');
+  const textoComentarioFinal = taComentario ? taComentario.value : '';
 
   // Gemelar: o relatório inteiro numa folha (ver _buildRelGemelarPaginaHtml).
   // Trigemelar: uma página de gráficos por feto + a avaliação conjunta.
-  const opts = { textareaMode: false, textosFinais, textoConclusaoFinal };
+  const opts = { textareaMode: false, textosFinais, textoConclusaoFinal, textoComentarioFinal };
   const chartSheets = porFeto.length === 2 ? '' : porFeto
     .map(pf => `<div class="sheet">${_buildRelChartsPageHtml(patient, gestacao, pf.exams, pf.feto)}</div>`)
     .join('\n');

@@ -8681,8 +8681,15 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   const trajetoriaOk = semAchados && impressao.diagnostico === 'adequado' && (exams?.length || 0) >= 2;
 
   const pctTxt = impressao.efwPercentil != null ? ` (P${impressao.efwPercentil})` : '';
+  // Formato definido pela médica em 2026-09-20: "Crescimento fetal adequado
+  // (P45)". Aqui o percentil fica entre parênteses depois do rótulo, e não
+  // colado num feto como na múltipla — não há feto a nomear.
+  //
+  // O critério que fechou o diagnóstico saiu daqui junto com a versão da
+  // múltipla, pelo mesmo motivo: informação a mais na lista que o obstetra lê
+  // primeiro. Continua no Resumo em tela. `critItems` segue pesando em
+  // `semAchados` acima — um feto com critério não é um feto "estável".
   const linhas = [`${impressao.label}${pctTxt}${trajetoriaOk ? ', com trajetória estável e Doppler dentro da normalidade' : ''}.`];
-  if (impressao.critItems && impressao.critItems.length) linhas.push(`${impressao.critItems[0]}.`);
   if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
@@ -9352,11 +9359,10 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
 }
 
 // Rascunho de conclusão — uma linha por diagnóstico distinto entre os fetos
-// (fetos com o mesmo diagnóstico E os mesmos critérios adicionais saem juntos
-// numa linha coletiva, "Ambos os fetos apresentam..."/"Os três fetos
-// apresentam...", em vez de repetir a mesma frase uma vez por feto — só
-// diagnósticos ou critérios diferentes continuam em linhas separadas, porque
-// aí juntar esconderia a diferença que a linha existe pra mostrar), seguida
+// (os que têm o mesmo diagnóstico saem juntos na mesma linha, "Feto 1 no
+// percentil 20 e Feto 2 no percentil 11", em vez de repetir a frase uma vez
+// por feto; diagnósticos diferentes continuam em linhas separadas, porque aí
+// juntar esconderia a diferença que a linha existe pra mostrar), seguida
 // da leitura da discordância (mesmo texto de _buildRelDiscrepanciaHtml) e do
 // fecho com a conduta já calculada por feto (impressao.conduta — mesma do
 // card e de _gerarTextoCardFetoInicial, condutas iguais saem juntas). Só
@@ -9364,38 +9370,52 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
 // vira um item da lista na hora de imprimir (ver _relListaHtml). Fica num
 // <textarea> igual aos de resumo por feto — revisável antes de imprimir,
 // nunca vai direto pro PDF sem passar pelos olhos da médica.
-// Os percentis de PFE do grupo, entre parênteses, logo depois do diagnóstico:
-// "Ambos os fetos apresentam crescimento adequado para a idade gestacional
-// (Feto A: P20, Feto B: P11)". Formato definido pela médica em 2026-09-20 — o
-// rótulo de cada feto entra porque "(P20 e P11)" obriga o obstetra a supor que
-// a ordem é A→B, e numa trigemelar são três números para supor.
+// O sujeito de uma linha da Conclusão: cada feto do grupo com o seu percentil
+// de PFE — "Feto 1 no percentil 20 e Feto 2 no percentil 11". Formato definido
+// pela médica em 2026-09-20.
 //
-// Num grupo de um feto só o rótulo não entra: o sujeito da frase já disse qual
-// é ("Feto B apresenta padrão de PIG (P7)"), e repeti-lo ali seria dizer
-// "Feto B" duas vezes na mesma linha.
+// O percentil vai por extenso e colado no feto de propósito. Antes ele entrava
+// entre parênteses depois do diagnóstico, e encostava no parêntese que vários
+// rótulos já têm: "padrão de PIG (pequeno para a idade gestacional) (P7)",
+// "RCIU Precoce (< 32 semanas) (P4)". Ao lado do feto isso não acontece com
+// rótulo nenhum, e o número fica junto de quem ele descreve.
 //
-// Feto sem PFE na última visita fica de fora dos parênteses em vez de virar
-// "P—"; se nenhum do grupo tem, os parênteses não aparecem.
-function _percentisDoGrupoTxt(fetos, coletivo) {
-  const itens = fetos
-    .filter(pf => pf.impressao?.efwPercentil != null)
-    .map(pf => coletivo
-      ? `${labelFeto(pf.feto)}: P${pf.impressao.efwPercentil}`
-      : `P${pf.impressao.efwPercentil}`);
-  return itens.length ? ` (${itens.join(', ')})` : '';
+// Feto sem PFE na visita não some da linha — vira "Feto 2 sem peso estimado
+// nesta visita". Sumir seria pior que a frase feia: o obstetra conta os fetos
+// na Conclusão e acha um a menos.
+function _fetoPercentilTxt(pf) {
+  const p = pf.impressao?.efwPercentil;
+  return p != null
+    ? `${labelFeto(pf.feto)} no percentil ${p}`
+    : `${labelFeto(pf.feto)} sem peso estimado nesta visita`;
+}
+
+// "a", "a e b", "a, b e c" — a vírgula-e do português, que o join(', ') não dá
+// e a linha de três fetos da trigemelar precisa.
+function _listaPtBR(itens) {
+  if (itens.length <= 1) return itens[0] || '';
+  return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
 }
 
 function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
-  const DX_LABEL = {
-    adequado: 'crescimento adequado para a idade gestacional',
-    pig: 'padrão de PIG (pequeno para a idade gestacional)',
-    gig: 'padrão de GIG (grande para a idade gestacional)',
-    rciu_precoce: 'critérios de RCIU precoce',
-    rciu_tardio: 'critérios de RCIU tardio',
+  // Rótulo curto depois do travessão, em singular e plural. `adequado` não tem
+  // rótulo nenhum: o percentil já diz que está adequado, e "Feto 2 no percentil
+  // 40 — Feto adequado" é a mesma informação duas vezes (decisão da médica,
+  // 2026-09-20). Os outros quatro nomeiam o achado pela sigla que o obstetra
+  // usa, sem a expansão entre parênteses — ela continua no card de cada feto e
+  // no Resumo em tela, que não têm a restrição de espaço da Conclusão.
+  const DX_ROTULO = {
+    adequado:     null,
+    pig:          ['Feto PIG', 'Fetos PIG'],
+    gig:          ['Feto GIG', 'Fetos GIG'],
+    rciu_precoce: ['Feto RCIU precoce', 'Fetos RCIU precoce'],
+    rciu_tardio:  ['Feto RCIU tardio', 'Fetos RCIU tardio'],
   };
-  const NUM_COLETIVO = { 2: 'Ambos os fetos', 3: 'Os três fetos' };
 
-  const chaveGrupo = pf => `${pf.impressao?.diagnostico || 'adequado'}|${(pf.impressao?.critItems || []).join(';')}`;
+  // Agrupa só por diagnóstico. Até 2026-09-20 a chave incluía os critérios
+  // adicionais, porque eles saíam escritos na linha; agora que não saem, dois
+  // grupos com o mesmo diagnóstico imprimiriam duas linhas idênticas.
+  const chaveGrupo = pf => pf.impressao?.diagnostico || 'adequado';
   const grupos = [];
   porFetoComDados.forEach(pf => {
     const k = chaveGrupo(pf);
@@ -9403,24 +9423,23 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
     if (grupo) grupo.fetos.push(pf); else grupos.push({ chave: k, fetos: [pf] });
   });
 
+  // O critério que fechou o diagnóstico (ex.: "PFE < P10") saiu da linha em
+  // 2026-09-20, por decisão da médica: com percentil, rótulo, discordância,
+  // conduta e notas na mesma lista, o critério era a informação a mais que
+  // fazia o obstetra perder o que importa. Ele continua no card de cada feto
+  // (_gerarTextoCardFetoInicial) e no Resumo em tela.
   const linhas = grupos.map(g => {
-    const impressao  = g.fetos[0].impressao;
-    const dxLabel    = DX_LABEL[impressao?.diagnostico] || DX_LABEL.adequado;
-    const coletivo   = g.fetos.length > 1;
-    const sujeito    = coletivo ? (NUM_COLETIVO[g.fetos.length] || `Os ${g.fetos.length} fetos`) : labelFeto(g.fetos[0].feto);
-    const critItems  = impressao?.critItems || [];
-    let linha = `${sujeito} ${coletivo ? 'apresentam' : 'apresenta'} ${dxLabel}${_percentisDoGrupoTxt(g.fetos, coletivo)}`;
-    if (critItems.length) {
-      linha += ` — ${critItems[0]}`;
+    const rotulo = DX_ROTULO[g.fetos[0].impressao?.diagnostico || 'adequado'];
+    let linha = _listaPtBR(g.fetos.map(_fetoPercentilTxt));
+    if (rotulo) {
+      linha += ` — ${rotulo[g.fetos.length > 1 ? 1 : 0]}`;
     } else {
       // "Trajetória estável e Doppler dentro da normalidade" só quando não há
-      // achado nenhum (critItems/peRisco/coloRisco vazios em todos do grupo)
-      // e todos já têm 2+ exames — mesma exigência de calcTrend(), pra não
-      // dizer "estável" com um exame só.
-      const semAchados = !impressao?.peRisco && !impressao?.coloRisco
-        && g.fetos.every(pf => !(pf.impressao?.peRisco) && !(pf.impressao?.coloRisco));
-      const trajetoriaOk = semAchados && impressao?.diagnostico === 'adequado'
-        && g.fetos.every(pf => (pf.exams?.length || 0) >= 2);
+      // achado nenhum (peRisco/coloRisco vazios em todos do grupo) e todos já
+      // têm 2+ exames — mesma exigência de calcTrend(), pra não dizer
+      // "estável" com um exame só.
+      const semAchados   = g.fetos.every(pf => !(pf.impressao?.peRisco) && !(pf.impressao?.coloRisco));
+      const trajetoriaOk = semAchados && g.fetos.every(pf => (pf.exams?.length || 0) >= 2);
       if (trajetoriaOk) linha += ', com trajetória estável e Doppler dentro da normalidade';
     }
     return linha + '.';

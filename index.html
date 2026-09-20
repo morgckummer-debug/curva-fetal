@@ -240,6 +240,24 @@ header::after{display:none;}
 .search-hero p{color:var(--text-muted);margin-bottom:38px;font-size:15px;line-height:1.65;}
 .search-box{display:flex;gap:10px;margin-bottom:40px;flex-wrap:wrap;}
 .search-box-btns{display:flex;flex-wrap:wrap;gap:10px;min-width:0;}
+
+/* Menu "Mais opções": agrupa as ações administrativas (backup, importar, lixeira,
+   cópias automáticas) atrás de um botão só — mesmo visual do balão de sugestões de
+   busca (_showNameSuggestions), pra não introduzir um segundo estilo de flutuante. */
+.more-menu{position:relative;}
+.more-menu-list{
+  display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:150;
+  min-width:220px;padding:8px;background:var(--clay-raised);border-radius:18px;
+  box-shadow:var(--sh-lg);flex-direction:column;gap:2px;
+}
+.more-menu-list.open{display:flex;}
+.more-menu-list button{
+  display:flex;align-items:center;gap:10px;width:100%;padding:10px 14px;
+  border:none;background:none;border-radius:12px;cursor:pointer;text-align:left;
+  font-family:var(--font-sans);font-weight:600;font-size:13.5px;color:var(--text-muted);
+  transition:background .15s;white-space:nowrap;
+}
+.more-menu-list button:hover{background:var(--clay-bg);color:var(--text);}
 .search-box input{
   flex:1;padding:15px 22px;border:none;
   border-radius:var(--radius);font-size:15.5px;font-family:var(--font-mono);
@@ -731,6 +749,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   .search-hero h1{font-size:28px;}.search-hero p{font-size:14px;}
   .search-box{flex-direction:column;gap:10px;}.search-box input{width:100%;font-size:16px;}
   .search-box-btns{display:flex;flex-wrap:wrap;gap:8px;width:100%;}.search-box-btns .btn{flex:0 1 auto;}
+  .more-menu-list{left:auto;right:0;min-width:200px;}
   .ph{padding:20px 18px 16px;}.ph-name{font-size:19px;}.ph-ig{font-size:22px;}.ph-actions{flex-wrap:wrap;gap:6px;}
   .tabs-row{flex-direction:column;align-items:flex-start;gap:10px;}.tabs{width:100%;justify-content:space-between;}
   .tab{padding:7px 10px;font-size:11.5px;flex:1;text-align:center;}.btn-pdf-report{width:100%;text-align:center;}
@@ -1026,11 +1045,19 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <div class="search-box-btns">
           <button class="btn btn-primary" onclick="searchPatient()">Buscar</button>
           <button class="btn btn-secondary" onclick="openNewPatientModal()">Criar paciente</button>
-          <button class="btn btn-secondary" onclick="openLixeiraModal()" title="Pacientes e exames excluídos">🗑 Lixeira</button>
-          <button class="btn btn-secondary" onclick="exportData()" title="Baixar uma cópia de segurança de todos os dados">⬇ Backup</button>
-          <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()" title="Restaurar a partir de um arquivo de backup">⬆ Importar</button>
+          <!-- Backup/Importar/Lixeira/Cópias automáticas são administrativos, não do dia a dia —
+               ficavam soltos ao lado de Buscar/Criar paciente e poluíam a tela mais usada do app.
+               Agora moram atrás de um único botão (ver .more-menu logo abaixo de smartSearchInput). -->
+          <div class="more-menu" id="more-menu">
+            <button class="btn btn-secondary" onclick="toggleMoreMenu(event)" aria-haspopup="true" aria-expanded="false" id="more-menu-btn">⋯ Mais opções</button>
+            <div class="more-menu-list" id="more-menu-list">
+              <button onclick="openLixeiraModal();closeMoreMenu()" title="Pacientes e exames excluídos">🗑 Lixeira</button>
+              <button onclick="exportData();closeMoreMenu()" title="Baixar uma cópia de segurança de todos os dados">⬇ Backup</button>
+              <button onclick="document.getElementById('import-file-input').click();closeMoreMenu()" title="Restaurar a partir de um arquivo de backup">⬆ Importar</button>
+              <button onclick="abrirSnapshotsModal();closeMoreMenu()" title="Cópias que o app guarda sozinho, uma por dia">🕘 Cópias automáticas</button>
+            </div>
+          </div>
           <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="importData(this)">
-          <button class="btn btn-secondary" onclick="abrirSnapshotsModal()" title="Cópias que o app guarda sozinho, uma por dia">🕘 Cópias automáticas</button>
         </div>
       </div>
       <div id="aviso-backup" class="aviso-backup" style="display:none;"></div>
@@ -3976,6 +4003,41 @@ function _showNameSuggestions(q) {
 function _hideNameSuggestions() {
   const box = document.getElementById('search-suggestions');
   if (box) box.style.display = 'none';
+}
+
+// Menu "Mais opções" (Lixeira/Backup/Importar/Cópias automáticas). Fecha ao clicar
+// fora, ao apertar Esc ou depois de escolher uma ação (cada botão da lista já chama
+// closeMoreMenu() junto da ação) — sem isso o menu ficava aberto por cima da tela.
+function toggleMoreMenu(ev) {
+  ev.stopPropagation();
+  const list = document.getElementById('more-menu-list');
+  if (!list) return;
+  list.classList.contains('open') ? closeMoreMenu() : openMoreMenu();
+}
+function openMoreMenu() {
+  const list = document.getElementById('more-menu-list');
+  const btn  = document.getElementById('more-menu-btn');
+  if (!list) return;
+  list.classList.add('open');
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  document.addEventListener('click', _onMoreMenuOutsideClick);
+  document.addEventListener('keydown', _onMoreMenuEsc);
+}
+function closeMoreMenu() {
+  const list = document.getElementById('more-menu-list');
+  const btn  = document.getElementById('more-menu-btn');
+  if (!list) return;
+  list.classList.remove('open');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  document.removeEventListener('click', _onMoreMenuOutsideClick);
+  document.removeEventListener('keydown', _onMoreMenuEsc);
+}
+function _onMoreMenuOutsideClick(ev) {
+  const menu = document.getElementById('more-menu');
+  if (menu && !menu.contains(ev.target)) closeMoreMenu();
+}
+function _onMoreMenuEsc(ev) {
+  if (ev.key === 'Escape') closeMoreMenu();
 }
 
 function searchPatient() {

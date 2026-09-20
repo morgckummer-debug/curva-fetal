@@ -155,6 +155,20 @@ não existe código compartilhado entre os dois repos.
   identity para começar em 1.000.000 e `_proximoIdLocal()` só conta os ids abaixo
   disso. Sem essa separação, um insert do editor colide com id existente e o
   upsert daqui (que reescreve as tabelas inteiras) sobrescreve a linha do editor.
+- **Discordância de peso: três faixas nos dois lados.** Abaixo de 20% é o
+  esperado, 20 a 25% pede vigilância, acima de 25% é critério de CIUR seletivo
+  (que fecha sozinho — o outro braço é um feto abaixo do P10). O editor tinha um
+  corte só, em 20%, até 2026-09-20: uma gemelar de 27% saía de lá com a mesma
+  frase de uma de 21%, enquanto o relatório daqui já dizia "critério de CIUR
+  seletivo". Dois documentos da médica, sobre a mesma paciente, com gravidades
+  diferentes. Corrigido nos dois (`_DISCREP_FAIXA` aqui,
+  `impDiscordanciaVigilancia` lá). A fórmula `(maior − menor) / maior` sempre
+  bateu. O termo é **discordância** nos dois lados, não "discrepância" nem
+  "diferença".
+- **`au_fluxo` aceita `intermitente` (iAREDF) desde 2026-09-20.** A coluna é
+  `text` sem CHECK e o editor não a escreve, então o valor novo não precisou ser
+  espelhado lá — mas se um dia ele passar a escrever Doppler de umbilical,
+  precisa conhecer esse valor.
 - **Lixeira:** `excluido_em` preenchido significa fora de toda leitura normal. As
   buscas do editor filtram `.is('excluido_em', null)` pelo mesmo motivo, e o
   unique da 004 é parcial (`where excluido_em is null`) para não impedir o
@@ -169,6 +183,18 @@ chamam as **mesmas** funções (`_critItemsDiagnostico`, `_condutaDiagnostico`,
 `_fonteDiagnostico`). Antes eram duas cópias literais da lista de critérios e da
 tabela de conduta; mexer numa e esquecer a outra fazia a tela e o papel
 discordarem na frente da paciente. Não volte a duplicar.
+
+O **nome** de cada diagnóstico entrou na mesma regra em 2026-09-20: vivia
+duplicado literal em `DX_CFG` (faixa da tela) e `DX_META` (relatório). Agora sai
+de `_DX_NOME`, por `_dxNome(diagnostico, gestacao)` — que ainda decide pelo tipo
+de gestação, ver a seção de gemelares abaixo. Os dois objetos continuam
+existindo porque um carrega cor e borda e o outro só o ícone; o texto, não.
+
+RCIU não escreve mais a faixa de semanas no nome (`RCIU Precoce`, não `RCIU
+Precoce (< 32 semanas)`): a IG está no cabeçalho do relatório e na coluna IG do
+histórico, "precoce"/"tardio" já diz isso, e o parêntese colidia com o do
+percentil na Conclusão (`RCIU Precoce (< 32 semanas) (P4)`). O estágio continua
+na linha seguinte — é ele que precisa ser lido junto do diagnóstico.
 
 **IP das uterinas > P95 conta como critério menor também depois de 32 semanas.**
 O texto estrito do Delphi 2016 só lista as uterinas no RCIU *precoce*; por causa
@@ -228,6 +254,141 @@ Onde o app diverge de propósito do material: cadência do Estágio I (o materia
 sugere semanal para CPR alterada com AU normal; aqui são 2–3×/semana, política
 da médica). Ficaram de fora por decisão dela: usar ILA/maior bolsão no
 diagnóstico e a ressalva de dependência da curva no percentil limítrofe.
+
+## Velocidade de crescimento: pelo percentil, e só com 14 dias
+
+Revisão de 2026-09-20. A Conclusão dizia ", com trajetória estável e Doppler
+dentro da normalidade" sempre que houvesse 2+ exames e nenhum achado — ou seja,
+uma paciente com duas visitas separadas por **uma semana** recebia "trajetória
+estável" sobre um intervalo em que ninguém vê trajetória nenhuma.
+
+- **Lida pelo percentil, não em g/semana.** O ganho ponderal foi calculado,
+  conferido contra a mediana da própria curva e **descartado**: "150 g/semana"
+  obriga quem lê a ter a curva de Hadlock na cabeça. O percentil já é o peso
+  comparado com o esperado para a IG — se ele se manteve por 14+ dias, a
+  velocidade foi a da curva, por definição. É também a pergunta que o obstetra
+  faz ("caiu de percentil?"). Se um dia o número em gramas voltar à discussão, o
+  lugar dele é uma coluna do histórico biométrico, onde a queda entre visitas
+  aparece sozinha — não a Conclusão.
+- **Tolerância de 20 pontos de percentil, para cada lado** (`_VELOCIDADE_
+  TOLERANCIA_PERCENTIL`). O PFE combina quatro medidas e erra 10–15%, então um
+  feto no P45 oscilando entre P25 e P65 mudou de ruído, não de trajetória. Não
+  pode ser "não caiu nada".
+- **14 dias, da mesma constante do cruzamento de quartis**
+  (`_INTERVALO_MIN_CRESCIMENTO_DIAS`). Era um `const` local dentro de
+  `calcDiagnosticoFGR`; virou compartilhada para não existirem dois 14 soltos.
+  Compara com o exame válido **mais antigo** que respeite o intervalo, não com o
+  anterior imediato — mesma escolha e mesmo motivo do cruzamento.
+- **Três fechos, em `_fraseTrajetoriaTxt`**, e o quarto caso é silêncio: dentro
+  da tolerância → "com velocidade de crescimento dentro do esperado e Doppler
+  dentro da normalidade"; acima → "com aceleração do crescimento"; **sem
+  intervalo de 14 dias → só o Doppler**. `_velocidadeCrescimento` devolvendo
+  `null` é "o app não tem base para dizer nada", nunca "está tudo bem".
+- **Queda acima da tolerância tem linha própria** (`_notaDesaceleracaoTxt`,
+  texto da médica): "Nota-se desaceleração da velocidade de crescimento[ no Feto
+  2], sem critérios de CIUR no momento." A segunda metade só é verdade porque a
+  nota só sai com diagnóstico `adequado` — se um dia sair em outro, vira mentira.
+
+## Gemelar não é gestação única duas vezes
+
+Revisão de 2026-09-20, com material de CIUR trazido pela médica. O app aplicava
+o Delphi feto a feto e chamava de **PIG** um feto pequeno dentro de uma gemelar
+— que é a leitura de um feto sozinho. **O consenso Delphi 2016 é de gestação
+única.** Essa é a origem da confusão, e vale para quem for mexer aqui.
+
+- **Em gestação múltipla o nome é CIUR seletivo, não PIG** (`_DX_NOME_MULTIPLA`,
+  aplicado por `_dxNome`). Vale para mono **e** dicoriônica: o dano que o nome
+  corrige existe igual nas duas, e a dicoriônica é a mais frequente. O que muda
+  com a corionicidade são os **critérios** e a **conduta** — é aí que ela entra,
+  não no nome.
+- **A corionicidade sai impressa no relatório** (`_CORIO_EXTENSO`, no bloco de
+  identificação). O papel podia imprimir "CIUR seletivo" sem dizer se era mono
+  ou di, e é isso que decide o que o obstetra faz: na dicoriônica o mecanismo é
+  insuficiência placentária, na monocoriônica é divisão desigual da placenta e
+  anastomoses, com deterioração abrupta. Mesmo diagnóstico, dois prognósticos.
+  A tela já mostrava a sigla (`CORIO_LABEL`); o papel não mostrava nada.
+- **`_fonteDiagnostico` diz o que foi calculado, não o que soa bem.** Num feto
+  de gemelar ela não credita Delphi — nem 2016 (é de única) nem 2019 (o app não
+  calcula os 2-de-4 dele). Diz "critérios de gestação única aplicados por feto",
+  porque é isso que acontece. Mesmo princípio da linha das uterinas depois de 32
+  semanas. Na monocoriônica ela ainda avisa, na tela, que Gratacós não é
+  calculado — para a médica não supor que o app olhou.
+- **Classificação de Gratacós** (`_gratacosTipo`, `_GRATACOS_CFG`): Tipo I
+  diástole positiva persistente, II ausente/reversa persistente, III iAREDF. Só
+  em monocoriônica, e só para o feto **restrito** — o tipo é dele, não da
+  gestação. `null` é "não classificado", **nunca Tipo I**. O Tipo III depende do
+  valor `intermitente` em `au_fluxo`, criado junto; iAREDF também entrou no
+  `auDiastoleZero` e no estadiamento de Barcelona, senão o achado mais grave da
+  monocoriônica seria o único a não disparar nada.
+- **Barcelona continua aparecendo na monocoriônica de propósito**, ao lado de
+  Gratacós e não no lugar dele. A conduta (`_condutaDiagnostico`) ainda é
+  escrita por estágio de Barcelona, e tirar Barcelona da tela deixaria a conduta
+  citando um estágio que ninguém vê. **Pendência aberta:** as três condutas por
+  tipo de Gratacós, que são texto clínico da médica. Com elas, Barcelona sai da
+  monocoriônica e fica onde é dele — gestação única e dicoriônica.
+
+## ACM < P5, e a trava que ela obrigou a criar
+
+Também de 2026-09-20. A centralização fetal (brain-sparing) é critério formal do
+Delphi de **gestação única** e pesa no CIUR tardio; o z-score da ACM já era
+calculado e não entrava em diagnóstico nenhum.
+
+- **Só em gestação única.** Nos gemelares, sobretudo monocoriônicos, a ACM não
+  entra nos critérios de sFGR (PFE < P3, ou combinação de PFE < P10, CA < P10,
+  discordância ≥ 25%, IP da AU > P95): lá o mecanismo não é insuficiência
+  placentária progressiva e a centralização não conta a mesma história. Foi por
+  isso que `calcDiagnosticoFGR` passou a receber a gestação.
+- **Pelo menos um critério tem de ser de crescimento.** Essa linha parece zelo
+  excessivo e não é — **não a remova sem entender o que ela evita.** O
+  invariante vinha de graça: dos três critérios do CIUR tardio, dois eram de
+  tamanho/trajetória e um só de Doppler, então era impossível chegar a 2 sem
+  tocar no crescimento. A ACM virou um **segundo** critério de Doppler, e sem a
+  trava um feto no P50 com centralização e CPR baixo fecharia "RCIU tardio" sem
+  nenhuma alteração de crescimento — que é achado de Doppler isolado, não
+  restrição. O achado continua aparecendo na lista de critérios; o que não
+  acontece é o diagnóstico.
+- Atenção ao sinal: `_z.acm` é **invertido** no `enrichExams` (IP baixo = z
+  positivo), então ACM < P5 é `z > +1.645`, e não `< -1.645` como nos outros.
+
+## Conclusão do relatório: formato definido pela médica
+
+2026-09-20, item a item. Nenhuma destas linhas é estética.
+
+- **Percentil colado no feto, por extenso:** "Feto 1 no percentil 20 e Feto 2 no
+  percentil 11" (`_fetoPercentilTxt`). Entre parênteses depois do diagnóstico
+  ele encostava no parêntese que vários rótulos já têm. Feto sem PFE **não some
+  da linha** — vira "Feto 2 sem peso estimado nesta visita": o obstetra conta os
+  fetos na Conclusão.
+- **`adequado` não ganha rótulo.** O percentil já diz isso; "Feto 2 no percentil
+  40 — Feto adequado" é a mesma informação duas vezes. Os outros viram rótulo
+  curto depois do travessão, sem a expansão da sigla — que continua no card do
+  feto e no Resumo em tela.
+- **O critério que fechou o diagnóstico saiu da Conclusão** ("PFE < P10"). Com
+  percentil, rótulo, discordância, conduta e notas na mesma lista, era a
+  informação a mais que tirava o foco. Segue no card e no Resumo, e continua
+  pesando em `semAchados` — feto com critério não é feto "estável".
+- **O percentil sai de `impressao.efwPercentil`**, calculado do mesmo exame
+  enriquecido em que o diagnóstico foi feito. O selo do card lia por conta
+  própria antes; selo e Conclusão não podem discordar de um percentil.
+- **Agrupamento só por diagnóstico.** A chave incluía os critérios, que não
+  sendo mais impressos fariam dois grupos imprimirem linhas idênticas.
+
+## Comentário da especialista: o único lugar que pode prescrever
+
+Seção facultativa do relatório (`_relComentarioHtml`, 2026-09-20). Nasce vazia
+no preview, nas três montagens, e **em branco não imprime nada — nem o título**
+(mesma regra da coluna Colo: título com campo vazio parece que faltou
+preencher).
+
+A regra de "o relatório não prescreve" (ver colo curto, abaixo) é sobre o que o
+**app gera sozinho**. Aqui é a médica escrevendo e assinando: pode dizer o que
+ela quiser, conduta inclusive. Daí a faixa dourada à esquerda — separa a voz
+dela do texto gerado, para quem recebe o papel. Passa pelo `_relMarcacaoHtml`
+como a Conclusão.
+
+O cabeçalho do relatório também mudou nessa conversa: o kicker diz o que o
+documento **é** ("Relatório evolutivo"), não como o serviço se chama. O nome do
+programa ficou no rodapé, junto da assinatura.
 
 ## Colo curto e pré-eclâmpsia são da gestação, não do feto
 

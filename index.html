@@ -11,6 +11,13 @@
      liberar nenhum host externo. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://ulcqnqwxguydrpoaplcv.supabase.co; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
 <title>Curva Fetal · Acompanhamento de Crescimento</title>
+<!-- Favicon: o logotipo MK. Os arquivos ficam no próprio repositório porque o CSP acima
+     libera apenas 'self' e data: em img-src — ícone vindo de CDN seria bloqueado.
+     O .ico traz 16/32/48 (é o que o navegador pede sozinho em /favicon.ico) e o
+     apple-touch-icon de 180px é o que aparece ao salvar o app na tela inicial do celular. -->
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" href="favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Chart.js removido — gráficos renderizados em Canvas2D puro -->
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Nunito:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500;600&family=Comfortaa:wght@600&family=Lato:wght@400&display=swap');

@@ -2884,13 +2884,35 @@ function _velocidadeCrescimento(enriched) {
 // pudesse ver trajetória nenhuma em sete dias. Agora "estável" só é afirmado
 // quando há um intervalo que sustente a afirmação.
 //
-// Queda acima da tolerância não vira frase: o relatório deixa de afirmar que
-// está bem, mas não passa a afirmar o contrário — nomear a desaceleração é
-// texto clínico que a médica ainda não definiu (pendente de 2026-09-20).
+// Queda acima da tolerância não entra aqui: o fecho da linha vira o neutro (só
+// Doppler) e a leitura sai numa linha própria, _notaDesaceleracaoTxt — a frase
+// da médica começa período ("Nota-se...") e não caberia depois de uma vírgula.
 function _fraseTrajetoriaTxt(classe) {
   if (classe === 'esperada')  return ', com velocidade de crescimento dentro do esperado e Doppler dentro da normalidade';
   if (classe === 'acelerada') return ', com aceleração do crescimento e Doppler dentro da normalidade';
   return ', com Doppler dentro da normalidade';
+}
+
+// A desaceleração em linha própria da Conclusão, com o texto definido pela
+// médica em 2026-09-20.
+//
+// "Sem critérios de CIUR no momento" só é verdade porque quem chama já
+// garantiu que o diagnóstico é `adequado` — é o único que não tem rótulo em
+// DX_ROTULO, e em gestação única o trajetoriaOk exige o mesmo. Se um dia a
+// nota passar a sair em outro diagnóstico, essa metade da frase vira mentira.
+//
+// `fetos` vazio = gestação única, onde não há feto a nomear. Na múltipla os
+// fetos são sempre nomeados: num relatório de dois ou três, "nota-se
+// desaceleração" sem dizer em quem não serve para nada.
+//
+// O plural junta os números sob um "Fetos" só ("nos Fetos 1 e 2"), em vez de
+// repetir o substantivo a cada item como faria um _listaPtBR sobre labelFeto
+// ("nos Feto 1 e Feto 2").
+function _notaDesaceleracaoTxt(fetos) {
+  let onde = '';
+  if (fetos && fetos.length === 1) onde = ` no ${labelFeto(fetos[0])}`;
+  else if (fetos && fetos.length)  onde = ` nos Fetos ${_listaPtBR(fetos.map(numeroDoFeto))}`;
+  return `Nota-se desaceleração da velocidade de crescimento${onde}, sem critérios de CIUR no momento.`;
 }
 
 const _DX_NOME = {
@@ -8781,6 +8803,7 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // primeiro. Continua no Resumo em tela. `critItems` segue pesando em
   // `semAchados` acima — um feto com critério não é um feto "estável".
   const linhas = [`${impressao.label}${pctTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
+  if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
   if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
@@ -8795,7 +8818,14 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
 //
 // O título grande é o nome da paciente, não "Avaliação — Gestação X": esse
 // texto de categoria estava mais em evidência que a própria paciente, e é o
-// nome que ela procura primeiro ao pegar o papel na mão. O que era o nome
+// nome que ela procura primeiro ao pegar o papel na mão.
+//
+// A linha pequena acima do nome diz o que o documento É ("Relatório
+// evolutivo", escolhido pela médica em 2026-09-20), não como o serviço se
+// chama. Dizia "Programa personalizado de acompanhamento fetal" — nome do
+// programa, que não conta ao obstetra o que ele tem em mãos na primeira vez
+// que recebe um destes. O nome do programa continua no rodapé
+// (_relFooterHtml), que é onde assinatura e identidade do serviço vivem. O que era o nome
 // dentro de .rel-ident (ver _relIdentHtml) virou "Gestação Única/Gemelar/
 // Trigemelar" — os dois trocaram de lugar, nenhum saiu do relatório.
 //
@@ -8806,7 +8836,7 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
 function _relHeaderHtml(nomePaciente) {
   return `<header class="hdr">
     <div>
-      <div class="hdr-kicker">Programa personalizado de acompanhamento fetal</div>
+      <div class="hdr-kicker">Relatório evolutivo</div>
       <h1 class="hdr-t">${escapeHtml(nomePaciente)}</h1>
     </div>
     <div class="hdr-dra">
@@ -9558,8 +9588,10 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   // conduta e notas na mesma lista, o critério era a informação a mais que
   // fazia o obstetra perder o que importa. Ele continua no card de cada feto
   // (_gerarTextoCardFetoInicial) e no Resumo em tela.
-  const linhas = grupos.map(g => {
+  const linhas = [];
+  grupos.forEach(g => {
     const rotulo = DX_ROTULO[g.fetos[0].impressao?.diagnostico || 'adequado'];
+    let notaVel = null;
     let linha = _listaPtBR(g.fetos.map(_fetoPercentilTxt));
     if (rotulo) {
       linha += ` — ${rotulo[g.fetos.length > 1 ? 1 : 0]}`;
@@ -9577,9 +9609,16 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
       if (trajetoriaOk) {
         const classes = new Set(g.fetos.map(pf => pf.impressao?.velocidade?.classe || null));
         linha += _fraseTrajetoriaTxt(classes.size === 1 ? [...classes][0] : null);
+        // A nota vem logo depois da linha do grupo, nomeando só quem
+        // desacelerou — numa gemelar em que um feto cai e o outro não, os dois
+        // estão no mesmo grupo (mesmo diagnóstico) e a linha coletiva sozinha
+        // não diria de quem se trata.
+        const emQueda = g.fetos.filter(pf => pf.impressao?.velocidade?.classe === 'queda');
+        if (emQueda.length) notaVel = _notaDesaceleracaoTxt(emQueda.map(pf => pf.feto));
       }
     }
-    return linha + '.';
+    linhas.push(linha + '.');
+    if (notaVel) linhas.push(notaVel);
   });
 
   if (discrepResumo) {

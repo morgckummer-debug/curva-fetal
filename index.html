@@ -2690,13 +2690,14 @@ function _trajetoriaPIG(allExams, igDays) {
 
 // Diagnóstico Delphi + Estadiamento Barcelona/FIGO
 // lastExam e allExams: exames *enriquecidos* pelo runLongitudinalAnalysis
-function calcDiagnosticoFGR(lastExam, allExams) {
+function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   if (!lastExam) return null;
   const igDays = lastExam._igDays;
   if (!igDays) return null;
   const gaW      = igDays / 7;
   const isPrecoce = gaW < 32;
   const z        = lastExam._z || {};
+  const multipla = _ehMultipla(gestacao);
 
   // z-score thresholds (distribuição normal)
   // P3 ≈ z < -1.88 | P10 ≈ z < -1.28 | P90 ≈ z > 1.28 | P95 ≈ z > 1.645
@@ -2713,6 +2714,9 @@ function calcDiagnosticoFGR(lastExam, allExams) {
   const utAboveP95  = z.ut  != null && z.ut  >  1.645;
   // CPR: z.cpr negativo = CPR baixo = ruim
   const cprBelowP5  = z.cpr != null && z.cpr < -1.645;
+  // ACM: z.acm é INVERTIDO no enrichExams (IP baixo = z positivo), então
+  // IP < P5 é z > +1.645 — e não < -1.645 como nos outros.
+  const acmBelowP5  = z.acm != null && z.acm >  1.645;
 
   // Cruzamento ≥ 2 quartis na CA — só entre exames separados por pelo menos 14
   // dias. A medida da CA tem erro de 5–7%, e dois exames com poucos dias de
@@ -2766,7 +2770,30 @@ function calcDiagnosticoFGR(lastExam, allExams) {
       // Estágio I: sem esta linha o app reconhecia o achado para estadiar mas
       // não para diagnosticar.
       if (cprBelowP5 || auAboveP95 || utAboveP95) nCrit++;
-      if (nCrit >= 2)                diagnostico = 'rciu_tardio';
+
+      // ACM < P5 (centralização / brain-sparing) como critério próprio, a
+      // partir de 2026-09-20 e SÓ em gestação única. Definição da médica: é
+      // critério formal do Delphi de gestação única, e no CIUR tardio a
+      // centralização pesa no diagnóstico. Nos gemelares — sobretudo
+      // monocoriônicos — a ACM não entra nos critérios de sFGR, que se apoiam
+      // em PFE < P3, ou combinação de PFE < P10, CA < P10, discordância ≥ 25%
+      // e IP da AU > P95. Lá o mecanismo é divisão desigual da placenta e
+      // anastomoses, não insuficiência placentária progressiva, e a
+      // centralização não conta a mesma história.
+      if (!multipla && acmBelowP5) nCrit++;
+
+      // ...e pelo menos um critério de CRESCIMENTO entre os dois.
+      //
+      // Esse invariante vinha de graça até agora: dos três critérios, dois
+      // eram de tamanho/trajetória e um só de Doppler, então era impossível
+      // chegar a 2 sem tocar no crescimento. Com a ACM virando um SEGUNDO
+      // critério de Doppler, um feto no P50 com centralização e CPR baixo
+      // fecharia "RCIU tardio" sem nenhuma alteração de crescimento — o que
+      // não é restrição de crescimento, é achado de Doppler isolado, e o
+      // diagnóstico que o app daria estaria errado. A linha abaixo devolve o
+      // invariante em vez de deixá-lo depender da contagem.
+      const temCrescimento = (caBelowP10 || efwBelowP10) || cruzamentoQuartis;
+      if (nCrit >= 2 && temCrescimento) diagnostico = 'rciu_tardio';
       else if (caBelowP10 || efwBelowP10) diagnostico = 'pig';
     }
   }
@@ -2802,6 +2829,7 @@ function calcDiagnosticoFGR(lastExam, allExams) {
       caBelowP3, caBelowP10, caAboveP90,
       efwBelowP3, efwBelowP10, efwAboveP90,
       auAboveP95, utAboveP95, cprBelowP5,
+      acmBelowP5: acmBelowP5 && !multipla,
       cruzamentoQuartis,
       auFluxo: lastExam.au_fluxo,
       dvOnda:  lastExam.dv_onda,
@@ -2982,6 +3010,7 @@ function _critItemsDiagnostico(dx) {
   if (c.auAboveP95)                        items.push('IP artéria umbilical acima do P95');
   if (c.utAboveP95)                        items.push('IP médio artérias uterinas acima do P95');
   if (c.cprBelowP5)                        items.push('CPR abaixo do P5 — redistribuição cerebro-placentária');
+  if (c.acmBelowP5)                        items.push('IP da artéria cerebral média abaixo do P5 — centralização fetal');
   if (c.cruzamentoQuartis)                 items.push('Cruzamento ≥ 2 quartis na trajetória da CA');
   if (c.auFluxo === 'ausente')             items.push('Diástole ausente na artéria umbilical (AEDF)');
   if (c.auFluxo === 'reversa')             items.push('Diástole reversa na artéria umbilical (REDF)');
@@ -6175,7 +6204,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
   const dataStr  = formatDateBR(last.data_exame);
   const z        = last._z || {};
 
-  const dx = calcDiagnosticoFGR(last, enriched);
+  const dx = calcDiagnosticoFGR(last, enriched, gestacao);
 
   // ── Helpers ──────────────────────────────────────────────
   function pctBadge(pct, highIsBad) {
@@ -8395,7 +8424,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   if (!analise) return null;
   const enriched = analise.exams;
   const last = enriched[enriched.length - 1];
-  const dx = calcDiagnosticoFGR(last, enriched);
+  const dx = calcDiagnosticoFGR(last, enriched, gestacao);
   const diagnostico = dx?.diagnostico || 'adequado';
 
   const DX_ICONE = { adequado: '✓', pig: '⚠', gig: 'ℹ', rciu_precoce: '⚠', rciu_tardio: '⚠' };

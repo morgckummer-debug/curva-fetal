@@ -2817,8 +2817,9 @@ function calcDiagnosticoFGR(lastExam, allExams) {
 
 // O NOME de cada diagnóstico entra na mesma regra. Vivia duplicado literal em
 // DX_CFG (faixa da tela) e DX_META (computeImpressaoDiagnostica, que alimenta
-// o relatório) — os dois lugares continuam existindo, porque um carrega cor e
-// borda e o outro não, mas o texto agora sai daqui.
+// o relatório). Os dois lugares continuam existindo, porque um carrega cor e
+// borda e o outro só o ícone, mas o texto sai daqui — por _dxNome, logo
+// abaixo, que ainda decide pelo tipo de gestação.
 //
 // RCIU não diz mais a faixa de semanas ("RCIU Precoce (< 32 semanas)"), por
 // decisão da médica em 2026-09-20: a idade gestacional está no cabeçalho do
@@ -2923,6 +2924,33 @@ const _DX_NOME = {
   rciu_tardio:  'RCIU Tardio',
 };
 
+// Em gestação múltipla, um feto abaixo do P10 não se chama PIG: chama-se CIUR
+// seletivo (definição da médica, 2026-09-20).
+//
+// O motivo é de fonte, não de gosto. calcDiagnosticoFGR aplica o consenso
+// Delphi 2016 feto a feto, e esse consenso é de gestação ÚNICA — um feto
+// pequeno dentro de uma gemelar julgado por essa régua sai como "PIG", que é
+// a leitura de um feto sozinho. Na múltipla o nome do que está acontecendo é
+// CIUR seletivo, e o critério tem dois braços, cada um bastando sozinho: um
+// feto abaixo do P10, ou discordância acima de 25% (o segundo braço já é dito
+// na faixa de discordância, ver _DISCREP_FAIXA).
+//
+// Muda só o NOME. O diagnóstico interno continua 'pig', e com ele a conduta,
+// as notas e o estadiamento: trocar a chave pediria uma tabela de conduta
+// nova, que é texto clínico a definir, não renomeação.
+const _DX_NOME_MULTIPLA = {
+  pig: 'CIUR seletivo',
+};
+
+function _ehMultipla(gestacao) {
+  return !!gestacao && fetosDaGestacao(gestacao).length > 1;
+}
+
+function _dxNome(diagnostico, gestacao) {
+  const dx = diagnostico || 'adequado';
+  return (_ehMultipla(gestacao) && _DX_NOME_MULTIPLA[dx]) || _DX_NOME[dx];
+}
+
 function _critItemsDiagnostico(dx) {
   const items = [];
   const c = dx?.criterios;
@@ -2944,7 +2972,13 @@ function _critItemsDiagnostico(dx) {
 // segue o Delphi puro: o IP das uterinas entra como critério menor (ver
 // calcDiagnosticoFGR), o que é o protocolo de Barcelona. Dizer "Delphi 2016" ali
 // seria atribuir ao consenso um critério que ele não tem.
-function _fonteDiagnostico(dx) {
+function _fonteDiagnostico(dx, gestacao) {
+  // O nome "CIUR seletivo" não vem do Delphi — ele é de gestação única (ver
+  // _DX_NOME_MULTIPLA). Creditar o consenso por um critério que ele não tem
+  // seria o mesmo erro que a linha das uterinas depois de 32 semanas já evita.
+  if (_ehMultipla(gestacao) && dx?.diagnostico === 'pig') {
+    return 'Critério de CIUR seletivo em gestação múltipla · o consenso Delphi 2016 aplica-se a gestação única';
+  }
   return dx?.isPrecoce
     ? 'Consenso Delphi 2016 · critérios para gestação antes de 32 semanas'
     : 'Delphi 2016 + protocolo Barcelona (Figueras & Gratacós) · critérios para gestação a partir de 32 semanas';
@@ -6287,11 +6321,11 @@ function _buildSummaryHtml(gestacao, exams, feto) {
 
   // ── Bloco 5: Impressão Diagnóstica ────────────────────────
   const DX_CFG = {
-    adequado:     { label:_DX_NOME.adequado,     icon:'✓', color:'var(--ok)',        bg:'var(--ok-bg)',       border:'var(--ok-border)' },
-    pig:          { label:_DX_NOME.pig,          icon:'⚠', color:'#8a5800',          bg:'var(--peach-light)', border:'var(--peach)' },
-    gig:          { label:_DX_NOME.gig,          icon:'ℹ', color:'var(--blue-deep)', bg:'var(--blue-light)',  border:'var(--blue)' },
-    rciu_precoce: { label:_DX_NOME.rciu_precoce, icon:'⚠', color:'#a02020',          bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
-    rciu_tardio:  { label:_DX_NOME.rciu_tardio,  icon:'⚠', color:'#a02020',          bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
+    adequado:     { label:_dxNome('adequado', gestacao),     icon:'✓', color:'var(--ok)',        bg:'var(--ok-bg)',       border:'var(--ok-border)' },
+    pig:          { label:_dxNome('pig', gestacao),          icon:'⚠', color:'#8a5800',          bg:'var(--peach-light)', border:'var(--peach)' },
+    gig:          { label:_dxNome('gig', gestacao),          icon:'ℹ', color:'var(--blue-deep)', bg:'var(--blue-light)',  border:'var(--blue)' },
+    rciu_precoce: { label:_dxNome('rciu_precoce', gestacao), icon:'⚠', color:'#a02020',          bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
+    rciu_tardio:  { label:_dxNome('rciu_tardio', gestacao),  icon:'⚠', color:'#a02020',          bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
   };
   const cfg = DX_CFG[dx?.diagnostico || 'adequado'];
 
@@ -6335,7 +6369,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
         <span style="font-size:20px;">${cfg.icon}</span>
         <span style="font-family:var(--font-serif);font-size:19px;font-weight:700;color:${cfg.color};">${cfg.label}</span>
       </div>
-      <div style="font-size:11.5px;color:var(--text-muted);">${_fonteDiagnostico(dx)}</div>
+      <div style="font-size:11.5px;color:var(--text-muted);">${_fonteDiagnostico(dx, gestacao)}</div>
       ${critHtml}
       ${estadioHtml}
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12.5px;color:${cfg.color};">
@@ -8333,13 +8367,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   const dx = calcDiagnosticoFGR(last, enriched);
   const diagnostico = dx?.diagnostico || 'adequado';
 
-  const DX_META = {
-    adequado:     { label: _DX_NOME.adequado,     icon: '✓' },
-    pig:          { label: _DX_NOME.pig,          icon: '⚠' },
-    gig:          { label: _DX_NOME.gig,          icon: 'ℹ' },
-    rciu_precoce: { label: _DX_NOME.rciu_precoce, icon: '⚠' },
-    rciu_tardio:  { label: _DX_NOME.rciu_tardio,  icon: '⚠' },
-  };
+  const DX_ICONE = { adequado: '✓', pig: '⚠', gig: 'ℹ', rciu_precoce: '⚠', rciu_tardio: '⚠' };
 
   const critItems = _critItemsDiagnostico(dx);
 
@@ -8364,8 +8392,8 @@ function computeImpressaoDiagnostica(gestacao, exams) {
 
   return {
     diagnostico,
-    label: DX_META[diagnostico].label,
-    icon: DX_META[diagnostico].icon,
+    label: _dxNome(diagnostico, gestacao),
+    icon: DX_ICONE[diagnostico],
     isPrecoce: !!dx?.isPrecoce,
     critItems,
     estadio,
@@ -9566,7 +9594,10 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   // no Resumo em tela, que não têm a restrição de espaço da Conclusão.
   const DX_ROTULO = {
     adequado:     null,
-    pig:          ['Feto PIG', 'Fetos PIG'],
+    // Na múltipla o rótulo do feto pequeno é o de CIUR seletivo, não PIG (ver
+    // _DX_NOME_MULTIPLA). Sem repetir "Feto": o sujeito da linha já o nomeou
+    // ("Feto 2 no percentil 7 — critérios de CIUR seletivo").
+    pig:          ['critérios de CIUR seletivo', 'critérios de CIUR seletivo'],
     gig:          ['Feto GIG', 'Fetos GIG'],
     rciu_precoce: ['Feto RCIU precoce', 'Fetos RCIU precoce'],
     rciu_tardio:  ['Feto RCIU tardio', 'Fetos RCIU tardio'],

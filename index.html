@@ -818,7 +818,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status--alerta  .status-ic{background:#A8425F}
 .rel-preview .status--alerta  .status-t{color:#8a2840}
 .rel-preview .status--alerta  .status-conduta{color:#8a2840;border-top-color:rgba(168,66,95,.22)}
-/* Discrepância de peso em destaque — espelha .rel-discrep do CSS exportado
+/* Discordância de peso em destaque — espelha .rel-discrep do CSS exportado
    (ver _relPrintStyleBlock/_buildRelDiscrepanciaHtml). */
 .rel-preview .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:10px 16px;border-radius:6px;background:var(--nude)}
 .rel-preview .rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:29px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
@@ -1175,14 +1175,14 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-wrapper"><canvas id="chart-dop-cpr"></canvas></div>
         </div>
 
-        <!-- ── DISCREPÂNCIA DE PESO (só gestação múltipla) ──
+        <!-- ── DISCORDÂNCIA DE PESO (só gestação múltipla) ──
              Sem gráfico de propósito: só o número da última visita importa
              clinicamente (cruzou ou não os 25% de RCF seletiva), então vira
              um card de ênfase em vez de uma curva ao longo do tempo. -->
         <div class="chart-card charts-grid-full" id="card-discrepancia" data-scope="shared-twin-only">
           <div class="chart-card-header">
             <div class="chart-card-left">
-              <div class="chart-card-title">Discrepância de Peso entre os Fetos</div>
+              <div class="chart-card-title">Discordância de Peso entre os Fetos</div>
               <div class="chart-card-subtitle">Sempre contra o maior feto da visita · critério de RCF seletiva ≥25%</div>
             </div>
           </div>
@@ -4247,7 +4247,7 @@ function _drawChart(canvas, cfg) {
   ctx.clearRect(0, 0, W, H);
 
   // Background — branco, igual aos gráficos de _drawThresholdChart (Ducto Venoso
-  // e Discrepância), pra não ter card lavanda ao lado de card branco na mesma tela.
+  // e Discordância), pra não ter card lavanda ao lado de card branco na mesma tela.
   // Mesma cor de fundo do relatório impresso (--papel).
   ctx.fillStyle = '#FFFDFB';
   ctx.fillRect(0, 0, W, H);
@@ -4802,7 +4802,7 @@ function calcILAPercentile(ila_cm, igDays) {
 // ═══════════════════════════════════════════════════════════
 // GRÁFICO GENÉRICO DE LIMIAR — pontos do paciente + linha(s) de
 // referência fixas ou curvas por IG, sem banda de percentis P10/P50/P90.
-// Reaproveitado por: Ducto Venoso (P95) e Discrepância de Peso
+// Reaproveitado por: Ducto Venoso (P95) e Discordância de Peso
 // entre Fetos (25%).
 // ═══════════════════════════════════════════════════════════
 function _drawThresholdChart(canvas, cfg) {
@@ -4865,7 +4865,7 @@ function _drawThresholdChart(canvas, cfg) {
   });
 
   // Linha do paciente — e, quando o gráfico tem mais de uma curva de dados
-  // (cfg.series: a segunda discrepância da trigemelar), cada uma sai com a
+  // (cfg.series: a segunda discordância da trigemelar), cada uma sai com a
   // mesma forma, mudando só a cor do traço que liga os pontos.
   function _drawSerie(pts, corLinha) {
     if (!pts || !pts.length) return;
@@ -4938,7 +4938,7 @@ function buildDvChart(canvasId, gestacao, exams) {
   });
 }
 
-// ── Discrepância de Peso entre Fetos — critério de CIUR seletivo ──
+// ── Discordância de Peso entre Fetos — critério de CIUR seletivo ──
 // Agrupa os exames de uma mesma data e compara os pesos estimados. Limiar
 // ≥25% (Khalil et al., consenso RCF seletiva em gemelares).
 //
@@ -5003,7 +5003,7 @@ function _discrepanciaSeveridade(pct) {
 // O corte e a leitura de cada degrau, separados, porque os dois lugares que os
 // escrevem montam frases diferentes: a faixa de destaque ("Diferença de peso
 // entre os fetos acima de 20% — sugere-se vigilância") e a linha da Conclusão,
-// que já começa com o percentual ("Discrepância de peso entre os fetos: 22,0%
+// que já começa com o percentual ("Discordância de peso entre os fetos: 22,0%
 // — acima de 20%, sugere-se vigilância").
 //
 // Estavam separados de verdade até 2026-09-20: a faixa lia os três degraus
@@ -5011,7 +5011,7 @@ function _discrepanciaSeveridade(pct) {
 // 25%. Numa gemelar de 22% o mesmo papel dizia "acima de 20% — sugere-se
 // vigilância" e, três centímetros abaixo, "abaixo do limiar de vigilância de
 // 25%": a mesma palavra com dois cortes, na frente do obstetra. Qualquer texto
-// novo sobre discrepância entra por aqui — degrau escrito à mão é esse bug de
+// novo sobre discordância entra por aqui — degrau escrito à mão é esse bug de
 // volta.
 const _DISCREP_FAIXA = {
   ok:      { corte: 'abaixo de 20%', leitura: 'dentro do esperado' },
@@ -5019,17 +5019,33 @@ const _DISCREP_FAIXA = {
   alerta:  { corte: 'acima de 25%',  leitura: 'critérios de CIUR seletivo do feto menor' },
 };
 
-// A frase da faixa de destaque — a mesma na tela (_discrepanciaPesoCardHtml) e
-// no relatório (_buildRelDiscrepanciaHtml).
+// Corte + leitura numa frase curta e sem sujeito, para entrar depois de um
+// travessão ("… (maior × menor) — acima de 20%, sugere-se vigilância").
+//
+// Sem sujeito de propósito: os três lugares que escrevem essa frase já
+// nomearam a discordância antes dela — o título do card na tela, o rótulo da
+// faixa no relatório e o começo da linha da Conclusão. Até 2026-09-20 ela
+// vinha com sujeito próprio ("Diferença de peso entre os fetos abaixo de
+// 20% — …") e o card da tela dizia "peso entre os fetos" duas vezes, uma no
+// título e outra dois centímetros abaixo. Era também a terceira palavra para
+// a mesma medida: título "Discrepância", faixa "Diferença", conclusão
+// "Discrepância".
 function _discrepFaixaTexto(severidade) {
   const f = _DISCREP_FAIXA[severidade] || _DISCREP_FAIXA.ok;
-  return `Diferença de peso entre os fetos ${f.corte} — ${f.leitura}.`;
+  return `${f.corte}, ${f.leitura}`;
+}
+
+// A mesma frase onde ela começa período — o rótulo solto do card da tela, que
+// vem embaixo do número e não depois de um travessão.
+function _discrepFaixaFrase(severidade) {
+  const t = _discrepFaixaTexto(severidade);
+  return t.charAt(0).toUpperCase() + t.slice(1) + '.';
 }
 
 function _discrepanciaPesoCardHtml(gestacao, allExams) {
   const r = _discrepanciaPesoResumo(gestacao, allExams);
   if (!r) {
-    return `<p style="font-size:13px;color:var(--text-muted);padding:8px 4px;">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita — sem isso não dá para calcular a discrepância.</p>`;
+    return `<p style="font-size:13px;color:var(--text-muted);padding:8px 4px;">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita — sem isso não dá para calcular a discordância.</p>`;
   }
   const cls = { ok: 'discrepancia-emphasis-ok', atencao: 'discrepancia-emphasis-atencao', alerta: 'discrepancia-emphasis-alert' }[r.severidade];
   const intermHtml = r.pctInterm != null
@@ -5037,7 +5053,7 @@ function _discrepanciaPesoCardHtml(gestacao, allExams) {
   return `
     <div class="discrepancia-emphasis ${cls}">
       <div class="discrepancia-emphasis-value">${r.pct.toFixed(1)}%</div>
-      <div class="discrepancia-emphasis-label">${_discrepFaixaTexto(r.severidade)}</div>
+      <div class="discrepancia-emphasis-label">${_discrepFaixaFrase(r.severidade)}</div>
       ${intermHtml}
     </div>`;
 }
@@ -5047,7 +5063,7 @@ function renderDiscrepanciaCard(gestacao, allExams) {
   if (el) el.innerHTML = _discrepanciaPesoCardHtml(gestacao, allExams);
 }
 
-// Só relevante em gestação múltipla: 'A' | 'B' | 'C' | 'gestacao' (IP UtA + colo + discrepância)
+// Só relevante em gestação múltipla: 'A' | 'B' | 'C' | 'gestacao' (IP UtA + colo + discordância)
 let currentFetoView = 'A';
 
 function renderChartsFetoToggle(gestacao) {
@@ -6269,7 +6285,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
 
 // Dispatcher: gestação única monta um perfil só; gestação múltipla monta um
 // perfil de crescimento POR FETO (não só o do primeiro) e antepõe o card de
-// discrepância de peso, que é da visita — não faz sentido repeti-lo por feto.
+// discordância de peso, que é da visita — não faz sentido repeti-lo por feto.
 function renderSummary(gestacao, allExams) {
   const container = document.getElementById('summary-content');
   if (!gestacao || allExams.length === 0) {
@@ -8273,7 +8289,7 @@ function abrirPreviewRelatorio() {
 }
 
 // Gestação múltipla: uma página de gráficos por feto (ordem A, B, C) seguida
-// de uma página de avaliação conjunta — card de discrepância de peso +
+// de uma página de avaliação conjunta — card de discordância de peso +
 // impressão diagnóstica/resumo de cada feto, um após o outro (ver
 // _buildRelChartsPageHtml e _buildRelAssessmentPageHtml). A página de
 // avaliação é "flow" (sem altura fixa): se os textos dos fetos não couberem
@@ -8869,7 +8885,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
 // ou três fetos não cabe mais, então essas duas funções abaixo separam essas
 // seções em páginas próprias: _buildRelChartsPageHtml por feto (só
 // ident+gráficos) e _buildRelAssessmentPageHtml uma vez só, com a
-// discrepância de peso e o status+resumo de cada feto empilhados.
+// discordância de peso e o status+resumo de cada feto empilhados.
 
 // Gráfico grande do peso fetal estimado — o único gráfico do relatório de
 // gemelar (ver _buildRelGemelarPaginaHtml). Difere do _buildRelChartSvg
@@ -9078,7 +9094,7 @@ function _gerarTextoCardFetoInicial(impressao) {
 }
 
 // Relatório de gemelar numa página só, nesta ordem: identificação,
-// discrepância de peso em destaque, os dois gráficos de peso lado a lado (cada
+// discordância de peso em destaque, os dois gráficos de peso lado a lado (cada
 // um com o resumo clínico e a conduta do feto), histórico biométrico, Doppler
 // e conclusão. Só o peso entre os gráficos: é o parâmetro que decide conduta
 // aqui, e os outros três (CC, CA, fêmur) espremiam quatro curvas minúsculas
@@ -9212,7 +9228,7 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
   ${_relFooterHtml()}`;
 }
 
-// Discrepância de peso pro relatório — mesmo dado de _discrepanciaPesoResumo
+// Discordância de peso pro relatório — mesmo dado de _discrepanciaPesoResumo
 // (usado também no card .discrepancia-emphasis da tela), agora em número de
 // destaque em vez de faixa de status: é a primeira pergunta do obstetra numa
 // gemelar e ganha ler antes até do comparativo por feto logo abaixo.
@@ -9222,7 +9238,7 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
     return `<section class="status status--atencao">
       <div class="status-ic">•</div>
       <div class="status-body">
-        <div class="status-t">Discrepância de peso entre os fetos</div>
+        <div class="status-t">Discordância de peso entre os fetos</div>
         <div class="status-s">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita.</div>
       </div>
     </section>`;
@@ -9233,13 +9249,13 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
   return `<section class="rel-discrep ${variante}">
     <div class="rel-discrep-val">${_numBR(r.pct, 1)}%</div>
     <div class="rel-discrep-body">
-      <div class="rel-discrep-label">Discrepância de peso entre os fetos (maior × menor) — ${aviso}</div>
+      <div class="rel-discrep-label">Discordância de peso entre os fetos (maior × menor) — ${aviso}.</div>
       ${intermTxt}
     </div>
   </section>`;
 }
 
-// Página de avaliação conjunta — discrepância de peso seguida da impressão
+// Página de avaliação conjunta — discordância de peso seguida da impressão
 // diagnóstica + resumo de cada feto, um após o outro. Sempre depois das
 // páginas de gráficos. `porFeto`: [{feto, exams}]. opts.textareaMode segue o
 // mesmo padrão de _buildRelSheetHtml, mas com um <textarea> por feto
@@ -9331,7 +9347,7 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
 // apresentam...", em vez de repetir a mesma frase uma vez por feto — só
 // diagnósticos ou critérios diferentes continuam em linhas separadas, porque
 // aí juntar esconderia a diferença que a linha existe pra mostrar), seguida
-// da leitura da discrepância (mesmo texto de _buildRelDiscrepanciaHtml) e do
+// da leitura da discordância (mesmo texto de _buildRelDiscrepanciaHtml) e do
 // fecho com a conduta já calculada por feto (impressao.conduta — mesma do
 // card e de _gerarTextoCardFetoInicial, condutas iguais saem juntas). Só
 // reorganiza dado já computado; nunca inventa um número novo. Cada linha
@@ -9381,7 +9397,7 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
 
   if (discrepResumo) {
     const f = _DISCREP_FAIXA[discrepResumo.severidade] || _DISCREP_FAIXA.ok;
-    linhas.push(`Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}% — ${f.corte}, ${f.leitura}.`);
+    linhas.push(`Discordância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}% — ${f.corte}, ${f.leitura}.`);
   }
 
   // Achados da gestação, não do feto: entram uma vez só, depois das linhas por
@@ -9666,7 +9682,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .feto-card--b .efw-pt{stroke:var(--dourado-escuro)}
 .feto-card--b .efw-pt-t{fill:var(--dourado-escuro)}
 
-/* Discrepância de peso em destaque — mesma ideia do card
+/* Discordância de peso em destaque — mesma ideia do card
    .discrepancia-emphasis já usado na tela, só com a paleta do relatório
    impresso em vez das variáveis de tela. */
 .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:10px 16px;border-radius:6px;

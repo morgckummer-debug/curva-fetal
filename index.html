@@ -4986,7 +4986,6 @@ function _discrepanciaPesoResumo(gestacao, allExams) {
   });
   if (!ultimo) return null;
   ultimo.severidade = _discrepanciaSeveridade(ultimo.pct);
-  ultimo.alerta = ultimo.severidade === 'alerta'; // mantido: só o texto da conclusão automática ainda lê isso
   return ultimo;
 }
 
@@ -5001,11 +5000,31 @@ function _discrepanciaSeveridade(pct) {
   return 'ok';
 }
 
-const _DISCREP_AVISO = {
-  ok:      'Diferença de peso entre os fetos abaixo de 20% - Dentro do esperado.',
-  atencao: 'Diferença de peso entre os fetos acima de 20% - Sugere-se vigilância.',
-  alerta:  'Diferença de peso entre os fetos acima de 25% - Critérios de CIUR seletivo do feto menor.',
+// O corte e a leitura de cada degrau, separados, porque os dois lugares que os
+// escrevem montam frases diferentes: a faixa de destaque ("Diferença de peso
+// entre os fetos acima de 20% — sugere-se vigilância") e a linha da Conclusão,
+// que já começa com o percentual ("Discrepância de peso entre os fetos: 22,0%
+// — acima de 20%, sugere-se vigilância").
+//
+// Estavam separados de verdade até 2026-09-20: a faixa lia os três degraus
+// (_discrepanciaSeveridade, 20 e 25%) e a Conclusão lia um booleano só, o de
+// 25%. Numa gemelar de 22% o mesmo papel dizia "acima de 20% — sugere-se
+// vigilância" e, três centímetros abaixo, "abaixo do limiar de vigilância de
+// 25%": a mesma palavra com dois cortes, na frente do obstetra. Qualquer texto
+// novo sobre discrepância entra por aqui — degrau escrito à mão é esse bug de
+// volta.
+const _DISCREP_FAIXA = {
+  ok:      { corte: 'abaixo de 20%', leitura: 'dentro do esperado' },
+  atencao: { corte: 'acima de 20%',  leitura: 'sugere-se vigilância' },
+  alerta:  { corte: 'acima de 25%',  leitura: 'critérios de CIUR seletivo do feto menor' },
 };
+
+// A frase da faixa de destaque — a mesma na tela (_discrepanciaPesoCardHtml) e
+// no relatório (_buildRelDiscrepanciaHtml).
+function _discrepFaixaTexto(severidade) {
+  const f = _DISCREP_FAIXA[severidade] || _DISCREP_FAIXA.ok;
+  return `Diferença de peso entre os fetos ${f.corte} — ${f.leitura}.`;
+}
 
 function _discrepanciaPesoCardHtml(gestacao, allExams) {
   const r = _discrepanciaPesoResumo(gestacao, allExams);
@@ -5018,7 +5037,7 @@ function _discrepanciaPesoCardHtml(gestacao, allExams) {
   return `
     <div class="discrepancia-emphasis ${cls}">
       <div class="discrepancia-emphasis-value">${r.pct.toFixed(1)}%</div>
-      <div class="discrepancia-emphasis-label">${_DISCREP_AVISO[r.severidade]}</div>
+      <div class="discrepancia-emphasis-label">${_discrepFaixaTexto(r.severidade)}</div>
       ${intermHtml}
     </div>`;
 }
@@ -9209,7 +9228,7 @@ function _buildRelDiscrepanciaHtml(gestacao, allExams) {
     </section>`;
   }
   const variante   = { ok: '', atencao: 'rel-discrep--atencao', alerta: 'rel-discrep--alerta' }[r.severidade];
-  const aviso      = _DISCREP_AVISO[r.severidade].replace(' - ', ' — ');
+  const aviso      = _discrepFaixaTexto(r.severidade);
   const intermTxt  = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${_numBR(r.pctInterm, 1)}%</div>` : '';
   return `<section class="rel-discrep ${variante}">
     <div class="rel-discrep-val">${_numBR(r.pct, 1)}%</div>
@@ -9361,9 +9380,8 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   });
 
   if (discrepResumo) {
-    linhas.push(discrepResumo.alerta
-      ? `Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}%, acima do limiar de vigilância de 25%.`
-      : `Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}%, abaixo do limiar de vigilância de 25%.`);
+    const f = _DISCREP_FAIXA[discrepResumo.severidade] || _DISCREP_FAIXA.ok;
+    linhas.push(`Discrepância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}% — ${f.corte}, ${f.leitura}.`);
   }
 
   // Achados da gestação, não do feto: entram uma vez só, depois das linhas por

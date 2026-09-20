@@ -159,3 +159,142 @@ não existe código compartilhado entre os dois repos.
   buscas do editor filtram `.is('excluido_em', null)` pelo mesmo motivo, e o
   unique da 004 é parcial (`where excluido_em is null`) para não impedir o
   recadastro de um CPF que foi para a lixeira.
+
+## Diagnóstico de crescimento: Delphi, mas não só Delphi (e nunca sem olhar a IG)
+
+`calcDiagnosticoFGR()` classifica adequado/PIG/GIG/RCIU precoce/RCIU tardio, e
+`_condutaDiagnostico()` escreve a conduta. As duas telas que mostram isso — o
+Resumo (`_buildSummaryHtml`) e o relatório/PDF (`computeImpressaoDiagnostica`) —
+chamam as **mesmas** funções (`_critItemsDiagnostico`, `_condutaDiagnostico`,
+`_fonteDiagnostico`). Antes eram duas cópias literais da lista de critérios e da
+tabela de conduta; mexer numa e esquecer a outra fazia a tela e o papel
+discordarem na frente da paciente. Não volte a duplicar.
+
+**IP das uterinas > P95 conta como critério menor também depois de 32 semanas.**
+O texto estrito do Delphi 2016 só lista as uterinas no RCIU *precoce*; por causa
+disso uma paciente de 38 semanas com PFE < P10 **e** IP-UtA > P95 saía como
+"PIG". São dois critérios — um de tamanho e um de Doppler — e a leitura clínica
+é restrição. Quem embasa é o protocolo de Barcelona (Figueras & Gratacós, Fetal
+Diagn Ther 2014), o mesmo do estadiamento que o app já usava: o estadiamento já
+contava `utAboveP95` como Estágio I, ou seja, o app reconhecia o achado para
+estadiar e não para diagnosticar. Por isso a linha de atribuição embaixo do
+diagnóstico (`_fonteDiagnostico`) diz "Delphi 2016 + protocolo Barcelona" a
+partir de 32 semanas — creditar ao consenso um critério que ele não tem seria
+errado. Se um dia isso voltar ao Delphi puro, é tirar `utAboveP95` de uma linha
+só em `calcDiagnosticoFGR` e ajustar `_fonteDiagnostico` junto.
+
+**Nenhum intervalo de reavaliação passa do fim da gestação.** As condutas eram
+strings fixas ("Reavaliação em 4 semanas") e em 38 semanas marcavam um exame
+para depois do parto. `_intervaloAteOTermo(gaW, semanas)` encurta o intervalo
+para caber até 40 semanas e devolve `null` quando não cabe mais nenhum — aí o
+texto passa a ser obstétrico (definir a resolução), não ultrassonográfico. No
+RCIU a conduta também diz o alvo de resolução do estágio (Barcelona/FIGO:
+I ≥ 37s, II ≥ 34s, III ≥ 30s, IV ≥ 26s) e avisa quando a IG já o alcançou.
+Qualquer conduta nova entra por essa mesma porta: intervalo fixo em texto puro
+é o bug de 2026-09-19 voltando.
+
+## PIG constitucional, notas clínicas e o intervalo mínimo do cruzamento
+
+Revisão de 2026-09-19 contra material de RCIU trazido pela médica. Quatro
+mudanças, todas no mesmo eixo: o app dizia o diagnóstico e calava o resto.
+
+- **`_notasDiagnostico(dx)` existe para não emendar tudo na conduta.** A conduta
+  é lida em voz alta na consulta e cabe num cartão estreito do relatório
+  gemelar (ver `_buildRelGemelarPaginaHtml`); três frases a mais ali empurram o
+  histórico para a segunda folha. As notas são um array à parte, renderizado no
+  Resumo em tela, na faixa de status do relatório e na conclusão editável de
+  gestação única — de propósito **não** no cartão por feto da gemelar.
+- **RCIU precoce sugere investigação genética e infecciosa.** Até 20% dos casos
+  antes de 32 semanas têm causa cromossômica/genética, não placentária, e o
+  Doppler não levanta essa hipótese sozinho. Sai como "a critério do médico
+  assistente": quem indica a amniocentese é quem conduz o pré-natal.
+- **PIG constitucional é nomeado quando o padrão fecha** (`_trajetoriaPIG`):
+  percentil ≤ 20 em todos os exames, janela ≥ 28 dias entre o primeiro e o
+  último, e nenhum Doppler alterado em nenhuma visita. O teto é 20, não 10, de
+  propósito — "sempre foi pequeno" é a faixa se manter, não estar abaixo do
+  corte em toda visita. Dois cuidados: exige que **alguma** visita tenha medido
+  Doppler (exame sem Doppler não é Doppler normal, e tratar dado ausente como
+  tranquilidade é exatamente o erro que essa nota não pode cometer), e o texto
+  diz "padrão sugestivo de", nunca o diagnóstico, porque a outra metade da
+  confirmação é a avaliação materna, que este app não vê.
+- **Cruzamento de 2 quartis exige 14 dias entre os exames comparados.** A CA tem
+  erro de medida de 5–7%; dois exames com poucos dias de diferença faziam o
+  ruído parecer queda de trajetória. Virou risco real quando o IP das uterinas
+  entrou na contagem: com CA/PFE < P10, um cruzamento falso sozinho fecha RCIU
+  tardio. Compara com o exame válido mais antigo que respeite o intervalo, não
+  com o anterior imediato — a queda que o critério procura é da trajetória.
+
+Onde o app diverge de propósito do material: cadência do Estágio I (o material
+sugere semanal para CPR alterada com AU normal; aqui são 2–3×/semana, política
+da médica). Ficaram de fora por decisão dela: usar ILA/maior bolsão no
+diagnóstico e a ressalva de dependência da curva no percentil limítrofe.
+
+## Colo curto e pré-eclâmpsia são da gestação, não do feto
+
+Achados maternos (`avaliarRiscoColoCurto`, `avaliarRiscoPreEclampsia`) entram no
+relatório **uma vez por gestação**. Antes vinham de dentro do laço por feto: a
+mesma medida de colo saía duas vezes no relatório gemelar e três faixas
+idênticas na trigemelar, como se fossem achados diferentes. Agora a faixa é
+montada fora do laço (`_buildRelAssessmentPageHtml`) e a linha de texto entra
+na Conclusão, não no cartão de cada feto (`_gerarConclusaoGemelarInicial`).
+Na gemelar isso também conserta uma ausência: a Conclusão — a primeira coisa
+que o obstetra lê — não trazia colo curto de jeito nenhum, só os cartões.
+
+**Formato da linha na conclusão** (`_riscoLinhaTexto`, definido pela médica em
+2026-09-19): `__Colo curto__ — risco de parto prematuro (Progesterona vaginal
+indicada (ISUOG 2022 / FMF), independente de antecedente obstétrico.)` — achado
+sublinhado, risco em seguida, conduta entre parênteses. Sublinha só a parte
+antes do travessão: é o que a vista precisa pegar primeiro numa lista de itens.
+O `subtitulo` não entra (repetia a referência que a conduta já carrega — "ISUOG
+2022 / FMF" saía duas vezes na mesma frase); a medida do colo, que morava nele,
+está na coluna Colo do histórico. Qualquer faixa de risco nova entra na
+conclusão por essa função.
+
+**Colo curto é um rótulo só.** Abaixo de 25 mm a partir de 16 semanas, o achado
+se chama "Colo curto — Risco aumentado de parto prematuro", e ponto. Havia uma escada de
+três nomes que dava ao caso mais grave e ao mais leve exatamente o mesmo nome
+("Colo curto" abaixo de 10 mm e entre 15–25 mm), com só o do meio como "muito
+curto" — e é justamente essa palavra que o sublinhado da conclusão destaca. A
+gravidade quem dá é a medida, que está na frase do relatório e na coluna Colo do
+histórico. O **conteúdo** continua graduado pelos mesmos cortes de sempre (10 e
+15 mm): o que se discute com 8 mm não é o que se discute com 22 mm.
+
+**O relatório não prescreve; a tela sim.** Decisão da médica em 2026-09-19: o
+laudo de ultrassom que sai da clínica não indica progesterona nem cerclagem —
+isso é do obstetra que acompanha, e "Progesterona vaginal indicada" no papel lê
+como invasão de conduta. `avaliarRiscoColoCurto` devolve dois textos:
+`conduta` (completo, com dose e indicação, graduado por faixa) alimenta a
+**tela**, que é ferramenta de trabalho e não sai da clínica; `condutaRelatorio`
+alimenta o **PDF** e é um texto só, igual nas três faixas: a medida, o corte de
+25 mm que ela cruza e os fatos da gestação (antecedente, progesterona em uso,
+cerclagem realizada) — que são registro, já estão no prontuário, e repetidos ali
+não indicam nada a ninguém. Não fecha com "Conduta a critério do obstetra
+assistente": sem nenhuma recomendação antes, essa frase deixa de delimitar
+competência e passa a soar como desinteresse. Um laudo que só descreve o achado
+já devolve a decisão sem precisar dizê-lo.
+
+Nenhuma recomendação entra aí — nem nomeando a terapia sem verbo prescritivo
+("faixa em que se discute progesterona vaginal"), nem encaminhando
+("recomenda-se avaliação obstétrica imediata"). Mesmo sem prescrever, nomear a
+terapia já é opinar sobre o que não é do laudo. A gravidade continua no papel
+pelo número: 8 mm e 22 mm imprimem a mesma frase com medidas diferentes, e a
+coluna Colo do histórico mostra a queda entre as visitas.
+
+Isso vale **só para o colo** — AAS das uterinas, internação e conduta de RCIU
+seguem prescritivos, por decisão dela na mesma conversa. Quem lê os dois textos:
+`_riscoLinhaTexto` e `_renderColoRiscoFaixaHtml` usam `condutaRelatorio ||
+conduta`, então uma faixa de risco nova sem `condutaRelatorio` continua
+imprimindo a conduta normal — o fallback é intencional, não esquecimento.
+
+**`__assim__` vira sublinhado** (`_relMarcacaoHtml`), e é a única marcação
+aceita. A conclusão passa por um `<textarea>` antes de imprimir: HTML digitado
+ali é escapado e sairia cru no papel, então a ênfase viaja como texto puro e
+vira tag só ao montar a lista. A ordem em `_relMarcacaoHtml` não é estética —
+escapa primeiro, marca depois, senão um `<` digitado na conclusão vira tag de
+verdade no relatório.
+
+**Coluna `Colo` no histórico biométrico** (`_relTemColo`/`_relColoCel`, nas duas
+tabelas). O valor de uma visita diz menos que a queda entre visitas, e o colo
+não aparecia em nenhuma coluna do relatório. A coluna só existe se alguma visita
+mediu — coluna inteira de "—" é ruído — e abaixo de 25mm (mesmo corte do
+`avaliarRiscoColoCurto`) o valor sai em negrito.

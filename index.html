@@ -2812,6 +2812,26 @@ function calcDiagnosticoFGR(lastExam, allExams) {
 // conduta. Eram duas cópias literais, e mexer numa sem lembrar da outra fazia
 // a tela e o papel discordarem na frente da paciente.
 
+// O NOME de cada diagnóstico entra na mesma regra. Vivia duplicado literal em
+// DX_CFG (faixa da tela) e DX_META (computeImpressaoDiagnostica, que alimenta
+// o relatório) — os dois lugares continuam existindo, porque um carrega cor e
+// borda e o outro não, mas o texto agora sai daqui.
+//
+// RCIU não diz mais a faixa de semanas ("RCIU Precoce (< 32 semanas)"), por
+// decisão da médica em 2026-09-20: a idade gestacional está no cabeçalho do
+// relatório, na coluna IG do histórico e na própria palavra
+// "precoce"/"tardio", e o parêntese ainda colidia com o do percentil na linha
+// da Conclusão ("RCIU Precoce (< 32 semanas) (P4)"). O que precisa ser lido
+// junto do diagnóstico é o estágio, e esse continua saindo na linha seguinte
+// ("Estágio I — Barcelona/FIGO").
+const _DX_NOME = {
+  adequado:     'Crescimento fetal adequado',
+  pig:          'PIG — Pequeno para Idade Gestacional',
+  gig:          'GIG — Grande para Idade Gestacional',
+  rciu_precoce: 'RCIU Precoce',
+  rciu_tardio:  'RCIU Tardio',
+};
+
 function _critItemsDiagnostico(dx) {
   const items = [];
   const c = dx?.criterios;
@@ -6176,11 +6196,11 @@ function _buildSummaryHtml(gestacao, exams, feto) {
 
   // ── Bloco 5: Impressão Diagnóstica ────────────────────────
   const DX_CFG = {
-    adequado:     { label:'Crescimento fetal adequado',             icon:'✓', color:'var(--ok)',        bg:'var(--ok-bg)',        border:'var(--ok-border)' },
-    pig:          { label:'PIG — Pequeno para Idade Gestacional',   icon:'⚠', color:'#8a5800',         bg:'var(--peach-light)', border:'var(--peach)' },
-    gig:          { label:'GIG — Grande para Idade Gestacional',    icon:'ℹ', color:'var(--blue-deep)', bg:'var(--blue-light)',  border:'var(--blue)' },
-    rciu_precoce: { label:'RCIU Precoce (< 32 semanas)',            icon:'⚠', color:'#a02020',         bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
-    rciu_tardio:  { label:'RCIU Tardio (≥ 32 semanas)',             icon:'⚠', color:'#a02020',         bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
+    adequado:     { label:_DX_NOME.adequado,     icon:'✓', color:'var(--ok)',        bg:'var(--ok-bg)',       border:'var(--ok-border)' },
+    pig:          { label:_DX_NOME.pig,          icon:'⚠', color:'#8a5800',          bg:'var(--peach-light)', border:'var(--peach)' },
+    gig:          { label:_DX_NOME.gig,          icon:'ℹ', color:'var(--blue-deep)', bg:'var(--blue-light)',  border:'var(--blue)' },
+    rciu_precoce: { label:_DX_NOME.rciu_precoce, icon:'⚠', color:'#a02020',          bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
+    rciu_tardio:  { label:_DX_NOME.rciu_tardio,  icon:'⚠', color:'#a02020',          bg:'var(--blush-pale)',  border:'var(--blush-deep)' },
   };
   const cfg = DX_CFG[dx?.diagnostico || 'adequado'];
 
@@ -8223,11 +8243,11 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   const diagnostico = dx?.diagnostico || 'adequado';
 
   const DX_META = {
-    adequado:     { label: 'Crescimento fetal adequado',           icon: '✓' },
-    pig:          { label: 'PIG — Pequeno para Idade Gestacional', icon: '⚠' },
-    gig:          { label: 'GIG — Grande para Idade Gestacional',  icon: 'ℹ' },
-    rciu_precoce: { label: 'RCIU Precoce (< 32 semanas)',          icon: '⚠' },
-    rciu_tardio:  { label: 'RCIU Tardio (≥ 32 semanas)',           icon: '⚠' },
+    adequado:     { label: _DX_NOME.adequado,     icon: '✓' },
+    pig:          { label: _DX_NOME.pig,          icon: '⚠' },
+    gig:          { label: _DX_NOME.gig,          icon: 'ℹ' },
+    rciu_precoce: { label: _DX_NOME.rciu_precoce, icon: '⚠' },
+    rciu_tardio:  { label: _DX_NOME.rciu_tardio,  icon: '⚠' },
   };
 
   const critItems = _critItemsDiagnostico(dx);

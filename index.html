@@ -2942,6 +2942,27 @@ const _DX_NOME_MULTIPLA = {
   pig: 'CIUR seletivo',
 };
 
+// Corionicidade por extenso, para o relatório. A sigla (CORIO_LABEL, DCDA/MCDA/
+// ...) serve ao cabeçalho da tela, onde o espaço é curto e quem lê é a médica;
+// no papel quem lê é o obstetra e a palavra inteira não custa uma linha.
+const _CORIO_EXTENSO = {
+  dicorionica_diamniotica:     'Dicoriônica / Diamniótica',
+  monocorionica_diamniotica:   'Monocoriônica / Diamniótica',
+  monocorionica_monoamniotica: 'Monocoriônica / Monoamniótica',
+  tricorionica_triamniotica:   'Tricoriônica / Triamniótica',
+  dicorionica_triamniotica:    'Dicoriônica / Triamniótica',
+  monocorionica_triamniotica:  'Monocoriônica / Triamniótica',
+};
+
+// Monocoriônica de qualquer amnionicidade, inclusive a trigemelar. O que muda
+// o raciocínio é a placenta compartilhada: na dicoriônica o problema é
+// insuficiência placentária, como na gestação única; na monocoriônica é
+// divisão desigual da placenta e anastomoses vasculares, que é outro mecanismo
+// e outro prognóstico.
+function _ehMonocorionica(gestacao) {
+  return !!gestacao?.corionicidade && gestacao.corionicidade.startsWith('monocorionica');
+}
+
 function _ehMultipla(gestacao) {
   return !!gestacao && fetosDaGestacao(gestacao).length > 1;
 }
@@ -2973,11 +2994,21 @@ function _critItemsDiagnostico(dx) {
 // calcDiagnosticoFGR), o que é o protocolo de Barcelona. Dizer "Delphi 2016" ali
 // seria atribuir ao consenso um critério que ele não tem.
 function _fonteDiagnostico(dx, gestacao) {
-  // O nome "CIUR seletivo" não vem do Delphi — ele é de gestação única (ver
-  // _DX_NOME_MULTIPLA). Creditar o consenso por um critério que ele não tem
-  // seria o mesmo erro que a linha das uterinas depois de 32 semanas já evita.
+  // O nome "CIUR seletivo" não vem do Delphi 2016 — ele é de gestação única
+  // (ver _DX_NOME_MULTIPLA). Creditar o consenso por um critério que ele não
+  // tem seria o mesmo erro que a linha das uterinas depois de 32 semanas já
+  // evita.
+  //
+  // E não basta trocar o nome do consenso: o que o app de fato aplica num feto
+  // de gemelar são os critérios de gestação ÚNICA, feto a feto. Dizer "consenso
+  // Delphi 2019" aqui seria creditar uma conta que não foi feita. A linha diz o
+  // que foi aplicado, e na monocoriônica avisa o que falta — a classificação de
+  // Gratacós, que nessas gestações decide mais que precoce/tardio, porque o
+  // mecanismo é anastomose e não insuficiência placentária.
   if (_ehMultipla(gestacao) && dx?.diagnostico === 'pig') {
-    return 'Critério de CIUR seletivo em gestação múltipla · o consenso Delphi 2016 aplica-se a gestação única';
+    return _ehMonocorionica(gestacao)
+      ? 'CIUR seletivo em gestação monocoriônica · critérios de gestação única aplicados por feto; a classificação de Gratacós (tipos I–III) ainda não é calculada aqui'
+      : 'CIUR seletivo em gestação múltipla · critérios de gestação única aplicados por feto, somados à discordância de peso';
   }
   return dx?.isPrecoce
     ? 'Consenso Delphi 2016 · critérios para gestação antes de 32 semanas'
@@ -8903,8 +8934,17 @@ function _relIdentHtml(patient, gestacao, lastExam, extra) {
     ? `${Math.floor(igDays / 7)}<small>s</small>+${igDays % 7}<small>d</small>`
     : '—';
 
+  // A corionicidade entra aqui a partir de 2026-09-20. O relatório podia
+  // imprimir "CIUR seletivo" sem dizer se a gestação era mono ou dicoriônica —
+  // e é exatamente isso que decide o que o obstetra faz com a informação: na
+  // dicoriônica o mecanismo é insuficiência placentária, na monocoriônica é
+  // divisão desigual da placenta e anastomoses, com risco de deterioração
+  // abrupta. O mesmo diagnóstico, dois prognósticos. A tela já mostrava a
+  // sigla no cabeçalho da paciente; o papel não mostrava nada.
   const nFetos = fetosDaGestacao(gestacao).length;
-  const tipoGestacaoLabel = nFetos === 3 ? 'Gestação Trigemelar' : nFetos === 2 ? 'Gestação Gemelar' : 'Gestação Única';
+  const tipoBase = nFetos === 3 ? 'Gestação Trigemelar' : nFetos === 2 ? 'Gestação Gemelar' : 'Gestação Única';
+  const corioTxt = (nFetos > 1 && _CORIO_EXTENSO[gestacao.corionicidade]) ? ` · ${_CORIO_EXTENSO[gestacao.corionicidade]}` : '';
+  const tipoGestacaoLabel = tipoBase + corioTxt;
 
   const tipo = gestacao.ig_base_tipo || (gestacao.dum ? 'DUM' : null);
   let cronologia = 'Cronologia não definida';

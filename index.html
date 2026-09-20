@@ -8241,6 +8241,15 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   const estadio = dx?.estadio ? ESTADIO_CFG[dx.estadio] : null;
   const estadioIndeterminado = !estadio && (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio');
 
+  // Percentil de PFE da última visita — o número que o selo do card mostra e
+  // que a Conclusão cita entre parênteses. Sai daqui, e não recalculado em
+  // cada tela, porque é o percentil do exame em que este diagnóstico foi
+  // feito: `last` é o último do array JÁ ordenado por data pelo enrichExams,
+  // não o último elemento de um array que veio do banco em ordem física (ver
+  // CLAUDE.md, "Ordem das listas vem do banco"). Selo e conclusão discordarem
+  // por um percentil é o mesmo erro de tela × papel que as funções de
+  // diagnóstico existem para não cometer.
+
 
   return {
     diagnostico,
@@ -8250,6 +8259,9 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     critItems,
     estadio,
     estadioIndeterminado,
+    efwPercentil: (last._efw != null && last._igDays != null)
+      ? (calcEFWPercentile(last._efw, last._igDays) || {}).percentil ?? null
+      : null,
     conduta: _condutaDiagnostico(dx),
     notas: _notasDiagnostico(dx),
     peRisco: avaliarRiscoPreEclampsia(dx),
@@ -8668,7 +8680,8 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   const semAchados   = !(impressao.critItems && impressao.critItems.length) && !impressao.peRisco && !impressao.coloRisco;
   const trajetoriaOk = semAchados && impressao.diagnostico === 'adequado' && (exams?.length || 0) >= 2;
 
-  const linhas = [`${impressao.label}${trajetoriaOk ? ', com trajetória estável e Doppler dentro da normalidade' : ''}.`];
+  const pctTxt = impressao.efwPercentil != null ? ` (P${impressao.efwPercentil})` : '';
+  const linhas = [`${impressao.label}${pctTxt}${trajetoriaOk ? ', com trajetória estável e Doppler dentro da normalidade' : ''}.`];
   if (impressao.critItems && impressao.critItems.length) linhas.push(`${impressao.critItems[0]}.`);
   if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
@@ -9110,11 +9123,8 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
   const lastExamGeral = porFeto[0].exams[porFeto[0].exams.length - 1];
 
   const cards = porFeto.map((pf, i) => {
-    const ultimo = pf.exams[pf.exams.length - 1];
-    const igFeto = ultimo.ig_dias_manual ?? calcIgDays(gestacao, ultimo.data_exame);
-    const efw    = ultimo.efw ?? calcEFW(ultimo.dbp, ultimo.cc, ultimo.ca, ultimo.femur);
-    const pct    = calcEFWPercentile(efw, igFeto)?.percentil;
     const impressao = computeImpressaoDiagnostica(gestacao, pf.exams);
+    const pct    = impressao?.efwPercentil;
     const svg    = _buildRelChartEfwSvg(gestacao, pf.exams);
     const cor    = i === 0 ? 'a' : 'b';
 
@@ -9354,6 +9364,27 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
 // vira um item da lista na hora de imprimir (ver _relListaHtml). Fica num
 // <textarea> igual aos de resumo por feto — revisável antes de imprimir,
 // nunca vai direto pro PDF sem passar pelos olhos da médica.
+// Os percentis de PFE do grupo, entre parênteses, logo depois do diagnóstico:
+// "Ambos os fetos apresentam crescimento adequado para a idade gestacional
+// (Feto A: P20, Feto B: P11)". Formato definido pela médica em 2026-09-20 — o
+// rótulo de cada feto entra porque "(P20 e P11)" obriga o obstetra a supor que
+// a ordem é A→B, e numa trigemelar são três números para supor.
+//
+// Num grupo de um feto só o rótulo não entra: o sujeito da frase já disse qual
+// é ("Feto B apresenta padrão de PIG (P7)"), e repeti-lo ali seria dizer
+// "Feto B" duas vezes na mesma linha.
+//
+// Feto sem PFE na última visita fica de fora dos parênteses em vez de virar
+// "P—"; se nenhum do grupo tem, os parênteses não aparecem.
+function _percentisDoGrupoTxt(fetos, coletivo) {
+  const itens = fetos
+    .filter(pf => pf.impressao?.efwPercentil != null)
+    .map(pf => coletivo
+      ? `${labelFeto(pf.feto)}: P${pf.impressao.efwPercentil}`
+      : `P${pf.impressao.efwPercentil}`);
+  return itens.length ? ` (${itens.join(', ')})` : '';
+}
+
 function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   const DX_LABEL = {
     adequado: 'crescimento adequado para a idade gestacional',
@@ -9378,7 +9409,7 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
     const coletivo   = g.fetos.length > 1;
     const sujeito    = coletivo ? (NUM_COLETIVO[g.fetos.length] || `Os ${g.fetos.length} fetos`) : labelFeto(g.fetos[0].feto);
     const critItems  = impressao?.critItems || [];
-    let linha = `${sujeito} ${coletivo ? 'apresentam' : 'apresenta'} ${dxLabel}`;
+    let linha = `${sujeito} ${coletivo ? 'apresentam' : 'apresenta'} ${dxLabel}${_percentisDoGrupoTxt(g.fetos, coletivo)}`;
     if (critItems.length) {
       linha += ` — ${critItems[0]}`;
     } else {

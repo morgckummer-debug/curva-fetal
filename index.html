@@ -854,7 +854,9 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status--alerta  .status-conduta{color:#8a2840;border-top-color:rgba(168,66,95,.22)}
 /* Discordância de peso em destaque — espelha .rel-discrep do CSS exportado
    (ver _relPrintStyleBlock/_buildRelDiscrepanciaHtml). */
-.rel-preview .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:10px 16px;border-radius:6px;background:var(--nude)}
+.rel-preview .rel-dupla{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.rel-dupla .rel-secao{margin-top:0}
+.rel-discrep{display:flex;align-items:baseline;gap:16px;padding:10px 16px;border-radius:6px;background:var(--nude)}
 .rel-preview .rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:29px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
 .rel-preview .rel-discrep-body{flex:1}
 .rel-preview .rel-discrep-label{font-size:12.5px;color:var(--texto-2);line-height:1.5}
@@ -932,6 +934,8 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .rel-texto--full{max-width:none}
 .rel-preview .rel-texto:focus{outline:none;border-color:var(--lilas)}
 .rel-preview .rel-texto-hint{font-size:10px;color:var(--dourado);margin-top:5px}
+.rel-preview .rel-dupla{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.rel-preview .rel-dupla .rel-secao{margin-top:0}
 .rel-preview .comparativo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px}
 .rel-preview .comparativo-item{background:var(--nude-2);border-radius:14px;padding:16px 14px;text-align:center;
   box-shadow:4px 4px 12px rgba(61,35,82,0.14),-3px -3px 9px rgba(255,255,255,0.75)}
@@ -9208,9 +9212,11 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   // P90/P50/P10 na ponta da curva, percentil escrito em cima de cada ponto) e
   // precisa da largura de meia página pra esses rótulos não ficarem
   // ilegíveis; numa grade de 3 colunas ele saía do mesmo tamanho dos outros
-  // três e os textos praticamente desapareciam. O Doppler de UtA acompanha
-  // o peso nessa segunda grade só por simetria (2 colunas, como a gemelar),
-  // não porque precisasse do espaço extra.
+  // três e os textos praticamente desapareciam. O IP das uterinas divide essa
+  // segunda grade com o peso e está no mesmo desenho (_buildRelChartUtaSvg):
+  // até 2026-09-20 ele era o small multiple de 220x118 ao lado do gráfico
+  // grande, com eixo, grade e rótulos diferentes — dois desenhos do mesmo tipo
+  // de curva lado a lado na mesma folha, que é o que se procura evitar.
   const smallCells = [];
   ['cc', 'ca', 'fl'].forEach(key => {
     const svg = _buildRelChartSvg(key, gestacao, exams);
@@ -9228,28 +9234,22 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   const bigCells = [];
   const efwSvg = _buildRelChartEfwSvg(gestacao, exams);
   if (efwSvg) {
+    // O subtítulo com a referência não é enfeite: ele é o que mantém este card
+    // e o das uterinas alinhados — sem ele, um card tem uma linha a menos que
+    // o outro e os dois gráficos começam em alturas diferentes lado a lado.
+    // De quebra, a curva usada passa a estar escrita no papel, como já estava
+    // na tela (#sub-efw).
     bigCells.push(`<div class="feto-card feto-card--unica">
       <div class="feto-card-head">
         <div class="feto-card-t">${_REL_CHART_TITLE.efw}</div>
         <span class="feto-badge feto-badge--unica">${efwC?.percentil != null ? 'P' + efwC.percentil : '—'}</span>
       </div>
+      <div class="feto-card-sub">Hadlock 1985/1991 + INTERGROWTH-21st</div>
       ${efwSvg}
     </div>`);
   }
-  const hasDoppler = exams.some(e => e.aut_e != null || e.aut_d != null);
-  const utaSvg = hasDoppler ? _buildRelChartSvg('uta', gestacao, exams) : null;
-  if (utaSvg) {
-    const utaMean = (() => { const e = lastExam.aut_e, d = lastExam.aut_d; if (e != null && d != null) return (e + d) / 2; return e ?? d ?? null; })();
-    const utaC = utaMean != null ? calcDopplerUt(utaMean, igDays / 7) : null;
-    const utaBadge = utaC ? (utaC.percentil >= 95 ? 'IP elevado (>P95)' : `P${utaC.percentil}`) : 'sem dados';
-    bigCells.push(`<div class="feto-card feto-card--unica">
-      <div class="feto-card-head">
-        <div class="feto-card-t">${_REL_CHART_TITLE.uta}</div>
-        <span class="feto-badge feto-badge--unica">${utaBadge}</span>
-      </div>
-      ${utaSvg}
-    </div>`);
-  }
+  const utaCard = _relCardUtaHtml(gestacao, exams);
+  if (utaCard) bigCells.push(utaCard);
 
   const historicoHtml = _buildRelHistoricoUnicaHtml(gestacao, exams);
 
@@ -9398,6 +9398,163 @@ function _buildRelChartEfwSvg(gestacao, exams) {
     ${refRotulos}
     ${pontos}
   </svg>`;
+}
+
+// ── IP médio das artérias uterinas: gráfico grande, um por gestação ─────────
+// Medida da MÃE, não do feto — mesma regra do colo curto e da pré-eclâmpsia
+// (ver CLAUDE.md). Numa gemelar o mesmo valor é gravado na linha de cada feto:
+// plotar `allExams` direto desenharia dois pontos sobrepostos por visita (três
+// na trigemelar), lidos como medidas diferentes. Uma linha por data, a
+// primeira que tiver medida — mesmo critério do colo em
+// _buildRelDopplerGemelarHtml.
+//
+// A janela é 11–41 semanas, não 20–40 como as curvas de biometria: o Doppler
+// de uterinas do primeiro trimestre faz parte do rastreio de pré-eclâmpsia, e
+// a referência de Gómez cobre a partir de 11s. Descartar esses pontos em
+// silêncio num documento clínico é pior que um eixo mais largo.
+function _relPontosUterinas(gestacao, exams) {
+  const porData = new Map();
+  (exams || []).forEach(e => {
+    if (e.excluido_em) return;
+    const ip = (e.aut_e != null && e.aut_d != null) ? (e.aut_e + e.aut_d) / 2 : (e.aut_e ?? e.aut_d ?? null);
+    if (ip == null) return;
+    const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!ig) return;
+    const w = ig / 7;
+    if (w < 11 || w > 41) return;
+    if (porData.has(e.data_exame)) return;
+    porData.set(e.data_exame, { w, ip, pct: calcDopplerUt(ip, w)?.percentil ?? null });
+  });
+  return [...porData.values()].sort((a, b) => a.w - b.w);
+}
+
+// Mesmo desenho do gráfico de peso (_buildRelChartEfwSvg) — mesmo viewBox,
+// mesmas classes, grade com valor à esquerda, P90/P50/P10 rotulados na ponta
+// da curva e o percentil escrito em cima de cada ponto. Não é estilo: é o
+// gráfico que ela mostra na consulta, e dois desenhos diferentes na mesma
+// folha fazem o leitor procurar diferença onde não há.
+//
+// Uma diferença de escala, e ela é proposital: o peso começa no zero (zero é
+// grandeza real ali, e é o que mantém os dois fetos da gemelar comparáveis);
+// o IP não. A curva de uterinas vive entre ~0,4 e ~1,8 e uma base zerada
+// espremeria a banda P10–P90 numa tira fina no topo — justamente o que se lê
+// aqui. A escala acompanha os dados, com o passo da grade escolhido entre
+// valores redondos para a régua não sair com 0,37 escrito do lado.
+function _buildRelChartUtaSvg(pontos) {
+  if (!pontos || !pontos.length) return null;
+
+  const VW = 340, VH = 176;
+  const padL = 34, padR = 30, padT = 12, padB = 22;
+  const chartW = VW - padL - padR, chartH = VH - padT - padB;
+
+  // Começa em 20s como as outras curvas do relatório; só abre para trás se
+  // houver medida antes disso, e apenas até onde o primeiro ponto exige (não
+  // direto para 11s): um rastreio de 12 semanas precisa do eixo largo, uma
+  // avaliação de 19 semanas não, e alargar sem necessidade espreme justamente
+  // o trecho de 20 a 40 que se lê depois.
+  const wIni = Math.max(11, Math.min(20, Math.floor(pontos[0].w))), wFim = 41;
+
+  const ref = [];
+  for (let w = wIni; w <= wFim; w++) {
+    const r = _relRefRow('uta', w);
+    if (r) ref.push({ w, ...r });
+  }
+  if (!ref.length) return null;
+
+  const todosY = ref.flatMap(r => [r.p10, r.p90]).concat(pontos.map(p => p.ip));
+  const lo = Math.min(...todosY), hi = Math.max(...todosY);
+  const folga = (hi - lo) * 0.12 || 0.2;
+  const passo = [0.1, 0.2, 0.25, 0.5, 1].find(s => (hi + folga - Math.max(0, lo - folga)) / s <= 5) || 1;
+  const minY  = Math.max(0, Math.floor((lo - folga) / passo) * passo);
+  const nLinhas = Math.ceil((hi + folga - minY) / passo);
+  const maxY  = minY + nLinhas * passo;
+
+  const x = w => padL + (w - wIni) / (wFim - wIni) * chartW;
+  const y = v => padT + chartH - (v - minY) / (maxY - minY) * chartH;
+  const f = n => n.toFixed(1);
+
+  const grade = Array.from({ length: nLinhas + 1 }, (_, i) => {
+    const v = minY + i * passo;
+    return `<line class="efw-grid" x1="${padL}" y1="${f(y(v))}" x2="${VW - padR}" y2="${f(y(v))}"/>`
+         + `<text class="efw-grid-t" x="2" y="${f(y(v) - 3)}">${_numBR(v, passo < 0.5 ? 2 : 1)}</text>`;
+  }).join('');
+
+  // Contadas de 40 para trás, de 4 em 4: com wIni=20 dá exatamente as mesmas
+  // marcas do gráfico de peso (20s…40s), e num eixo alargado elas continuam
+  // caindo em semanas redondas em vez de seguir o wIni que calhou.
+  const marcas = [];
+  for (let w = 40; w >= wIni; w -= 4) marcas.unshift(w);
+  const eixoX = marcas.map(w =>
+    `<text class="efw-grid-t" x="${f(x(w))}" y="${VH - 8}" text-anchor="middle">${w}s</text>`
+  ).join('');
+
+  const curva = chave => ref.map(r => ({ x: x(r.w), y: y(r[chave]) }));
+  const p90 = curva('p90'), p50 = curva('p50'), p10 = curva('p10');
+
+  // No peso as três curvas terminam bem separadas e o rótulo pode ficar na
+  // altura exata de cada uma. Aqui elas convergem no fim da gestação (a 40
+  // semanas P10 e P90 do IP distam pouco mais de 0,4), e os três rótulos
+  // saíam empilhados um sobre o outro. Afasta-se o mínimo para caberem, sem
+  // mexer na curva: quem lê a altura lê a linha, não a legenda.
+  const ultima = arr => arr[arr.length - 1].y;
+  const GAP = 10;
+  let yr50 = ultima(p50);
+  let yr90 = Math.min(ultima(p90), yr50 - GAP);
+  let yr10 = Math.max(ultima(p10), yr50 + GAP);
+  const refRotulos =
+      `<text class="efw-ref-t efw-ref-t--90" x="${VW - 4}" y="${f(yr90 + 3)}" text-anchor="end">P90</text>`
+    + `<text class="efw-ref-t efw-ref-t--50" x="${VW - 4}" y="${f(yr50 + 3)}" text-anchor="end">P50</text>`
+    + `<text class="efw-ref-t efw-ref-t--10" x="${VW - 4}" y="${f(yr10 + 3)}" text-anchor="end">P10</text>`;
+
+  // Mesma regra do gráfico de peso: dois exames próximos escreveriam um rótulo
+  // por cima do outro, então o mais antigo fica só com a bolinha.
+  let ultimoRotuloX = -Infinity;
+  const pts = pontos.map(p => {
+    const cx = x(p.w), cy = y(p.ip);
+    const circulo = `<circle class="efw-pt" cx="${f(cx)}" cy="${f(cy)}" r="5"/>`;
+    if (p.pct == null || cx - ultimoRotuloX < 28) return circulo;
+    ultimoRotuloX = cx;
+    return `<text class="efw-pt-t" x="${f(cx)}" y="${f(Math.max(padT + 8, cy - 11))}" text-anchor="middle">P${p.pct}</text>` + circulo;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${VW} ${VH}" class="efw-chart">
+    ${grade}
+    <path class="efw-band" d="${_relBandPath(p90, p10)}"/>
+    <path class="efw-p90" d="${_relSvgPath(p90)}"/>
+    <path class="efw-p50" d="${_relSvgPath(p50)}"/>
+    <path class="efw-p10" d="${_relSvgPath(p10)}"/>
+    ${eixoX}
+    ${refRotulos}
+    ${pts}
+  </svg>`;
+}
+
+// Card pronto do IP médio das uterinas, no mesmo formato do card de peso da
+// gestação única. Os três relatórios (única, gemelar, trigemelar) chamam esta
+// função em vez de repetir o selo e o título — a versão anterior tinha a
+// mesma lógica de badge copiada em dois lugares, e um "> P95" ajustado só num
+// deles faria tela e papel discordarem. Sem nenhuma medida de uterinas, o card
+// inteiro some: card vazio no papel lê como exame que faltou.
+//
+// O selo lê o exame mais recente COM medida, não o último exame da gestação —
+// quem mediu uterinas em 24s e voltou em 32s só para biometria continua tendo
+// o selo do valor que existe, em vez de um "sem dados" sobre um gráfico cheio
+// de pontos.
+function _relCardUtaHtml(gestacao, exams) {
+  const pontos = _relPontosUterinas(gestacao, exams);
+  const svg = _buildRelChartUtaSvg(pontos);
+  if (!svg) return '';
+  const ultimo = pontos[pontos.length - 1];
+  const badge = ultimo.pct == null ? 'sem dados'
+    : (ultimo.pct >= 95 ? 'IP elevado (>P95)' : 'P' + ultimo.pct);
+  return `<div class="feto-card feto-card--unica">
+    <div class="feto-card-head">
+      <div class="feto-card-t">${_REL_CHART_TITLE.uta}</div>
+      <span class="feto-badge feto-badge--unica">${badge}</span>
+    </div>
+    <div class="feto-card-sub">Referência Gómez et al. (2008)</div>
+    ${svg}
+  </div>`;
 }
 
 // Frase curta de status embaixo do título do card — a leitura de uma linha do
@@ -9604,6 +9761,20 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
 
   const dopplerHtml = _buildRelDopplerGemelarHtml(gestacao, porFeto);
 
+  // IP das uterinas: um card só, com allExams e não com os exames de um feto.
+  // É medida da mãe — a linha de cada feto guarda o mesmo valor, e um card por
+  // feto (como os de peso, logo acima) imprimiria a mesma curva duas vezes.
+  // Mesma razão pela qual o colo atravessa as duas colunas na tabela de
+  // Doppler. Fica ao lado da tabela de Doppler, que é onde o número dele já
+  // aparece, e não na grade de peso, que é por feto.
+  // Sem nenhuma medida de uterinas o card não existe, e aí a tabela de Doppler
+  // volta a ocupar a linha inteira: numa grade de duas colunas com a primeira
+  // vazia ela sairia espremida em meia página, ao lado de um buraco.
+  const utaCard  = _relCardUtaHtml(gestacao, allExams);
+  const dopplerBlocoHtml = utaCard
+    ? `<div class="rel-dupla">${utaCard}${dopplerHtml}</div>`
+    : dopplerHtml;
+
   const conclusaoHtml = opts.textareaMode
     ? `<textarea id="rel-texto-conclusao" class="rel-texto rel-texto--full" oninput="_atualizarRelPageMarkMultipla()">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Textos gerados automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
@@ -9622,7 +9793,7 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
 
     ${_buildRelHistoricoGemelarHtml(gestacao, porFeto)}
 
-    ${dopplerHtml}
+    ${dopplerBlocoHtml}
 
     <section class="rel-secao">
       <h2 class="rel-secao-t">Conclusão</h2>
@@ -9639,6 +9810,10 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
 // Página de gráficos de UM feto (trigemelar) — mesmo cabeçalho/identificação/
 // grade de curvas de _buildRelSheetHtml, sem status/resumo (isso fica na
 // página de avaliação conjunta, depois de todas as páginas de gráficos).
+//
+// Só curvas do feto: o IP das uterinas saiu daqui em 2026-09-20 e passou para
+// a página de avaliação conjunta (_buildRelAssessmentPageHtml), uma vez só —
+// é medida da mãe, e nesta página ela era impressa uma vez por feto.
 function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
   const lastExam = exams[exams.length - 1];
   const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
@@ -9656,15 +9831,6 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
     const pct = { cc: ccC, ca: caC, fl: flC, efw: efwC }[key]?.percentil;
     chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE[key]}</b><i>${pct != null ? 'P' + pct : '—'}</i></div>${svg}</div>`);
   });
-  const hasDoppler = exams.some(e => e.aut_e != null || e.aut_d != null);
-  const utaSvg = hasDoppler ? _buildRelChartSvg('uta', gestacao, exams) : null;
-  if (utaSvg) {
-    const utaMean = (() => { const e = lastExam.aut_e, d = lastExam.aut_d; if (e != null && d != null) return (e + d) / 2; return e ?? d ?? null; })();
-    const utaC = utaMean != null ? calcDopplerUt(utaMean, igDays / 7) : null;
-    const utaBadge = utaC ? (utaC.percentil >= 95 ? 'IP elevado (>P95)' : `P${utaC.percentil}`) : 'sem dados';
-    chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE.uta}</b><i>${utaBadge}</i></div>${utaSvg}</div>`);
-  }
-
 
   return `${_relHeaderHtml(patient.nome || patient.cpf)}
 
@@ -9974,6 +10140,13 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
   const riscosGestHtml = _renderPeRiscoFaixaHtml(porFetoComDados.map(pf => pf.impressao?.peRisco).find(Boolean))
     + _renderColoRiscoFaixaHtml(porFetoComDados.map(pf => pf.impressao?.coloRisco).find(Boolean));
 
+  // O IP das uterinas entra aqui pela mesma razão das faixas acima: é da
+  // gestação, não do feto. Até 2026-09-20 ele era um gráfico pequeno repetido
+  // na página de cada feto — a mesma curva materna impressa três vezes na
+  // trigemelar, lida como três achados.
+  const utaCard = _relCardUtaHtml(gestacao, allExams);
+  const utaHtml = utaCard ? `<section class="feto-cards" style="margin-top:14px">${utaCard}</section>` : '';
+
   const fetosHtml = porFetoComDados.map(pf => {
     const impressao  = pf.impressao;
     const statusHtml = _renderStatusFaixaHtml(impressao);
@@ -10004,6 +10177,7 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
     ${discrepHtml}
     ${comparativoHtml}
     ${riscosGestHtml}
+    ${utaHtml}
     ${fetosHtml}
     ${historicoHtml}
     <section style="margin-top:28px">
@@ -10221,6 +10395,8 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 /* Discordância de peso em destaque — mesma ideia do card
    .discrepancia-emphasis já usado na tela, só com a paleta do relatório
    impresso em vez das variáveis de tela. */
+.rel-dupla{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.rel-dupla .rel-secao{margin-top:0}
 .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:10px 16px;border-radius:6px;
   background:var(--nude);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:29px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}

@@ -459,3 +459,53 @@ tabelas). O valor de uma visita diz menos que a queda entre visitas, e o colo
 não aparecia em nenhuma coluna do relatório. A coluna só existe se alguma visita
 mediu — coluna inteira de "—" é ruído — e abaixo de 25mm (mesmo corte do
 `avaliarRiscoColoCurto`) o valor sai em negrito.
+
+## IP das uterinas: um gráfico por gestação, no desenho do gráfico de peso
+
+2026-09-20. O IP médio das artérias uterinas já era plotado no relatório, mas
+como *small multiple* de 220×118 (`_buildRelChartSvg('uta', …)`) — eixo, grade
+e rótulos diferentes dos do peso, lado a lado com ele na mesma folha. Dois
+desenhos do mesmo tipo de curva na mesma página fazem quem lê procurar
+diferença onde não há. Agora é `_buildRelChartUtaSvg`: mesmo viewBox, mesmas
+classes, grade com valor à esquerda, P90/P50/P10 rotulados na ponta da curva e
+o percentil escrito em cima de cada ponto, igual a `_buildRelChartEfwSvg`.
+
+- **É medida da mãe — um card por gestação, nunca por feto** (`_relCardUtaHtml`,
+  alimentado por `_relPontosUterinas`). Mesma regra do colo curto e da
+  pré-eclâmpsia. A linha de cada feto guarda o mesmo valor, então plotar
+  `allExams` direto desenharia dois pontos sobrepostos por visita (três na
+  trigemelar), e o card repetido por feto imprimiria a mesma curva materna duas
+  ou três vezes. Na trigemelar ela saía uma vez por página de feto até esta
+  data; passou para a página de avaliação conjunta, ao lado das outras faixas
+  da gestação. Na gemelar o card não existia — agora divide a linha com a
+  tabela de Doppler (`.rel-dupla`), que é onde o número dele já aparece.
+- **Escala não começa no zero, ao contrário da do peso.** Lá o zero é grandeza
+  real e é o que mantém os dois fetos da gemelar comparáveis; aqui a curva vive
+  entre ~0,4 e ~1,8 e uma base zerada espremeria a banda P10–P90 numa tira fina
+  no topo — justamente o que se lê. O passo da grade sai de uma lista de
+  valores redondos (0,1 / 0,2 / 0,25 / 0,5 / 1), senão a régua imprime 0,37.
+- **O eixo abre para trás quando existe medida antes de 20 semanas**, só até
+  onde o primeiro ponto exige (`Math.max(11, Math.min(20, …))`), não direto
+  para 11s. O rastreio de pré-eclâmpsia do primeiro trimestre mede uterinas, e
+  o corte fixo em 20 semanas do `_relPatientPoints` descartava esses pontos em
+  silêncio. Alargar sem necessidade espreme o trecho de 20 a 40 que se lê
+  depois, por isso o eixo encosta no primeiro ponto em vez de saltar.
+- **Os rótulos P90/P50/P10 têm distância mínima entre si** (10px). No peso as
+  três curvas terminam bem separadas; no IP elas convergem no fim da gestação e
+  os três rótulos saíam empilhados. Afasta-se o rótulo, nunca a curva.
+- **O selo lê o exame mais recente com medida**, não o último exame da
+  gestação: quem mediu uterinas em 24s e voltou em 32s só para biometria
+  continua com o selo do valor que existe, em vez de "sem dados" sobre um
+  gráfico cheio de pontos.
+- **Sem nenhuma medida, o card inteiro some** — e na gemelar a tabela de
+  Doppler volta a ocupar a linha toda, senão sairia espremida em meia página ao
+  lado de um buraco.
+- O card de peso da gestação única ganhou o subtítulo da referência (Hadlock
+  1985/1991 + INTERGROWTH-21st) junto: sem ele, um card tem uma linha a menos
+  que o outro e os dois gráficos começam em alturas diferentes lado a lado.
+
+**Pendência aberta:** na tabela de Doppler da gemelar, a linha "IP artérias
+uterinas (média)" ainda imprime o mesmo valor materno numa coluna por feto. O
+colo já atravessa as colunas por esse motivo; as uterinas deveriam também —
+mas só quando os valores das duas linhas coincidem, senão o relatório estaria
+escolhendo um em silêncio.

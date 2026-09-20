@@ -1458,6 +1458,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
                 <option value="normal">Normal</option>
                 <option value="ausente">AEDF — diástole ausente</option>
                 <option value="reversa">REDF — diástole reversa</option>
+                <option value="intermitente">iAREDF — diástole intermitente (ausente/reversa)</option>
               </select>
             </div>
             <span id="badge-au-ip" class="dop-inline-badge" style="display:none;"></span>
@@ -2734,7 +2735,12 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   }
 
   // Diástole zero (AEDF) — REDF implica ausência de diástole também, conta junto
-  const auDiastoleZero = lastExam.au_fluxo === 'ausente' || lastExam.au_fluxo === 'reversa';
+  // 'intermitente' (iAREDF) conta aqui: a diástole está ausente ou reversa em
+  // parte dos ciclos, não presente. Sem esta linha o achado mais grave da
+  // monocoriônica — o Tipo III de Gratacós — seria o único a não disparar
+  // nada, e o app o classificaria abaixo de uma AEDF franca.
+  const auDiastoleZero = lastExam.au_fluxo === 'ausente' || lastExam.au_fluxo === 'reversa'
+                      || lastExam.au_fluxo === 'intermitente';
 
   // ── Diagnóstico Delphi ────────────────────────────────────
   let diagnostico = 'adequado';
@@ -2803,6 +2809,8 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
 
   // ── Estadiamento Barcelona/FIGO (sem CTG) ────────────────
   let estadio = null;
+  const gratacos = _gratacosTipo(lastExam, gestacao, diagnostico);
+
   const isRCIU = diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio';
   if (isRCIU) {
     if (lastExam.dv_onda === 'reversa') {
@@ -2811,8 +2819,8 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
       estadio = 3;                                              // REDF na AU
     } else if (lastExam.dv_ip != null && lastExam.dv_ip > _dvP95(gaW)) {
       estadio = 3;                                              // IP DV > P95
-    } else if (lastExam.au_fluxo === 'ausente') {
-      estadio = 2;                                              // AEDF na AU
+    } else if (lastExam.au_fluxo === 'ausente' || lastExam.au_fluxo === 'intermitente') {
+      estadio = 2;                                              // AEDF na AU (iAREDF entra aqui: ver auDiastoleZero)
     } else if (auAboveP95 || cprBelowP5 || utAboveP95) {
       estadio = 1;                                              // Doppler alterado, fluxo presente
     }
@@ -2821,7 +2829,8 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
 
   return {
     diagnostico,   // 'adequado'|'pig'|'gig'|'rciu_precoce'|'rciu_tardio'
-    estadio,       // 1–4 ou null
+    estadio,       // 1–4 ou null (Barcelona/FIGO)
+    gratacos,      // 1–3 ou null (só monocoriônica com feto restrito)
     isPrecoce,
     gaW,
     trajetoria: _trajetoriaPIG(allExams, igDays),
@@ -2835,6 +2844,38 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
       dvOnda:  lastExam.dv_onda,
     },
   };
+}
+
+// ── Classificação de Gratacós — CIUR seletivo em monocoriônica ────────────
+// Pelo Doppler da artéria umbilical DO FETO RESTRITO, e só em gestação
+// monocoriônica. Na dicoriônica o mecanismo é insuficiência placentária, como
+// na gestação única, e o estadiamento de Barcelona responde; na monocoriônica
+// o mecanismo é divisão desigual da placenta mais anastomoses vasculares, e o
+// que decide conduta é o tipo — um Tipo I com PFE no P3 pode ficar estável por
+// semanas, e um Tipo III descompensa sem aviso.
+//
+// O Tipo III depende do valor 'intermitente' em au_fluxo, criado em
+// 2026-09-20 junto com esta função: antes não havia como registrar iAREDF, e
+// o achado mais traiçoeiro da monocoriônica era invisível para o app.
+//
+// Devolve null quando não é monocoriônica, quando o feto não está restrito
+// (o tipo é do feto com CIUR seletivo, não da gestação) ou quando não há
+// Doppler de AU registrado. Null é "não classificado", nunca "Tipo I".
+const _GRATACOS_CFG = {
+  1: { label: 'Tipo I',   desc: 'Fluxo diastólico positivo persistente na artéria umbilical' },
+  2: { label: 'Tipo II',  desc: 'Diástole ausente ou reversa persistente na artéria umbilical' },
+  3: { label: 'Tipo III', desc: 'Diástole intermitentemente ausente ou reversa (iAREDF)' },
+};
+
+function _gratacosTipo(lastExam, gestacao, diagnostico) {
+  if (!_ehMonocorionica(gestacao)) return null;
+  const restrito = diagnostico === 'pig' || diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio';
+  if (!restrito) return null;
+  const f = lastExam?.au_fluxo;
+  if (f === 'intermitente')               return 3;
+  if (f === 'ausente' || f === 'reversa') return 2;
+  if (f === 'normal')                     return 1;
+  return null;
 }
 
 // ── Critérios identificados, conduta e fonte: uma implementação só ────────
@@ -6313,6 +6354,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
       let interpAU = '';
       if (last.au_fluxo === 'reversa')      interpAU = '⚠ Diástole reversa (REDF) — critério estadiamento III';
       else if (last.au_fluxo === 'ausente') interpAU = '⚠ Diástole ausente (AEDF) — critério estadiamento II';
+      else if (last.au_fluxo === 'intermitente') interpAU = '⚠ Diástole intermitentemente ausente/reversa (iAREDF) — Tipo III de Gratacós na monocoriônica';
       else if (z.au != null && z.au > 1.645) interpAU = 'IP elevado (> P95) — resistência placentária aumentada';
       else if (z.au != null && z.au > 1.28)  interpAU = 'IP borderline — monitorizar';
       else                                    interpAU = 'IP dentro do esperado para a IG';
@@ -6413,6 +6455,21 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     </div>`;
   } else if (dx?.diagnostico === 'rciu_precoce' || dx?.diagnostico === 'rciu_tardio') {
     estadioHtml = `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Estadiamento indeterminado — dados Doppler insuficientes para classificar.</div>`;
+  }
+
+  // Gratacós entra como selo próprio, ao lado do de Barcelona e não no lugar
+  // dele: são dois sistemas, cada um dito com o seu nome. A conduta ainda é
+  // escrita pelo estágio de Barcelona (ver _condutaDiagnostico), então tirar
+  // Barcelona daqui deixaria a conduta falando de um estágio que a tela não
+  // mostra. Quando os textos de conduta por tipo existirem, Barcelona sai
+  // daqui na monocoriônica.
+  if (dx?.gratacos) {
+    const gt = _GRATACOS_CFG[dx.gratacos];
+    const corG = dx.gratacos === 3 ? '#8a1010' : dx.gratacos === 2 ? '#b84010' : '#b87a20';
+    estadioHtml += `<div style="margin-top:8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-family:var(--font-mono);font-size:12px;font-weight:700;padding:4px 14px;border-radius:99px;background:${corG}22;color:${corG};border:1px solid ${corG}55;">${gt.label} — Gratacós</span>
+      <span style="font-size:12.5px;color:var(--text-muted);">${gt.desc}</span>
+    </div>`;
   }
 
   // Conduta sugerida — ver _condutaDiagnostico (mesma tabela do relatório).
@@ -8437,7 +8494,8 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     3: { label: 'Estágio III', desc: 'Diástole reversa na AU e/ou IP do ducto venoso > P95', cor: '#8a1010' },
     4: { label: 'Estágio IV',  desc: 'Onda A reversa no ducto venoso',                       cor: '#6a0010' },
   };
-  const estadio = dx?.estadio ? ESTADIO_CFG[dx.estadio] : null;
+  const estadio  = dx?.estadio ? ESTADIO_CFG[dx.estadio] : null;
+  const gratacos = dx?.gratacos ? _GRATACOS_CFG[dx.gratacos] : null;
   const estadioIndeterminado = !estadio && (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio');
 
   // Percentil de PFE da última visita — o número que o selo do card mostra e
@@ -8457,6 +8515,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     isPrecoce: !!dx?.isPrecoce,
     critItems,
     estadio,
+    gratacos,
     estadioIndeterminado,
     velocidade: _velocidadeCrescimento(enriched),
     efwPercentil: (last._efw != null && last._igDays != null)
@@ -9719,6 +9778,12 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
     }
     linhas.push(linha + '.');
     if (notaVel) linhas.push(notaVel);
+    // O tipo de Gratacós é do feto, não do grupo — sai numa linha por feto
+    // classificado, depois da linha do grupo.
+    g.fetos.forEach(pf => {
+      const gt = pf.impressao?.gratacos;
+      if (gt) linhas.push(`${labelFeto(pf.feto)} — ${gt.label} de Gratacós: ${gt.desc.toLowerCase()}.`);
+    });
   });
 
   if (discrepResumo) {

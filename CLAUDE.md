@@ -134,8 +134,9 @@ ordena por `id` decrescente antes de cortar em 8. Não confie na ordem do array
 ## Duas aplicações escrevem nas mesmas tabelas
 
 O editor de laudos (repo `morgckummer-debug/laudos-dramorgana`, arquivos
-`obstetrico.html` e `obstetrico-1trimestre.html`) grava direto em `patients` e
-`exams` deste mesmo Supabase, usando o CPF como chave para achar a paciente. Toda
+`obstetrico.html`, `obstetrico-1trimestre.html`, `morfologico-1trimestre.html` e
+`morfologico-2trimestre.html`) grava direto em `patients`, `gestacoes` e `exams`
+deste mesmo Supabase, usando o CPF como chave para achar a paciente. Toda
 mudança em como este app grava CPF, id ou soft-delete precisa ser espelhada lá —
 não existe código compartilhado entre os dois repos.
 
@@ -169,6 +170,16 @@ não existe código compartilhado entre os dois repos.
   `text` sem CHECK e o editor não a escreve, então o valor novo não precisou ser
   espelhado lá — mas se um dia ele passar a escrever Doppler de umbilical,
   precisa conhecer esse valor.
+- **GPA (`gestas`/`partos`/`abortos`) vem dos quatro laudos desde 2026-09-21.**
+  Antes só `obstetrico.html` e `morfologico-1trimestre.html` o gravavam: uma
+  gestação criada pelo morfológico de 2º trimestre nascia com GPA nulo aqui,
+  mesmo com o G/P/A impresso no laudo. Lá o campo vazio nunca apaga o que já
+  está salvo, e quando os dois lados divergem o editor **pergunta** qual vale
+  (modal `#cgGpaOverlay`) em vez de sobrescrever — diferente das flags de
+  colo curto, que são ratchet. Consequência aqui: o GPA de uma gestação pode
+  mudar entre uma visita e outra por escolha da médica no editor; não é
+  sinal de dado corrompido. Ver "O GPA e os quatro laudos" no `CLAUDE.md` de
+  lá.
 - **Lixeira:** `excluido_em` preenchido significa fora de toda leitura normal. As
   buscas do editor filtram `.is('excluido_em', null)` pelo mesmo motivo, e o
   unique da 004 é parcial (`where excluido_em is null`) para não impedir o

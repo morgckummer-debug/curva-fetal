@@ -2669,13 +2669,138 @@ const _PSV_MEDIANA = {
   39:93.9, 40:101.8,
 };
 
-function calcPsvMom(psv, gaW) {
+// PSV ACM em monocoriônicos — Klaritsch et al., Ultrasound Obstet Gynecol
+// 2009, Tabela 3 (coluna 1,0 MoM). 50 gestações MCDA não complicadas, 824
+// medidas, 15 a 37 semanas.
+//
+// Por que existe uma segunda tabela. De 18 a 37 semanas as duas curvas são
+// equivalentes — menos de 5% de diferença — e Klaritsch conclui exatamente
+// isso. Antes de 18 o PSV é nitidamente mais alto no monocoriônico: +26% em
+// 15 semanas, +16% em 16, +8% em 17. Usar a curva de feto único nessa faixa
+// divide por uma mediana baixa demais, superestima o MoM e cria anemia onde
+// não há — é o falso-positivo que o artigo descreve e o motivo pelo qual os
+// autores recomendam a curva específica, ao menos antes de 18 semanas.
+//
+// Fora de 15–37 não há o que extrapolar (é todo o intervalo publicado), e aí
+// a Mari volta a valer: ela cobre até 40 semanas.
+const _PSV_MEDIANA_MCDA = {
+  15:25.40, 16:24.50, 17:24.01, 18:23.90, 19:24.14, 20:24.68, 21:25.52,
+  22:26.61, 23:27.94, 24:29.48, 25:31.21, 26:33.10, 27:35.11, 28:37.22,
+  29:39.39, 30:41.58, 31:43.74, 32:45.83, 33:47.80, 34:49.61, 35:51.20,
+  36:52.52, 37:53.52,
+};
+
+// `gestacao` é opcional só para não quebrar chamada antiga: sem ela a conta é
+// a de sempre (Mari). Devolve também qual curva usou — quem imprime o MoM tem
+// de poder dizer de onde ele saiu, mesma regra do _fonteDiagnostico.
+function calcPsvMom(psv, gaW, gestacao) {
   if (psv == null || !gaW) return null;
   const wFloor = Math.floor(gaW);
-  const med = _PSV_MEDIANA[wFloor];
+  const usaMcda = _ehMonocorionica(gestacao) && _PSV_MEDIANA_MCDA[wFloor] != null;
+  const med = usaMcda ? _PSV_MEDIANA_MCDA[wFloor] : _PSV_MEDIANA[wFloor];
   if (!med) return null;
   const mom = Math.round((psv / med) * 100) / 100;
-  return { mom, mediana: med };
+  return { mom, mediana: med, curva: usaMcda ? 'klaritsch' : 'mari' };
+}
+
+// ── TAPS — sequência anemia-policitemia ───────────────────────────────────
+//
+// Achado da GESTAÇÃO, não do feto: nasce da diferença entre os dois, então
+// não cabe dentro do computeImpressaoDiagnostica de um feto só. Mesma regra
+// do colo curto e das uterinas — entra uma vez, fora do laço por feto.
+//
+// Só monocoriônica e só com dois fetos. Os dois sistemas de estadiamento
+// foram definidos para gemelar monocoriônico; numa trigemelar não existe "o
+// par", e comparar dois dos três escolhendo quais seria invenção nossa.
+//
+// A TAPS se define pela discordância de hemoglobina SEM sequência
+// oligo-polidrâmnio — com oligo-poli o quadro é STFF, estadiada por Quintero.
+// O app não registra bolsões dos dois fetos de forma a fechar esse critério,
+// então o texto avisa em vez de afirmar que não é STFF.
+const _TAPS_LEIDEN   = { e1: { doador: 1.50, receptor: 1.00 }, e2: { doador: 1.70, receptor: 0.80 } };
+const _TAPS_DELTA    = { e1: 0.50, e2: 0.70 };
+
+function _tapsDopplerCritico(e) {
+  // Estágio 3 dos dois sistemas: comprometimento cardiovascular do doador.
+  // Usa só o que este app registra de fato (au_fluxo e dv_onda). Hidropsia
+  // (estágio 4) e óbito (estágio 5) não têm campo aqui — por isso o
+  // estadiamento devolvido é explicitamente "até 3".
+  if (!e) return false;
+  return e.au_fluxo === 'ausente' || e.au_fluxo === 'reversa' || e.au_fluxo === 'intermitente'
+      || e.dv_onda  === 'ausente' || e.dv_onda  === 'reversa';
+}
+
+function avaliarTAPS(gestacao, allExams) {
+  if (!_ehMonocorionica(gestacao)) return null;
+  const fetos = fetosDaGestacao(gestacao);
+  if (fetos.length !== 2) return null;
+
+  // Visita mais recente em que OS DOIS fetos têm PSV medido. Comparar o PSV de
+  // hoje de um feto com o da semana passada do outro não é delta de MoM — é
+  // ruído de duas idades gestacionais diferentes.
+  const validos = (allExams || []).filter(e => !e.excluido_em && e.acm_psv != null);
+  const datas = [...new Set(validos.map(e => e.data_exame))].sort().reverse();
+  const data = datas.find(d => fetos.every(f => validos.some(e => e.data_exame === d && e.feto === f)));
+  if (!data) return null;
+
+  const exames = fetos.map(f => validos.find(e => e.data_exame === data && e.feto === f));
+  const igDays = exames[0].ig_dias_manual ?? calcIgDays(gestacao, data);
+  const gaW    = igDays ? igDays / 7 : null;
+  if (!gaW) return null;
+
+  const moms = exames.map(e => calcPsvMom(e.acm_psv, gaW, gestacao));
+  if (moms.some(m => !m)) return null;
+
+  // Doador = maior PSV (anêmico) · receptor = menor PSV (policitêmico).
+  const iDoador   = moms[0].mom >= moms[1].mom ? 0 : 1;
+  const iReceptor = 1 - iDoador;
+  const momD = moms[iDoador].mom, momR = moms[iReceptor].mom;
+  const delta = Math.round((momD - momR) * 100) / 100;
+
+  // Leiden (Slaghekke 2010) olha os MoM absolutos dos dois; os critérios de
+  // 2019 (Tollenaar) olham só a diferença. O estágio 3 é comum aos dois e tem
+  // precedência sobre 1 e 2, mas só vale se o critério de PSV já fechou —
+  // Doppler alterado sem discordância de PSV não é TAPS, é outra coisa.
+  const dopplerCritico = _tapsDopplerCritico(exames[iDoador]);
+  const estadiar = (b1, b2) => {
+    if (!b1 && !b2) return 0;
+    if (dopplerCritico) return 3;
+    return b2 ? 2 : 1;
+  };
+  const eLeiden = estadiar(momD > _TAPS_LEIDEN.e1.doador && momR < _TAPS_LEIDEN.e1.receptor,
+                           momD > _TAPS_LEIDEN.e2.doador && momR < _TAPS_LEIDEN.e2.receptor);
+  const eNovos  = estadiar(delta > _TAPS_DELTA.e1, delta > _TAPS_DELTA.e2);
+  const estagio = Math.max(eLeiden, eNovos);
+  if (!estagio) return null;
+
+  const fmt = v => _numBR(v, 2);
+  const txtEstagio = n => n ? `estágio ${n}` : 'não preenche';
+  const divergem = eLeiden !== eNovos;
+
+  // Os dois sistemas saem lado a lado de propósito: quando divergem, é porque
+  // um dos fetos ainda não cruzou seu limiar absoluto enquanto a diferença
+  // entre eles já cruzou. Foi essa sensibilidade antenatal maior que motivou
+  // os critérios de 2019 — esconder o desacordo seria escolher um em silêncio.
+  const subtitulo = `${labelFeto(fetos[iDoador])} doador ${fmt(momD)} MoM · `
+    + `${labelFeto(fetos[iReceptor])} receptor ${fmt(momR)} MoM · delta ${fmt(delta)} MoM`
+    + ` — Leiden ${txtEstagio(eLeiden)}, critérios de 2019 ${txtEstagio(eNovos)}`
+    + (divergem ? ' (os dois sistemas divergem — prevalece o mais alto)' : '');
+
+  const conduta = estagio >= 3
+    ? 'Encaminhamento urgente a centro terciário de medicina fetal — comprometimento cardiovascular do doador associado à discordância de PSV.'
+    : estagio === 2
+      ? 'Encaminhamento a centro terciário de medicina fetal com cirurgia fetal disponível. Vigilância semanal do PSV-ACM dos dois fetos enquanto a conduta é definida.'
+      : 'Repetir o PSV-ACM dos dois fetos em 1 semana e encaminhar a centro de medicina fetal para confirmação. Investigar se é espontânea ou pós-laser.';
+
+  return {
+    icon: '🩸',
+    label: `TAPS estágio ${estagio} — sequência anemia-policitemia`,
+    subtitulo,
+    conduta,
+    estagio, eLeiden, eNovos, delta, momD, momR, divergem,
+    fetoDoador: fetos[iDoador], fetoReceptor: fetos[iReceptor],
+    data, curva: moms[0].curva,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5069,11 +5194,14 @@ function buildDopplerPctRows(gestacao, e) {
     html += buildPctRowDop('IP ACM', e.acm_ip.toFixed(2), acmCalc.percentil, isPath, '≤P5');
   }
 
-  const psvCalc = calcPsvMom(e.acm_psv, gaW);
+  const psvCalc = calcPsvMom(e.acm_psv, gaW, gestacao);
   if (psvCalc) {
     const isPath = psvCalc.mom > 1.50;
     const isWarn = !isPath && psvCalc.mom > 1.29;
-    const momStr = `${psvCalc.mom.toFixed(2)} MoM (mediana: ${psvCalc.mediana} cm/s)`;
+    // A curva entra no texto quando não é a de sempre: um MoM de monocoriônico
+    // antes de 18 semanas sai de outra mediana, e quem lê precisa saber disso.
+    const curvaStr = psvCalc.curva === 'klaritsch' ? ', Klaritsch' : '';
+    const momStr = `${psvCalc.mom.toFixed(2)} MoM (mediana: ${psvCalc.mediana} cm/s${curvaStr})`;
     const nota   = isPath ? '⚠ >1.50 MoM' : isWarn ? '⚡ 1.29–1.50 MoM' : '';
     html += buildPctRowDopMom('PSV ACM', `${e.acm_psv} cm/s`, momStr, isPath || isWarn, nota);
   }
@@ -6317,7 +6445,7 @@ function generateSummary(gestacao, exams) {
 
   // PSV (mantido, não está no motor ainda)
   const gaW = igDays ? igDays / 7 : null;
-  const psvCalc = calcPsvMom(last.acm_psv, gaW);
+  const psvCalc = calcPsvMom(last.acm_psv, gaW, gestacao);
   if (psvCalc && psvCalc.mom > 1.5) {
     paragrafos.splice(-1, 0, `PSV da ACM de ${last.acm_psv} cm/s (${psvCalc.mom.toFixed(2)} MoM) — valor compatível com suspeita de anemia fetal moderada a grave. Correlacionar com contexto clínico.`);
   }
@@ -6516,7 +6644,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
 
     // PSV
     if (last.acm_psv != null && gaW) {
-      const psv = calcPsvMom(last.acm_psv, gaW);
+      const psv = calcPsvMom(last.acm_psv, gaW, gestacao);
       if (psv) {
         const c = psv.mom >= 1.5 ? 'color:var(--danger);font-weight:600' : psv.mom > 1.29 ? 'color:#b87a20;font-weight:600' : 'color:var(--text-muted)';
         const msg = psv.mom >= 1.5  ? `${psv.mom.toFixed(2)} MoM — compatível com anemia fetal moderada a grave`
@@ -6639,6 +6767,26 @@ function _buildSummaryHtml(gestacao, exams, feto) {
       </div>
     </div>` : '';
 
+  // Card à parte para TAPS — é da gestação, não deste feto, e por isso sai do
+  // par inteiro (getExamsByGestacao) e não do `exams` que chegou aqui. Repete
+  // na aba dos dois fetos de propósito, como o colo e a pré-eclâmpsia já
+  // fazem: a médica trabalha alternando entre as abas e um achado do par não
+  // pode existir só numa delas. No relatório é diferente — lá entra uma vez
+  // só, na Conclusão (ver _gerarConclusaoGemelarInicial).
+  const taps = avaliarTAPS(gestacao, getExamsByGestacao(gestacao.id));
+  const tapsBox = taps ? `
+    <div style="background:var(--blush-pale);border-left:4px solid var(--blush-deep);border-radius:var(--radius);padding:18px 20px;margin-top:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+        <span style="font-size:20px;">${taps.icon}</span>
+        <span style="font-family:var(--font-serif);font-size:19px;font-weight:700;color:#a02020;">${escapeHtml(taps.label)}</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);">${escapeHtml(taps.subtitulo)}</div>
+      <div style="margin-top:8px;font-size:11.5px;color:var(--text-muted);">Estadiamento antenatal até o estágio 3: hidropsia (4) e óbito (5) não têm registro neste app e precisam ser avaliados à parte. Discordância de líquido amniótico caracterizaria STFF, não TAPS.</div>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(61,35,82,0.14);font-size:12.5px;color:#a02020;">
+        <strong>Conduta sugerida:</strong> ${escapeHtml(taps.conduta)}
+      </div>
+    </div>` : '';
+
   // ── Render ─────────────────────────────────────────────────
   const tituloFeto = feto ? ` — ${labelFeto(feto)}` : '';
   return `
@@ -6651,7 +6799,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     ${block('2 · Peso fetal estimado (Hadlock 1985 · percentil Hadlock 1991 + INTERGROWTH-21st)', pesoHtml)}
     ${n >= 2 ? block('3 · Tendência evolutiva', tendHtml) : ''}
     ${block('4 · Velocimetria Doppler', dopplerHtml)}
-    ${block('5 · Impressão diagnóstica', dxBox + peBox + coloBox)}
+    ${block('5 · Impressão diagnóstica', dxBox + peBox + coloBox + tapsBox)}
     <p style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
       ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
     </p>`;
@@ -8715,7 +8863,7 @@ function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
       ? _gerarTextoCardFetoInicial(pf.impressao)
       : generateSummary(gestacao, pf.exams).paragrafos.join('\n\n');
   });
-  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams));
+  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams), avaliarTAPS(gestacao, allExams));
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
@@ -10031,7 +10179,7 @@ function _listaPtBR(itens) {
   return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
 }
 
-function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
+function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
   // Rótulo curto depois do travessão, em singular e plural. `adequado` não tem
   // rótulo nenhum: o percentil já diz que está adequado, e "Feto 2 no percentil
   // 40 — Feto adequado" é a mesma informação duas vezes (decisão da médica,
@@ -10117,6 +10265,10 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo) {
   const coloRiscoGest = porFetoComDados.map(pf => pf.impressao?.coloRisco).find(Boolean);
   if (peRiscoGest)   linhas.push(_riscoLinhaTexto(peRiscoGest));
   if (coloRiscoGest) linhas.push(_riscoLinhaTexto(coloRiscoGest));
+  // A TAPS chega pronta de fora: diferente do colo e da pré-eclâmpsia, ela não
+  // vive dentro do `impressao` de nenhum feto — nasce da comparação entre os
+  // dois, então não há de quem extraí-la com um .find(Boolean).
+  if (taps) linhas.push(_riscoLinhaTexto(taps));
 
   const condutas = [];
   porFetoComDados.forEach(pf => {

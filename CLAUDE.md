@@ -583,3 +583,61 @@ zero/reversa da umbilical (AEDF/REDF), que aqui fecha RCIU precoce sozinho —
 o editor só tem o IP numérico da umbilical, sem campo pra classificar o fluxo
 diastólico. Se esse campo for criado lá, ele precisa entrar nessa regra
 também. Mudar os critérios aqui sem espelhar lá volta a abrir a divergência.
+
+## TAPS e a curva de PSV-ACM de monocoriônicos
+
+2026-09-24. A app calculava o MoM do PSV-ACM com a curva de feto único para
+todo mundo e não tinha nada de TAPS — a sequência anemia-policitemia, que é
+uma complicação exclusiva de monocoriônica.
+
+- **Duas curvas, escolhidas pela corionicidade.** `_PSV_MEDIANA_MCDA`
+  (Klaritsch et al., UOG 2009, Tabela 3 — 50 gestações MCDA, 824 medidas,
+  15 a 37 semanas) entra por `calcPsvMom(psv, gaW, gestacao)` sempre que
+  `_ehMonocorionica`. Fora de 15–37 não há o que extrapolar e a de feto único
+  volta a valer. O motivo é a faixa precoce: antes de 18 semanas o PSV é bem
+  mais alto no monocoriônico (+26% em 15 semanas, +16% em 16, +8% em 17), e
+  dividir por uma mediana baixa demais inventa anemia onde não há. De 18 a 37
+  o próprio artigo diz que as curvas são equivalentes.
+- **`calcPsvMom` devolve `curva`**, e o texto do Doppler imprime "Klaritsch"
+  quando não é a curva de sempre. Mesma regra do `_fonteDiagnostico`: quem lê
+  um MoM tem de poder saber de que mediana ele saiu.
+- **TAPS é achado da gestação** (`avaliarTAPS`), como o colo e as uterinas.
+  Não cabe dentro do `computeImpressaoDiagnostica` de um feto porque nasce da
+  diferença entre os dois — e por isso, na Conclusão, ela chega como terceiro
+  argumento do `_gerarConclusaoGemelarInicial` em vez de sair de um
+  `.find(Boolean)` sobre os fetos, que é como o colo e a pré-eclâmpsia chegam.
+- **Só monocoriônica com dois fetos.** Os dois sistemas de estadiamento foram
+  definidos para gemelar monocoriônico; numa trigemelar não existe "o par", e
+  escolher dois dos três seria invenção nossa.
+- **Compara a visita mais recente em que OS DOIS têm PSV medido.** O PSV de
+  hoje de um feto contra o da semana passada do outro não é delta de MoM, é
+  ruído de duas idades gestacionais. Sem visita pareada, `null`.
+- **Dois sistemas lado a lado**: Leiden (Slaghekke 2010) pelos MoM absolutos
+  dos dois fetos, critérios de 2019 (Tollenaar) pelo delta entre eles.
+  Prevalece o mais alto, e quando divergem o subtítulo diz isso — a
+  sensibilidade antenatal maior do delta é justamente o que motivou a proposta
+  de 2019, e esconder o desacordo seria escolher um em silêncio.
+- **Estadiamento vai até 3.** O estágio 3 sai de `au_fluxo`/`dv_onda` do
+  doador, que a app registra. Hidropsia (4) e óbito (5) não têm campo aqui —
+  o texto diz isso em vez de deixar entender que foram descartados. Mesmo
+  motivo pelo qual a app avisa que Gratacós não é calculado.
+- **TAPS ≠ STFF.** A TAPS se define pela discordância de hemoglobina *sem*
+  sequência oligo-polidrâmnio. A app não registra bolsão dos dois fetos de
+  forma a fechar esse critério, então o texto avisa em vez de afirmar que não
+  é STFF.
+
+**Pendência aberta e importante: `_PSV_MEDIANA` não parece ser Mari 2000.**
+A tabela bate com a fórmula publicada de Mari (`e^(2,31 + 0,04643 × IG)`) até
+20 semanas e depois descola progressivamente: +9,8% em 28 semanas, +29% em 34,
++57,7% em 40. Os dados do Klaritsch, que são medida independente e que o
+artigo descreve como sobreponíveis às de feto único entre 18 e 37 semanas,
+acompanham a fórmula e não esta tabela (-33% contra ela em 37 semanas). Como a
+mediana está no denominador, um valor inflado **subestima o MoM** — o erro cai
+para o lado de não ver anemia. Um feto de 36 semanas com PSV de 80 cm/s sai
+daqui como 1,08 MoM ("dentro do esperado") e pela fórmula seria 1,49 MoM, na
+borda do corte de anemia moderada/grave. A aba de Anemia Fetal do
+`morgckummer-debug/CalcMK` usa a fórmula e portanto **discorda desta app sobre
+a mesma paciente** — a mesma classe de divergência do RCP e do PIG × CIUR.
+Não foi alterado aqui porque muda o comportamento de anemia de toda gestação
+única da app e a decisão é da médica. Se for corrigido, a tabela do Klaritsch
+não muda: ela é dado publicado, independente desta.

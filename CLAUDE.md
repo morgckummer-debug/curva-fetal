@@ -523,11 +523,10 @@ o percentil escrito em cima de cada ponto, igual a `_buildRelChartEfwSvg`.
   1985/1991 + INTERGROWTH-21st) junto: sem ele, um card tem uma linha a menos
   que o outro e os dois gráficos começam em alturas diferentes lado a lado.
 
-**Pendência aberta:** na tabela de Doppler da gemelar, a linha "IP artérias
-uterinas (média)" ainda imprime o mesmo valor materno numa coluna por feto. O
-colo já atravessa as colunas por esse motivo; as uterinas deveriam também —
-mas só quando os valores das duas linhas coincidem, senão o relatório estaria
-escolhendo um em silêncio.
+**Resolvido em 2026-09-25** (ver "Tabela de Doppler da gemelar: VR absoluto e
+colo a termo", mais abaixo): a linha "IP artérias uterinas (média)" passou a
+atravessar as colunas como o colo, só quando os dois fetos trazem o mesmo
+valor — nunca escolhendo um em silêncio quando divergem.
 
 ## Colo curto: corte muda abaixo de 16 semanas
 
@@ -715,3 +714,42 @@ Gynecol 2020;56:298-312) adota via protocolo TRUFFLE.
   conferir os números exatos — só a tabela do DV foi confirmada, enviada por
   ela), isso entra como uma nova decisão explícita, não como uma
   reintrodução silenciosa do `_ALVO_RESOLUCAO` antigo.
+
+## Tabela de Doppler da gemelar: VR absoluto e colo a termo
+
+2026-09-25, a partir de uma página real do PDF que a médica trouxe.
+`_buildRelDopplerGemelarHtml` monta a tabela de Dopplervelocimetria + colo do
+relatório gemelar/trigemelar. Duas mudanças, mais a pendência das uterinas que
+já estava aberta.
+
+- **A coluna "Referência" mostra o corte de verdade, não só "&lt; P95"/"&gt;
+  P5".** "VR 1,05" não diz nada a quem lê sem abrir uma tabela de percentis;
+  "VR &lt; 1,05" diz exatamente onde está o limite, na IG daquela visita. O
+  número **não é um corte novo** — é o mesmo que `calcDopplerUt/Au/Acm/Cpr` já
+  usava para decidir se a célula pinta de vermelho (`class="fora"`), só que
+  antes ficava escondido dentro da fórmula: `dopplerAuRef(gaW).p90` é
+  exatamente o valor em que `calcDopplerAu` já virava percentil 95, e o mesmo
+  vale para `dopplerAcmRef(...).p10`/`dopplerCprRef(...).p10` (percentil 5) e
+  para `exp(mu + 1.645·sd)` do modelo log-normal do UtA (Gómez 2008). Escrever
+  um corte diferente do que já pinta a célula criaria uma tabela que discorda
+  dela mesma — um "VR 1,05" ao lado de um valor "fora da faixa" que na
+  verdade é menor que 1,05.
+- **IP das uterinas virou uma linha só, atravessando as colunas — a pendência
+  que já estava documentada aqui.** É medida materna, igual ao colo logo
+  abaixo; as duas colunas por feto vinham do mesmo valor duplicado na leitura
+  de cada um. Só faz o colspan quando os dois fetos concordam
+  (`utDivergente`); se divergirem, a tabela volta a mostrar uma coluna por
+  feto em vez de escolher um valor em silêncio — a mesma cautela que a
+  pendência original pedia.
+- **Colo a termo (≥ 37 semanas) não leva VR nem marcação de "fora da
+  faixa".** O corte de 25mm existe para prever parto antes de 37 semanas
+  (Fonseca et al. 2007); a partir de 37 semanas esse desfecho já não pode
+  mais acontecer, então aplicar o mesmo corte imprimiria uma predição para um
+  evento que passou. A linha continua existindo — a medida do ultrassom é
+  registro, sempre vale a pena mostrar — só que sem comparação nenhuma ao
+  lado. Mesmo espírito do "relatório não prescreve" do colo curto (ver seção
+  própria): um número sem corte não sugere conduta nenhuma, só documenta o
+  achado. Note que isso é sobre **esta tabela**; `avaliarRiscoColoCurto` (a
+  função que decide o texto de risco na Conclusão, nos alertas e no card por
+  feto) não ganhou o mesmo corte de 37 semanas — ninguém pediu isso ainda, e
+  as duas coisas podem ficar inconsistentes até que peçam.

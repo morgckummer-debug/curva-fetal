@@ -9846,11 +9846,12 @@ function _relComentarioHtml(opts) {
 }
 
 // Tabela de Doppler + colo. Os valores vêm do último exame de cada feto; a
-// coluna de referência repete o mesmo corte que o app já usa para classificar
-// (calcDopplerUt/Au/Acm/Cpr, e os 25mm de avaliarRiscoColoCurto), e é o mesmo
-// cálculo que decide se o valor sai marcado como fora da faixa — nenhuma linha
-// aqui tem número clínico escrito à mão. Sem nenhum Doppler registrado a seção
-// inteira some, em vez de imprimir uma tabela de trações.
+// coluna de referência mostra o número absoluto do corte (não "< P95"), pela
+// mesma IG e pela mesma fórmula que já decide se a célula sai marcada como
+// fora da faixa (calcDopplerUt/Au/Acm/Cpr) — o médico assistente vê o corte
+// de verdade, e a marcação nunca pode discordar do número impresso ao lado
+// dela. Sem nenhum Doppler registrado a seção inteira some, em vez de
+// imprimir uma tabela de trações.
 function _buildRelDopplerGemelarHtml(gestacao, porFeto) {
   const dados = porFeto.map(pf => {
     const e   = pf.exams[pf.exams.length - 1];
@@ -9865,27 +9866,79 @@ function _buildRelDopplerGemelarHtml(gestacao, porFeto) {
     ? '<td>—</td>'
     : `<td${foraDaFaixa ? ' class="fora"' : ''}>${_numBR(valor, 2)}</td>`;
 
-  const linhas = [
-    { rotulo: 'IP artérias uterinas (média)', ref: '&lt; P95',
-      valor: d => d.ut,     fora: d => (calcDopplerUt(d.ut, d.gaW)?.percentil ?? 0) >= 95 },
-    { rotulo: 'IP artéria umbilical', ref: '&lt; P95',
+  // "VR" = valor de referência, o número que o corte de cada fórmula usa de
+  // fato (o mesmo que já decidia "fora da faixa" antes desta tabela mostrar
+  // qualquer número — nunca um corte novo, só o mesmo corte escrito por
+  // extenso). Usa a IG do primeiro feto com aquele parâmetro medido; numa
+  // mesma visita a IG é a mesma para os dois, então isso não escolhe nada.
+  const gaWDe = campo => dados.find(d => (campo === 'ut' || campo === 'cpr' ? d[campo] : d.e[campo]) != null)?.gaW ?? null;
+  const refTxt = (op, v) => v == null ? '' : `VR ${op} ${_numBR(v, 2)}`;
+
+  const gaWUt = gaWDe('ut');
+  const refUt = gaWUt ? (() => {
+    const gaDays = gaWUt * 7;
+    if (gaDays < 77 || gaDays > 287) return null;
+    const { mu, sd } = _utGomezParams(gaDays);
+    return Math.exp(mu + 1.645 * sd); // mesmo z que calcDopplerUt usa pra virar "≥ P95"
+  })() : null;
+  const gaWAu  = gaWDe('au_ip');
+  const refAu  = gaWAu  ? dopplerAuRef(gaWAu)?.p90   : null; // mesmo corte que calcDopplerAu já usa pra virar "≥ P95"
+  const gaWAcm = gaWDe('acm_ip');
+  const refAcm = gaWAcm ? dopplerAcmRef(gaWAcm)?.p10 : null; // mesmo corte que calcDopplerAcm já usa pra virar "≤ P5"
+  const gaWCpr = gaWDe('cpr');
+  const refCpr = gaWCpr ? dopplerCprRef(gaWCpr)?.p10 : null; // mesmo corte que calcDopplerCpr já usa pra virar "≤ P5"
+
+  const linhas = [];
+
+  // IP das uterinas é medida materna — um valor só, não uma coluna por feto
+  // (mesma regra do colo, logo abaixo). Os dois fetos deveriam trazer o mesmo
+  // número numa mesma visita; se divergirem, mantém uma coluna por feto em
+  // vez de escolher um em silêncio (ver CLAUDE.md, "IP das uterinas: um
+  // gráfico por gestação, no desenho do gráfico de peso").
+  const utValues = dados.map(d => d.ut).filter(v => v != null);
+  const utDivergente = utValues.length > 1 && utValues.some(v => v !== utValues[0]);
+  if (utValues.length) {
+    const foraUt = v => (calcDopplerUt(v, gaWUt)?.percentil ?? 0) >= 95;
+    if (!utDivergente) {
+      linhas.push(`<tr><td>IP artérias uterinas (média)</td>`
+        + `<td colspan="${dados.length}" style="text-align:center"${foraUt(utValues[0]) ? ' class="fora"' : ''}>${_numBR(utValues[0], 2)}</td>`
+        + `<td class="ref">${refTxt('&lt;', refUt)}</td></tr>`);
+    } else {
+      linhas.push(`<tr><td>IP artérias uterinas (média)</td>`
+        + dados.map(d => celula(d.ut, d.ut != null && foraUt(d.ut))).join('')
+        + `<td class="ref">${refTxt('&lt;', refUt)}</td></tr>`);
+    }
+  }
+
+  linhas.push(...[
+    { rotulo: 'IP artéria umbilical', ref: refTxt('&lt;', refAu),
       valor: d => d.e.au_ip, fora: d => (calcDopplerAu(d.e.au_ip, d.gaW)?.percentil ?? 0) >= 95 },
-    { rotulo: 'IP artéria cerebral média', ref: '&gt; P5',
+    { rotulo: 'IP artéria cerebral média', ref: refTxt('&gt;', refAcm),
       valor: d => d.e.acm_ip, fora: d => (calcDopplerAcm(d.e.acm_ip, d.gaW)?.percentil ?? 100) <= 5 },
-    { rotulo: 'Relação cerebroplacentária', ref: '&gt; P5',
+    { rotulo: 'Relação cerebroplacentária', ref: refTxt('&gt;', refCpr),
       valor: d => d.cpr,    fora: d => (calcDopplerCpr(d.e.acm_ip, d.e.au_ip, d.gaW)?.percentil ?? 100) <= 5 },
   ].filter(l => dados.some(d => l.valor(d) != null))
    .map(l => `<tr><td>${l.rotulo}</td>`
       + dados.map(d => celula(l.valor(d), l.valor(d) != null && l.fora(d))).join('')
-      + `<td class="ref">${l.ref}</td></tr>`);
+      + `<td class="ref">${l.ref}</td></tr>`));
 
   // Colo é medida materna: uma só, não uma por feto — por isso atravessa as
   // duas colunas em vez de repetir o mesmo número dos dois lados.
-  const colo = dados.map(d => d.e.colo).find(v => v != null);
-  if (colo != null) {
+  //
+  // A partir de 37 semanas o colo deixa de servir pra predizer parto
+  // prematuro — o desfecho que o corte de 25mm tenta prever (parto antes de
+  // 37 semanas) já não pode mais acontecer. Por isso, a termo, a linha só
+  // imprime a medida encontrada: sem marcação de "fora da faixa" e sem VR —
+  // um número sem corte ao lado não é indicação de nada, é só o registro do
+  // achado (mesmo espírito do "relatório não prescreve" do colo curto, ver
+  // CLAUDE.md).
+  const coloDado = dados.find(d => d.e.colo != null);
+  if (coloDado) {
+    const colo = coloDado.e.colo;
+    const aTermo = coloDado.gaW != null && coloDado.gaW >= 37;
     linhas.push(`<tr><td>Colo uterino (medida única)</td>`
-      + `<td colspan="${dados.length}" style="text-align:center"${colo < 25 ? ' class="fora"' : ''}>${_numBR(colo / 10, 1)} cm</td>`
-      + `<td class="ref">&gt; 2,5 cm</td></tr>`);
+      + `<td colspan="${dados.length}" style="text-align:center"${(!aTermo && colo < 25) ? ' class="fora"' : ''}>${_numBR(colo / 10, 1)} cm</td>`
+      + `<td class="ref">${aTermo ? '' : 'VR &gt; 2,5 cm'}</td></tr>`);
   }
 
   if (!linhas.length) return '';

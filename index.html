@@ -3477,6 +3477,15 @@ function avaliarRiscoColoCurto(lastExam, gestacao) {
   if (gaW == null) return null;
   const colo = lastExam.colo;
 
+  // A partir de 37 semanas o colo deixa de servir pra predizer parto
+  // prematuro — o desfecho que os cortes abaixo tentam prever (parto antes de
+  // 37 semanas) já não pode mais ocorrer. `null` aqui é "não se aplica mais",
+  // não "colo normal": a medida continua aparecendo na coluna Colo do
+  // histórico biométrico e na tabela de Doppler do relatório (que já não leva
+  // VR nem marcação de risco a termo, ver "Tabela de Doppler da gemelar: VR
+  // absoluto e colo a termo", 2026-09-25) — só sem avaliação de risco aqui.
+  if (gaW >= 37) return null;
+
   // Abaixo de 16 semanas o corte de referência é outro: 30mm, não 25mm.
   // Decisão da Dra. Morgana, 2026-09-21. A conduta graduada da faixa ≥16
   // semanas (Fonseca et al. 2007, ISUOG 2022/FMF, janela de cerclagem <24

@@ -749,7 +749,11 @@ já estava aberta.
   registro, sempre vale a pena mostrar — só que sem comparação nenhuma ao
   lado. Mesmo espírito do "relatório não prescreve" do colo curto (ver seção
   própria): um número sem corte não sugere conduta nenhuma, só documenta o
-  achado. Note que isso é sobre **esta tabela**; `avaliarRiscoColoCurto` (a
-  função que decide o texto de risco na Conclusão, nos alertas e no card por
-  feto) não ganhou o mesmo corte de 37 semanas — ninguém pediu isso ainda, e
-  as duas coisas podem ficar inconsistentes até que peçam.
+  achado. `avaliarRiscoColoCurto` — a função que decide o texto de risco na
+  Conclusão, nos alertas e no card por feto — ganhou o mesmo corte no mesmo
+  dia, confirmado pela médica: `gaW >= 37` devolve `null` antes de qualquer
+  outro corte (16 semanas, 25mm etc.). `null` aqui é "não se aplica mais", não
+  "colo normal" — a medida continua na coluna Colo do histórico
+  (`_relColoCel`, que não tem corte de IG e não mudou) e na tabela de Doppler,
+  só sem avaliação de risco. Telas e papel voltam a concordar: nenhum lugar do
+  app afirma risco de parto prematuro depois de 37 semanas.

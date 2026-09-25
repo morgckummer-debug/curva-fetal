@@ -875,3 +875,23 @@ escolha foi não cortar nada).
   mostrava `critItems[0]` (só o primeiro) e a faixa de status em tela
   (`_renderStatusFaixaHtml`) já mostrava `estadio.label` — nenhum dos dois foi
   tocado. Só a Conclusão, que era o único lugar sem nenhum critério.
+
+## Página da gemelar: `.rel-dupla` 40/60, e a conduta saiu do card do feto
+
+2026-09-25, mesma revisão de layout. Dois ajustes na página de uma folha só da
+gemelar (`_buildRelGemelarPaginaHtml`).
+
+- **`.rel-dupla` (o grid que divide a linha entre o card das uterinas e a
+  tabela de Doppler+colo) era 1fr 1fr, e a tabela quebrava linha demais** —
+  ela tem `Parâmetro` + uma coluna por feto + `Referência`, contra um card que
+  é só um gráfico. Virou `2fr 3fr` (40/60), nas três cópias da regra (preview
+  em tela e CSS exportado — ver `_buildRelDopplerGemelarHtml` para o que essa
+  tabela mostra desde o VR absoluto).
+- **A conduta sumiu de baixo do gráfico de cada feto** (`feto-card-conduta`,
+  classe e HTML removidos dos dois lados — preview e exportado). Fazia
+  sentido enquanto cada feto tinha sua própria conduta impressa; desde a seção
+  anterior ("Conduta sugerida na múltipla: uma só..."), a Conclusão já mostra
+  uma conduta só, a do pior feto — repetir a conduta individual de cada um
+  embaixo do card virou dois planos escritos lado a lado, um dos quais nem é
+  mais o que vale. A conduta continua central: só mudou de lugar, da margem
+  de cada card para a Conclusão, que é onde ela já é decidida.

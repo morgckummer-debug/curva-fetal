@@ -843,3 +843,35 @@ acima) e imprime só a conduta dele, sem citar o outro feto:
   crua, `'leve'|'aedf'|'redf_dv'|'dv_tardio'|null`) ao lado de `estadio` (que
   já era o objeto `{label,cor}` pra exibir) — só pra esta comparação entre
   fetos precisar de algo comparável, sem reverter o rótulo de exibição.
+
+## Conclusão volta a mostrar o critério — só o percentil não justifica o rótulo
+
+Mesma conversa, 2026-09-25. A médica leu uma Conclusão real e apontou: "Feto 2
+no percentil 11 — Feto RCIU precoce" não diz **por quê** — um leitor sem
+acesso ao card do feto não tem como saber se foi o percentil, o Doppler, ou os
+dois. Isso desfaz parte de uma decisão de 2026-09-20 ("Conclusão do relatório:
+formato definido pela médica", acima), que tinha tirado o critério da
+Conclusão por ser "informação a mais que tirava o foco" — a médica decidiu que
+precisão clínica pesa mais aqui, e confirmou: a lista inteira de
+`_critItemsDiagnostico`, sem filtrar o item biométrico que repete o percentil
+("CA e/ou PFE abaixo do P10" ao lado de "no percentil 11" — redundante, mas a
+escolha foi não cortar nada).
+
+- **Única** (`_gerarConclusaoUnicaInicial`): `critItems` entra na primeira
+  linha, logo depois do percentil — `"RCIU Precoce (P4) + Diástole ausente na
+  artéria umbilical."`. A linha própria de `estadio` (a deterioração Doppler
+  resumida) saiu daqui: ela virou redundante, porque o achado que ela citava
+  já está dentro de `critItems` agora.
+- **Múltipla** (`_gerarConclusaoGemelarInicial`): mesma ideia, encaixada antes
+  do travessão do rótulo — `"Feto 2 no percentil 11 + Diástole ausente na
+  artéria umbilical — critérios de CIUR seletivo."`. Complicador que a única
+  não tem: um grupo pode juntar **mais de um feto** com o mesmo diagnóstico
+  (ex.: os dois "CIUR seletivo"), e os critérios de cada um podem ser
+  diferentes. Só combina numa linha quando os critérios batem entre todos os
+  fetos do grupo; se divergirem, uma linha por feto — a mesma cautela de
+  "nunca escolher em silêncio" que já regia o colspan das uterinas e o
+  desempate de conduta, acima.
+- **O que NÃO muda:** o card de cada feto (`_gerarTextoCardFetoInicial`) já
+  mostrava `critItems[0]` (só o primeiro) e a faixa de status em tela
+  (`_renderStatusFaixaHtml`) já mostrava `estadio.label` — nenhum dos dois foi
+  tocado. Só a Conclusão, que era o único lugar sem nenhum critério.

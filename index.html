@@ -9314,13 +9314,17 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // (P45)". Aqui o percentil fica entre parênteses depois do rótulo, e não
   // colado num feto como na múltipla — não há feto a nomear.
   //
-  // O critério que fechou o diagnóstico saiu daqui junto com a versão da
-  // múltipla, pelo mesmo motivo: informação a mais na lista que o obstetra lê
-  // primeiro. Continua no Resumo em tela. `critItems` segue pesando em
-  // `semAchados` acima — um feto com critério não é um feto "estável".
-  const linhas = [`${impressao.label}${pctTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
+  // Até 2026-09-25 o critério que fechou o diagnóstico saía daqui — "informação
+  // a mais que tirava o foco". A médica reverteu essa parte: só o percentil não
+  // justifica RCIU/CIUR sozinho pro obstetra que lê o papel, ele precisa ver o
+  // que pesou (Doppler, cruzamento de quartis etc.), não só adivinhar pelo
+  // rótulo. `critItems` entra por extenso, sem filtrar o item biométrico que
+  // repete o percentil (decisão dela: a lista inteira, sem cortar nada). A
+  // linha própria de `estadio` saiu daqui porque agora é redundante — a
+  // deterioração Doppler que ela resumia já está dentro de `critItems`.
+  const critTxt = (impressao.critItems && impressao.critItems.length) ? ` + ${impressao.critItems.join(' + ')}` : '';
+  const linhas = [`${impressao.label}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
   if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
-  if (impressao.estadio) linhas.push(`${impressao.estadio.label}.`);
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
   if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
@@ -10342,17 +10346,38 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
   });
 
   // O critério que fechou o diagnóstico (ex.: "PFE < P10") saiu da linha em
-  // 2026-09-20, por decisão da médica: com percentil, rótulo, discordância,
-  // conduta e notas na mesma lista, o critério era a informação a mais que
-  // fazia o obstetra perder o que importa. Ele continua no card de cada feto
-  // (_gerarTextoCardFetoInicial) e no Resumo em tela.
+  // 2026-09-20 ("informação a mais que fazia o obstetra perder o que
+  // importa"), e voltou em 2026-09-25: a médica apontou que só o percentil
+  // não justifica "CIUR seletivo" pro obstetra — ele precisa ver o que mais
+  // pesou (Doppler, cruzamento de quartis etc.), não só confiar no rótulo.
+  // Continua também no card de cada feto e no Resumo em tela.
   const linhas = [];
   grupos.forEach(g => {
     const rotulo = DX_ROTULO[g.fetos[0].impressao?.diagnostico || 'adequado'];
     let notaVel = null;
-    let linha = _listaPtBR(g.fetos.map(_fetoPercentilTxt));
+    // Uma ou mais linhas completas (sem o ponto final, adicionado no final
+    // desta função) — mais de uma só quando os critérios divergem dentro do
+    // mesmo grupo, ver abaixo.
+    const linhasGrupo = [];
     if (rotulo) {
-      linha += ` — ${rotulo[g.fetos.length > 1 ? 1 : 0]}`;
+      // Os critérios podem divergir entre fetos do mesmo grupo (mesmo
+      // diagnóstico, achados diferentes — ex.: os dois "CIUR seletivo", só um
+      // com AEDF). Só combina numa linha só quando os critérios batem; se
+      // divergirem, uma linha por feto, pra não atribuir o achado de um ao
+      // outro.
+      const critDoFeto = pf => (pf.impressao?.critItems || []).join('\u0001');
+      const critIguais = g.fetos.every(pf => critDoFeto(pf) === critDoFeto(g.fetos[0]));
+      if (critIguais) {
+        const crit = g.fetos[0].impressao?.critItems || [];
+        const critTxt = crit.length ? ` + ${crit.join(' + ')}` : '';
+        linhasGrupo.push(`${_listaPtBR(g.fetos.map(_fetoPercentilTxt))}${critTxt} — ${rotulo[g.fetos.length > 1 ? 1 : 0]}`);
+      } else {
+        g.fetos.forEach(pf => {
+          const crit = pf.impressao?.critItems || [];
+          const critTxt = crit.length ? ` + ${crit.join(' + ')}` : '';
+          linhasGrupo.push(`${_fetoPercentilTxt(pf)}${critTxt} — ${rotulo[0]}`);
+        });
+      }
     } else {
       // O fecho da linha só entra quando não há achado nenhum
       // (peRisco/coloRisco vazios em todos do grupo) e todos já têm 2+ exames
@@ -10362,6 +10387,7 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
       // Velocidades diferentes dentro do mesmo grupo caem no fecho neutro (só
       // Doppler): o grupo é formado por diagnóstico igual, não por trajetória
       // igual, e uma frase só não pode afirmar duas leituras diferentes.
+      let linha = _listaPtBR(g.fetos.map(_fetoPercentilTxt));
       const semAchados   = g.fetos.every(pf => !(pf.impressao?.peRisco) && !(pf.impressao?.coloRisco));
       const trajetoriaOk = semAchados && g.fetos.every(pf => (pf.exams?.length || 0) >= 2);
       if (trajetoriaOk) {
@@ -10374,8 +10400,9 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
         const emQueda = g.fetos.filter(pf => pf.impressao?.velocidade?.classe === 'queda');
         if (emQueda.length) notaVel = _notaDesaceleracaoTxt(emQueda.map(pf => pf.feto));
       }
+      linhasGrupo.push(linha);
     }
-    linhas.push(linha + '.');
+    linhasGrupo.forEach(l => linhas.push(l + '.'));
     if (notaVel) linhas.push(notaVel);
     // O tipo de Gratacós é do feto, não do grupo — sai numa linha por feto
     // classificado, depois da linha do grupo.

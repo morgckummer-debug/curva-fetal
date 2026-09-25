@@ -854,7 +854,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .status--alerta  .status-conduta{color:#8a2840;border-top-color:rgba(168,66,95,.22)}
 /* Discordância de peso em destaque — espelha .rel-discrep do CSS exportado
    (ver _relPrintStyleBlock/_buildRelDiscrepanciaHtml). */
-.rel-preview .rel-dupla{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+/* 2026-09-25: 40/60 em vez de 50/50 — o card das uterinas é só um gráfico,
+   a tabela de Doppler+colo tem Parâmetro/feto(s)/Referência e vivia
+   quebrando linha demais no espaço de meia coluna (ver CLAUDE.md). */
+.rel-preview .rel-dupla{display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start}
 .rel-dupla .rel-secao{margin-top:0}
 .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:10px 16px;border-radius:6px;background:var(--nude)}
 .rel-preview .rel-discrep-val{font-family:'Comfortaa',system-ui,sans-serif;font-size:29px;font-weight:600;color:var(--roxo);line-height:1;white-space:nowrap}
@@ -934,7 +937,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .rel-texto--full{max-width:none}
 .rel-preview .rel-texto:focus{outline:none;border-color:var(--lilas)}
 .rel-preview .rel-texto-hint{font-size:10px;color:var(--dourado);margin-top:5px}
-.rel-preview .rel-dupla{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.rel-preview .rel-dupla{display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start}
 .rel-preview .rel-dupla .rel-secao{margin-top:0}
 .rel-preview .comparativo{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:14px}
 .rel-preview .comparativo-item{background:var(--nude-2);border-radius:14px;padding:16px 14px;text-align:center;
@@ -968,8 +971,6 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .rel-secao-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:13.5px;font-weight:600;color:var(--roxo);margin:0 0 7px}
 .rel-preview .feto-card-texto{margin-top:9px;font-size:11px;line-height:1.45;color:#3B2A2A}
 .rel-preview .feto-card-texto p{margin:0 0 6px}
-.rel-preview .feto-card-conduta{margin-top:7px;padding-top:7px;border-top:1px solid var(--linha);
-  font-size:11px;line-height:1.4;color:var(--roxo)}
 /* Textarea dentro do card: acompanha a largura da coluna, não os 62ch do
    texto de página inteira. */
 .rel-preview .rel-texto--card{max-width:none;min-height:64px;font-size:11px;line-height:1.45;padding:8px}
@@ -10020,8 +10021,12 @@ function _gerarTextoCardFetoInicial(impressao) {
 
 // Relatório de gemelar numa página só, nesta ordem: identificação,
 // discordância de peso em destaque, os dois gráficos de peso lado a lado (cada
-// um com o resumo clínico e a conduta do feto), histórico biométrico, Doppler
-// e conclusão. Só o peso entre os gráficos: é o parâmetro que decide conduta
+// um com o resumo clínico do feto — a conduta saiu daqui em 2026-09-25: com a
+// Conclusão passando a mostrar uma conduta só, a do pior feto, repetir a
+// conduta individual embaixo de cada gráfico lia como dois planos
+// concorrentes, um por card. Ela continua central na Conclusão), histórico
+// biométrico, Doppler e conclusão. Só o peso entre os gráficos: é o parâmetro
+// que decide conduta
 // aqui, e os outros três (CC, CA, fêmur) espremiam quatro curvas minúsculas
 // por feto em páginas separadas — comparar um irmão com o outro, que é a
 // leitura que essa página existe para dar, ficava impossível. A CA continua
@@ -10059,7 +10064,6 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
         <span><i class="k-pt"></i>Paciente</span>
       </div>
       <div class="feto-card-texto">${textoHtml}</div>
-      ${impressao?.conduta ? `<div class="feto-card-conduta"><b>Conduta:</b> ${escapeHtml(impressao.conduta)}</div>` : ''}
     </div>`;
   }).join('');
 
@@ -10757,7 +10761,10 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 /* Discordância de peso em destaque — mesma ideia do card
    .discrepancia-emphasis já usado na tela, só com a paleta do relatório
    impresso em vez das variáveis de tela. */
-.rel-dupla{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+/* 2026-09-25: 40/60, mesma proporção do preview (ver .rel-preview .rel-dupla
+   acima no arquivo) — a tabela de Doppler+colo precisa de mais espaço que o
+   card das uterinas, que é só um gráfico. */
+.rel-dupla{display:grid;grid-template-columns:2fr 3fr;gap:16px;align-items:start}
 .rel-dupla .rel-secao{margin-top:0}
 .rel-discrep{display:flex;align-items:baseline;gap:16px;padding:10px 16px;border-radius:6px;
   background:var(--nude);-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -10795,8 +10802,6 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .rel-secao-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:13.5px;font-weight:600;color:var(--roxo);margin:0 0 7px}
 .feto-card-texto{margin-top:9px;font-size:11px;line-height:1.45;color:var(--texto)}
 .feto-card-texto p{margin:0 0 6px}
-.feto-card-conduta{margin-top:7px;padding-top:7px;border-top:1px solid var(--linha);
-  font-size:11px;line-height:1.4;color:var(--roxo)}
 
 .ftr{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;
   margin:0 40px;padding:12px 0 18px;border-top:1px solid var(--linha)}

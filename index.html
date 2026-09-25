@@ -3066,12 +3066,21 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
 // e no relatório/PDF (computeImpressaoDiagnostica), que reaproveita este
 // mesmo objeto em vez de manter uma cópia própria (as duas cópias literais
 // que existiam antes de 2026-09-25 tinham exatamente a mesma forma).
+// Rótulos por extenso, sem sigla (AEDF/REDF) — decisão da médica, 2026-09-25:
+// obstetra não reconhece a sigla, só a descrição do achado.
 const _DETERIORACAO_CFG = {
-  leve:      { label: 'Doppler alterado — fluxo diastólico presente na AU',                           cor: '#b87a20' },
-  aedf:      { label: 'AEDF — diástole ausente na artéria umbilical',                                  cor: '#b84010' },
-  redf_dv:   { label: 'REDF na AU e/ou ducto venoso com IP > P95 — alteração precoce do DV',           cor: '#8a1010' },
-  dv_tardio: { label: 'Ducto venoso — onda A ausente, na linha de base ou reversa (alteração tardia)', cor: '#6a0010' },
+  leve:      { label: 'Doppler alterado — fluxo diastólico presente na artéria umbilical',                     cor: '#b87a20' },
+  aedf:      { label: 'Diástole ausente em artéria umbilical',                                                 cor: '#b84010' },
+  redf_dv:   { label: 'Diástole reversa em artéria umbilical e/ou ducto venoso com IP > P95 — alteração precoce do DV', cor: '#8a1010' },
+  dv_tardio: { label: 'Ducto venoso — onda A ausente, na linha de base ou reversa (alteração tardia)',         cor: '#6a0010' },
 };
+
+// Ordem de gravidade da deterioração Doppler, usada só para comparar fetos
+// entre si (escolha da conduta única na Conclusão da múltipla, 2026-09-25 —
+// ver _gerarConclusaoGemelarInicial). Não é um "estágio": é só uma chave de
+// ordenação, sem número exposto em lugar nenhum do app. `null`/achado
+// ausente vale 0 (pior que nada é ainda pior que "sem achado").
+const _DETERIORACAO_ORDEM = { leve: 1, aedf: 2, redf_dv: 3, dv_tardio: 4 };
 
 // ── Classificação de Gratacós — CIUR seletivo em monocoriônica ────────────
 // Pelo Doppler da artéria umbilical DO FETO RESTRITO, e só em gestação
@@ -3091,7 +3100,7 @@ const _DETERIORACAO_CFG = {
 const _GRATACOS_CFG = {
   1: { label: 'Tipo I',   desc: 'Fluxo diastólico positivo persistente na artéria umbilical' },
   2: { label: 'Tipo II',  desc: 'Diástole ausente ou reversa persistente na artéria umbilical' },
-  3: { label: 'Tipo III', desc: 'Diástole intermitentemente ausente ou reversa (iAREDF)' },
+  3: { label: 'Tipo III', desc: 'Diástole intermitentemente ausente ou reversa na artéria umbilical' },
 };
 
 function _gratacosTipo(lastExam, gestacao, diagnostico) {
@@ -3123,8 +3132,7 @@ function _gratacosTipo(lastExam, gestacao, diagnostico) {
 // "precoce"/"tardio", e o parêntese ainda colidia com o do percentil na linha
 // da Conclusão ("RCIU Precoce (< 32 semanas) (P4)"). O que precisa ser lido
 // junto do diagnóstico é a deterioração Doppler (AU/DV), e essa continua
-// saindo na linha seguinte (ex.: "AEDF — diástole ausente na artéria
-// umbilical").
+// saindo na linha seguinte (ex.: "Diástole ausente em artéria umbilical").
 // Intervalo mínimo entre dois exames para que a diferença entre eles seja
 // crescimento, e não erro de medida. Usado pelo cruzamento de quartis
 // (calcDiagnosticoFGR) e pela leitura de velocidade (_velocidadeCrescimento) —
@@ -3221,22 +3229,30 @@ const _DX_NOME = {
   rciu_tardio:  'RCIU Tardio',
 };
 
-// Em gestação múltipla, um feto abaixo do P10 não se chama PIG: chama-se CIUR
-// seletivo (definição da médica, 2026-09-20).
+// Em gestação múltipla, um feto restrito não se chama PIG nem RCIU precoce/
+// tardio: chama-se CIUR seletivo, do mais leve ao mais grave (definição da
+// médica, 2026-09-20, estendida a `rciu_precoce`/`rciu_tardio` em 2026-09-25).
 //
 // O motivo é de fonte, não de gosto. calcDiagnosticoFGR aplica o consenso
 // Delphi 2016 feto a feto, e esse consenso é de gestação ÚNICA — um feto
-// pequeno dentro de uma gemelar julgado por essa régua sai como "PIG", que é
-// a leitura de um feto sozinho. Na múltipla o nome do que está acontecendo é
-// CIUR seletivo, e o critério tem dois braços, cada um bastando sozinho: um
-// feto abaixo do P10, ou discordância acima de 25% (o segundo braço já é dito
-// na faixa de discordância, ver _DISCREP_FAIXA).
+// pequeno dentro de uma gemelar julgado por essa régua sai como "PIG" ou
+// "RCIU precoce/tardio", que é a leitura de um feto sozinho. Na múltipla o
+// nome do que está acontecendo é CIUR seletivo, e o critério tem dois braços,
+// cada um bastando sozinho: um feto abaixo do P10 (em qualquer grau — inclui
+// o que a régua de única chamaria RCIU precoce/tardio), ou discordância acima
+// de 25% (o segundo braço já é dito na faixa de discordância, ver
+// _DISCREP_FAIXA). Até 2026-09-25 só `pig` estava aqui: um feto de gemelar
+// com PFE < P3 continuava saindo "RCIU Precoce" na tela e no papel — o mesmo
+// erro que esta tabela existe para evitar, só que pela metade.
 //
-// Muda só o NOME. O diagnóstico interno continua 'pig', e com ele a conduta,
-// as notas e o estadiamento: trocar a chave pediria uma tabela de conduta
-// nova, que é texto clínico a definir, não renomeação.
+// Muda só o NOME. O diagnóstico interno continua 'pig'/'rciu_precoce'/
+// 'rciu_tardio', e com ele a conduta, as notas e a deterioração Doppler:
+// trocar a chave pediria uma tabela de conduta nova, que é texto clínico a
+// definir, não renomeação.
 const _DX_NOME_MULTIPLA = {
   pig: 'CIUR seletivo',
+  rciu_precoce: 'CIUR seletivo',
+  rciu_tardio: 'CIUR seletivo',
 };
 
 // Corionicidade por extenso, para o relatório. A sigla (CORIO_LABEL, DCDA/MCDA/
@@ -3281,8 +3297,8 @@ function _critItemsDiagnostico(dx) {
   if (c.cprBelowP5)                        items.push('CPR abaixo do P5 — redistribuição cerebro-placentária');
   if (c.acmBelowP5)                        items.push('IP da artéria cerebral média abaixo do P5 — centralização fetal');
   if (c.cruzamentoQuartis)                 items.push('Cruzamento ≥ 2 quartis na trajetória da CA');
-  if (c.auFluxo === 'ausente')             items.push('Diástole ausente na artéria umbilical (AEDF)');
-  if (c.auFluxo === 'reversa')             items.push('Diástole reversa na artéria umbilical (REDF)');
+  if (c.auFluxo === 'ausente')             items.push('Diástole ausente na artéria umbilical');
+  if (c.auFluxo === 'reversa')             items.push('Diástole reversa na artéria umbilical');
   if (c.dvIpAboveP95)                      items.push('IP do ducto venoso acima do P95 — alteração precoce (ISUOG 2020)');
   if (c.dvOnda === 'reversa')              items.push('Onda A reversa no ducto venoso — alteração tardia (ISUOG 2020)');
   else if (c.dvOnda === 'ausente')         items.push('Onda A ausente no ducto venoso — alteração tardia (ISUOG 2020)');
@@ -3305,7 +3321,13 @@ function _fonteDiagnostico(dx, gestacao) {
   // que foi aplicado, e na monocoriônica avisa o que falta — a classificação de
   // Gratacós, que nessas gestações decide mais que precoce/tardio, porque o
   // mecanismo é anastomose e não insuficiência placentária.
-  if (_ehMultipla(gestacao) && dx?.diagnostico === 'pig') {
+  // Estendido de só `pig` para também `rciu_precoce`/`rciu_tardio` em
+  // 2026-09-25 — mesmo motivo do _DX_NOME_MULTIPLA: um feto de gemelar com
+  // PFE < P3 continuava creditado ao "Delphi 2016 + Barcelona" da régua de
+  // única, quando o que o app de fato aplicou foram os critérios de única
+  // feto a feto, que é exatamente o que esta linha existe para admitir.
+  const ehRestritoNaMultipla = dx?.diagnostico === 'pig' || dx?.diagnostico === 'rciu_precoce' || dx?.diagnostico === 'rciu_tardio';
+  if (_ehMultipla(gestacao) && ehRestritoNaMultipla) {
     return _ehMonocorionica(gestacao)
       ? 'CIUR seletivo em gestação monocoriônica · critérios de gestação única aplicados por feto; a classificação de Gratacós (tipos I–III) ainda não é calculada aqui'
       : 'CIUR seletivo em gestação múltipla · critérios de gestação única aplicados por feto, somados à discordância de peso';
@@ -3393,10 +3415,10 @@ function _condutaDiagnostico(dx) {
       return 'Ducto venoso com onda A ausente, na linha de base ou reversa — conduta hospitalar com Doppler diário e corticoterapia; avaliar resolução da gestação com o obstetra.';
     }
     if (det === 'redf_dv') {
-      return 'REDF na AU e/ou ducto venoso com IP > P95 — Doppler diário em ambiente hospitalar; avaliar timing do parto com o obstetra, conforme protocolo institucional.';
+      return 'Diástole reversa em artéria umbilical e/ou ducto venoso com IP > P95 — Doppler diário em ambiente hospitalar; avaliar timing do parto com o obstetra, conforme protocolo institucional.';
     }
     if (det === 'aedf') {
-      return 'AEDF confirmada — Doppler 2×/semana.';
+      return 'Diástole ausente em artéria umbilical confirmada — Doppler 2×/semana.';
     }
     return diagnostico === 'rciu_precoce'
       ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
@@ -6655,8 +6677,8 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     if (last.au_ip != null) {
       const pctAU = z.au != null ? _zToPercentile(z.au) : null;
       let interpAU = '';
-      if (last.au_fluxo === 'reversa')      interpAU = '⚠ Diástole reversa (REDF) — critério estadiamento III';
-      else if (last.au_fluxo === 'ausente') interpAU = '⚠ Diástole ausente (AEDF) — critério estadiamento II';
+      if (last.au_fluxo === 'reversa')      interpAU = '⚠ Diástole reversa (REDF) — mesmo patamar de gravidade do DV com IP > P95 (ISUOG 2020)';
+      else if (last.au_fluxo === 'ausente') interpAU = '⚠ Diástole ausente (AEDF) — achado de deterioração Doppler';
       else if (last.au_fluxo === 'intermitente') interpAU = '⚠ Diástole intermitentemente ausente/reversa (iAREDF) — Tipo III de Gratacós na monocoriônica';
       else if (z.au != null && z.au > 1.645) interpAU = 'IP elevado (> P95) — resistência placentária aumentada';
       else if (z.au != null && z.au > 1.28)  interpAU = 'IP borderline — monitorizar';
@@ -8842,6 +8864,11 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     isPrecoce: !!dx?.isPrecoce,
     critItems,
     estadio,
+    // Chave crua ('leve'|'aedf'|'redf_dv'|'dv_tardio'|null), separada do
+    // `estadio` (que já é o objeto {label,cor} pra exibir): quem precisa
+    // comparar gravidade entre fetos — a escolha do pior prognóstico na
+    // Conclusão da múltipla, 2026-09-25 — usa esta chave, não o rótulo.
+    deterioracaoDoppler: dx?.deterioracaoDoppler || null,
     gratacos,
     estadioIndeterminado,
     velocidade: _velocidadeCrescimento(enriched),
@@ -10289,15 +10316,18 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
   // 2026-09-20). Os outros quatro nomeiam o achado pela sigla que o obstetra
   // usa, sem a expansão entre parênteses — ela continua no card de cada feto e
   // no Resumo em tela, que não têm a restrição de espaço da Conclusão.
+  // Na múltipla o rótulo de qualquer grau de restrição é "CIUR seletivo", não
+  // PIG nem RCIU precoce/tardio (ver _DX_NOME_MULTIPLA — estendido de só `pig`
+  // para também `rciu_precoce`/`rciu_tardio` em 2026-09-25: esta cópia local
+  // ainda dizia "Feto RCIU precoce/tardio", o mesmo erro que _DX_NOME_MULTIPLA
+  // já corrigia em outro lugar). Sem repetir "Feto": o sujeito da linha já o
+  // nomeou ("Feto 2 no percentil 7 — critérios de CIUR seletivo").
   const DX_ROTULO = {
     adequado:     null,
-    // Na múltipla o rótulo do feto pequeno é o de CIUR seletivo, não PIG (ver
-    // _DX_NOME_MULTIPLA). Sem repetir "Feto": o sujeito da linha já o nomeou
-    // ("Feto 2 no percentil 7 — critérios de CIUR seletivo").
     pig:          ['critérios de CIUR seletivo', 'critérios de CIUR seletivo'],
     gig:          ['Feto GIG', 'Fetos GIG'],
-    rciu_precoce: ['Feto RCIU precoce', 'Fetos RCIU precoce'],
-    rciu_tardio:  ['Feto RCIU tardio', 'Fetos RCIU tardio'],
+    rciu_precoce: ['critérios de CIUR seletivo', 'critérios de CIUR seletivo'],
+    rciu_tardio:  ['critérios de CIUR seletivo', 'critérios de CIUR seletivo'],
   };
 
   // Agrupa só por diagnóstico. Até 2026-09-20 a chave incluía os critérios
@@ -10373,17 +10403,45 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
   // dois, então não há de quem extraí-la com um .find(Boolean).
   if (taps) linhas.push(_riscoLinhaTexto(taps));
 
-  const condutas = [];
-  porFetoComDados.forEach(pf => {
-    const c = pf.impressao?.conduta;
-    if (!c) return;
-    const grupo = condutas.find(g => g.conduta === c);
-    if (grupo) grupo.fetos.push(pf.feto); else condutas.push({ conduta: c, fetos: [pf.feto] });
+  // Conduta sugerida: uma só, a do feto de pior prognóstico — não existem dois
+  // planos de vigilância paralelos pra uma mãe só (definição da médica,
+  // 2026-09-25). Entre os fetos com CIUR (pig/rciu_precoce/rciu_tardio — todo
+  // grau de restrição vira "CIUR seletivo" na múltipla, ver _DX_NOME_MULTIPLA),
+  // decide primeiro a deterioração Doppler (_DETERIORACAO_ORDEM: DV tardio >
+  // REDF/DV precoce > AEDF > achado leve > nenhuma) — ela já enxerga o ducto
+  // venoso, que pesa mais que a umbilical isolada — e só dentro do MESMO
+  // patamar o IP da artéria umbilical decide (maior = pior; mesma visita,
+  // mesma IG, direto comparável, sem precisar de percentil). Sem nenhum feto
+  // com CIUR — ex.: um GIG e um adequado — mantém o comportamento anterior:
+  // junta quando a conduta é igual, lista por feto quando diverge, porque não
+  // há aí uma hierarquia de gravidade definida entre os dois diagnósticos.
+  const comCiur = porFetoComDados.filter(pf => {
+    const d = pf.impressao?.diagnostico;
+    return (d === 'pig' || d === 'rciu_precoce' || d === 'rciu_tardio') && pf.impressao?.conduta;
   });
-  if (condutas.length === 1) {
-    linhas.push(`Conduta sugerida: ${condutas[0].conduta}`);
+  if (comCiur.length) {
+    const pior = comCiur.reduce((pior, atual) => {
+      const oPior  = _DETERIORACAO_ORDEM[pior.impressao?.deterioracaoDoppler]  || 0;
+      const oAtual = _DETERIORACAO_ORDEM[atual.impressao?.deterioracaoDoppler] || 0;
+      if (oAtual !== oPior) return oAtual > oPior ? atual : pior;
+      const auPior  = pior.exams[pior.exams.length - 1]?.au_ip  ?? -1;
+      const auAtual = atual.exams[atual.exams.length - 1]?.au_ip ?? -1;
+      return auAtual > auPior ? atual : pior;
+    });
+    linhas.push(`Conduta sugerida: ${pior.impressao.conduta}`);
   } else {
-    condutas.forEach(g => linhas.push(`Conduta sugerida (${g.fetos.map(labelFeto).join(' e ')}): ${g.conduta}`));
+    const condutas = [];
+    porFetoComDados.forEach(pf => {
+      const c = pf.impressao?.conduta;
+      if (!c) return;
+      const grupo = condutas.find(g => g.conduta === c);
+      if (grupo) grupo.fetos.push(pf.feto); else condutas.push({ conduta: c, fetos: [pf.feto] });
+    });
+    if (condutas.length === 1) {
+      linhas.push(`Conduta sugerida: ${condutas[0].conduta}`);
+    } else {
+      condutas.forEach(g => linhas.push(`Conduta sugerida (${g.fetos.map(labelFeto).join(' e ')}): ${g.conduta}`));
+    }
   }
 
   return linhas.join('\n');

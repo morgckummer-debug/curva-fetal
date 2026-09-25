@@ -757,3 +757,89 @@ já estava aberta.
   (`_relColoCel`, que não tem corte de IG e não mudou) e na tabela de Doppler,
   só sem avaliação de risco. Telas e papel voltam a concordar: nenhum lugar do
   app afirma risco de parto prematuro depois de 37 semanas.
+
+## AEDF/REDF/iAREDF: sigla fora do relatório, decisão da médica
+
+2026-09-25. Obstetra não reconhece as siglas AEDF/REDF/iAREDF (Absent/Reversed/
+intermittent Absent-or-Reversed End-Diastolic Flow) — só a ultrassonografista
+usa esse vocabulário. Todo texto que chega ao relatório/PDF ou é compartilhado
+entre tela e papel (`_DETERIORACAO_CFG`, `_critItemsDiagnostico`,
+`_condutaDiagnostico`, `_GRATACOS_CFG`) passou a descrever o achado por
+extenso — "Diástole ausente em artéria umbilical", "Diástole reversa em
+artéria umbilical", "Diástole intermitentemente ausente ou reversa na artéria
+umbilical" — sem a sigla entre parênteses.
+
+**O dropdown de Onda A da AU e o `interpAU` do Resumo em tela (`_buildSummaryHtml`)
+mantiveram a sigla de propósito.** São ferramentas de trabalho da própria
+médica, não texto que sai da clínica — ela conhece o vocabulário, e a sigla é
+mais rápida de ler numa tela que ela usa o dia inteiro. A régua é a mesma do
+"relatório não prescreve" do colo curto: o que muda de público muda de
+linguagem.
+
+De caminho, corrigi um resíduo da remoção do estadiamento Barcelona
+(2026-09-25, ver seção do DV): o `interpAU` do Resumo em tela ainda dizia
+"critério estadiamento III"/"critério estadiamento II" para REDF/AEDF na AU —
+um sistema que não existe mais no app. Agora diz "mesmo patamar de gravidade
+do DV com IP > P95 (ISUOG 2020)" e "achado de deterioração Doppler".
+
+## CIUR seletivo cobre todo o espectro de restrição na múltipla, não só o leve
+
+2026-09-25, a partir de uma Conclusão real que a médica trouxe: um feto de
+gemelar com PFE no P11 saía "Feto RCIU precoce" — a sigla de gestação única
+que "Gemelar não é gestação única duas vezes" (2026-09-20, ver acima) dizia
+ter corrigido, só que a correção só cobria `pig`.
+
+`_DX_NOME_MULTIPLA` tinha só `{ pig: 'CIUR seletivo' }`. `rciu_precoce` e
+`rciu_tardio` nunca entraram ali — por isso o card do feto, o Resumo e a
+Conclusão continuavam dizendo "RCIU precoce"/"RCIU tardio" pra um feto de
+gemelar com restrição mais grave, exatamente o erro que a seção de 2026-09-20
+já tinha corrigido, só que pela metade. Agora as três chaves apontam pra "CIUR
+seletivo": todo grau de restrição na múltipla tem o mesmo nome, do que a régua
+de única chamaria PIG ao que chamaria RCIU tardio — o que muda com a
+gravidade é a conduta e a deterioração Doppler, nunca o nome (mesmo princípio
+já valia pro PIG, ver acima).
+
+Duas cópias precisaram do mesmo ajuste, porque bypassavam `_dxNome`:
+- `_fonteDiagnostico` só testava `diagnostico === 'pig'` pra atribuir "CIUR
+  seletivo · critérios de gestação única aplicados por feto" em vez de
+  "Delphi 2016 + Barcelona" — um feto de gemelar com RCIU tardio continuava
+  creditado à régua de única.
+- O `DX_ROTULO` local de `_gerarConclusaoGemelarInicial` tinha `rciu_precoce`/
+  `rciu_tardio` como `['Feto RCIU precoce', ...]`/`['Feto RCIU tardio', ...]`
+  hardcoded, nunca passando por `_dxNome`/`_DX_NOME_MULTIPLA` — era essa cópia
+  que gerava a linha "Feto RCIU precoce" da Conclusão do exemplo.
+
+**O que NÃO muda:** o diagnóstico interno continua `'pig'`/`'rciu_precoce'`/
+`'rciu_tardio'` — só o nome exibido. A conduta, as notas e a deterioração
+Doppler de cada feto continuam vindo do valor interno real, não do rótulo.
+
+## Conduta sugerida na múltipla: uma só, a do feto de pior prognóstico
+
+Mesma conversa, 2026-09-25. Até aqui, quando os fetos de uma gemelar tinham
+condutas diferentes, a Conclusão listava as duas: "Conduta sugerida (Feto 1):
+..." e "Conduta sugerida (Feto 2): ...". A médica apontou que isso não faz
+sentido clínico — é uma mãe só, uma agenda de retorno só, uma decisão de
+internação só. A conduta do feto sem achado não acrescenta nada quando o
+irmão já dita o plano; não precisa nem aparecer.
+
+`_gerarConclusaoGemelarInicial` agora escolhe **o pior feto entre os que têm
+CIUR** (`pig`/`rciu_precoce`/`rciu_tardio` — todos "CIUR seletivo" agora, ver
+acima) e imprime só a conduta dele, sem citar o outro feto:
+
+- **Critério de desempate, definido pela médica:** primeiro a deterioração
+  Doppler (`_DETERIORACAO_ORDEM`: DV tardio > REDF/DV precoce > AEDF > achado
+  leve > nenhuma) — ela já enxerga o ducto venoso, que pesa mais que a
+  umbilical isolada sozinha. Só **dentro do mesmo patamar** o IP da artéria
+  umbilical decide (maior = pior). Comparação direta, sem precisar de
+  percentil: os dois fetos são examinados na mesma visita, mesma IG.
+- **Sem nenhum feto com CIUR** (ex.: um GIG e um adequado), a Conclusão volta
+  ao comportamento anterior — junta quando a conduta é igual, lista por feto
+  quando diverge — porque não existe uma hierarquia de gravidade definida
+  entre esses dois diagnósticos como existe dentro do espectro de restrição.
+- O card de cada feto (`feto-card-conduta`) **não muda**: continua mostrando a
+  conduta individual daquele feto. A escolha do pior vale só pra linha
+  "Conduta sugerida" da Conclusão, que é o resumo executivo.
+- `computeImpressaoDiagnostica` ganhou o campo `deterioracaoDoppler` (a chave
+  crua, `'leve'|'aedf'|'redf_dv'|'dv_tardio'|null`) ao lado de `estadio` (que
+  já era o objeto `{label,cor}` pra exibir) — só pra esta comparação entre
+  fetos precisar de algo comparável, sem reverter o rótulo de exibição.

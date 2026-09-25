@@ -2804,14 +2804,46 @@ function avaliarTAPS(gestacao, allExams) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// DIAGNÓSTICO DELPHI 2016 + ESTADIAMENTO BARCELONA/FIGO
+// DIAGNÓSTICO DELPHI 2016 + DETERIORAÇÃO DOPPLER (AU/DV)
 // Referência: Gordijn et al. UOG 2016 (Delphi)
-//             Figueras & Gratacós, Fetal Diagn Ther 2014
+//             Figueras & Gratacós, Fetal Diagn Ther 2014 (critério de IP-UtA
+//               como critério menor do RCIU tardio — ver calcDiagnosticoFGR)
+//             Lees CC, Stampalija T, Baschat A, et al. ISUOG Practice
+//               Guidelines: diagnosis and management of small-for-
+//               gestational-age fetus and fetal growth restriction.
+//               Ultrasound Obstet Gynecol 2020;56:298-312 (achados de
+//               deterioração do Doppler, protocolo TRUFFLE)
+//
+// Até 2026-09-25 a gravidade era lida pelo estadiamento Barcelona/FIGO
+// (Estágio I–IV, Figueras & Gratacós 2014), com números-alvo de IG para
+// resolução da gestação por estágio. A pedido da médica, o estadiamento saiu:
+// não há mais números romanos nem alvo de resolução por IG — o app descreve
+// o achado (AU normal/AEDF/REDF, DV normal/alteração precoce/alteração
+// tardia) e a conduta de vigilância correspondente, e deixa a decisão de
+// quando resolver a gestação explicitamente com o obstetra, como já
+// acontecia com o colo curto. Ver _DETERIORACAO_CFG e _condutaDiagnostico.
 // ═══════════════════════════════════════════════════════════
 
-// Referência DV IP P95 — aproximação linear (Baschat / FMF)
+// Referência DV IP P95 — Kessler J, Rasmussen S, Hanson M, Kiserud T.
+// Longitudinal reference ranges for ductus venosus flow velocities and
+// waveform indices. Ultrasound Obstet Gynecol 2006;28:890-898 (tabela de 547
+// medidas em 160 gestações de baixo risco). É a referência que a ISUOG 2020
+// (via protocolo TRUFFLE) usa para o corte de IP > P95 do ducto venoso —
+// substitui a aproximação linear que havia aqui antes de 2026-09-25.
+//
+// A tabela publicada cobre 24–39 semanas e pula a semana 32; o valor de 32
+// abaixo é interpolado linearmente entre 31 (0.79) e 33 (0.77) — não é dado
+// publicado. Fora de 24–39 semanas não há percentil publicado: em vez de
+// extrapolar, o valor da borda mais próxima é mantido (mesma lógica
+// conservadora do clamp que já existia aqui).
+const _DV_P95_KESSLER = {
+  24: 0.83, 25: 0.83, 26: 0.82, 27: 0.82, 28: 0.81, 29: 0.81, 30: 0.80,
+  31: 0.79, 32: 0.78, 33: 0.77, 34: 0.76, 35: 0.75, 36: 0.74, 37: 0.73,
+  38: 0.72, 39: 0.71,
+};
 function _dvP95(gaW) {
-  return Math.max(0.48, 0.97 - 0.015 * Math.max(0, gaW - 20));
+  const w = Math.min(39, Math.max(24, Math.floor(gaW)));
+  return _DV_P95_KESSLER[w];
 }
 
 // ── Trajetória de "sempre foi pequeno" — leitura de PIG constitucional ────
@@ -2838,7 +2870,7 @@ function _dopplerAlteradoNoExame(e) {
       || (z.ut  != null && z.ut  >  1.645)
       || (z.cpr != null && z.cpr < -1.645)
       || e.au_fluxo === 'ausente' || e.au_fluxo === 'reversa'
-      || e.dv_onda === 'reversa';
+      || e.dv_onda === 'ausente' || e.dv_onda === 'reversa';
 }
 
 function _trajetoriaPIG(allExams, igDays) {
@@ -2866,7 +2898,7 @@ function _trajetoriaPIG(allExams, igDays) {
   };
 }
 
-// Diagnóstico Delphi + Estadiamento Barcelona/FIGO
+// Diagnóstico Delphi + deterioração Doppler (AU/DV, TRUFFLE/ISUOG 2020)
 // lastExam e allExams: exames *enriquecidos* pelo runLongitudinalAnalysis
 function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   if (!lastExam) return null;
@@ -2984,29 +3016,35 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   // GIG (sobrescreve 'adequado' apenas)
   if (diagnostico === 'adequado' && (caAboveP90 || efwAboveP90)) diagnostico = 'gig';
 
-  // ── Estadiamento Barcelona/FIGO (sem CTG) ────────────────
-  let estadio = null;
+  // ── Deterioração Doppler (AU/DV) — TRUFFLE/ISUOG 2020, sem CTG ───────────
+  // Sem numeração de estágio: descreve o achado mais grave presente. A
+  // ISUOG 2020 (via TRUFFLE) trata onda A ausente, na linha de base ou
+  // reversa como o MESMO patamar de gravidade (a "alteração tardia" do DV) —
+  // diferente do estadiamento Barcelona/FIGO que existia aqui até
+  // 2026-09-25, que separava "ausente" (mais brando) de "reversa" (Estágio
+  // IV). dv_ip > P95 com onda A ainda presente é a "alteração precoce".
+  const dvIpAboveP95 = lastExam.dv_ip != null && lastExam.dv_ip > _dvP95(gaW);
+  const dvAlteracaoTardia = lastExam.dv_onda === 'reversa' || lastExam.dv_onda === 'ausente';
   const gratacos = _gratacosTipo(lastExam, gestacao, diagnostico);
 
+  let deterioracaoDoppler = null;
   const isRCIU = diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio';
   if (isRCIU) {
-    if (lastExam.dv_onda === 'reversa') {
-      estadio = 4;                                              // Onda A reversa DV
-    } else if (lastExam.au_fluxo === 'reversa') {
-      estadio = 3;                                              // REDF na AU
-    } else if (lastExam.dv_ip != null && lastExam.dv_ip > _dvP95(gaW)) {
-      estadio = 3;                                              // IP DV > P95
+    if (dvAlteracaoTardia) {
+      deterioracaoDoppler = 'dv_tardio';                        // Onda A ausente/linha de base/reversa no DV
+    } else if (lastExam.au_fluxo === 'reversa' || dvIpAboveP95) {
+      deterioracaoDoppler = 'redf_dv';                          // REDF na AU ou IP do DV > P95 (onda A presente)
     } else if (lastExam.au_fluxo === 'ausente' || lastExam.au_fluxo === 'intermitente') {
-      estadio = 2;                                              // AEDF na AU (iAREDF entra aqui: ver auDiastoleZero)
+      deterioracaoDoppler = 'aedf';                             // AEDF na AU (iAREDF entra aqui: ver auDiastoleZero)
     } else if (auAboveP95 || cprBelowP5 || utAboveP95) {
-      estadio = 1;                                              // Doppler alterado, fluxo presente
+      deterioracaoDoppler = 'leve';                             // Doppler alterado, fluxo presente
     }
-    // estadio null = RCIU sem dados Doppler suficientes para estadiar
+    // null = RCIU sem dados Doppler suficientes para classificar a deterioração
   }
 
   return {
     diagnostico,   // 'adequado'|'pig'|'gig'|'rciu_precoce'|'rciu_tardio'
-    estadio,       // 1–4 ou null (Barcelona/FIGO)
+    deterioracaoDoppler, // 'leve'|'aedf'|'redf_dv'|'dv_tardio'|null — ver _DETERIORACAO_CFG
     gratacos,      // 1–3 ou null (só monocoriônica com feto restrito)
     isPrecoce,
     gaW,
@@ -3019,17 +3057,29 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
       cruzamentoQuartis,
       auFluxo: lastExam.au_fluxo,
       dvOnda:  lastExam.dv_onda,
+      dvIpAboveP95,
     },
   };
 }
 
+// Rótulo/cor de cada achado de deterioração Doppler — usado no Resumo em tela
+// e no relatório/PDF (computeImpressaoDiagnostica), que reaproveita este
+// mesmo objeto em vez de manter uma cópia própria (as duas cópias literais
+// que existiam antes de 2026-09-25 tinham exatamente a mesma forma).
+const _DETERIORACAO_CFG = {
+  leve:      { label: 'Doppler alterado — fluxo diastólico presente na AU',                           cor: '#b87a20' },
+  aedf:      { label: 'AEDF — diástole ausente na artéria umbilical',                                  cor: '#b84010' },
+  redf_dv:   { label: 'REDF na AU e/ou ducto venoso com IP > P95 — alteração precoce do DV',           cor: '#8a1010' },
+  dv_tardio: { label: 'Ducto venoso — onda A ausente, na linha de base ou reversa (alteração tardia)', cor: '#6a0010' },
+};
+
 // ── Classificação de Gratacós — CIUR seletivo em monocoriônica ────────────
 // Pelo Doppler da artéria umbilical DO FETO RESTRITO, e só em gestação
 // monocoriônica. Na dicoriônica o mecanismo é insuficiência placentária, como
-// na gestação única, e o estadiamento de Barcelona responde; na monocoriônica
-// o mecanismo é divisão desigual da placenta mais anastomoses vasculares, e o
-// que decide conduta é o tipo — um Tipo I com PFE no P3 pode ficar estável por
-// semanas, e um Tipo III descompensa sem aviso.
+// na gestação única, e a leitura de deterioração Doppler (AU/DV) responde; na
+// monocoriônica o mecanismo é divisão desigual da placenta mais anastomoses
+// vasculares, e o que decide conduta é o tipo — um Tipo I com PFE no P3 pode
+// ficar estável por semanas, e um Tipo III descompensa sem aviso.
 //
 // O Tipo III depende do valor 'intermitente' em au_fluxo, criado em
 // 2026-09-20 junto com esta função: antes não havia como registrar iAREDF, e
@@ -3072,8 +3122,9 @@ function _gratacosTipo(lastExam, gestacao, diagnostico) {
 // relatório, na coluna IG do histórico e na própria palavra
 // "precoce"/"tardio", e o parêntese ainda colidia com o do percentil na linha
 // da Conclusão ("RCIU Precoce (< 32 semanas) (P4)"). O que precisa ser lido
-// junto do diagnóstico é o estágio, e esse continua saindo na linha seguinte
-// ("Estágio I — Barcelona/FIGO").
+// junto do diagnóstico é a deterioração Doppler (AU/DV), e essa continua
+// saindo na linha seguinte (ex.: "AEDF — diástole ausente na artéria
+// umbilical").
 // Intervalo mínimo entre dois exames para que a diferença entre eles seja
 // crescimento, e não erro de medida. Usado pelo cruzamento de quartis
 // (calcDiagnosticoFGR) e pela leitura de velocidade (_velocidadeCrescimento) —
@@ -3232,7 +3283,9 @@ function _critItemsDiagnostico(dx) {
   if (c.cruzamentoQuartis)                 items.push('Cruzamento ≥ 2 quartis na trajetória da CA');
   if (c.auFluxo === 'ausente')             items.push('Diástole ausente na artéria umbilical (AEDF)');
   if (c.auFluxo === 'reversa')             items.push('Diástole reversa na artéria umbilical (REDF)');
-  if (c.dvOnda   === 'reversa')            items.push('Onda A reversa no ducto venoso');
+  if (c.dvIpAboveP95)                      items.push('IP do ducto venoso acima do P95 — alteração precoce (ISUOG 2020)');
+  if (c.dvOnda === 'reversa')              items.push('Onda A reversa no ducto venoso — alteração tardia (ISUOG 2020)');
+  else if (c.dvOnda === 'ausente')         items.push('Onda A ausente no ducto venoso — alteração tardia (ISUOG 2020)');
   return items;
 }
 
@@ -3261,11 +3314,6 @@ function _fonteDiagnostico(dx, gestacao) {
     ? 'Consenso Delphi 2016 · critérios para gestação antes de 32 semanas'
     : 'Delphi 2016 + protocolo Barcelona (Figueras & Gratacós) · critérios para gestação a partir de 32 semanas';
 }
-
-// Alvo de resolução por estágio — Barcelona/FIGO. Estágio I ≥ 37 semanas,
-// II ≥ 34, III ≥ 30, IV ≥ 26.
-const _ALVO_RESOLUCAO = { 1: 37, 2: 34, 3: 30, 4: 26 };
-const _ROMANO_ESTADIO = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' };
 
 // Intervalo de reavaliação que ainda cabe antes do fim da gestação. Encurta o
 // intervalo desejado para caber até 40 semanas e devolve null quando não cabe
@@ -3317,44 +3365,42 @@ function _notasDiagnostico(dx) {
 // Conduta sugerida. Intervalos de reavaliação (política da Dra. Morgana,
 // 2026-09): crescimento normal a cada 4 semanas até 36 semanas e a cada 2
 // semanas até o parto daí em diante; PIG a cada 4 semanas com Doppler; GIG a
-// cada 4 semanas; RCIU sem estágio Doppler classificável ainda, semanal com
-// Doppler até o parto; estágio I mantém a cadência anterior (mais intensa que
-// semanal); estágio II, Doppler 2×/semana; estágio III/IV, Doppler diário em
-// ambiente hospitalar.
+// cada 4 semanas; RCIU sem deterioração Doppler classificável ainda, semanal
+// com Doppler até o parto; achado leve mantém a cadência anterior (mais
+// intensa que semanal); AEDF, Doppler 2×/semana; REDF/DV-precoce e
+// DV-tardio, Doppler diário em ambiente hospitalar.
 //
-// Nenhum desses intervalos passa por cima do relógio da gestação: todos são
-// cortados por _intervaloAteOTermo, e no RCIU a conduta diz o alvo de
-// resolução do estágio e avisa quando a IG já o alcançou — nesse ponto o que
-// se decide é o parto, não o próximo ultrassom.
+// Até 2026-09-25 esta função também dizia o alvo de resolução por estágio
+// Barcelona/FIGO (Estágio I ≥ 37 semanas, II ≥ 34, III ≥ 30, IV ≥ 26) e
+// avisava quando a IG já o alcançava. A pedido da médica isso saiu: a função
+// descreve o achado e a cadência de vigilância, e não afirma mais uma IG-alvo
+// de parto — quando resolver a gestação é decisão do obstetra, não deste
+// resumo (mesma régua já usada para o colo curto). Os intervalos que restam
+// continuam cortados por _intervaloAteOTermo, para nenhum cair depois do
+// parto.
 function _condutaDiagnostico(dx) {
   const diagnostico = dx?.diagnostico || 'adequado';
-  const gaW     = dx?.gaW != null ? dx.gaW : null;
-  const estadio = dx?.estadio || null;
+  const gaW = dx?.gaW != null ? dx.gaW : null;
+  const det = dx?.deterioracaoDoppler || null;
   const aTermo  = gaW != null && gaW >= 37;
   const igTxt   = gaW != null ? Math.floor(gaW) + ' semanas' : null;
 
   if (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio') {
-    let txt;
-    if (!estadio) {
-      txt = 'Completar avaliação com Doppler para estadiamento. Seguimento semanal com Doppler até o parto.';
-    } else if (estadio >= 4) {
-      txt = 'Onda A reversa no ducto venoso — conduta hospitalar com Doppler diário e corticoterapia; avaliar resolução imediata.';
-    } else if (estadio === 3) {
-      txt = 'Doppler diário em ambiente hospitalar — avaliar timing do parto conforme protocolo institucional.';
-    } else if (estadio === 2) {
-      txt = 'AEDF confirmada — Doppler 2×/semana.';
-    } else {
-      txt = diagnostico === 'rciu_precoce'
-        ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
-        : 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.';
+    if (!det) {
+      return 'Completar avaliação com Doppler (AU e ducto venoso). Seguimento semanal com Doppler até o parto.';
     }
-    const alvo = estadio ? _ALVO_RESOLUCAO[estadio] : null;
-    if (alvo != null && gaW != null) {
-      txt += gaW >= alvo
-        ? ` A IG atual (${igTxt}) já alcança o alvo de resolução do Estágio ${_ROMANO_ESTADIO[estadio]} (a partir de ${alvo} semanas, Barcelona/FIGO) — o que se define agora com o obstetra é a resolução da gestação, não um novo controle.`
-        : ` Alvo de resolução do Estágio ${_ROMANO_ESTADIO[estadio]}: a partir de ${alvo} semanas (Barcelona/FIGO), ou antes disso se houver deterioração do Doppler.`;
+    if (det === 'dv_tardio') {
+      return 'Ducto venoso com onda A ausente, na linha de base ou reversa — conduta hospitalar com Doppler diário e corticoterapia; avaliar resolução da gestação com o obstetra.';
     }
-    return txt;
+    if (det === 'redf_dv') {
+      return 'REDF na AU e/ou ducto venoso com IP > P95 — Doppler diário em ambiente hospitalar; avaliar timing do parto com o obstetra, conforme protocolo institucional.';
+    }
+    if (det === 'aedf') {
+      return 'AEDF confirmada — Doppler 2×/semana.';
+    }
+    return diagnostico === 'rciu_precoce'
+      ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
+      : 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.';
   }
 
   if (diagnostico === 'pig') {
@@ -5396,8 +5442,11 @@ function buildDvChart(canvasId, gestacao, exams) {
     const gaW = igDays / 7;
     const p95 = _dvP95(gaW);
     let color = '#6c47b8';
-    if (e.dv_onda === 'reversa') color = '#8a1010';
-    else if (e.dv_ip > p95 || e.dv_onda === 'ausente') color = '#c03020';
+    // Ausente e reversa no mesmo tom (a "alteração tardia" da ISUOG 2020) —
+    // IP>P95 com onda A ainda presente ("alteração precoce") fica num tom
+    // mais claro, não mais escondido atrás do mesmo vermelho do "ausente".
+    if (e.dv_onda === 'reversa' || e.dv_onda === 'ausente') color = '#8a1010';
+    else if (e.dv_ip > p95) color = '#c03020';
     patientPoints.push({ x: gaW, y: e.dv_ip, color });
   });
 
@@ -5407,13 +5456,16 @@ function buildDvChart(canvasId, gestacao, exams) {
     const last = patientPoints[patientPoints.length - 1];
     const lastExam = sorted[sorted.length - 1];
     let label = `IP ${last.y.toFixed(2)}`, cls = 'chart-card-pct-ok', sub = 'Dentro da normalidade';
-    if (lastExam.dv_onda === 'reversa') { label = 'Onda A reversa'; cls = 'chart-card-pct-alert'; sub = 'Achado grave — avaliação imediata'; }
-    else if (lastExam.dv_onda === 'ausente') { label = 'Onda A ausente'; cls = 'chart-card-pct-warn'; sub = 'Comprometimento hemodinâmico venoso'; }
-    else if (last.color === '#c03020') { cls = 'chart-card-pct-alert'; sub = 'IP > P95'; }
+    if (lastExam.dv_onda === 'reversa') { label = 'Onda A reversa'; cls = 'chart-card-pct-alert'; sub = 'Alteração tardia (ISUOG 2020) — achado grave, avaliação imediata'; }
+    else if (lastExam.dv_onda === 'ausente') { label = 'Onda A ausente'; cls = 'chart-card-pct-alert'; sub = 'Alteração tardia (ISUOG 2020) — achado grave, avaliação imediata'; }
+    else if (last.color === '#c03020') { cls = 'chart-card-pct-alert'; sub = 'IP > P95 — alteração precoce (ISUOG 2020)'; }
     pctEl.textContent = label; pctEl.className = 'chart-card-pct ' + cls; pctEl.style.display = '';
     if (subEl) subEl.textContent = sub;
   } else if (pctEl) { pctEl.style.display = 'none'; }
 
+  // A tabela do Kessler só cobre 24–39 semanas; fora disso _dvP95 mantém o
+  // valor da borda mais próxima (ver comentário na função), então a linha
+  // fica reta nas pontas do eixo 20–42 em vez de extrapolar.
   const p95Pts = [];
   for (let w = 20; w <= 42; w += 1) p95Pts.push({ x: w, y: _dvP95(w) });
 
@@ -5909,8 +5961,10 @@ function runLongitudinalAnalysis(gestacao, rawExams) {
   else if (zLast.efw != null && zLast.efw < -1.65) setStatus(FISIO_STATUS.RESTRICAO_MODERADA);
 
   // Critérios Doppler graves
-  if (last.dv_onda === 'reversa') setStatus(FISIO_STATUS.RESTRICAO_GRAVE);
-  if (last.dv_onda === 'ausente') setStatus(FISIO_STATUS.RESTRICAO_MODERADA);
+  // Onda A ausente, na linha de base ou reversa — mesmo patamar de gravidade
+  // (ISUOG 2020/TRUFFLE: "alteração tardia" do DV), diferente de até
+  // 2026-09-25, quando "ausente" contava como restrição só moderada.
+  if (last.dv_onda === 'reversa' || last.dv_onda === 'ausente') setStatus(FISIO_STATUS.RESTRICAO_GRAVE);
   if (zLast.au != null && zLast.au > 1.65) setStatus(FISIO_STATUS.RESTRICAO_MODERADA);
 
   // Redistribuição = adaptação inicial
@@ -6632,13 +6686,13 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     if (last.dv_ip != null || last.dv_onda) {
       const dvP95 = gaW ? _dvP95(gaW) : null;
       let dvInterp = '';
-      if (last.dv_onda === 'reversa')      dvInterp = '⚠ Onda A reversa — critério de estadiamento IV (muito grave)';
-      else if (last.dv_onda === 'ausente') dvInterp = '⚠ Onda A ausente — deterioração hemodinâmica significativa';
-      else if (last.dv_ip != null && dvP95 && last.dv_ip > dvP95) dvInterp = `IP elevado (> P95 ≈ ${dvP95.toFixed(2)}) — critério estadiamento III`;
+      if (last.dv_onda === 'reversa')      dvInterp = '⚠ Onda A reversa — alteração tardia do DV (ISUOG 2020), achado grave';
+      else if (last.dv_onda === 'ausente') dvInterp = '⚠ Onda A ausente — alteração tardia do DV (ISUOG 2020), achado grave';
+      else if (last.dv_ip != null && dvP95 && last.dv_ip > dvP95) dvInterp = `IP elevado (> P95 ≈ ${dvP95.toFixed(2)}) — alteração precoce do DV (ISUOG 2020)`;
       else dvInterp = 'Fluxo dentro do esperado';
       if (last.dv_ip != null) rows.push(dopRow('IP DV', last.dv_ip.toFixed(2), null, false, dvInterp));
       else rows.push(`<div style="padding:6px 0;border-bottom:1px solid rgba(61,35,82,0.07);font-size:12.5px;">
-        <span style="font-weight:700;">Ducto Venoso — </span><span style="color:${last.dv_onda === 'reversa' ? 'var(--danger)' : 'var(--text-muted)'};">${dvInterp}</span>
+        <span style="font-weight:700;">Ducto Venoso — </span><span style="color:${(last.dv_onda === 'reversa' || last.dv_onda === 'ausente') ? 'var(--danger)' : 'var(--text-muted)'};">${dvInterp}</span>
       </div>`);
     }
 
@@ -6679,30 +6733,20 @@ function _buildSummaryHtml(gestacao, exams, feto) {
         <ul style="margin:6px 0 0 16px;padding:0;">${critItems.map(i => `<li style="margin-bottom:4px;color:var(--text);">${i}</li>`).join('')}</ul>
       </div>` : '';
 
-  // Estadiamento
-  const ESTADIO_CFG = {
-    1: { label:'Estágio I',   desc:'Doppler alterado com fluxo diastólico presente na AU',     cor:'#b87a20' },
-    2: { label:'Estágio II',  desc:'Diástole ausente na artéria umbilical (AEDF)',              cor:'#b84010' },
-    3: { label:'Estágio III', desc:'Diástole reversa na AU e/ou IP do ducto venoso > P95',     cor:'#8a1010' },
-    4: { label:'Estágio IV',  desc:'Onda A reversa no ducto venoso',                           cor:'#6a0010' },
-  };
+  // Deterioração Doppler (AU/DV) — sem estadiamento Barcelona/FIGO desde
+  // 2026-09-25; usa o mesmo _DETERIORACAO_CFG do relatório/PDF.
   let estadioHtml = '';
-  if (dx?.estadio) {
-    const st = ESTADIO_CFG[dx.estadio];
+  if (dx?.deterioracaoDoppler) {
+    const st = _DETERIORACAO_CFG[dx.deterioracaoDoppler];
     estadioHtml = `<div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <span style="font-family:var(--font-mono);font-size:12px;font-weight:700;padding:4px 14px;border-radius:99px;background:${st.cor}22;color:${st.cor};border:1px solid ${st.cor}55;">${st.label} — Barcelona/FIGO</span>
-      <span style="font-size:12.5px;color:var(--text-muted);">${st.desc}</span>
+      <span style="font-family:var(--font-mono);font-size:12px;font-weight:700;padding:4px 14px;border-radius:99px;background:${st.cor}22;color:${st.cor};border:1px solid ${st.cor}55;">${st.label}</span>
     </div>`;
   } else if (dx?.diagnostico === 'rciu_precoce' || dx?.diagnostico === 'rciu_tardio') {
-    estadioHtml = `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Estadiamento indeterminado — dados Doppler insuficientes para classificar.</div>`;
+    estadioHtml = `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">Dados Doppler (AU/DV) insuficientes para classificar a deterioração.</div>`;
   }
 
-  // Gratacós entra como selo próprio, ao lado do de Barcelona e não no lugar
-  // dele: são dois sistemas, cada um dito com o seu nome. A conduta ainda é
-  // escrita pelo estágio de Barcelona (ver _condutaDiagnostico), então tirar
-  // Barcelona daqui deixaria a conduta falando de um estágio que a tela não
-  // mostra. Quando os textos de conduta por tipo existirem, Barcelona sai
-  // daqui na monocoriônica.
+  // Gratacós entra como selo próprio, ao lado do da deterioração Doppler e
+  // não no lugar dele: são dois sistemas, cada um dito com o seu nome.
   if (dx?.gratacos) {
     const gt = _GRATACOS_CFG[dx.gratacos];
     const corG = dx.gratacos === 3 ? '#8a1010' : dx.gratacos === 2 ? '#b84010' : '#b87a20';
@@ -6801,7 +6845,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     ${block('4 · Velocimetria Doppler', dopplerHtml)}
     ${block('5 · Impressão diagnóstica', dxBox + peBox + coloBox + tapsBox)}
     <p style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Estadiamento: Barcelona/FIGO (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
+      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
     </p>`;
 }
 
@@ -8766,13 +8810,9 @@ function computeImpressaoDiagnostica(gestacao, exams) {
 
   const critItems = _critItemsDiagnostico(dx);
 
-  const ESTADIO_CFG = {
-    1: { label: 'Estágio I',   desc: 'Doppler alterado com fluxo diastólico presente na AU', cor: '#b87a20' },
-    2: { label: 'Estágio II',  desc: 'Diástole ausente na artéria umbilical (AEDF)',          cor: '#b84010' },
-    3: { label: 'Estágio III', desc: 'Diástole reversa na AU e/ou IP do ducto venoso > P95', cor: '#8a1010' },
-    4: { label: 'Estágio IV',  desc: 'Onda A reversa no ducto venoso',                       cor: '#6a0010' },
-  };
-  const estadio  = dx?.estadio ? ESTADIO_CFG[dx.estadio] : null;
+  // Deterioração Doppler (AU/DV) — usa o mesmo _DETERIORACAO_CFG do Resumo em
+  // tela; sem estadiamento Barcelona/FIGO desde 2026-09-25.
+  const estadio  = dx?.deterioracaoDoppler ? _DETERIORACAO_CFG[dx.deterioracaoDoppler] : null;
   const gratacos = dx?.gratacos ? _GRATACOS_CFG[dx.gratacos] : null;
   const estadioIndeterminado = !estadio && (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio');
 
@@ -9037,11 +9077,12 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   </svg>`;
 }
 
-// Faixa de status do novo layout — reaproveita o mesmo diagnóstico Delphi/
-// Barcelona já calculado para o preview (computeImpressaoDiagnostica), só
-// trocando a pele: ícone+título+critério na faixa (compacto, como no design),
-// critérios extras e estadiamento como linhas pequenas logo abaixo (a página
-// é única, então ficam resumidos em vez da lista completa do preview).
+// Faixa de status do novo layout — reaproveita o mesmo diagnóstico Delphi +
+// deterioração Doppler já calculado para o preview (computeImpressaoDiagnostica),
+// só trocando a pele: ícone+título+critério na faixa (compacto, como no
+// design), critérios extras e deterioração Doppler como linhas pequenas logo
+// abaixo (a página é única, então ficam resumidos em vez da lista completa
+// do preview).
 function _renderStatusFaixaHtml(impressao) {
   if (!impressao) return '';
   const VARIANTE = {
@@ -9060,8 +9101,8 @@ function _renderStatusFaixaHtml(impressao) {
     : '';
 
   const estadioTxt = impressao.estadio
-    ? `${impressao.estadio.label} — Barcelona/FIGO · ${impressao.estadio.desc}`
-    : impressao.estadioIndeterminado ? 'Estadiamento indeterminado — dados Doppler insuficientes' : '';
+    ? impressao.estadio.label
+    : impressao.estadioIndeterminado ? 'Dados Doppler (AU/DV) insuficientes para classificar a deterioração' : '';
   const estadioHtml = estadioTxt ? `<div class="status-extra">${escapeHtml(estadioTxt)}</div>` : '';
 
   const condutaHtml = impressao.conduta
@@ -9243,7 +9284,7 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // `semAchados` acima — um feto com critério não é um feto "estável".
   const linhas = [`${impressao.label}${pctTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
   if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
-  if (impressao.estadio) linhas.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
+  if (impressao.estadio) linhas.push(`${impressao.estadio.label}.`);
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
   if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
@@ -9880,7 +9921,7 @@ function _gerarTextoCardFetoInicial(impressao) {
   } else {
     partes.push(`Critérios Delphi 2016 dentro da normalidade (gestação ${impressao.isPrecoce ? '< 32' : '≥ 32'} semanas).`);
   }
-  if (impressao.estadio) partes.push(`${impressao.estadio.label} — Barcelona/FIGO.`);
+  if (impressao.estadio) partes.push(`${impressao.estadio.label}.`);
   return partes.join(' ');
 }
 
@@ -10684,7 +10725,7 @@ function confirmarGerarPDF() {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
 
 <div class="sheet-flow">
 ${sheetHtml}
@@ -10734,7 +10775,7 @@ function _confirmarGerarPDFMultiplo(patient, gestacao) {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Estadiamento: Barcelona/FIGO · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
 
 ${chartSheets}
 ${assessmentSheet}

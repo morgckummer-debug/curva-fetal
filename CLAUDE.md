@@ -204,31 +204,37 @@ existindo porque um carrega cor e borda e o outro só o ícone; o texto, não.
 RCIU não escreve mais a faixa de semanas no nome (`RCIU Precoce`, não `RCIU
 Precoce (< 32 semanas)`): a IG está no cabeçalho do relatório e na coluna IG do
 histórico, "precoce"/"tardio" já diz isso, e o parêntese colidia com o do
-percentil na Conclusão (`RCIU Precoce (< 32 semanas) (P4)`). O estágio continua
-na linha seguinte — é ele que precisa ser lido junto do diagnóstico.
+percentil na Conclusão (`RCIU Precoce (< 32 semanas) (P4)`). A deterioração
+Doppler (AU/DV) continua na linha seguinte — é ela que precisa ser lida junto
+do diagnóstico (ver "Ducto venoso: ISUOG 2020, sem estadiamento Barcelona",
+mais abaixo).
 
 **IP das uterinas > P95 conta como critério menor também depois de 32 semanas.**
 O texto estrito do Delphi 2016 só lista as uterinas no RCIU *precoce*; por causa
 disso uma paciente de 38 semanas com PFE < P10 **e** IP-UtA > P95 saía como
 "PIG". São dois critérios — um de tamanho e um de Doppler — e a leitura clínica
 é restrição. Quem embasa é o protocolo de Barcelona (Figueras & Gratacós, Fetal
-Diagn Ther 2014), o mesmo do estadiamento que o app já usava: o estadiamento já
-contava `utAboveP95` como Estágio I, ou seja, o app reconhecia o achado para
-estadiar e não para diagnosticar. Por isso a linha de atribuição embaixo do
-diagnóstico (`_fonteDiagnostico`) diz "Delphi 2016 + protocolo Barcelona" a
-partir de 32 semanas — creditar ao consenso um critério que ele não tem seria
-errado. Se um dia isso voltar ao Delphi puro, é tirar `utAboveP95` de uma linha
-só em `calcDiagnosticoFGR` e ajustar `_fonteDiagnostico` junto.
+Diagn Ther 2014) — o mesmo que, até 2026-09-25, também estadiava a gravidade do
+Doppler (ver seção do DV): a leitura de deterioração já contava `utAboveP95`
+como o achado mais leve, ou seja, o app reconhecia o achado para dizer a
+gravidade do Doppler e não para diagnosticar RCIU. Por isso a linha de
+atribuição embaixo do diagnóstico (`_fonteDiagnostico`) diz "Delphi 2016 +
+protocolo Barcelona" a partir de 32 semanas — creditar ao consenso um critério
+que ele não tem seria errado. Essa citação de Barcelona é só sobre esse critério
+menor do Delphi tardio; não tem mais nada a ver com a gravidade do Doppler
+(AU/DV), que agora é ISUOG 2020/TRUFFLE — ver abaixo. Se um dia isso voltar ao
+Delphi puro, é tirar `utAboveP95` de uma linha só em `calcDiagnosticoFGR` e
+ajustar `_fonteDiagnostico` junto.
 
 **Nenhum intervalo de reavaliação passa do fim da gestação.** As condutas eram
 strings fixas ("Reavaliação em 4 semanas") e em 38 semanas marcavam um exame
 para depois do parto. `_intervaloAteOTermo(gaW, semanas)` encurta o intervalo
 para caber até 40 semanas e devolve `null` quando não cabe mais nenhum — aí o
-texto passa a ser obstétrico (definir a resolução), não ultrassonográfico. No
-RCIU a conduta também diz o alvo de resolução do estágio (Barcelona/FIGO:
-I ≥ 37s, II ≥ 34s, III ≥ 30s, IV ≥ 26s) e avisa quando a IG já o alcançou.
+texto passa a ser obstétrico (definir a resolução), não ultrassonográfico.
 Qualquer conduta nova entra por essa mesma porta: intervalo fixo em texto puro
-é o bug de 2026-09-19 voltando.
+é o bug de 2026-09-19 voltando. (Até 2026-09-25 o RCIU também dizia um alvo de
+resolução em semanas por estágio Barcelona/FIGO — isso saiu junto com o
+estadiamento; ver a seção do DV.)
 
 ## PIG constitucional, notas clínicas e o intervalo mínimo do cruzamento
 
@@ -329,14 +335,16 @@ o Delphi feto a feto e chamava de **PIG** um feto pequeno dentro de uma gemelar
   em monocoriônica, e só para o feto **restrito** — o tipo é dele, não da
   gestação. `null` é "não classificado", **nunca Tipo I**. O Tipo III depende do
   valor `intermitente` em `au_fluxo`, criado junto; iAREDF também entrou no
-  `auDiastoleZero` e no estadiamento de Barcelona, senão o achado mais grave da
-  monocoriônica seria o único a não disparar nada.
-- **Barcelona continua aparecendo na monocoriônica de propósito**, ao lado de
-  Gratacós e não no lugar dele. A conduta (`_condutaDiagnostico`) ainda é
-  escrita por estágio de Barcelona, e tirar Barcelona da tela deixaria a conduta
-  citando um estágio que ninguém vê. **Pendência aberta:** as três condutas por
-  tipo de Gratacós, que são texto clínico da médica. Com elas, Barcelona sai da
-  monocoriônica e fica onde é dele — gestação única e dicoriônica.
+  `auDiastoleZero` e na leitura de deterioração Doppler (ver seção do DV),
+  senão o achado mais grave da monocoriônica seria o único a não disparar nada.
+- **Gratacós aparece ao lado do selo de deterioração Doppler (AU/DV), não no
+  lugar dele** — são dois sistemas, cada um com seu nome. Até 2026-09-25 esse
+  segundo selo era o estadiamento Barcelona/FIGO, removido do app inteiro (não
+  só da monocoriônica) na revisão do DV — ver "Ducto venoso: ISUOG 2020, sem
+  estadiamento Barcelona", mais abaixo. **Pendência aberta:** as três condutas
+  por tipo de Gratacós, que são texto clínico da médica e ainda não existem —
+  a conduta da monocoriônica hoje sai da mesma leitura AU/DV de qualquer
+  gestação.
 
 ## ACM < P5, e a trava que ela obrigou a criar
 
@@ -641,3 +649,69 @@ a mesma paciente** — a mesma classe de divergência do RCP e do PIG × CIUR.
 Não foi alterado aqui porque muda o comportamento de anemia de toda gestação
 única da app e a decisão é da médica. Se for corrigido, a tabela do Klaritsch
 não muda: ela é dado publicado, independente desta.
+
+## Ducto venoso: ISUOG 2020, sem estadiamento Barcelona
+
+2026-09-25, a pedido da médica: trocar a referência do DV de uma aproximação
+própria para uma tabela publicada, e trocar a leitura de gravidade do
+estadiamento Barcelona/FIGO (Figueras & Gratacós 2014) para a leitura de
+deterioração Doppler que a ISUOG 2020 (Lees CC, Stampalija T, Baschat A, et
+al. *ISUOG Practice Guidelines: diagnosis and management of small-for-
+gestational-age fetus and fetal growth restriction.* Ultrasound Obstet
+Gynecol 2020;56:298-312) adota via protocolo TRUFFLE.
+
+- **`_dvP95(gaW)` não é mais aproximação.** Até aqui era uma reta própria do
+  app, comentada "Baschat/FMF" mas sem tabela publicada por trás. Virou
+  lookup em `_DV_P95_KESSLER`, a Tabela 3 de Kessler J, Rasmussen S, Hanson M,
+  Kiserud T. *Longitudinal reference ranges for ductus venosus flow
+  velocities and waveform indices.* Ultrasound Obstet Gynecol 2006;28:890-898
+  (547 medidas, 160 gestações de baixo risco) — a médica enviou a tabela
+  impressa. Cobre 24–39 semanas; a semana 32 não está na tabela publicada e
+  foi interpolada linearmente entre 31 (0,79) e 33 (0,77). Fora de 24–39
+  semanas não há dado publicado — em vez de extrapolar, `_dvP95` mantém o
+  valor da borda mais próxima (mesmo espírito conservador do clamp anterior).
+  As três chamadas (estadiamento, gráfico do DV, resumo em tela) continuam
+  únicas — não há cutoff duplicado em nenhum outro lugar.
+- **Onda A ausente e reversa viraram o mesmo patamar de gravidade.** A ISUOG
+  2020/TRUFFLE separa só dois achados do DV: *precoce* (IP > P95 com onda A
+  ainda presente) e *tardia* (onda A ausente, na linha de base ou reversa —
+  tratadas como uma coisa só). Até aqui o app fazia uma escada de três: onda A
+  ausente contava como restrição moderada e nem entrava no estadiamento;
+  reversa era a única coisa que fechava o estágio mais grave. Isso mudou em
+  todo lugar que olhava para `dv_onda` com peso diferente para os dois
+  valores: estadiamento (agora deterioração Doppler, ver abaixo), status
+  fisiológico (`RESTRICAO_GRAVE` para as duas), cor do gráfico (mesmo tom
+  escuro), selo do card (mesma classe de alerta) e `_dopplerAlteradoNoExame`
+  (conta as duas para a leitura de PIG constitucional). O dropdown de Onda A
+  continua com três opções (positiva/ausente/reversa) — "na linha de base" não
+  ganhou um valor próprio porque é a mesma leitura de "ausente" na
+  terminologia da ISUOG, não um terceiro estado clínico.
+- **O estadiamento Barcelona/FIGO (Estágio I–IV) saiu do app inteiro**, não só
+  do DV — a médica pediu para tirar a classificação, não só trocar a fonte do
+  corte de IP. `calcDiagnosticoFGR` não devolve mais `estadio` (1–4); devolve
+  `deterioracaoDoppler`, uma de quatro strings (`'leve'|'aedf'|'redf_dv'|
+  'dv_tardio'`, ou `null` quando não há RCIU ou não há Doppler suficiente),
+  com rótulo e cor em `_DETERIORACAO_CFG` — uma implementação só, reaproveitada
+  pelo Resumo em tela e por `computeImpressaoDiagnostica` (as duas cópias
+  literais do dicionário de estágio que existiam antes tinham exatamente a
+  mesma forma). Não há mais numeração romana em lugar nenhum do app.
+- **Junto saiu o "alvo de resolução" por estágio** (37/34/30/26 semanas,
+  `_ALVO_RESOLUCAO`/`_ROMANO_ESTADIO`, removidos). Não foi só uma re-citação:
+  a médica decidiu não afirmar mais uma IG-alvo de parto vinda de uma tabela
+  de estágios — `_condutaDiagnostico` agora só descreve o achado (AEDF, REDF/
+  DV-precoce, DV-tardio) e a cadência de Doppler correspondente, e quando
+  resolver a gestação fica explicitamente com o obstetra, mesma régua já
+  usada para o colo curto (ver seção própria). Os intervalos de vigilância que
+  restam continuam cortados por `_intervaloAteOTermo`.
+- **O que NÃO mudou:** o critério de IP-UtA > P95 como critério menor do RCIU
+  tardio (Delphi + protocolo Barcelona, `_fonteDiagnostico`) é uma decisão de
+  *diagnóstico*, não de estadiamento — continua citando Figueras & Gratacós
+  2014, porque é dali que esse critério específico vem. A classificação de
+  Gratacós (Tipo I–III, CIUR seletivo em monocoriônica) e o estadiamento
+  Leiden/Tollenaar da TAPS também não mudaram — são sistemas próprios, sem
+  relação com o Barcelona/FIGO que saiu.
+- Se um dia a ISUOG 2020 tiver cortes de IG-alvo de parto por achado que a
+  médica queira adotar (o texto integral da diretriz não foi acessível para
+  conferir os números exatos — só a tabela do DV foi confirmada, enviada por
+  ela), isso entra como uma nova decisão explícita, não como uma
+  reintrodução silenciosa do `_ALVO_RESOLUCAO` antigo.

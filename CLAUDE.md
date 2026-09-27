@@ -1422,6 +1422,59 @@ tabela de referência nova.
   `patientPoints` chegam com `.p` preenchido. Smoke test da página inteira sem
   erro novo no console.
 
+### "Relatório PDF" saía achatado num exame só de 1º trimestre — porque não tinha nada pra mostrar
+
+2026-09-27, mesmo dia, depois do conserto acima. A médica comparou os dois
+botões pro **mesmo** exame (morfológico de 1º trimestre, sem nenhum exame
+≥15 semanas ainda): "Laudo 1º Trimestre" saiu bonito (é o documento novo,
+Parte 4 do plano); "Relatório PDF" saiu com os cards de CC/Circ. abdominal/
+Fêmur/Peso "achatados". Não era a banda de referência apertada (o conserto
+de altura de mais cedo, `d66939a`, continuava intacto e publicado havia
+mais de duas horas — conferido via `actions_list` do GitHub, deploy
+`success` em ambos os commits) — era o card renderizando **sem nenhum ponto
+da paciente**, só a banda P10-P90 pura de 15 a 40 semanas. Confirmado com
+Playwright, chamando `_buildRelSheetHtml` de verdade com um exame fictício
+de 12s5d: os quatro cards saíam com badge "—" no cabeçalho e "—" nas quatro
+colunas do Histórico biométrico — código correto (nada quebrado), só
+mostrando uma referência que não descreve aquela visita.
+
+**A causa:** `_relPatientPoints`/o extractor de `_buildRelChartEfwSvg` já
+filtram exame com IG < 15 semanas (`if (w < 15) return null` / `if (semanas
+< 15) return null`) — mesmo corte do resto do app. Um exame de 1º trimestre
+nunca teria ponto nenhum nesses quatro cards, e SÓ o card de uterinas (janela
+11-41 semanas, ver "IP das uterinas" acima) já tinha o guard certo:
+`_buildRelChartSvg` recusava (`return null`) o card `'uta'` sem ponto, mas
+CC/CA/Fêmur/Peso não tinham o mesmo guard — desenhavam a banda mesmo vazios.
+
+**O conserto**, os dois na mesma linha de raciocínio do guard que 'uta' já
+tinha:
+- `_buildRelChartSvg`: o `if (paramKey === 'uta' && !patPts.length) return
+  null;` virou `if (!patPts.length) return null;` — vale pros quatro
+  paramKeys que essa função atende (`cc`/`ca`/`fl`/`efw`, este último só na
+  página de trigemelar), não só uterinas.
+- `_buildRelChartEfwSvg` (o gráfico grande de peso, única/gemelar): ganhou o
+  mesmo `if (!pts.length) return null;`, que não existia.
+- `_buildRelSheetHtml`: a seção "Evolução longitudinal" inteira (cabeçalho +
+  legenda) só aparece se sobrar pelo menos um card (`smallCells.length ||
+  bigCells.length`) — sem isso, um exame sem NENHUM card (nem uterinas)
+  imprimiria o cabeçalho da seção sozinho, sem gráfico nenhum embaixo.
+
+Testado: o mesmo exame de 12s5d (com uterinas medidas) agora imprime só o
+card "IP médio · art. uterinas" com o ponto certo — os quatro cards vazios
+somem. Um exame de 21 semanas (única, com CC/CA/Fêmur/peso reais) continua
+saindo com os quatro cards, idêntico a antes — testado lado a lado, sem
+diferença.
+
+**Ficou de fora, de propósito:** a tabela "Histórico biométrico"
+(`_buildRelHistoricoUnicaHtml`) continua imprimindo "—" nas colunas PFE/CA/
+CC/FÊMUR pra uma visita de 1º trimestre — ela lista TODOS os exames da
+gestação, não só os ≥15 semanas, e não foi isso que a médica reclamou. Existe
+um precedente pra esconder coluna 100% vazia (a coluna Colo do histórico, ver
+"Colo curto e pré-eclâmpsia são da gestação, não do feto" — "coluna inteira
+de '—' é ruído") que poderia se aplicar aqui também (esconder PFE/CA/CC/FÊMUR
+por completo numa gestação só com exames de 1º trimestre), mas isso é
+extensão de escopo — revisitar se ela pedir.
+
 ## Risco combinado da FMF: parto prematuro e diabetes gestacional entraram junto com T21/T18/T13/pré-eclâmpsia
 
 2026-09-27, conversa seguinte. A médica pediu os dois riscos que o software

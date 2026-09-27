@@ -9898,7 +9898,13 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   if (!refData.length) return null;
 
   const patPts = _relPatientPoints(paramKey, gestacao, exams);
-  if (paramKey === 'uta' && !patPts.length) return null;
+  // Sem nenhum ponto da paciente o card só mostraria a banda de referência
+  // pura, sem nada de "seu" — pra uma gestação cujo único exame é do 1º
+  // trimestre (janela <15 semanas, fora do domínio 15-40s destes cards),
+  // CC/CA/Fêmur/Peso saem todos vazios e ilegíveis assim ("achatados",
+  // relatado pela médica 2026-09-27). Já era assim só pro 'uta'; virou regra
+  // geral — nenhum card sem ponto nenhum.
+  if (!patPts.length) return null;
 
   const allY = refData.flatMap(r => [r.p10, r.p90]);
   patPts.forEach(p => allY.push(p.y));
@@ -10397,7 +10403,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
 
     ${_relIdentHtml(patient, gestacao, lastExam)}
 
-    <section>
+    ${(smallCells.length || bigCells.length) ? `<section>
       <div class="charts-head">
         <div class="eyebrow">Evolução longitudinal</div>
         <div class="legend">
@@ -10412,7 +10418,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
       <div class="feto-cards" style="margin-top:16px">
         ${bigCells.join('\n        ')}
       </div>
-    </section>
+    </section>` : ''}
 
     ${historicoHtml}
 
@@ -10465,6 +10471,10 @@ function _buildRelChartEfwSvg(gestacao, exams) {
     if (peso == null) return null;
     return { semanas, peso, pct: calcEFWPercentile(peso, ig)?.percentil };
   }).filter(Boolean).sort((a, b) => a.semanas - b.semanas);
+  // Sem ponto nenhum (só exame de 1º trimestre, <15 semanas) o card mostraria
+  // só a banda de referência, vazio — mesmo motivo do guard em
+  // _buildRelChartSvg, "achatado" relatado pela médica 2026-09-27.
+  if (!pts.length) return null;
 
   // Escala sempre a partir do zero, com o topo na referência (mais folga).
   // Zero fixo na base é o que mantém as duas curvas comparáveis entre si —

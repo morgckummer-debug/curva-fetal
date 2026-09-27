@@ -1205,10 +1205,11 @@ gráficos estreitos chamam:
   continuam servindo o gráfico grande de peso e as uterinas do relatório
   evolutivo, sem mudança nenhuma).
 - Tela (`_drawChart`): ganhou `cfg.linear` (opcional, default `false`) — com
-  `true`, troca `_smoothPath` por `_linePath` (mesma lógica, sem Bézier). Os
-  cinco `buildChart1Tri*` (FC/CCN/TN/DBP/DV) passam `linear: true`; todo o
-  resto que chama `_drawChart` (grid padrão ≥15 semanas, `_drawThresholdChart`
-  etc.) não passa o parâmetro, então continua suave como sempre.
+  `true`, troca `_smoothPath` por `_linePath` (mesma lógica, sem Bézier).
+  `buildChart1TriFC`/`TN`/`Dbp`/`DV` passam `linear: true`; `buildChart1TriCcn`
+  não (ver seção seguinte — o CCN acabou sendo a exceção); todo o resto que
+  chama `_drawChart` (grid padrão ≥15 semanas, `_drawThresholdChart` etc.) não
+  passa o parâmetro, então continua suave como sempre.
 
 **As 3 uterinas dentro do mesmo grid 4×2 continuam suaves, de propósito.**
 Elas reaproveitam `_buildRelChartUtaSvg()`, a mesma função do relatório
@@ -1219,3 +1220,39 @@ amostrada a cada 0,5 semana) e não de tabela esparsa, então a suavização nã
 cria o mesmo artefato — a inconsistência visual dentro do mesmo grid (5
 retas + 3 curvas) é o preço de não tocar num componente compartilhado sem
 pedido explícito.
+
+### CCN×IG virou serrote com reta — a exceção que provou a regra
+
+Mesmo dia, poucas horas depois. A médica reportou o CCN×IG (não o ducto
+venoso desta vez) "todo irregular", com print mostrando dentes de serrote
+nítidos na banda e na mediana. A causa não é a mesma da seção anterior — é o
+oposto: ali a reta corrigia uma curva que inventava suavidade sobre poucos
+pontos reais; aqui a reta **revelou** um degrau que sempre existiu na
+referência, só que o Catmull-Rom antigo escondia arredondando os cantos.
+
+`crlFromGAdays_hadlock()` interpola `HADLOCK_CCN_GA_DAYS`, uma tabela densa
+(77 linhas) mas **arredondada** — CCN em mm inteiro, IG em dias inteiros.
+Amostrada a cada 0,1 semana (0,7 dia) pro gráfico, o incremento de CCN entre
+pontos consecutivos varia muito (0,7mm, depois 2,7mm, depois 0,7, 0,7, 1,7…)
+porque o arredondamento da tabela não anda em passo constante com o dia —
+conferido ponto a ponto (`node`, deltas de P50 saltando entre 0 e 2,7mm sem
+padrão). É ruído de arredondamento de uma grandeza que na vida real cresce
+suave (o feto não "acelera e desacelera" a cada 0,7 dia) — diferente do
+ducto venoso, cuja tabela (`DV_TABLE`, 11 pontos) é genuinamente esparsa e
+onde cada segmento reto liga dois dados reais, sem nada inventado no meio.
+
+Por isso o CCN×IG é o único dos 5 gráficos estreitos que **não** foi pro
+lado da reta — ficou com a suavização de sempre (Catmull-Rom), a mesma que
+FC/DBP/DV/TN perderam. `_buildRel1TriChartSvg` ganhou `cfg.smooth` (default
+`false` = reta; só `_rel1TriChartCcnSvg` passa `true`) e `_drawChart` só
+recebe `linear: true` de `buildChart1TriFC`/`TN`/`Dbp`/`DV` — `buildChart1TriCcn`
+ficou de fora, voltando a usar `_smoothPath`/`_relSvgPath` como antes de
+2026-09-27. A tabela em si (`HADLOCK_CCN_GA_DAYS`) e a função de interpolação
+não mudaram — nenhuma conta de datação por CCN foi tocada, só o desenho da
+faixa de referência.
+
+**Critério pra decidir reta vs. suave num gráfico novo:** poucos pontos reais
+e bem espaçados (DV, DBP) → reta, é o que o dado tem; fórmula fechada e
+contínua (FC) → reta já sai suave sozinha, tanto faz; tabela densa mas
+arredondada representando algo que cresce contínuo (CCN) → suave, porque o
+arredondamento não é sinal, é ruído de captura.

@@ -6031,7 +6031,7 @@ function buildChart1TriCcn(canvasId, gestacao, exams) {
     refData.p10.push({ x: w, y: Math.max(0, crl - band) });
   }
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
-  _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)', linear: true });
+  _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)' });
 }
 
 function buildChart1TriTN(canvasId, gestacao, exams) {
@@ -10628,12 +10628,21 @@ function _buildRel1TriChartSvg(cfg) {
   // sem "Pxx" em cima, igual o editor de laudos já fazia.
   const pontos = pts.map(p => `<circle class="efw-pt" cx="${f(x(p.x))}" cy="${f(y(p.y))}" r="5"/>`).join('');
 
+  // cfg.smooth: só o CCN×IG usa (ver call site) — sua referência vem de uma
+  // tabela densa mas arredondada (mm/dia inteiros) que representa um
+  // fenômeno contínuo de verdade; interpolada em linha reta, o arredondamento
+  // da tabela aparece como serrote. Os outros 4 continuam em reta: DV/DBP têm
+  // tabela genuinamente esparsa (poucos pontos reais, suavizar inventaria
+  // curva que o dado não tem) e FC já é uma fórmula fechada, suave sozinha.
+  const tracoPath = cfg.smooth ? _relSvgPath : _relLinearPath;
+  const tracoBand = cfg.smooth ? _relBandPath : _relLinearBandPath;
+
   return `<svg viewBox="0 0 ${VW} ${VH}" class="efw-chart">
     ${grade}
-    <path class="efw-band" d="${_relLinearBandPath(p90, p10)}"/>
-    <path class="efw-p90" d="${_relLinearPath(p90)}"/>
-    <path class="efw-p50" d="${_relLinearPath(p50)}"/>
-    <path class="efw-p10" d="${_relLinearPath(p10)}"/>
+    <path class="efw-band" d="${tracoBand(p90, p10)}"/>
+    <path class="efw-p90" d="${tracoPath(p90)}"/>
+    <path class="efw-p50" d="${tracoPath(p50)}"/>
+    <path class="efw-p10" d="${tracoPath(p10)}"/>
     ${eixoX}
     ${refRotulos}
     ${pontos}
@@ -10675,7 +10684,7 @@ function _rel1TriChartCcnSvg(gestacao, exams) {
     ref.push({ x: w, p50: crl, p90: crl + band, p10: Math.max(0, crl - band) });
   }
   const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
-  return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 0 });
+  return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 0, smooth: true });
 }
 
 function _rel1TriChartTnSvg(gestacao, exams) {

@@ -9845,7 +9845,14 @@ function _relLinearBandPath(topPts, bottomPts) {
 // no caso do Doppler, quando a gestação não tem UtA registrada — a célula
 // some do grid em vez de mostrar um gráfico vazio).
 function _buildRelChartSvg(paramKey, gestacao, exams) {
-  const W = 220, AXIS_Y = 111;
+  // PLOT_H (altura útil do traçado) foi 100 até 2026-09-27 — a banda P10-P90
+  // real de um único exame é uma fatia fina do range P10-P90 acumulado entre
+  // 15 e 40 semanas (o range que fixa yMin/yMax), então numa altura de 100 o
+  // espaço entre as duas linhas tracejadas ficava fino demais para localizar
+  // o ponto (relatado pela médica). Mesmo remédio já aplicado ao card de CCN
+  // do 1º trimestre: aumentar o card fisicamente, sem inflar a banda
+  // estatística nem mudar o range de dados — só mais pixel por unidade.
+  const W = 220, PLOT_H = 155, AXIS_Y = PLOT_H + 11, VH = AXIS_Y + 7;
   const weeks = [];
   for (let w = 15; w <= 40; w++) weeks.push(w);
 
@@ -9863,13 +9870,14 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   const yMax = yHi + folga;
 
   const xS = w => (w - 15) / 25 * W;
-  const yS = v => AXIS_Y - (v - yMin) / (yMax - yMin) * 100;
+  const yS = v => AXIS_Y - (v - yMin) / (yMax - yMin) * PLOT_H;
 
   // Mesmas classes do gráfico grande de peso (_buildRelChartEfwSvg) — banda,
   // linhas de P90/P10 tracejadas, mediana sólida e ponto vazado com a cor do
-  // roxo. Não são dois desenhos: é o mesmo, só num viewBox menor (220×118 vs
-  // 340×176) para caber na grade de 3 colunas — as unidades do SVG escalam
-  // junto, então o traço não fica nem mais grosso nem mais fino que o do peso.
+  // roxo. Não são dois desenhos: é o mesmo, só num viewBox mais estreito
+  // (220×173 vs 340×176) para caber na grade de 3 colunas — as unidades do
+  // SVG escalam junto, então o traço não fica nem mais grosso nem mais fino
+  // que o do peso.
   const p90Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p90) }));
   const p10Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p10) }));
   const p50Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p50) }));
@@ -9881,17 +9889,17 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
 
   const axisWeeks = [15, 22, 29, 36];
   const axisHtml = axisWeeks.map((w, i) =>
-    `<text class="axis-t" x="${xS(w).toFixed(1)}" y="118">${w}${i === axisWeeks.length - 1 ? ' s' : ''}</text>`
+    `<text class="axis-t" x="${xS(w).toFixed(1)}" y="${VH}">${w}${i === axisWeeks.length - 1 ? ' s' : ''}</text>`
   ).join('');
 
-  return `<svg viewBox="0 0 220 118">
+  return `<svg viewBox="0 0 ${W} ${VH}">
     <path class="efw-band" d="${_relBandPath(p90Pts, p10Pts)}"/>
     <path class="efw-p90" d="${_relSvgPath(p90Pts)}"/>
     <path class="efw-p50" d="${_relSvgPath(p50Pts)}"/>
     <path class="efw-p10" d="${_relSvgPath(p10Pts)}"/>
     ${tracePts.length ? `<polyline class="trace" points="${tracePts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}"/>` : ''}
     ${ptsHtml}
-    <line class="axis" x1="0" y1="${AXIS_Y}" x2="220" y2="${AXIS_Y}"/>
+    <line class="axis" x1="0" y1="${AXIS_Y}" x2="${W}" y2="${AXIS_Y}"/>
     ${axisHtml}
   </svg>`;
 }

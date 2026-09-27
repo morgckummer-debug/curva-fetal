@@ -1509,6 +1509,52 @@ sobra pra absorver sem chegar perto do corte. `.sheet-flow` (evolutivo
 única/gemelar/trigemelar e Laudo 1º Trimestre) nem tem esse risco — já
 estoura pra uma segunda página em vez de cortar.
 
+### CC/CA/Fêmur do relatório evolutivo: mesmo desenho dos gráficos do 1º trimestre
+
+2026-09-27, mesmo dia. A médica mandou o print do card "CCN × Idade
+Gestacional" do Laudo 1º Trimestre e pediu CC/CA/Fêmur (≥15 semanas) no
+mesmo desenho: grade horizontal com o valor à esquerda, referência escrita
+no card, semanas no eixo X, P90/P50/P10 rotulados na ponta, percentil em
+cima do ponto — e a banda P10-P90 **larga**, como lá.
+
+- **Mesmo motor, não uma cópia.** `_buildRelChartSvg` deixou de desenhar o
+  próprio SVG (220×173, só a banda, eixo com 15/22/29/36) e passou a montar
+  `ref`/`pts` e chamar `_buildRel1TriChartSvg`. O motor ganhou três opções,
+  todas desligadas por padrão (os 5 gráficos do 1º trimestre saem iguais —
+  conferido comparando o SVG antes/depois, só mudou uma linha em branco):
+  `vw` (largura do viewBox — 240 aqui, porque na grade de 3 colunas o 340
+  padrão deixava todo texto miúdo), `trace` (a linha ligando as visitas, que
+  o card antigo já tinha) e `smooth` (já existia; aqui ligado porque a
+  tabela do Hadlock é semanal, a mesma curva suave de antes).
+- **A banda larga vem da janela, não da altura.** O card do 1º trimestre
+  cobre 3-4 semanas; num eixo fixo de 15 a 40 semanas a mediana de CC sobe
+  ~250mm e a banda de ±10-12mm vira fio — foi por isso que o card de CC/CA/
+  Fêmur ainda parecia achatado mesmo depois do `PLOT_H 100→155` (`d66939a`).
+  O eixo X agora acompanha os exames: da primeira visita −3 semanas à última
+  +3, no mínimo 6 semanas de largura, sempre dentro de 15-40
+  (`JANELA_PAD`/`JANELA_MIN`). **Consequência que é física, não bug:** com
+  uma visita (o caso do morfológico de 2º trimestre) a banda fica larga como
+  no 1º trimestre; com visitas espalhadas por 12+ semanas o eixo precisa
+  caber o crescimento inteiro e a banda volta a estreitar. Se ela reclamar
+  disso no evolutivo com muitas visitas, as saídas são outras (recortar só em
+  volta da última visita e perder as antigas do gráfico, por exemplo) — é
+  escolha dela, não ajuste de proporção.
+- **Rótulos P90/P50/P10 com distância mínima** (10 unidades), mesma regra de
+  `_buildRelChartUtaSvg`: com a banda estreita do caso de muitas visitas os
+  três saíam empilhados. Nos gráficos do 1º trimestre as curvas já terminam
+  mais afastadas que isso, nada muda.
+- **Percentil em cima do ponto é o do app, não aproximação** — `calcBiometria`
+  (CC/CA/Fêmur), `calcEFWPercentile` (peso, na página por feto da
+  trigemelar, que também passa por esta função) — o mesmo número do selo do
+  cabeçalho e da tabela do histórico. Diferente dos 5 do 1º trimestre, que
+  usam `_pctAprox` por não terem tabela de percentil.
+- **Subtítulo com a referência e a unidade** (`_REL_CHART_SUB`): "Referência
+  Hadlock 1984 · mm" — a grade agora imprime valores, e o histórico logo
+  abaixo mostra em cm; sem a unidade "190" não diz qual das duas. Entrou nos
+  cards da única e nas células da página por feto da trigemelar.
+- Só o relatório PDF (e o preview dele) mudou. Os gráficos da aba Gráficos
+  (Canvas, `buildChart`) não foram tocados.
+
 ## Risco combinado da FMF: parto prematuro e diabetes gestacional entraram junto com T21/T18/T13/pré-eclâmpsia
 
 2026-09-27, conversa seguinte. A médica pediu os dois riscos que o software

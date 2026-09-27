@@ -9805,6 +9805,13 @@ const _REL_CHART_TITLE = {
   cc: 'Circ. cefálica', ca: 'Circ. abdominal', fl: 'Comp. do fêmur',
   efw: 'Peso fetal estimado', uta: 'IP médio · art. uterinas',
 };
+// Mesmo texto dos subtítulos da aba Gráficos (#sub-cc etc.), com a unidade do
+// eixo Y — a grade agora imprime os valores, e "190" sem unidade não diz se é
+// mm ou cm (a tabela do histórico logo abaixo mostra em cm).
+const _REL_CHART_SUB = {
+  cc: 'Referência Hadlock 1984 · mm', ca: 'Referência Hadlock 1984 · mm', fl: 'Referência Hadlock 1984 · mm',
+  efw: 'Hadlock 1985/1991 + INTERGROWTH-21st', uta: 'Referência Gómez et al. (2008)',
+};
 
 function _relRefRow(paramKey, w) {
   if (paramKey === 'efw') {
@@ -9878,19 +9885,9 @@ function _relLinearBandPath(topPts, bottomPts) {
   return _relLinearPath(topPts) + ' ' + bottomRev.map(p => `L${f(p.x)},${f(p.y)}`).join(' ') + ' Z';
 }
 
-// Domínio fixo de 20 a 40 semanas (ver handoff) para os cinco gráficos ficarem
-// alinhados entre si na grade. Devolve null quando não há referência (ou,
-// no caso do Doppler, quando a gestação não tem UtA registrada — a célula
-// some do grid em vez de mostrar um gráfico vazio).
+// Devolve null quando não há referência ou nenhum ponto da paciente — a
+// célula some do grid em vez de mostrar um gráfico vazio.
 function _buildRelChartSvg(paramKey, gestacao, exams) {
-  // PLOT_H (altura útil do traçado) foi 100 até 2026-09-27 — a banda P10-P90
-  // real de um único exame é uma fatia fina do range P10-P90 acumulado entre
-  // 15 e 40 semanas (o range que fixa yMin/yMax), então numa altura de 100 o
-  // espaço entre as duas linhas tracejadas ficava fino demais para localizar
-  // o ponto (relatado pela médica). Mesmo remédio já aplicado ao card de CCN
-  // do 1º trimestre: aumentar o card fisicamente, sem inflar a banda
-  // estatística nem mudar o range de dados — só mais pixel por unidade.
-  const W = 220, PLOT_H = 155, AXIS_Y = PLOT_H + 11, VH = AXIS_Y + 7;
   const weeks = [];
   for (let w = 15; w <= 40; w++) weeks.push(w);
 
@@ -9906,46 +9903,53 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   // geral — nenhum card sem ponto nenhum.
   if (!patPts.length) return null;
 
-  const allY = refData.flatMap(r => [r.p10, r.p90]);
-  patPts.forEach(p => allY.push(p.y));
-  const yLo = Math.min(...allY), yHi = Math.max(...allY);
-  const folga = (yHi - yLo) * 0.15 || Math.max(1, yHi * 0.1);
-  const yMin = Math.max(0, yLo - folga);
-  const yMax = yHi + folga;
+  // Desenho do 1º trimestre (_buildRel1TriChartSvg — grade horizontal com
+  // valor à esquerda, P90/P50/P10 rotulados na ponta, semanas no eixo X,
+  // percentil em cima de cada ponto), pedido pela médica em 2026-09-27. A
+  // banda larga daquele gráfico vem da janela curta (3-4 semanas), não da
+  // altura do card: num domínio fixo de 15 a 40 semanas a mediana sobe tanto
+  // que o P10-P90 de qualquer semana vira uma fatia fina. Por isso o eixo X
+  // aqui acompanha os exames — da primeira visita menos JANELA_PAD semanas à
+  // última mais JANELA_PAD, no mínimo JANELA_MIN de largura, sempre dentro de
+  // 15-40. Uma visita só dá um recorte de ~6 semanas em volta dela; várias
+  // visitas abrem o eixo até cobrir todas, e o traçado entre elas continua lá.
+  const JANELA_PAD = 3, JANELA_MIN = 6;
+  const wsPac = patPts.map(p => p.w);
+  let xMin = Math.max(15, Math.floor(Math.min(...wsPac)) - JANELA_PAD);
+  let xMax = Math.min(40, Math.ceil(Math.max(...wsPac)) + JANELA_PAD);
+  if (xMax - xMin < JANELA_MIN) {
+    if (xMin === 15) xMax = Math.min(40, xMin + JANELA_MIN);
+    else xMin = Math.max(15, xMax - JANELA_MIN);
+  }
 
-  const xS = w => (w - 15) / 25 * W;
-  const yS = v => AXIS_Y - (v - yMin) / (yMax - yMin) * PLOT_H;
+  const ref = refData.filter(r => r.w >= xMin && r.w <= xMax).map(r => ({ x: r.w, p10: r.p10, p50: r.p50, p90: r.p90 }));
+  const pts = patPts.map(p => {
+    const igDays = Math.round(p.w * 7);
+    let pct = null;
+    if (paramKey === 'efw') pct = calcEFWPercentile(p.y, igDays)?.percentil;
+    else if (paramKey === 'uta') pct = calcDopplerUt(p.y, p.w)?.percentil;
+    else pct = calcBiometria(p.y, paramKey, igDays)?.percentil;
+    return { x: p.w, y: p.y, p: pct ?? null };
+  });
 
-  // Mesmas classes do gráfico grande de peso (_buildRelChartEfwSvg) — banda,
-  // linhas de P90/P10 tracejadas, mediana sólida e ponto vazado com a cor do
-  // roxo. Não são dois desenhos: é o mesmo, só num viewBox mais estreito
-  // (220×173 vs 340×176) para caber na grade de 3 colunas — as unidades do
-  // SVG escalam junto, então o traço não fica nem mais grosso nem mais fino
-  // que o do peso.
-  const p90Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p90) }));
-  const p10Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p10) }));
-  const p50Pts  = refData.map(r => ({ x: xS(r.w), y: yS(r.p50) }));
-  const tracePts = patPts.map(p => ({ x: xS(p.w), y: yS(p.y) }));
+  const span = xMax - xMin;
+  const passo = span <= 6 ? 1 : span <= 16 ? 2 : 5;
+  const xTicks = [];
+  for (let w = xMin; w <= xMax; w += passo) xTicks.push(w);
+  if (xTicks[xTicks.length - 1] !== xMax) xTicks.push(xMax);
 
-  const ptsHtml = tracePts.map(p =>
-    `<circle class="efw-pt" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3"/>`
-  ).join('');
-
-  const axisWeeks = [15, 22, 29, 36];
-  const axisHtml = axisWeeks.map((w, i) =>
-    `<text class="axis-t" x="${xS(w).toFixed(1)}" y="${VH}">${w}${i === axisWeeks.length - 1 ? ' s' : ''}</text>`
-  ).join('');
-
-  return `<svg viewBox="0 0 ${W} ${VH}">
-    <path class="efw-band" d="${_relBandPath(p90Pts, p10Pts)}"/>
-    <path class="efw-p90" d="${_relSvgPath(p90Pts)}"/>
-    <path class="efw-p50" d="${_relSvgPath(p50Pts)}"/>
-    <path class="efw-p10" d="${_relSvgPath(p10Pts)}"/>
-    ${tracePts.length ? `<polyline class="trace" points="${tracePts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')}"/>` : ''}
-    ${ptsHtml}
-    <line class="axis" x1="0" y1="${AXIS_Y}" x2="${W}" y2="${AXIS_Y}"/>
-    ${axisHtml}
-  </svg>`;
+  return _buildRel1TriChartSvg({
+    xMin, xMax, ref, pts, xTicks,
+    yDecimais: paramKey === 'uta' ? 2 : 0,
+    // Mesma proporção alta que o card já tinha (220×173). Largura 240 em vez
+    // dos 340 padrão do motor: numa coluna de 1/3 da folha, os rótulos
+    // (P90/P50/P10, valores da grade, semanas, percentil do ponto) ficariam
+    // ilegíveis no viewBox largo.
+    vw: 240,
+    vh: 190,
+    smooth: true,
+    trace: true,
+  });
 }
 
 // Faixa de status do novo layout — reaproveita o mesmo diagnóstico Delphi +
@@ -10354,6 +10358,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
         <div class="feto-card-t">${_REL_CHART_TITLE[key]}</div>
         <span class="feto-badge feto-badge--unica">${pct != null ? 'P' + pct : '—'}</span>
       </div>
+      <div class="feto-card-sub">${_REL_CHART_SUB[key]}</div>
       ${svg}
     </div>`);
   });
@@ -10726,7 +10731,10 @@ function _relPontosUterinasLado(gestacao, exams, lado) {
 function _buildRel1TriChartSvg(cfg) {
   const { xMin, xMax, ref, pts, xTicks, xFmt, yFmt, yDecimais } = cfg;
   if (!ref.length) return null;
-  // cfg.vh: só o CCN×IG usa (ver call site). Nos outros 4 a banda P10-P90 é
+  // Este motor também desenha CC/CA/Fêmur do relatório evolutivo (ver
+  // _buildRelChartSvg), com vh/smooth/trace próprios.
+  //
+  // cfg.vh: dos 5 do 1º trimestre, só o CCN×IG usa (ver call site). Nos outros 4 a banda P10-P90 é
   // uma faixa de largura ~constante ao lado da mediana; no CCN a mediana sobe
   // ~40mm em 3 semanas e a banda (±9 a ±15mm) é pequena diante desse percurso
   // — o domínio Y (que tem de caber a curva inteira) sobra bem maior que a
@@ -10737,7 +10745,9 @@ function _buildRel1TriChartSvg(cfg) {
   // deixaria a linha do grid 4×2 (FC/CCN/TN/DBP) desigual sem necessidade —
   // só o card do CCN cresce; os vizinhos ficam com uma faixa em branco no pé,
   // preço aceito por ser só um card.
-  const VW = 340, VH = cfg.vh || 176;
+  // cfg.vw: só CC/CA/Fêmur do evolutivo, na grade de 3 colunas — com 340 de
+  // largura os textos (fonte fixa em unidades do viewBox) saíam miúdos demais.
+  const VW = cfg.vw || 340, VH = cfg.vh || 176;
   const padL = 34, padR = 30, padT = 12, padB = 22;
   const chartW = VW - padL - padR, chartH = VH - padT - padB;
 
@@ -10771,11 +10781,20 @@ function _buildRel1TriChartSvg(cfg) {
   const curva = chave => ref.map(r => ({ x: x(r.x), y: y(r[chave]) }));
   const p90 = curva('p90'), p50 = curva('p50'), p10 = curva('p10');
 
+  // Mesma distância mínima entre os rótulos de _buildRelChartUtaSvg: com
+  // visitas espalhadas por muitas semanas (CC/CA/Fêmur do evolutivo) a banda
+  // fica estreita no fim do eixo e P90/P50/P10 saíam empilhados. Nos gráficos
+  // do 1º trimestre as três curvas já terminam mais de 10 unidades afastadas,
+  // então nada muda lá.
   const ultima = arr => arr[arr.length - 1].y;
+  const GAP = 10;
+  const yr50 = ultima(p50);
+  const yr90 = Math.min(ultima(p90), yr50 - GAP);
+  const yr10 = Math.max(ultima(p10), yr50 + GAP);
   const refRotulos =
-      `<text class="efw-ref-t efw-ref-t--90" x="${VW - 4}" y="${f(ultima(p90) + 3)}" text-anchor="end">P90</text>`
-    + `<text class="efw-ref-t efw-ref-t--50" x="${VW - 4}" y="${f(ultima(p50) + 3)}" text-anchor="end">P50</text>`
-    + `<text class="efw-ref-t efw-ref-t--10" x="${VW - 4}" y="${f(ultima(p10) + 3)}" text-anchor="end">P10</text>`;
+      `<text class="efw-ref-t efw-ref-t--90" x="${VW - 4}" y="${f(yr90 + 3)}" text-anchor="end">P90</text>`
+    + `<text class="efw-ref-t efw-ref-t--50" x="${VW - 4}" y="${f(yr50 + 3)}" text-anchor="end">P50</text>`
+    + `<text class="efw-ref-t efw-ref-t--10" x="${VW - 4}" y="${f(yr10 + 3)}" text-anchor="end">P10</text>`;
 
   // Percentil aproximado (banda P10/P50/P90, não tabela de z-score publicada
   // — mesma aproximação de `_pctAprox`, já usada pelo motor Canvas da tela)
@@ -10790,7 +10809,8 @@ function _buildRel1TriChartSvg(cfg) {
     return `<text class="efw-pt-t" x="${f(cx)}" y="${f(Math.max(padT + 8, cy - 11))}" text-anchor="middle">P${p.p}</text>` + circulo;
   }).join('');
 
-  // cfg.smooth: nenhum dos 5 usa hoje. O CCN×IG usou entre 2026-09-27 (commit
+  // cfg.smooth: nenhum dos 5 do 1º trimestre usa hoje (CC/CA/Fêmur do
+  // evolutivo usam — tabela semanal do Hadlock). O CCN×IG usou entre 2026-09-27 (commit
   // cbc8fc6) e agora — a tabela do Hadlock é densa mas arredondada, e ligar
   // os pontos em reta expunha o degrau do arredondamento (ver "CCN×IG virou
   // serrote com reta" no CLAUDE.md); suavizar por cima com Catmull-Rom
@@ -10804,6 +10824,13 @@ function _buildRel1TriChartSvg(cfg) {
   const tracoPath = cfg.smooth ? _relSvgPath : _relLinearPath;
   const tracoBand = cfg.smooth ? _relBandPath : _relLinearBandPath;
 
+  // cfg.trace: linha ligando as visitas da paciente — só os cards de CC/CA/
+  // Fêmur do relatório evolutivo (_buildRelChartSvg) usam, onde há várias
+  // visitas no mesmo gráfico. Os do 1º trimestre são de uma visita só.
+  const traco = cfg.trace && pts.length > 1
+    ? `<polyline class="trace" points="${pts.map(p => `${f(x(p.x))},${f(y(p.y))}`).join(' ')}"/>`
+    : '';
+
   return `<svg viewBox="0 0 ${VW} ${VH}" class="efw-chart">
     ${grade}
     <path class="efw-band" d="${tracoBand(p90, p10)}"/>
@@ -10812,6 +10839,7 @@ function _buildRel1TriChartSvg(cfg) {
     <path class="efw-p10" d="${tracoPath(p10)}"/>
     ${eixoX}
     ${refRotulos}
+    ${traco}
     ${pontos}
   </svg>`;
 }
@@ -11314,7 +11342,7 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
     const svg = _buildRelChartSvg(key, gestacao, exams);
     if (!svg) return;
     const pct = { cc: ccC, ca: caC, fl: flC, efw: efwC }[key]?.percentil;
-    chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE[key]}</b><i>${pct != null ? 'P' + pct : '—'}</i></div>${svg}</div>`);
+    chartCells.push(`<div class="chart"><div class="chart-t"><b>${_REL_CHART_TITLE[key]}</b><i>${pct != null ? 'P' + pct : '—'}</i></div><div class="feto-card-sub">${_REL_CHART_SUB[key]}</div>${svg}</div>`);
   });
 
   return `${_relHeaderHtml(patient.nome || patient.cpf)}

@@ -919,6 +919,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .rel-preview .feto-cards--unica{grid-template-columns:repeat(3,1fr)}
 .feto-cards--unica{grid-template-columns:repeat(3,1fr)}
+/* Laudo 1º trimestre — mesma grade 4×2 do editor de laudos (.anexo-graficos-grid,
+   morfologico-1trimestre.html) pros 8 gráficos de referência. */
+.rel-preview .feto-cards--quad{grid-template-columns:repeat(4,1fr)}
+.feto-cards--quad{grid-template-columns:repeat(4,1fr)}
 .rel-preview .feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:13px}
 .rel-preview .feto-card--a{border-top:3px solid var(--roxo)}
 .rel-preview .feto-card--b,.rel-preview .feto-card--unica{border-top:3px solid var(--dourado)}
@@ -10696,45 +10700,56 @@ function _rel1TriChartCardHtml(gestacao, exams, chartCfg, fetoClasse) {
   </div>`;
 }
 
-// Seção "Gráficos de referência" do laudo de 1º trimestre — única: 5 cards
-// (feto-cards--unica, 3 colunas) + 3 de uterinas (feto-cards normal, medida
-// materna, não duplica por feto). Múltipla: os 5 "estreitos" se repetem por
-// feto (fetosDaGestacao), cada bloco de feto com seu próprio grid — uterinas
-// continua 3 cards só, fora do laço.
+function _rel1TriUtaCardHtml(gestacao, allExams, lado, classe) {
+  const titulo = lado === 'e' ? 'IP Uterina — Esquerda' : lado === 'd' ? 'IP Uterina — Direita' : 'IP Uterina — Média';
+  const pontos = _relPontosUterinasLado(gestacao, allExams, lado);
+  const svg = _buildRelChartUtaSvg(pontos);
+  if (!svg) return '';
+  return `<div class="feto-card ${classe}">
+    <div class="feto-card-head"><div class="feto-card-t">${titulo}</div></div>
+    <div class="feto-card-sub">Referência Gómez et al. (2008)</div>
+    ${svg}
+  </div>`;
+}
+
+// Seção "Gráficos de referência" do laudo de 1º trimestre — grade única 4×2,
+// mesma ordem e mesma grade do editor de laudos (.anexo-graficos-grid em
+// morfologico-1trimestre.html: FC, CCN, TN, DBP, ducto venoso, PI uterina
+// E/D/média — 8 cards, confirmado com a médica). Múltipla: os 5 "estreitos"
+// se repetem por feto, cada bloco de feto com sua própria grade 4×2; as 3
+// uterinas (medida materna, não duplica por feto) saem numa grade à parte,
+// no fim.
 function _rel1TriGraficosHtml(gestacao, patient, allExams) {
   const fetos = fetosDaGestacao(gestacao);
-  let narrowHtml = '';
+
   if (!fetos.length) {
-    narrowHtml = `<div class="feto-cards feto-cards--unica">`
-      + _REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, allExams, c, 'feto-card--unica')).join('')
-      + `</div>`;
-  } else {
-    narrowHtml = fetos.map((f, idx) => {
-      const examsF = allExams.filter(e => e.feto === f);
-      // --a (roxo) / --b (dourado) — mesmo par de cores do resto do relatório
-      // pra gemelar/trigemelar (11243+); --unica é dourado, não serve aqui.
-      const classe = idx === 0 ? 'feto-card--a' : 'feto-card--b';
-      const cards = _REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, examsF, c, classe)).join('');
-      return `<div class="eyebrow" style="margin:14px 0 8px">${labelFeto(f)}</div>
-        <div class="feto-cards feto-cards--unica">${cards}</div>`;
-    }).join('');
+    const oito = [
+      ..._REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, allExams, c, 'feto-card--unica')),
+      _rel1TriUtaCardHtml(gestacao, allExams, 'e', 'feto-card--unica'),
+      _rel1TriUtaCardHtml(gestacao, allExams, 'd', 'feto-card--unica'),
+      _rel1TriUtaCardHtml(gestacao, allExams, 'media', 'feto-card--unica'),
+    ].filter(Boolean).join('');
+    return `<section class="rel-secao">
+      <div class="eyebrow">Gráficos de referência</div>
+      <div class="feto-cards feto-cards--quad">${oito}</div>
+    </section>`;
   }
 
-  const utaCards = ['e', 'd', 'media'].map(lado => {
-    const titulo = lado === 'e' ? 'IP Uterina — Esquerda' : lado === 'd' ? 'IP Uterina — Direita' : 'IP Uterina — Média';
-    const pontos = _relPontosUterinasLado(gestacao, allExams, lado);
-    const svg = _buildRelChartUtaSvg(pontos);
-    if (!svg) return '';
-    return `<div class="feto-card feto-card--unica">
-      <div class="feto-card-head"><div class="feto-card-t">${titulo}</div></div>
-      <div class="feto-card-sub">Referência Gómez et al. (2008)</div>
-      ${svg}
-    </div>`;
+  // --a (roxo) / --b (dourado) — mesmo par de cores do resto do relatório
+  // pra gemelar/trigemelar (11243+); --unica é dourado, não serve aqui.
+  const porFetoHtml = fetos.map((f, idx) => {
+    const examsF = allExams.filter(e => e.feto === f);
+    const classe = idx === 0 ? 'feto-card--a' : 'feto-card--b';
+    const cards = _REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, examsF, c, classe)).join('');
+    return `<div class="eyebrow" style="margin:14px 0 8px">${labelFeto(f)}</div>
+      <div class="feto-cards feto-cards--quad">${cards}</div>`;
   }).join('');
+
+  const utaCards = ['e', 'd', 'media'].map(lado => _rel1TriUtaCardHtml(gestacao, allExams, lado, 'feto-card--unica')).join('');
 
   return `<section class="rel-secao">
     <div class="eyebrow">Gráficos de referência</div>
-    ${narrowHtml}
+    ${porFetoHtml}
     ${utaCards ? `<div class="feto-cards">${utaCards}</div>` : ''}
   </section>`;
 }
@@ -11653,6 +11668,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 
 .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .feto-cards--unica{grid-template-columns:repeat(3,1fr)}
+.feto-cards--quad{grid-template-columns:repeat(4,1fr)}
 .feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:13px;
   page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .feto-card--a{border-top:3px solid var(--roxo)}

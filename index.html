@@ -533,6 +533,37 @@ header::after{display:none;}
 .chart-wrapper{position:relative;width:100%;aspect-ratio:1/1;flex:1;min-width:0;}
 .chart-wrapper canvas{display:block;width:100% !important;height:100% !important;}
 
+/* ── 1º TRIMESTRE — página de risco/gráficos FMF ──
+   Acento azul (mesmo tom que o editor de laudos já usa pra lembrar o
+   relatório oficial da FMF, #1a56b0) em vez do degradê sálvia/pêssego do
+   resto da tela — sinaliza "isto é conteúdo de referência da FMF", não mais
+   um card de biometria comum. Local a esta seção de propósito: não vira
+   token global porque só faz sentido aqui. */
+.charts-1tri{margin-bottom:28px;}
+.charts-1tri-header{margin-bottom:16px;padding-left:2px;}
+.charts-1tri-title{
+  font-size:15px;font-weight:800;color:#173d80;letter-spacing:-.1px;margin-bottom:3px;
+}
+.charts-1tri-subtitle{font-size:11.5px;color:var(--text-muted);}
+.chart-card--1tri::before{
+  background:linear-gradient(90deg,#1a56b0 0%,#4a7fd6 60%,#8fb3e8 100%);
+}
+.charts-1tri-grid{margin-bottom:18px;}
+
+.risco-fmf-cards{
+  display:flex;flex-wrap:wrap;gap:14px;margin-bottom:20px;
+}
+.risco-fmf-card{
+  background:var(--clay-card);border-radius:var(--radius);box-shadow:var(--sh);
+  padding:14px 18px;min-width:170px;flex:1 1 170px;border-top:3px solid #1a56b0;
+}
+.risco-fmf-card--pe{border-top-color:var(--peach-warm);}
+.risco-fmf-card-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#173d80;margin-bottom:8px;}
+.risco-fmf-card--pe .risco-fmf-card-t{color:#8a5800;}
+.risco-fmf-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:2px 0;}
+.risco-fmf-k{color:var(--text-muted);font-weight:600;}
+.risco-fmf-v{font-family:var(--font-mono);font-weight:700;color:var(--text);}
+
 .discrepancia-emphasis{
   border-radius:var(--radius);padding:22px 26px;text-align:center;margin-top:4px;
 }
@@ -1117,7 +1148,107 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <!-- CHARTS TAB -->
     <div id="tab-charts" class="tab-content" style="display:none;">
       <div id="charts-feto-toggle"></div>
-      <div class="charts-grid">
+
+      <!-- 1º TRIMESTRE — página de risco/gráficos FMF (11-14 semanas), portada
+           do editor de laudos (morfologico-1trimestre.html — ver CLAUDE.md,
+           "1º trimestre — gráficos e riscos FMF"). Layout próprio (acento azul,
+           evocando o relatório oficial da FMF) — de propósito não é o card
+           rosa/roxo do resto da tela: é conteúdo de referência, não biometria
+           comum. Só aparece quando há exame na janela (renderCharts()/
+           _temExame1Tri) — display:none inicial evita um flash vazio antes do
+           primeiro render. -->
+      <div id="charts-1tri" class="charts-1tri" style="display:none;">
+        <div class="charts-1tri-header">
+          <div class="charts-1tri-title">1º Trimestre — Referências FMF</div>
+          <div class="charts-1tri-subtitle">11-14 semanas · marcadores e risco combinado do software oficial da FMF</div>
+        </div>
+
+        <div id="risco-fmf-cards" class="risco-fmf-cards"></div>
+
+        <div class="charts-grid charts-1tri-grid">
+          <div class="chart-card chart-card--1tri" id="card-1tri-fc">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">Frequência Cardíaca Fetal</div>
+                <div class="chart-card-subtitle">Referência Hyett/Nicolaides (1996)</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-fc"></canvas></div>
+          </div>
+
+          <div class="chart-card chart-card--1tri" id="card-1tri-ccn">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">CCN × Idade Gestacional</div>
+                <div class="chart-card-subtitle">Referência Hadlock (1992)</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-ccn"></canvas></div>
+          </div>
+
+          <div class="chart-card chart-card--1tri" id="card-1tri-tn">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">Translucência Nucal × CCN</div>
+                <div class="chart-card-subtitle">Tabela de referência da clínica</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-tn"></canvas></div>
+          </div>
+
+          <div class="chart-card chart-card--1tri" id="card-1tri-dbp">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">Diâmetro Biparietal Precoce</div>
+                <div class="chart-card-subtitle">Tabela de referência da clínica · 12-15 semanas</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-dbp"></canvas></div>
+          </div>
+
+          <div class="chart-card chart-card--1tri" id="card-1tri-dv">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">IP — Ducto Venoso × CCN</div>
+                <div class="chart-card-subtitle">Aproximação Pruksanasuk et al. (2014)</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-dv"></canvas></div>
+          </div>
+
+          <div class="chart-card chart-card--1tri" id="card-1tri-uta-e">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">IP Uterina — Esquerda</div>
+                <div class="chart-card-subtitle">Referência Gómez et al. (2008)</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-uta-e"></canvas></div>
+          </div>
+
+          <div class="chart-card chart-card--1tri" id="card-1tri-uta-d">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">IP Uterina — Direita</div>
+                <div class="chart-card-subtitle">Referência Gómez et al. (2008)</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-uta-d"></canvas></div>
+          </div>
+
+          <div class="chart-card chart-card--1tri" id="card-1tri-uta-media">
+            <div class="chart-card-header">
+              <div class="chart-card-left">
+                <div class="chart-card-title">IP Uterina — Média</div>
+                <div class="chart-card-subtitle">Referência Gómez et al. (2008)</div>
+              </div>
+            </div>
+            <div class="chart-wrapper"><canvas id="chart-1tri-uta-media"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid" id="charts-grid-padrao">
 
         <div class="chart-card" id="card-cc" data-scope="fetal">
           <div class="chart-card-header">
@@ -1425,6 +1556,49 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div style="font-size:10px;color:var(--text-muted);margin-top:8px;">A datação escolhida será salva como âncora desta gestação. Dá pra redatar depois em "Editar gestação".</div>
         </div>
       </div>
+
+      <!-- Risco 1º Trimestre (FMF) — marcadores e riscos calculados pelo software
+           oficial da FMF e digitados aqui (não recalculados pelo app; ver
+           CLAUDE.md, "1º trimestre — gráficos e riscos FMF"). Colapsado por
+           padrão como Doppler/Colo, já que só se aplica a exames de 11-14 semanas. -->
+      <details class="me-optional-wrap" id="me-fmf-section">
+        <summary class="me-optional-toggle">Risco 1º Trimestre — FMF <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;margin-left:4px;">opcional, 11-14 sem</span></summary>
+        <div style="margin-top:12px;">
+          <div class="me-bio-label" style="margin-bottom:8px;margin-top:4px;">Marcadores</div>
+          <div class="me-bio-row" style="margin-bottom:14px;">
+            <div class="me-bio-field">
+              <label>TN <span class="optional-tag">mm</span></label>
+              <input type="number" id="e-nt" step="0.1" min="0" max="10" placeholder="mm">
+            </div>
+            <div class="me-bio-field">
+              <label>FC <span class="optional-tag">bpm</span></label>
+              <input type="number" id="e-fc" step="1" min="100" max="220" placeholder="bpm">
+            </div>
+          </div>
+          <div class="me-bio-label" style="margin-bottom:8px;">Risco combinado (software da FMF) <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">digitado, não calculado aqui</span></div>
+          <div class="me-bio-row" style="margin-bottom:14px;">
+            <div class="me-bio-field">
+              <label>T21</label>
+              <input type="text" id="e-risco-t21" placeholder="1 em X">
+            </div>
+            <div class="me-bio-field">
+              <label>T18</label>
+              <input type="text" id="e-risco-t18" placeholder="1 em X">
+            </div>
+            <div class="me-bio-field">
+              <label>T13</label>
+              <input type="text" id="e-risco-t13" placeholder="1 em X">
+            </div>
+          </div>
+          <div class="me-bio-label" style="margin-bottom:8px;">Pré-eclâmpsia <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">achado materno da visita</span></div>
+          <div class="me-bio-row">
+            <div class="me-bio-field">
+              <label>Risco</label>
+              <input type="text" id="e-risco-pre-eclampsia" placeholder="1 em X">
+            </div>
+          </div>
+        </div>
+      </details>
 
       <!-- Row 2: Biometry inputs — large, inline -->
       <div class="me-bio-section">
@@ -2321,6 +2495,103 @@ function ccnToIgDays(ccnMm) {
 function ccnToIgStr(ccnMm) {
   const days = ccnToIgDays(ccnMm);
   return days ? igToStr(days) : null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// 1º TRIMESTRE — referências da página de risco/gráficos da FMF
+// Portadas linha a linha de laudos-dramorgana/morfologico-1trimestre.html
+// (mesmo cálculo, mesma citação de fonte — ver CLAUDE.md, "1º trimestre —
+// gráficos e riscos FMF"). Cobrem 11-14 semanas; fora dessa janela os
+// gráficos padrão (buildChart/buildEFWChart, ≥15 semanas) já respondem.
+// ═══════════════════════════════════════════════════════════
+
+// Frequência cardíaca fetal — Hyett, Noble, Snijders, Montenegro, Nicolaides.
+// Ultrasound Obstet Gynecol 1996;7:239-244. FHR = 181,409 − 0,324×CCN;
+// banda ±1,645×6,6bpm (desvio-padrão do artigo). CCN aqui vem da idade
+// gestacional (não da medida): é a curva de referência, não o marcador do
+// exame — o ponto do exame usa o CCN medido de verdade.
+function crlFromGAdays_hyett(gaDays) {
+  const v = (gaDays - 23.73) / 8.052;
+  return v * v;
+}
+
+// CCN × IG — Hadlock, Shah, Kanon, Lindsey. Radiology 1992;182:501-505 —
+// tabela fornecida pela clínica (só mediana; banda é aproximação ±(2+0,16×CCN)).
+const HADLOCK_CCN_GA_DAYS = [
+  [2,40],[3,41],[4,43],[5,43],[6,45],[7,46],[8,47],[9,48],[10,50],[11,50],
+  [12,52],[13,53],[14,54],[15,55],[16,56],[17,57],[18,58],[19,59],[20,60],
+  [21,61],[22,62],[23,63],[24,64],[25,65],[26,66],
+  [28,67],[29,68],[30,69],[31,70],[32,71],[33,71],[34,72],[35,73],[36,74],
+  [37,74],[38,75],[39,76],[40,76],[41,77],[42,78],[43,78],[44,78],[45,79],
+  [46,80],[47,81],[48,81],[49,82],[50,82],[51,83],[52,83],
+  [54,84],[55,85],[56,85],[57,86],[58,86],[59,87],[60,88],[61,88],[62,88],
+  [63,89],[64,90],[65,90],[66,90],[67,91],[68,92],[69,92],[70,92],[71,93],
+  [72,94],[73,94],[74,95],[75,95],[76,96],[77,97],[78,97],
+];
+function crlFromGAdays_hadlock(gaDays) {
+  const pts = HADLOCK_CCN_GA_DAYS;
+  if (gaDays <= pts[0][1]) return pts[0][0];
+  if (gaDays >= pts[pts.length - 1][1]) return pts[pts.length - 1][0];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ccnA, gaA] = pts[i], [ccnB, gaB] = pts[i + 1];
+    if (gaDays >= gaA && gaDays <= gaB) {
+      if (gaB === gaA) return ccnB;
+      const t = (gaDays - gaA) / (gaB - gaA);
+      return ccnA + t * (ccnB - ccnA);
+    }
+  }
+  return pts[pts.length - 1][0];
+}
+
+// Translucência nucal — tabela de referência fornecida pela clínica (P5/P50/P95
+// por CCN em mm). Arredondada a cada 1mm de CCN — ligando os pontos brutos a
+// "escada" do arredondamento aparece como linha balançando, então a curva usa a
+// reta ajustada por mínimos quadrados em cima da própria tabela (mesma fonte,
+// sem inventar coeficiente novo — ver linRegress).
+const TN_TABLE = [
+  [45,0.7,1.3,2.0],[46,0.7,1.3,2.0],[47,0.7,1.4,2.0],[48,0.7,1.4,2.0],[49,0.8,1.4,2.1],
+  [50,0.8,1.5,2.1],[51,0.8,1.5,2.1],[52,0.9,1.5,2.2],[53,0.9,1.5,2.2],[54,0.9,1.6,2.2],
+  [55,0.9,1.6,2.2],[56,1.0,1.6,2.3],[57,1.0,1.7,2.3],[58,1.0,1.7,2.3],[59,1.1,1.7,2.4],
+  [60,1.1,1.7,2.4],[61,1.1,1.8,2.4],[62,1.2,1.8,2.5],[63,1.2,1.8,2.5],[64,1.2,1.9,2.5],
+  [65,1.2,1.9,2.5],[66,1.3,1.9,2.6],[67,1.3,1.9,2.6],[68,1.3,2.0,2.6],[69,1.4,2.0,2.7],
+  [70,1.4,2.0,2.7],[71,1.4,2.1,2.7],[72,1.4,2.1,2.7],[73,1.5,2.1,2.8],[74,1.5,2.1,2.8],
+  [75,1.5,2.2,2.8],[76,1.6,2.2,2.9],[77,1.6,2.2,2.9],[78,1.6,2.3,2.9],[79,1.6,2.3,2.9],
+  [80,1.7,2.3,3.0],[81,1.7,2.4,3.0],[82,1.7,2.4,3.0],[83,1.8,2.4,3.1],[84,1.8,2.4,3.1],
+];
+function linRegress(pts) {
+  const n = pts.length; let sx = 0, sy = 0, sxy = 0, sxx = 0;
+  pts.forEach(([x, y]) => { sx += x; sy += y; sxy += x * y; sxx += x * x; });
+  const m = (n * sxy - sx * sy) / (n * sxx - sx * sx);
+  return { m, b: (sy - m * sx) / n };
+}
+const TN_P5_REG  = linRegress(TN_TABLE.map(r => [r[0], r[1]]));
+const TN_P50_REG = linRegress(TN_TABLE.map(r => [r[0], r[2]]));
+const TN_P95_REG = linRegress(TN_TABLE.map(r => [r[0], r[3]]));
+
+// DBP precoce (12-15 semanas) — tabela por semana fornecida pela clínica.
+// Distinta da tabela Hadlock de DBP (REF_TABLES.dbp, usada a partir de 15
+// semanas) — não é a mesma curva estendida pra trás, é referência própria.
+const DBP_TABLE_WEEKS = [[12,9,17,23],[13,15,21,27],[14,19,25,31],[15,23,29,35]];
+
+// IP ducto venoso × CCN — leitura visual do gráfico de Pruksanasuk et al.
+// (Gynecol Obstet Invest 2014;78:22-25) fornecido pela clínica — aproximação,
+// sem tabela numérica publicada disponível.
+const DV_TABLE = [
+  [44,0.78,1.00,1.22],[48,0.77,1.00,1.24],[52,0.77,1.01,1.26],[56,0.76,1.02,1.27],
+  [60,0.76,1.02,1.28],[64,0.75,1.01,1.27],[68,0.74,1.00,1.26],[72,0.73,0.99,1.24],
+  [76,0.72,0.97,1.22],[80,0.72,0.95,1.20],[84,0.72,0.93,1.18],
+];
+function interpTabelaRef(table, x) {
+  if (x <= table[0][0]) return table[0];
+  if (x >= table[table.length - 1][0]) return table[table.length - 1];
+  for (let i = 0; i < table.length - 1; i++) {
+    const a = table[i], b = table[i + 1];
+    if (x >= a[0] && x <= b[0]) {
+      const t = (x - a[0]) / (b[0] - a[0]);
+      return [x, a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2]), a[3] + t * (b[3] - a[3])];
+    }
+  }
+  return table[table.length - 1];
 }
 
 function interpolateRef(table, igDays) {
@@ -3680,7 +3951,7 @@ function _proximoIdLocal(linhas) {
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
 const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,progesterona_vaginal_em_uso,cerclagem_realizada,cerclagem_ig_semanas,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
-const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,feto,excluido_em';
+const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
 // memória. Chamado uma vez ao entrar (ver onAuthStateChange, mais abaixo).
@@ -4814,9 +5085,11 @@ function _drawChart(canvas, cfg) {
   ctx.fillRect(0, 0, W, H);
 
   // Grid vertical — mesma cor de hairline do relatório impresso (--linha).
+  // xStep default 2 é feito pra "semanas" (cobre 15-42 sem grade densa demais);
+  // os cards novos de 1º trimestre com eixo em CCN (mm) passam um xStep maior.
   ctx.strokeStyle = '#E3D9DE';
   ctx.lineWidth   = 0.8;
-  for (let x = xMin; x <= xMax; x += 2) {
+  for (let x = xMin; x <= xMax; x += (cfg.xStep || 2)) {
     ctx.beginPath(); ctx.moveTo(xS(x), PAD.t); ctx.lineTo(xS(x), PAD.t + cH); ctx.stroke();
   }
   // Grid horizontal
@@ -4920,11 +5193,13 @@ function _drawChart(canvas, cfg) {
   });
 
   // X axis ticks & labels — cor de texto terciário do relatório (--texto-3).
+  // cfg.xFmt permite trocar o rótulo (default "Xs" assume semanas); os cards
+  // de 1º trimestre com eixo em CCN passam xFmt próprio (sem o "s").
   ctx.setLineDash([]);
   ctx.fillStyle = '#9B8C8C'; ctx.font = '10px monospace';
   ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  for (let x = xMin; x <= xMax; x += 4) {
-    ctx.fillText(x + 's', xS(x), PAD.t + cH + 5);
+  for (let x = xMin; x <= xMax; x += (cfg.xLabelStep || 4)) {
+    ctx.fillText(cfg.xFmt ? cfg.xFmt(x) : (x + 's'), xS(x), PAD.t + cH + 5);
   }
 
   // Y axis ticks & labels
@@ -4985,7 +5260,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
 
   // Use 0.5-week steps + interpolateRef for smooth percentile curves (avoids table jitter)
   const refData = { p10: [], p50: [], p90: [] };
-  for (let w = 20; w <= 42; w += 0.5) {
+  for (let w = 15; w <= 42; w += 0.5) {
     const ref = interpolateRef(REF_TABLES[refKey], w * 7);
     if (!ref) continue;
     refData.p10.push({ x: w, y: ref[1] });
@@ -4997,7 +5272,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
   sorted.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
-    if (igDays < 140) return; // biometria apenas a partir de 20 semanas
+    if (igDays < 105) return; // biometria apenas a partir de 15 semanas (REF_TABLES cobre desde a 14ª)
     const val = e[bioKey];
     if (!val) return;
     const calc = calcBiometria(val, refKey, igDays);
@@ -5011,7 +5286,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
   });
 
   ({ yMin, yMax } = _expandRangeForPoints(yMin, yMax, patientPoints));
-  _drawChart(canvas, { xMin: 20, xMax: 42, yMin, yMax, refData, patientPoints, yLabel });
+  _drawChart(canvas, { xMin: 15, xMax: 42, yMin, yMax, refData, patientPoints, yLabel });
 }
 
 function buildEFWChart(canvasId, gestacao, exams) {
@@ -5022,7 +5297,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
   let { yMin, yMax } = refYRange('efw', true);
 
   const refData = { p10: [], p50: [], p90: [] };
-  for (let w = 20; w <= 42; w += 0.5) {
+  for (let w = 15; w <= 42; w += 0.5) {
     const linha = _linhaPesoInterpolada(w);
     refData.p10.push({ x: w, y: linha.p10 });
     refData.p50.push({ x: w, y: linha.p50 });
@@ -5033,7 +5308,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
   sorted.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
-    if (igDays < 140) return; // EFW apenas a partir de 20 semanas
+    if (igDays < 105) return; // EFW apenas a partir de 15 semanas — não é pra calcular peso por Hadlock antes disso
     const efw = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
     if (!efw) return;
     const calc = calcEFWPercentile(efw, igDays);
@@ -5048,7 +5323,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
 
   ({ yMin, yMax } = _expandRangeForPoints(yMin, yMax, patientPoints));
   _drawChart(canvas, {
-    xMin: 20, xMax: 42, yMin, yMax, refData, patientPoints,
+    xMin: 15, xMax: 42, yMin, yMax, refData, patientPoints,
     yLabel: 'Peso (g)',
     yFmt: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : Math.round(v),
   });
@@ -5075,8 +5350,8 @@ function updateEFWNote(gestacao, exams) {
   const semPeso = [];
   exams.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    // Antes de 20 semanas o gráfico não plota peso de propósito — não é omissão a explicar.
-    if (!igDays || igDays < 140) return;
+    // Antes de 15 semanas o gráfico não plota peso de propósito — não é omissão a explicar.
+    if (!igDays || igDays < 105) return;
     if (e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur)) return;
     const faltam = _biometriaFaltante(e);
     // Exame sem biometria nenhuma (uma visita só de Doppler, por exemplo) não é
@@ -5658,7 +5933,7 @@ function setFetoView(view) {
 
 function applyChartsScope(gestacao) {
   renderChartsFetoToggle(gestacao);
-  const grid = document.querySelector('#tab-charts .charts-grid');
+  const grid = document.getElementById('charts-grid-padrao');
   if (!grid) return;
   const isTwin = isMultipla(gestacao);
   const view = !isTwin ? 'unica' : (currentFetoView === 'gestacao' ? 'gestacao' : 'fetal');
@@ -5672,8 +5947,230 @@ function applyChartsScope(gestacao) {
   });
 }
 
+// ═══════════════════════════════════════════════════════════
+// 1º TRIMESTRE — cards de gráfico e de risco (página de risco/gráficos FMF,
+// portada de laudos-dramorgana/morfologico-1trimestre.html — ver CLAUDE.md).
+// Mesmo motor de desenho da aba (_drawChart) — sem SVG à mão, sem 2º sistema
+// de gráfico na mesma tela. Reaproveita _pointsForFeto1Tri para filtrar cada
+// card à mesma janela do editor (10-15 semanas); as 3 uterinas são a exceção
+// de propósito — mostram a gestação inteira, reaproveitando buildDopplerChart
+// tal como o card padrão já faz (dopplerUtRef já cobre 11-41 semanas).
+// ═══════════════════════════════════════════════════════════
+
+function _pointsForFeto1Tri(gestacao, exams, extractor) {
+  const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+  const pts = [];
+  sorted.forEach(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays) return;
+    const w = igDays / 7;
+    if (w < 10 || w > 15) return; // janela do 1º trimestre — mesma do editor
+    const p = extractor(e, w);
+    if (p) pts.push(p);
+  });
+  return pts;
+}
+
+function buildChart1TriFC(canvasId, gestacao, exams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const refData = { p10: [], p50: [], p90: [] };
+  for (let w = 10; w <= 14; w += 0.2) {
+    const crl = crlFromGAdays_hyett(w * 7);
+    const m = 181.409 - 0.324 * crl;
+    refData.p50.push({ x: w, y: m });
+    refData.p90.push({ x: w, y: m + 1.645 * 6.6 });
+    refData.p10.push({ x: w, y: m - 1.645 * 6.6 });
+  }
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.fc != null ? { x: w, y: e.fc } : null);
+  _drawChart(canvas, { xMin: 10, xMax: 14, yMin: 120, yMax: 200, refData, patientPoints, yLabel: 'FC (bpm)' });
+}
+
+function buildChart1TriCcn(canvasId, gestacao, exams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const refData = { p10: [], p50: [], p90: [] };
+  for (let w = 11; w <= 14; w += 0.1) {
+    const crl = crlFromGAdays_hadlock(w * 7);
+    const band = 2 + 0.16 * crl;
+    refData.p50.push({ x: w, y: crl });
+    refData.p90.push({ x: w, y: crl + band });
+    refData.p10.push({ x: w, y: Math.max(0, crl - band) });
+  }
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
+  _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)' });
+}
+
+function buildChart1TriTN(canvasId, gestacao, exams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const refData = { p10: [], p50: [], p90: [] };
+  for (let x = 45; x <= 84; x += 1) {
+    refData.p10.push({ x, y: TN_P5_REG.m * x + TN_P5_REG.b });
+    refData.p50.push({ x, y: TN_P50_REG.m * x + TN_P50_REG.b });
+    refData.p90.push({ x, y: TN_P95_REG.m * x + TN_P95_REG.b });
+  }
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, e => (e.ccn != null && e.nt != null) ? { x: e.ccn, y: e.nt } : null);
+  _drawChart(canvas, {
+    xMin: 45, xMax: 84, yMin: 0, yMax: 4, refData, patientPoints, yLabel: 'TN (mm)',
+    xStep: 5, xLabelStep: 10, xFmt: x => String(x), yFmt: v => v.toFixed(1),
+  });
+}
+
+function buildChart1TriDbp(canvasId, gestacao, exams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const refData = { p10: [], p50: [], p90: [] };
+  for (let w = 12; w <= 15; w += 0.1) {
+    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
+    refData.p10.push({ x: w, y: l });
+    refData.p50.push({ x: w, y: m });
+    refData.p90.push({ x: w, y: h });
+  }
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.dbp != null ? { x: w, y: e.dbp } : null);
+  _drawChart(canvas, { xMin: 12, xMax: 15, yMin: 5, yMax: 38, refData, patientPoints, yLabel: 'DBP precoce (mm)' });
+}
+
+function buildChart1TriDV(canvasId, gestacao, exams) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const refData = { p10: [], p50: [], p90: [] };
+  for (let x = 44; x <= 84; x += 1) {
+    const [, l, m, h] = interpTabelaRef(DV_TABLE, x);
+    refData.p10.push({ x, y: l });
+    refData.p50.push({ x, y: m });
+    refData.p90.push({ x, y: h });
+  }
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, e => (e.ccn != null && e.dv_ip != null) ? { x: e.ccn, y: e.dv_ip } : null);
+  _drawChart(canvas, {
+    xMin: 44, xMax: 84, yMin: 0, yMax: 1.8, refData, patientPoints, yLabel: 'IP ducto venoso',
+    xStep: 5, xLabelStep: 10, xFmt: x => String(x), yFmt: v => v.toFixed(2),
+  });
+}
+
+// Existe pelo menos um exame na janela do 1º trimestre (10-15 semanas) — é o
+// gatilho pra mostrar o bloco #charts-1tri.
+function _temExame1Tri(gestacao, allExams) {
+  return allExams.some(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays) return false;
+    const w = igDays / 7;
+    return w >= 10 && w <= 15;
+  });
+}
+
+// Existe pelo menos um exame a partir de 15 semanas — é o que decide se o
+// grid padrão (biometria/EFW/Doppler ≥15 semanas) aparece. Antes disso ele
+// só mostraria curvas de referência vazias, sem nenhum ponto — o bug
+// relatado ("clico em Gráficos e vejo gráfico de peso de um feto de 13
+// semanas"). Ver CLAUDE.md.
+function _temExameDesde15Sem(gestacao, allExams) {
+  return allExams.some(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    return igDays != null && igDays >= 105;
+  });
+}
+
+function renderCharts1Tri(gestacao, exams, allExams) {
+  buildChart1TriFC('chart-1tri-fc', gestacao, exams);
+  buildChart1TriCcn('chart-1tri-ccn', gestacao, exams);
+  buildChart1TriTN('chart-1tri-tn', gestacao, exams);
+  buildChart1TriDbp('chart-1tri-dbp', gestacao, exams);
+  buildChart1TriDV('chart-1tri-dv', gestacao, exams);
+
+  const utExtractor = lado => (e) => {
+    if (lado === 'e') return e.aut_e;
+    if (lado === 'd') return e.aut_d;
+    const ev = e.aut_e, dv = e.aut_d;
+    if (ev == null && dv == null) return null;
+    if (ev != null && dv != null) return Math.round(((ev + dv) / 2) * 100) / 100;
+    return ev ?? dv;
+  };
+  buildDopplerChart('chart-1tri-uta-e',     gestacao, allExams, utExtractor('e'),     dopplerUtRef, 'IP uterina E', false);
+  buildDopplerChart('chart-1tri-uta-d',     gestacao, allExams, utExtractor('d'),     dopplerUtRef, 'IP uterina D', false);
+  buildDopplerChart('chart-1tri-uta-media', gestacao, allExams, utExtractor('media'), dopplerUtRef, 'IP média uterinas', false);
+
+  renderRiscoFmfCards(gestacao, exams, allExams);
+}
+
+function _ultimoExameComCampo(exams, campo) {
+  const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i][campo] != null && sorted[i][campo] !== '') return sorted[i];
+  }
+  return null;
+}
+
+function _riscoFmfExame(exams) {
+  return _ultimoExameComCampo(exams, 'risco_t21')
+      || _ultimoExameComCampo(exams, 'risco_t18')
+      || _ultimoExameComCampo(exams, 'risco_t13');
+}
+
+function _riscoFmfCardHtml(rotulo, exam) {
+  if (!exam) return '';
+  const linhas = [['T21', exam.risco_t21], ['T18', exam.risco_t18], ['T13', exam.risco_t13]]
+    .filter(([, v]) => v);
+  if (!linhas.length) return '';
+  return `<div class="risco-fmf-card">
+    <div class="risco-fmf-card-t">${escapeHtml(rotulo)}</div>
+    ${linhas.map(([k, v]) => `<div class="risco-fmf-row"><span class="risco-fmf-k">${k}</span><span class="risco-fmf-v">${escapeHtml(v)}</span></div>`).join('')}
+  </div>`;
+}
+
+// T21/T18/T13 são digitados pelo software da FMF, não calculados aqui — só
+// exibidos. Regra de monocoriônica replicada do editor de laudos (CLAUDE.md,
+// "Monocoriônica: um cálculo de risco só"): um cartão só, com os valores do
+// feto A, rotulado "Ambos os fetos"/"Os três fetos" — nunca um cartão por
+// feto nesse caso (o rastreamento combinado dá um risco só pra gestação
+// inteira, dividir em dois sugeriria dois cálculos independentes).
+function renderRiscoFmfCards(gestacao, exams, allExams) {
+  const wrap = document.getElementById('risco-fmf-cards');
+  if (!wrap) return;
+  const fetos = fetosDaGestacao(gestacao);
+  let cardsHtml = '';
+  if (!fetos.length) {
+    cardsHtml = _riscoFmfCardHtml('Gestação', _riscoFmfExame(allExams));
+  } else if (_ehMonocorionica(gestacao)) {
+    const examsA = allExams.filter(e => e.feto === fetos[0]);
+    const rotulo = fetos.length >= 3 ? 'Os três fetos' : 'Ambos os fetos';
+    cardsHtml = _riscoFmfCardHtml(rotulo, _riscoFmfExame(examsA));
+  } else {
+    cardsHtml = fetos.map(f => _riscoFmfCardHtml(labelFeto(f), _riscoFmfExame(allExams.filter(e => e.feto === f)))).join('');
+  }
+
+  const preE = _ultimoExameComCampo(allExams, 'risco_pre_eclampsia');
+  const preEHtml = preE ? `<div class="risco-fmf-card risco-fmf-card--pe">
+    <div class="risco-fmf-card-t">Pré-eclâmpsia</div>
+    <div class="risco-fmf-row"><span class="risco-fmf-k">Risco</span><span class="risco-fmf-v">${escapeHtml(preE.risco_pre_eclampsia)}</span></div>
+  </div>` : '';
+
+  wrap.innerHTML = cardsHtml + preEHtml;
+}
+
 function renderCharts(gestacao, exams, allExams) {
   allExams = allExams || exams;
+
+  // O seletor Feto 1/2/Gestação vale tanto pro grid padrão quanto pro bloco de
+  // 1º trimestre (FC/CCN/TN/DBP/DV também são por feto) — chamado sempre, antes
+  // de decidir qual bloco aparece. applyChartsScope() chama de novo mais abaixo
+  // (idempotente); é o preço de manter a função de baixo intacta.
+  renderChartsFetoToggle(gestacao);
+
+  // Bloco 1º trimestre (10-15 sem) e grid padrão (≥15 sem) aparecem cada um só
+  // quando há exame na respectiva janela — reflete o dado que existe, em vez de
+  // decidir por corionicidade/feto. É isso que evita mostrar à médica gráficos
+  // de peso/biometria de 2º/3º trimestre vazios, sem nenhum ponto, quando a
+  // gestação só tem exame de 1º trimestre (o "feto de 13 semanas" relatado).
+  const bloco1Tri    = document.getElementById('charts-1tri');
+  const gridPadrao   = document.getElementById('charts-grid-padrao');
+  const mostrar1Tri  = _temExame1Tri(gestacao, allExams);
+  const mostrarGrid  = _temExameDesde15Sem(gestacao, allExams);
+  if (bloco1Tri)  bloco1Tri.style.display  = mostrar1Tri ? '' : 'none';
+  if (gridPadrao) gridPadrao.style.display = mostrarGrid ? '' : 'none';
+  if (mostrar1Tri) renderCharts1Tri(gestacao, exams, allExams);
+  if (!mostrarGrid) return; // sem exame ≥15 semanas — nada pra desenhar no grid padrão
+
   buildChart('chart-cc',  gestacao, exams, 'cc',    'cc',  'CC (mm)',     false);
   buildChart('chart-ca',  gestacao, exams, 'ca',    'ca',  'CA (mm)',     false);
   buildChart('chart-dbp', gestacao, exams, 'dbp',   'dbp', 'DBP (mm)',    false);
@@ -7317,6 +7814,8 @@ function _meClearBioFields() {
   if (dvOnda) dvOnda.value = '';
   const auFluxo = document.getElementById('e-au-fluxo');
   if (auFluxo) auFluxo.value = '';
+  ['e-nt','e-fc','e-risco-t21','e-risco-t18','e-risco-t13','e-risco-pre-eclampsia']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   ['badge-au-ip','badge-acm-ip','badge-acm-psv','badge-aut-mean','badge-cpr','badge-ila']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
   ['me-results','me-efw-block'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -7405,6 +7904,7 @@ const _ME_FETO_FIELD_IDS = [
   'e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula',
   'e-au-ip','e-au-fluxo','e-acm-ip','e-acm-psv','e-dv-ip','e-dv-onda',
   'e-ila','e-bolsao',
+  'e-nt','e-fc','e-risco-t21','e-risco-t18','e-risco-t13',
 ];
 
 function _meCaptureFormToDraft(feto) {
@@ -7514,6 +8014,17 @@ function openEditExamModal(eid) {
 
   const dopplerFieldMap = { 'au-ip':'au_ip','acm-ip':'acm_ip','acm-psv':'acm_psv','aut-e':'aut_e','aut-d':'aut_d','dv-ip':'dv_ip' };
   Object.entries(dopplerFieldMap).forEach(([elSuffix, key]) => {
+    const el = document.getElementById('e-' + elSuffix);
+    if (el) el.value = exam[key] != null ? exam[key] : '';
+  });
+
+  // 1º trimestre (FMF): TN/FC numéricos, riscos texto livre ("1 em X")
+  const fmt1TriMap = {
+    'nt':'nt', 'fc':'fc',
+    'risco-t21':'risco_t21', 'risco-t18':'risco_t18', 'risco-t13':'risco_t13',
+    'risco-pre-eclampsia':'risco_pre_eclampsia',
+  };
+  Object.entries(fmt1TriMap).forEach(([elSuffix, key]) => {
     const el = document.getElementById('e-' + elSuffix);
     if (el) el.value = exam[key] != null ? exam[key] : '';
   });
@@ -8152,6 +8663,7 @@ function _meBuildExamData(feto, draft, data, igManual) {
   // feto), pra gravar o mesmo valor em todos os registros dessa visita —
   // não só no do feto que estava selecionado quando foram digitados.
   const sharedNum = id => { const el = document.getElementById(id); const v = el ? el.value : ''; return v !== '' && v != null ? parseFloat(v) : null; };
+  const sharedStr = id => { const el = document.getElementById(id); const v = el ? el.value : ''; return v || null; };
   const auIp  = num('e-au-ip');
   const acmIp = num('e-acm-ip');
   return {
@@ -8168,6 +8680,11 @@ function _meBuildExamData(feto, draft, data, igManual) {
     cpr: (auIp != null && acmIp != null && auIp > 0) ? Math.round((acmIp / auIp) * 100) / 100 : null,
     dv_onda: str('e-dv-onda'),
     colo: sharedNum('e-colo'), ila: num('e-ila'), bolsao: num('e-bolsao'),
+    // Marcadores/riscos da FMF (1º trimestre) — TN e FC são do feto (como CCN);
+    // pré-eclâmpsia é achado materno da visita, igual colo/uterinas (sharedStr).
+    nt: num('e-nt'), fc: num('e-fc'),
+    risco_t21: str('e-risco-t21'), risco_t18: str('e-risco-t18'), risco_t13: str('e-risco-t13'),
+    risco_pre_eclampsia: sharedStr('e-risco-pre-eclampsia'),
     feto,
   };
 }
@@ -9018,7 +9535,7 @@ function _relPatientPoints(paramKey, gestacao, exams) {
     const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!ig) return null;
     const w = ig / 7;
-    if (w < 20) return null;
+    if (w < 15) return null; // mesmo corte de buildChart/buildEFWChart — 15 semanas, não mais 20
     let y;
     if (paramKey === 'efw') y = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
     else if (paramKey === 'uta') {
@@ -9065,7 +9582,7 @@ function _relBandPath(topPts, bottomPts) {
 function _buildRelChartSvg(paramKey, gestacao, exams) {
   const W = 220, AXIS_Y = 111;
   const weeks = [];
-  for (let w = 20; w <= 40; w++) weeks.push(w);
+  for (let w = 15; w <= 40; w++) weeks.push(w);
 
   const refData = weeks.map(w => { const r = _relRefRow(paramKey, w); return r ? { w, ...r } : null; }).filter(Boolean);
   if (!refData.length) return null;
@@ -9080,7 +9597,7 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   const yMin = Math.max(0, yLo - folga);
   const yMax = yHi + folga;
 
-  const xS = w => (w - 20) / 20 * W;
+  const xS = w => (w - 15) / 25 * W;
   const yS = v => AXIS_Y - (v - yMin) / (yMax - yMin) * 100;
 
   // Mesmas classes do gráfico grande de peso (_buildRelChartEfwSvg) — banda,
@@ -9097,7 +9614,7 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
     `<circle class="efw-pt" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3"/>`
   ).join('');
 
-  const axisWeeks = [20, 26, 32, 38];
+  const axisWeeks = [15, 22, 29, 36];
   const axisHtml = axisWeeks.map((w, i) =>
     `<text class="axis-t" x="${xS(w).toFixed(1)}" y="118">${w}${i === axisWeeks.length - 1 ? ' s' : ''}</text>`
   ).join('');
@@ -9581,7 +10098,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
   const chartW = VW - padL - padR, chartH = VH - padT - padB;
 
   const ref = [];
-  for (let w = 20; w <= 40; w++) {
+  for (let w = 15; w <= 40; w++) {
     const r = _relRefRow('efw', w);
     if (r) ref.push({ w, ...r });
   }
@@ -9591,7 +10108,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
     const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!ig) return null;
     const semanas = ig / 7;
-    if (semanas < 20) return null;
+    if (semanas < 15) return null; // EFW apenas a partir de 15 semanas — mesmo corte da tela
     const peso = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
     if (peso == null) return null;
     return { semanas, peso, pct: calcEFWPercentile(peso, ig)?.percentil };
@@ -9604,7 +10121,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
   const topo = Math.max(ref[ref.length - 1].p90, ...pts.map(p => p.peso));
   const maxY = Math.ceil((topo * 1.05) / 100) * 100;
 
-  const x = w => padL + (w - 20) / 20 * chartW;
+  const x = w => padL + (w - 15) / 25 * chartW;
   const y = v => padT + chartH - (v / maxY) * chartH;
   const f = n => n.toFixed(1);
 
@@ -9615,7 +10132,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
          + `<text class="efw-grid-t" x="2" y="${f(y(v) - 3)}">${rotuloPeso(v)}</text>`;
   }).join('');
 
-  const eixoX = [20, 24, 28, 32, 36, 40].map(w =>
+  const eixoX = [15, 20, 25, 30, 35, 40].map(w =>
     `<text class="efw-grid-t" x="${f(x(w))}" y="${VH - 8}" text-anchor="middle">${w}s</text>`
   ).join('');
 
@@ -11532,6 +12049,11 @@ function validateImportedDB(raw) {
       aut_e: numOrNull(e.aut_e), aut_d: numOrNull(e.aut_d),
       dv_ip: numOrNull(e.dv_ip), dv_onda: sanitizeString(e.dv_onda, 40) || null,
       cpr: numOrNull(e.cpr), colo: numOrNull(e.colo), ila: numOrNull(e.ila), bolsao: numOrNull(e.bolsao),
+      nt: numOrNull(e.nt), fc: numOrNull(e.fc),
+      risco_t21: sanitizeString(e.risco_t21, 40) || null,
+      risco_t18: sanitizeString(e.risco_t18, 40) || null,
+      risco_t13: sanitizeString(e.risco_t13, 40) || null,
+      risco_pre_eclampsia: sanitizeString(e.risco_pre_eclampsia, 40) || null,
     });
   });
 

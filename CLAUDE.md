@@ -895,3 +895,132 @@ gemelar (`_buildRelGemelarPaginaHtml`).
   embaixo do card virou dois planos escritos lado a lado, um dos quais nem é
   mais o que vale. A conduta continua central: só mudou de lugar, da margem
   de cada card para a Conclusão, que é onde ela já é decidida.
+
+## 1º trimestre — gráficos e riscos FMF, e o corte que virou 15 semanas
+
+2026-09-27. A médica relatou dois problemas na aba "Gráficos": um feto de 13
+semanas abria a aba e via os 9 cards de biometria/peso/Doppler de 2º/3º
+trimestre com a curva de referência desenhada e nenhum ponto — gráfico que
+"não tem nada a ver" com um feto tão pequeno — e, de um modo geral, nenhum
+gráfico plotava ponto antes de ~20-21 semanas. Junto, ela já tinha montado no
+editor de laudos (`laudos-dramorgana/morfologico-1trimestre.html`) uma página
+de referência da FMF (8 gráficos + campos de risco T21/T18/T13/pré-eclâmpsia)
+e queria isso replicado aqui, com layout próprio.
+
+### O corte de 20 semanas era maior do que a própria tabela de referência
+
+`buildChart()`, `buildEFWChart()` e `_relPatientPoints()` (PDF) recusavam
+qualquer exame com `igDays < 140` (20 semanas) — comentado como intencional,
+em três lugares independentes. Mas `REF_TABLES` (CA/CC/fêmur/DBP, Hadlock
+1984) já tem entradas a partir da **semana 14**, e `TABELA_PESO_HADLOCK`
+(EFW) começa na semana **10** — o corte de tela não vinha de falta de dado,
+era só mais conservador do que a própria referência que ele usa.
+
+Confirmado com a médica: os 8 gráficos do editor (FC/CCN/TN/DBP-precoce/DV/PI
+uterina E,D,média) cobrem 11-14 semanas com referências próprias, **não** é
+pra calcular peso por Hadlock nessa janela, e o corte dos gráficos padrão
+(biometria/EFW) devia virar **15 semanas** (105 dias), não mais 20 — nem 14.
+Mudou nos três lugares (mais os domínios de eixo hardcoded em `_buildRelChartSvg`/
+`_buildRelChartEfwSvg`, que iam de 20 a 40 semanas e agora vão de 15 a 40 —
+sem isso um ponto de 15-19 semanas simplesmente cairia fora do viewBox do
+relatório). Os gráficos de Doppler AU/ACM/CPR/DV **continuam em 20 semanas**
+— não há referência publicada nem prática clínica padrão pra eles antes
+disso, e o achado precoce (ducto venoso) entra pela seção nova, com
+referência própria (Pruksanasuk 2014), não estendendo a curva de 2º/3º
+trimestre pra trás.
+
+### Bloco novo, não substituição: `#charts-1tri`
+
+Os 8 gráficos do editor foram portados **linha a linha** (mesma tabela, mesma
+citação de fonte) pra dentro de `index.html` — `crlFromGAdays_hyett`,
+`HADLOCK_CCN_GA_DAYS`/`crlFromGAdays_hadlock`, `TN_TABLE`/`linRegress`/
+`TN_P5_REG`/`TN_P50_REG`/`TN_P95_REG`, `DBP_TABLE_WEEKS`, `DV_TABLE`,
+`interpTabelaRef` — logo depois de `ccnToIgStr()`. As 3 uterinas (E/D/média)
+**não** duplicam fórmula: reaproveitam `_utGomezParams`/`dopplerUtRef`, que já
+cobre 11-41 semanas, chamando `buildDopplerChart()` três vezes (uma por
+lado/média) em vez de escrever um desenho novo.
+
+Os 5 gráficos restantes (`buildChart1TriFC`, `buildChart1TriCcn`,
+`buildChart1TriTN`, `buildChart1TriDbp`, `buildChart1TriDV`) usam o **mesmo**
+motor Canvas da aba (`_drawChart`) — não o SVG desenhado à mão do editor
+(`buildGraficoCard`/`renderGraficoCardHtml`). Só ter um sistema de gráfico na
+mesma tela era mais importante do que economizar a portagem do motor SVG.
+Isso exigiu dois parâmetros novos em `_drawChart`, os dois opcionais e com
+default igual ao comportamento antigo — `xStep` (espaçamento da grade
+vertical, default 2, pequeno demais pros cards com eixo em CCN/mm) e `xFmt`
+(formata o rótulo do eixo X, default `x+'s'` assumindo semanas — os cards de
+TN/DV, com eixo em mm, passam o próprio).
+
+`_pointsForFeto1Tri(gestacao, exams, extractor)` filtra os 5 gráficos
+"estreitos" pra janela 10-15 semanas (a mesma do editor); as uterinas ficam
+de fora desse filtro de propósito — mostram a gestação inteira, é o mesmo
+comportamento do card "IP Médio — Artérias Uterinas" que já existe no grid
+padrão, só que em 3 cards em vez de 1.
+
+**O bloco não substitui o grid padrão — os dois convivem, cada um só quando
+há dado pra ele:**
+
+```
+renderCharts(gestacao, exams, allExams):
+  mostrar1Tri = existe exame com IG entre 10 e 15 semanas   → #charts-1tri
+  mostrarGrid = existe exame com IG ≥ 15 semanas            → #charts-grid-padrao
+```
+
+`_temExame1Tri`/`_temExameDesde15Sem` decidem isso a partir do dado que
+existe, não de corionicidade/feto — é o que resolve o bug relatado: uma
+gestação só com exame de 11-14 semanas não tem `mostrarGrid`, então o grid de
+biometria/peso/Doppler de 2º/3º trimestre nem aparece (em vez de aparecer
+vazio); assim que existir um exame ≥15 semanas, ele volta, ao lado do bloco
+de 1º trimestre — histórico completo, nada escondido.
+
+**Cuidado ao mexer no grid padrão: ele ganhou um id.** `document.querySelector
+('#tab-charts .charts-grid')` (usado por `renderCharts`/`applyChartsScope`)
+parava de funcionar assim que existisse um segundo `.charts-grid` na mesma
+aba — o `#charts-1tri` reaproveita essa classe pro layout de grade, e
+`querySelector` pega o primeiro que aparece no DOM (o de 1º trimestre, que
+vem antes). Os dois lugares que liam por classe passaram a ler por
+`document.getElementById('charts-grid-padrao')`, o id do grid de sempre.
+
+**O seletor Feto 1/2/Gestação (`renderChartsFetoToggle`) é chamado sempre**,
+antes de decidir qual bloco aparece — os 5 gráficos "estreitos" também são
+por feto (FC, CCN, TN, DBP, DV), então gemelar/trigemelar precisa dele mesmo
+quando só o bloco de 1º trimestre está visível. `applyChartsScope()` chama de
+novo mais abaixo (idempotente, harmless) — não valeu a pena tirar a chamada
+de lá só por isso.
+
+### Riscos T21/T18/T13/pré-eclâmpsia — Fase 1: digitados aqui, não sincronizados do editor
+
+Mesma decisão do editor de laudos: **não são calculados**, são digitados a
+partir do resultado do software oficial da FMF. Seis colunas novas em
+`exams` (migração `012_campos_1_trimestre.sql`): `nt`, `fc` (marcadores, por
+feto — mesmo tratamento de `ccn`/`dbp` no rascunho por feto,
+`_ME_FETO_FIELD_IDS`), `risco_t21`/`risco_t18`/`risco_t13` (por feto, texto
+livre "1 em X") e `risco_pre_eclampsia` (achado **materno** da visita, lido
+sempre do formulário na tela via `sharedStr`, nunca do rascunho de outro
+feto — mesmo padrão de `colo`/`aut_e`/`aut_d`).
+
+**Decisão explícita de escopo, confirmada com a médica**: por enquanto é só
+aqui. O editor de laudos continua sem gravar esses campos no Supabase (a
+página de risco dele nunca teve integração — é só cálculo/impressão local,
+ver o `CLAUDE.md` de lá). Um loop fechado (editor grava, Curvas só lê) fica
+pra quando ela pedir; até lá, quem quiser ver o risco no Curvas digita aqui
+também, sem sincronizar com o laudo impresso.
+
+`renderRiscoFmfCards()` replica a regra de monocoriônica do editor (ver
+`CLAUDE.md` de lá, "Monocoriônica: um cálculo de risco só") — reaproveitando
+`_ehMonocorionica()`, que já existia aqui pro TAPS: quando a gestação é
+monocoriônica, sai **um cartão só**, com os valores do feto A, rotulado
+"Ambos os fetos"/"Os três fetos" (nunca um cartão por feto — o rastreamento
+combinado dá um risco só pra gestação inteira). Dicoriônica/triamniótica
+continua um cartão por feto. Pré-eclâmpsia é sempre um cartão à parte,
+independente do número de fetos — é achado da mãe.
+
+### Visual — acento azul, de propósito fora da paleta sálvia/pêssego
+
+`.charts-1tri`/`.chart-card--1tri`/`.risco-fmf-card` usam um azul
+(`#1a56b0`) que não existe em nenhum outro lugar do app — o mesmo tom que o
+editor de laudos já usa pra imitar o relatório oficial da FMF. Não virou
+variável CSS global: só faz sentido nesta seção, que é conteúdo de
+referência externa (a FMF), não mais um card de biometria comum como os
+outros. `--sage`/`--peach-warm` (degradê padrão do `::before` de
+`.chart-card`) continuam intactos em todo o resto da tela.

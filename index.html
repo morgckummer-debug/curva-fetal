@@ -534,20 +534,16 @@ header::after{display:none;}
 .chart-wrapper canvas{display:block;width:100% !important;height:100% !important;}
 
 /* ── 1º TRIMESTRE — página de risco/gráficos FMF ──
-   Acento azul (mesmo tom que o editor de laudos já usa pra lembrar o
-   relatório oficial da FMF, #1a56b0) em vez do degradê sálvia/pêssego do
-   resto da tela — sinaliza "isto é conteúdo de referência da FMF", não mais
-   um card de biometria comum. Local a esta seção de propósito: não vira
-   token global porque só faz sentido aqui. */
+   Mesma paleta roxo/sálvia/pêssego do resto do app — de propósito NÃO tem
+   identidade visual própria (era azul #1a56b0 até 2026-09-28, revertido a
+   pedido da médica: o acompanhamento começa aqui, é a mesma gestação, o
+   mesmo documento evoluindo até o final, não um produto colado). */
 .charts-1tri{margin-bottom:28px;}
 .charts-1tri-header{margin-bottom:16px;padding-left:2px;}
 .charts-1tri-title{
-  font-size:15px;font-weight:800;color:#173d80;letter-spacing:-.1px;margin-bottom:3px;
+  font-size:15px;font-weight:800;color:var(--sage-deep);letter-spacing:-.1px;margin-bottom:3px;
 }
 .charts-1tri-subtitle{font-size:11.5px;color:var(--text-muted);}
-.chart-card--1tri::before{
-  background:linear-gradient(90deg,#1a56b0 0%,#4a7fd6 60%,#8fb3e8 100%);
-}
 .charts-1tri-grid{margin-bottom:18px;}
 
 .risco-fmf-cards{
@@ -555,10 +551,10 @@ header::after{display:none;}
 }
 .risco-fmf-card{
   background:var(--clay-card);border-radius:var(--radius);box-shadow:var(--sh);
-  padding:14px 18px;min-width:170px;flex:1 1 170px;border-top:3px solid #1a56b0;
+  padding:14px 18px;min-width:170px;flex:1 1 170px;border-top:3px solid var(--sage);
 }
 .risco-fmf-card--pe{border-top-color:var(--peach-warm);}
-.risco-fmf-card-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#173d80;margin-bottom:8px;}
+.risco-fmf-card-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--sage-deep);margin-bottom:8px;}
 .risco-fmf-card--pe .risco-fmf-card-t{color:#8a5800;}
 .risco-fmf-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:2px 0;}
 .risco-fmf-k{color:var(--text-muted);font-weight:600;}
@@ -1128,6 +1124,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <button class="tab" onclick="setTab('summary')">Resumo</button>
       </div>
       <button class="btn-pdf-report" id="btn-pdf-report" onclick="abrirPreviewRelatorio()" style="display:none;">⬇ Relatório PDF</button>
+      <button class="btn-pdf-report" id="btn-laudo-1tri" onclick="abrirPreviewLaudo1Tri()" style="display:none;" title="Laudo do morfológico de 1º trimestre — gerado uma vez, 11-14 semanas">📋 Laudo 1º Trimestre</button>
       <button class="btn-pdf-report" id="btn-relatorios-emitidos" onclick="abrirRelatoriosModal()" style="display:none;" title="Segunda via de relatórios já gerados para esta gestação">📄 Relatórios emitidos</button>
     </div>
 
@@ -1893,6 +1890,24 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="modal-footer" style="flex-shrink:0;">
       <button class="btn btn-secondary" onclick="closeModal('modal-relatorio')">Cancelar</button>
       <button class="btn btn-primary" onclick="confirmarGerarPDF()">Gerar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Laudo — Morfológico de 1º Trimestre. Modal próprio (não reaproveita
+     #modal-relatorio) porque o botão "Gerar PDF" de lá já tem onclick fixo
+     pro fluxo do evolutivo — duplicar a casca rasa é mais simples e seguro do
+     que fazer o mesmo modal servir dois fluxos com estado. -->
+<div class="modal-overlay" id="modal-laudo-1tri">
+  <div class="modal" style="max-width:860px;width:95vw;max-height:92vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <h2>Laudo — Morfológico de 1º Trimestre</h2>
+      <button class="modal-close" onclick="closeModal('modal-laudo-1tri')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-laudo-1tri-body" style="flex:1;overflow-y:auto;padding:24px;"></div>
+    <div class="modal-footer" style="flex-shrink:0;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-laudo-1tri')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarGerarLaudo1TriPDF()">Gerar PDF</button>
     </div>
   </div>
 </div>
@@ -4650,6 +4665,8 @@ function renderPatientScreen() {
   // PDF button
   const btnPdf = document.getElementById('btn-pdf-report');
   if (btnPdf) btnPdf.style.display = 'none';
+  const btnLaudo1Tri = document.getElementById('btn-laudo-1tri');
+  if (btnLaudo1Tri) btnLaudo1Tri.style.display = 'none';
   const btnRel = document.getElementById('btn-relatorios-emitidos');
   if (btnRel) btnRel.style.display = 'none';
 
@@ -6090,7 +6107,7 @@ function renderCharts1Tri(gestacao, exams, allExams) {
   buildDopplerChart('chart-1tri-uta-d',     gestacao, allExams, utExtractor('d'),     dopplerUtRef, 'IP uterina D', false);
   buildDopplerChart('chart-1tri-uta-media', gestacao, allExams, utExtractor('media'), dopplerUtRef, 'IP média uterinas', false);
 
-  renderRiscoFmfCards(gestacao, exams, allExams);
+  renderRiscoFmfCards(gestacao, allExams);
 }
 
 function _ultimoExameComCampo(exams, campo) {
@@ -6124,9 +6141,7 @@ function _riscoFmfCardHtml(rotulo, exam) {
 // feto A, rotulado "Ambos os fetos"/"Os três fetos" — nunca um cartão por
 // feto nesse caso (o rastreamento combinado dá um risco só pra gestação
 // inteira, dividir em dois sugeriria dois cálculos independentes).
-function renderRiscoFmfCards(gestacao, exams, allExams) {
-  const wrap = document.getElementById('risco-fmf-cards');
-  if (!wrap) return;
+function _riscoFmfCardsHtml(gestacao, allExams) {
   const fetos = fetosDaGestacao(gestacao);
   let cardsHtml = '';
   if (!fetos.length) {
@@ -6145,7 +6160,13 @@ function renderRiscoFmfCards(gestacao, exams, allExams) {
     <div class="risco-fmf-row"><span class="risco-fmf-k">Risco</span><span class="risco-fmf-v">${escapeHtml(preE.risco_pre_eclampsia)}</span></div>
   </div>` : '';
 
-  wrap.innerHTML = cardsHtml + preEHtml;
+  return cardsHtml + preEHtml;
+}
+
+function renderRiscoFmfCards(gestacao, allExams) {
+  const wrap = document.getElementById('risco-fmf-cards');
+  if (!wrap) return;
+  wrap.innerHTML = _riscoFmfCardsHtml(gestacao, allExams);
 }
 
 function renderCharts(gestacao, exams, allExams) {
@@ -9295,6 +9316,14 @@ function setTab(tab) {
   if (pdfBtn) pdfBtn.style.display = tab === 'summary' ? '' : 'none';
   const relBtn = document.getElementById('btn-relatorios-emitidos');
   if (relBtn) relBtn.style.display = tab === 'summary' ? '' : 'none';
+  // Só aparece com exame na janela de 1º trimestre (10-15 sem) — mesma régua
+  // de _temExame1Tri já usada por renderCharts() pra decidir o bloco
+  // #charts-1tri, sem inventar uma segunda checagem.
+  const laudo1TriBtn = document.getElementById('btn-laudo-1tri');
+  if (laudo1TriBtn) {
+    const g = tab === 'summary' ? getGestacaoById(currentGestacaoId) : null;
+    laudo1TriBtn.style.display = (g && _temExame1Tri(g, getExamsByGestacao(g.id))) ? '' : 'none';
+  }
 
   if (tab === 'charts') {
     const gestacao = getGestacaoById(currentGestacaoId);
@@ -9400,6 +9429,89 @@ function computeImpressaoDiagnostica(gestacao, exams) {
   };
 }
 
+// ═══════════════════════════════════════════════════════════
+// LAUDO — MORFOLÓGICO DE 1º TRIMESTRE (documento próprio, gerado uma vez na
+// janela de 11-14 semanas — a gestante guarda este na pasta dela). Diferente
+// do relatório evolutivo: sem narrativa, sem textarea editável — é achado +
+// gráfico de referência, então preview e PDF final usam o mesmo HTML sem
+// passo intermediário de edição.
+// ═══════════════════════════════════════════════════════════
+
+function abrirPreviewLaudo1Tri() {
+  const patient  = getPatientById(currentPatientId);
+  const gestacao = getGestacaoById(currentGestacaoId);
+  if (!patient || !gestacao) return;
+
+  const allExams = getExamsByGestacao(gestacao.id);
+  if (!_temExame1Tri(gestacao, allExams)) {
+    alert('Nenhum exame na janela de 11-14 semanas para gerar este laudo.');
+    return;
+  }
+
+  const body = document.getElementById('modal-laudo-1tri-body');
+  if (body) {
+    body.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
+      + `<div class="sheet-preview rel-page-gap" style="background-image:url(data:image/png;base64,${_REL_WATERMARK_MK})">`
+      + _buildLaudo1TriSheetHtml(patient, gestacao, allExams)
+      + `</div></div>`;
+  }
+  openModal('modal-laudo-1tri');
+}
+
+function confirmarGerarLaudo1TriPDF() {
+  const patient  = getPatientById(currentPatientId);
+  const gestacao = getGestacaoById(currentGestacaoId);
+  if (!patient || !gestacao) return;
+
+  const allExams = getExamsByGestacao(gestacao.id);
+  if (!_temExame1Tri(gestacao, allExams)) return;
+
+  const sheetHtml = _buildLaudo1TriSheetHtml(patient, gestacao, allExams);
+
+  const printHTML = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Laudo 1º Trimestre — ${escapeHtml(patient.nome || patient.cpf)}</title>
+<style>${_relPrintStyleBlock()}</style></head>
+<body onload="window.print()">
+
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Risco combinado (T21/T18/T13/pré-eclâmpsia): calculado pelo software oficial da FMF, apenas transcrito aqui · Referências: Hyett/Nicolaides 1996 (FC) · Hadlock 1992 (CCN) · Gómez et al. 2008 (uterinas) · Pruksanasuk et al. 2014 (ducto venoso)</div>
+
+<div class="sheet-flow">
+${sheetHtml}
+</div>
+
+<button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
+</body></html>`;
+
+  _abrirJanelaImpressao(gestacao, printHTML, _salvarLaudo1TriGerado);
+}
+
+// Ancorado na visita de 1º trimestre (a mais recente dentro da janela
+// 10-15 sem), não na visita mais recente da gestação — este documento é
+// sobre AQUELA consulta, mesmo que a gestação já tenha avançado.
+function _buildLaudo1TriSheetHtml(patient, gestacao, allExams) {
+  const examesJanela = allExams.filter(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays) return false;
+    const w = igDays / 7;
+    return w >= 10 && w <= 15;
+  });
+  const exame1Tri = examesJanela[examesJanela.length - 1] || allExams[allExams.length - 1];
+
+  const riscoCards = _riscoFmfCardsHtml(gestacao, allExams);
+  const riscoSecao = riscoCards ? `<section class="rel-secao">
+    <h2 class="rel-secao-t">Risco combinado (FMF)</h2>
+    <div class="risco-fmf-cards">${riscoCards}</div>
+  </section>` : '';
+
+  return `${_relHeaderHtml(patient.nome || patient.cpf, 'Laudo — Morfológico de 1º Trimestre')}
+    ${_relIdentHtml(patient, gestacao, exame1Tri)}
+    ${_rel1TriGraficosHtml(gestacao, patient, allExams)}
+    ${riscoSecao}
+  ${_relFooterHtml()}`;
+}
+
 // Preview do relatório — abre o modal com o MESMO HTML que será exportado
 // (ver _buildRelSheetHtml), só que com a descrição evolutiva num <textarea>
 // editável em vez de parágrafos fixos. Não existem duas versões do layout
@@ -9457,7 +9569,7 @@ function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
       ? _gerarTextoCardFetoInicial(pf.impressao)
       : generateSummary(gestacao, pf.exams).paragrafos.join('\n\n');
   });
-  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams), avaliarTAPS(gestacao, allExams));
+  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams), avaliarTAPS(gestacao, allExams), _achadoRiscoPreEclampsia1Tri(allExams));
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
@@ -9761,6 +9873,21 @@ function _riscoLinhaTexto(risco) {
   return `${achado}${resto ? ' — ' + resto : ''}${texto ? ` (${texto})` : ''}`;
 }
 
+// Achado da gestação, não do exame atual — diferente de avaliarRiscoPreEclampsia
+// (que lê o Doppler uterino da visita de hoje): este é o rastreio combinado da
+// FMF, digitado uma vez na janela de 11-14 semanas (risco_pre_eclampsia). Os
+// dois podem aparecer juntos na Conclusão — são achados de origem diferente,
+// e o rastreio do 1º tri é o que orienta o AAS profilático desde o início,
+// não só o Doppler seriado de visitas mais tardias.
+function _achadoRiscoPreEclampsia1Tri(exams) {
+  const e = _ultimoExameComCampo(exams, 'risco_pre_eclampsia');
+  if (!e) return null;
+  return {
+    label: 'Rastreio de pré-eclâmpsia (1º trimestre)',
+    conduta: `Risco combinado (FMF): ${e.risco_pre_eclampsia}`,
+  };
+}
+
 // Coluna do colo no histórico: o valor de uma visita diz menos que a queda
 // entre visitas, e a tabela do relatório não trazia o colo em nenhuma coluna.
 // Só aparece se alguma visita mediu — coluna inteira de "—" é ruído. Abaixo de
@@ -9845,6 +9972,8 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
+  const riscoPe1Tri = _achadoRiscoPreEclampsia1Tri(exams);
+  if (riscoPe1Tri) linhas.push(_riscoLinhaTexto(riscoPe1Tri));
   if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
   (impressao.notas || []).forEach(nota => linhas.push(nota));
   return linhas.join('\n');
@@ -9871,10 +10000,10 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
 // exportado tem CSP `font-src data:` e só carrega as duas fontes embutidas em
 // base64 (Comfortaa e Lato), então pedir Playfair daria Georgia na impressão e
 // Playfair no preview — duas caras para o mesmo relatório.
-function _relHeaderHtml(nomePaciente) {
+function _relHeaderHtml(nomePaciente, kicker) {
   return `<header class="hdr">
     <div>
-      <div class="hdr-kicker">Relatório evolutivo</div>
+      <div class="hdr-kicker">${escapeHtml(kicker || 'Relatório evolutivo')}</div>
       <h1 class="hdr-t">${escapeHtml(nomePaciente)}</h1>
     </div>
     <div class="hdr-dra">
@@ -10324,6 +10453,229 @@ function _relCardUtaHtml(gestacao, exams) {
     <div class="feto-card-sub">Referência Gómez et al. (2008)</div>
     ${svg}
   </div>`;
+}
+
+// Variante por lado de _relPontosUterinas (que só devolve a média) — mesmas
+// regras (uma linha por data, w entre 11-41 sem), usada pelos três cards do
+// laudo de 1º trimestre (E/D/média) em vez de só o médio do relatório
+// evolutivo.
+function _relPontosUterinasLado(gestacao, exams, lado) {
+  const porData = new Map();
+  (exams || []).forEach(e => {
+    if (e.excluido_em) return;
+    const ip = lado === 'e' ? e.aut_e
+      : lado === 'd' ? e.aut_d
+      : (e.aut_e != null && e.aut_d != null) ? (e.aut_e + e.aut_d) / 2 : (e.aut_e ?? e.aut_d ?? null);
+    if (ip == null) return;
+    const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!ig) return;
+    const w = ig / 7;
+    if (w < 11 || w > 41) return;
+    if (porData.has(e.data_exame)) return;
+    porData.set(e.data_exame, { w, ip, pct: calcDopplerUt(ip, w)?.percentil ?? null });
+  });
+  return [...porData.values()].sort((a, b) => a.w - b.w);
+}
+
+// ═══════════════════════════════════════════════════════════
+// LAUDO — MORFOLÓGICO DE 1º TRIMESTRE
+// Os 5 gráficos "estreitos" (FC, CCN, TN, DBP precoce, ducto venoso) usam as
+// mesmas tabelas de referência portadas em 2026-09-27 pro app (hoje já
+// usadas pelos gráficos em Canvas da tela — buildChart1TriFC etc.) — aqui só
+// o desenho muda, de Canvas pra SVG (papel), mesma fórmula de sempre
+// (_relSvgPath/_relBandPath, banda P10-P90 + mediana + pontos do paciente),
+// nas mesmas classes CSS .efw-* que EFW/uterinas já usam — nenhum CSS novo.
+// ═══════════════════════════════════════════════════════════
+
+// Motor genérico dos 5 — domínios/dados variam demais (semanas vs. CCN em mm)
+// pra valer a pena um refFn único; cada chamador entrega `ref`/`pts` prontos
+// (mesmo formato de _relRefRow/_relPatientPoints nos outros gráficos).
+function _buildRel1TriChartSvg(cfg) {
+  const { xMin, xMax, ref, pts, xTicks, xFmt, yFmt, yDecimais } = cfg;
+  if (!ref.length) return null;
+  const VW = 340, VH = 176;
+  const padL = 34, padR = 30, padT = 12, padB = 22;
+  const chartW = VW - padL - padR, chartH = VH - padT - padB;
+
+  const todosY = ref.flatMap(r => [r.p10, r.p90]).concat(pts.map(p => p.y));
+  const lo = Math.min(...todosY), hi = Math.max(...todosY);
+  const folga = (hi - lo) * 0.12 || Math.max(0.1, hi * 0.1 || 1);
+  const minY = Math.max(0, lo - folga);
+  const maxY = hi + folga;
+
+  const x = v => padL + (v - xMin) / (xMax - xMin) * chartW;
+  const y = v => padT + chartH - (v - minY) / (maxY - minY) * chartH;
+  const f = n => n.toFixed(1);
+  const fmtY = yFmt || (v => _numBR(v, yDecimais ?? 1));
+
+  const ySteps = 5;
+  const grade = Array.from({ length: ySteps + 1 }, (_, i) => {
+    const v = minY + (maxY - minY) * i / ySteps;
+    return `<line class="efw-grid" x1="${padL}" y1="${f(y(v))}" x2="${VW - padR}" y2="${f(y(v))}"/>`
+         + `<text class="efw-grid-t" x="2" y="${f(y(v) - 3)}">${fmtY(v)}</text>`;
+  }).join('');
+
+  const eixoX = xTicks.map(v =>
+    `<text class="efw-grid-t" x="${f(x(v))}" y="${VH - 8}" text-anchor="middle">${xFmt ? xFmt(v) : v + 's'}</text>`
+  ).join('');
+
+  const curva = chave => ref.map(r => ({ x: x(r.x), y: y(r[chave]) }));
+  const p90 = curva('p90'), p50 = curva('p50'), p10 = curva('p10');
+
+  const ultima = arr => arr[arr.length - 1].y;
+  const refRotulos =
+      `<text class="efw-ref-t efw-ref-t--90" x="${VW - 4}" y="${f(ultima(p90) + 3)}" text-anchor="end">P90</text>`
+    + `<text class="efw-ref-t efw-ref-t--50" x="${VW - 4}" y="${f(ultima(p50) + 3)}" text-anchor="end">P50</text>`
+    + `<text class="efw-ref-t efw-ref-t--10" x="${VW - 4}" y="${f(ultima(p10) + 3)}" text-anchor="end">P10</text>`;
+
+  // Nenhum dos 5 tem percentil de verdade (bandas são aproximação, não tabela
+  // de z-score publicada — ver comentário de cada tabela) — só a bolinha,
+  // sem "Pxx" em cima, igual o editor de laudos já fazia.
+  const pontos = pts.map(p => `<circle class="efw-pt" cx="${f(x(p.x))}" cy="${f(y(p.y))}" r="5"/>`).join('');
+
+  return `<svg viewBox="0 0 ${VW} ${VH}" class="efw-chart">
+    ${grade}
+    <path class="efw-band" d="${_relBandPath(p90, p10)}"/>
+    <path class="efw-p90" d="${_relSvgPath(p90)}"/>
+    <path class="efw-p50" d="${_relSvgPath(p50)}"/>
+    <path class="efw-p10" d="${_relSvgPath(p10)}"/>
+    ${eixoX}
+    ${refRotulos}
+    ${pontos}
+  </svg>`;
+}
+
+// Mesma janela 10-15 semanas de _pointsForFeto1Tri (motor Canvas da tela) —
+// os dois filtram pro mesmo recorte, só a saída muda (pontos de SVG aqui).
+function _rel1TriPontosFeto(gestacao, exams, extractor) {
+  const sorted = [...(exams || [])].filter(e => !e.excluido_em).sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+  const pts = [];
+  sorted.forEach(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays) return;
+    const w = igDays / 7;
+    if (w < 10 || w > 15) return;
+    const p = extractor(e, w);
+    if (p) pts.push(p);
+  });
+  return pts;
+}
+
+function _rel1TriChartFcSvg(gestacao, exams) {
+  const ref = [];
+  for (let w = 10; w <= 14; w += 0.2) {
+    const crl = crlFromGAdays_hyett(w * 7);
+    const m = 181.409 - 0.324 * crl;
+    ref.push({ x: w, p50: m, p90: m + 1.645 * 6.6, p10: m - 1.645 * 6.6 });
+  }
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.fc != null ? { x: w, y: e.fc } : null);
+  return _buildRel1TriChartSvg({ xMin: 10, xMax: 14, ref, pts, xTicks: [10, 11, 12, 13, 14], yDecimais: 0 });
+}
+
+function _rel1TriChartCcnSvg(gestacao, exams) {
+  const ref = [];
+  for (let w = 11; w <= 14; w += 0.1) {
+    const crl = crlFromGAdays_hadlock(w * 7);
+    const band = 2 + 0.16 * crl;
+    ref.push({ x: w, p50: crl, p90: crl + band, p10: Math.max(0, crl - band) });
+  }
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
+  return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 0 });
+}
+
+function _rel1TriChartTnSvg(gestacao, exams) {
+  const ref = [];
+  for (let x = 45; x <= 84; x += 3) {
+    ref.push({ x, p10: TN_P5_REG.m * x + TN_P5_REG.b, p50: TN_P50_REG.m * x + TN_P50_REG.b, p90: TN_P95_REG.m * x + TN_P95_REG.b });
+  }
+  const pts = _rel1TriPontosFeto(gestacao, exams, e => (e.ccn != null && e.nt != null) ? { x: e.ccn, y: e.nt } : null);
+  return _buildRel1TriChartSvg({ xMin: 45, xMax: 84, ref, pts, xTicks: [45, 55, 65, 75, 84], xFmt: x => String(x), yDecimais: 1 });
+}
+
+function _rel1TriChartDbpSvg(gestacao, exams) {
+  const ref = [];
+  for (let w = 12; w <= 15; w += 0.2) {
+    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
+    ref.push({ x: w, p10: l, p50: m, p90: h });
+  }
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.dbp != null ? { x: w, y: e.dbp } : null);
+  return _buildRel1TriChartSvg({ xMin: 12, xMax: 15, ref, pts, xTicks: [12, 13, 14, 15], yDecimais: 0 });
+}
+
+function _rel1TriChartDvSvg(gestacao, exams) {
+  const ref = [];
+  for (let x = 44; x <= 84; x += 3) {
+    const [, l, m, h] = interpTabelaRef(DV_TABLE, x);
+    ref.push({ x, p10: l, p50: m, p90: h });
+  }
+  const pts = _rel1TriPontosFeto(gestacao, exams, e => (e.ccn != null && e.dv_ip != null) ? { x: e.ccn, y: e.dv_ip } : null);
+  return _buildRel1TriChartSvg({ xMin: 44, xMax: 84, ref, pts, xTicks: [44, 54, 64, 74, 84], xFmt: x => String(x), yDecimais: 2 });
+}
+
+const _REL_1TRI_CHARTS = [
+  { key: 'fc',  titulo: 'Frequência Cardíaca Fetal',    sub: 'Referência Hyett/Nicolaides (1996)',      build: _rel1TriChartFcSvg },
+  { key: 'ccn', titulo: 'CCN × Idade Gestacional',        sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
+  { key: 'tn',  titulo: 'Translucência Nucal × CCN',      sub: 'Tabela de referência da clínica',         build: _rel1TriChartTnSvg },
+  { key: 'dbp', titulo: 'Diâmetro Biparietal Precoce',    sub: 'Tabela de referência da clínica · 12-15 sem', build: _rel1TriChartDbpSvg },
+  { key: 'dv',  titulo: 'IP — Ducto Venoso × CCN',        sub: 'Aproximação Pruksanasuk et al. (2014)',   build: _rel1TriChartDvSvg },
+];
+
+// Um card por gráfico "estreito", opcionalmente por feto (múltipla) — mesma
+// classe feto-card--b que já recolore pra dourado no resto do relatório
+// (11243+), sem inventar forma de marcador nova.
+function _rel1TriChartCardHtml(gestacao, exams, chartCfg, fetoClasse) {
+  const svg = chartCfg.build(gestacao, exams);
+  if (!svg) return '';
+  return `<div class="feto-card ${fetoClasse}">
+    <div class="feto-card-head">
+      <div class="feto-card-t">${chartCfg.titulo}</div>
+    </div>
+    <div class="feto-card-sub">${chartCfg.sub}</div>
+    ${svg}
+  </div>`;
+}
+
+// Seção "Gráficos de referência" do laudo de 1º trimestre — única: 5 cards
+// (feto-cards--unica, 3 colunas) + 3 de uterinas (feto-cards normal, medida
+// materna, não duplica por feto). Múltipla: os 5 "estreitos" se repetem por
+// feto (fetosDaGestacao), cada bloco de feto com seu próprio grid — uterinas
+// continua 3 cards só, fora do laço.
+function _rel1TriGraficosHtml(gestacao, patient, allExams) {
+  const fetos = fetosDaGestacao(gestacao);
+  let narrowHtml = '';
+  if (!fetos.length) {
+    narrowHtml = `<div class="feto-cards feto-cards--unica">`
+      + _REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, allExams, c, 'feto-card--unica')).join('')
+      + `</div>`;
+  } else {
+    narrowHtml = fetos.map((f, idx) => {
+      const examsF = allExams.filter(e => e.feto === f);
+      // --a (roxo) / --b (dourado) — mesmo par de cores do resto do relatório
+      // pra gemelar/trigemelar (11243+); --unica é dourado, não serve aqui.
+      const classe = idx === 0 ? 'feto-card--a' : 'feto-card--b';
+      const cards = _REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, examsF, c, classe)).join('');
+      return `<div class="eyebrow" style="margin:14px 0 8px">${labelFeto(f)}</div>
+        <div class="feto-cards feto-cards--unica">${cards}</div>`;
+    }).join('');
+  }
+
+  const utaCards = ['e', 'd', 'media'].map(lado => {
+    const titulo = lado === 'e' ? 'IP Uterina — Esquerda' : lado === 'd' ? 'IP Uterina — Direita' : 'IP Uterina — Média';
+    const pontos = _relPontosUterinasLado(gestacao, allExams, lado);
+    const svg = _buildRelChartUtaSvg(pontos);
+    if (!svg) return '';
+    return `<div class="feto-card feto-card--unica">
+      <div class="feto-card-head"><div class="feto-card-t">${titulo}</div></div>
+      <div class="feto-card-sub">Referência Gómez et al. (2008)</div>
+      ${svg}
+    </div>`;
+  }).join('');
+
+  return `<section class="rel-secao">
+    <div class="eyebrow">Gráficos de referência</div>
+    ${narrowHtml}
+    ${utaCards ? `<div class="feto-cards">${utaCards}</div>` : ''}
+  </section>`;
 }
 
 // Frase curta de status embaixo do título do card — a leitura de uma linha do
@@ -10834,7 +11186,7 @@ function _listaPtBR(itens) {
   return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
 }
 
-function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
+function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps, riscoPreEclampsia1Tri) {
   // Rótulo curto depois do travessão, em singular e plural. `adequado` não tem
   // rótulo nenhum: o percentil já diz que está adequado, e "Feto 2 no percentil
   // 40 — Feto adequado" é a mesma informação duas vezes (decisão da médica,
@@ -10950,6 +11302,9 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps) {
   // vive dentro do `impressao` de nenhum feto — nasce da comparação entre os
   // dois, então não há de quem extraí-la com um .find(Boolean).
   if (taps) linhas.push(_riscoLinhaTexto(taps));
+  // Idem o rastreio combinado do 1º tri (risco_pre_eclampsia) — achado da
+  // gestação, chega pronto de fora (ver _abrirPreviewRelatorioMultiplo).
+  if (riscoPreEclampsia1Tri) linhas.push(_riscoLinhaTexto(riscoPreEclampsia1Tri));
 
   // Conduta sugerida: uma só, a do feto de pior prognóstico — não existem dois
   // planos de vigilância paralelos pra uma mãe só (definição da médica,
@@ -11275,6 +11630,23 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .feto-card--b .efw-pt{stroke:var(--dourado-escuro)}
 .feto-card--b .efw-pt-t{fill:var(--dourado-escuro)}
 
+/* Cartões de risco T21/T18/T13/pré-eclâmpsia — laudo de 1º trimestre. Mesmas
+   classes do bloco #charts-1tri da tela (.risco-fmf-*, index.html), com a
+   paleta própria deste documento exportado (--roxo/--dourado em vez de
+   --sage/--peach-warm, que não existem aqui — este <style> é standalone, não
+   herda o resto da SPA). */
+.risco-fmf-cards{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0 4px}
+.risco-fmf-card{background:var(--nude-2);border-radius:8px;padding:12px 16px;
+  min-width:150px;flex:1 1 150px;border-top:3px solid var(--roxo);
+  page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.risco-fmf-card--pe{border-top-color:var(--dourado)}
+.risco-fmf-card-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--roxo);margin-bottom:6px}
+.risco-fmf-card--pe .risco-fmf-card-t{color:var(--dourado-escuro)}
+.risco-fmf-row{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:2px 0}
+.risco-fmf-k{color:var(--texto-3);font-weight:600}
+.risco-fmf-v{font-weight:700;color:var(--texto)}
+
 /* Discordância de peso em destaque — mesma ideia do card
    .discrepancia-emphasis já usado na tela, só com a paleta do relatório
    impresso em vez das variáveis de tela. */
@@ -11348,7 +11720,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 // .sheet/.sheet-flow) — compartilhado entre gestação única e múltipla, único
 // jeito de garantir que o mecanismo de abertura/segunda via nunca diverge
 // entre as duas.
-function _abrirJanelaImpressao(gestacao, printHTML) {
+function _abrirJanelaImpressao(gestacao, printHTML, salvarFn) {
   // Abrir direto a janela de impressão — em vez de baixar um .html que a médica
   // precisava abrir e mandar imprimir na mão. window.open síncrono aqui (sem
   // await antes) é o que evita o bloqueador de pop-up: o clique no botão é o
@@ -11366,7 +11738,10 @@ function _abrirJanelaImpressao(gestacao, printHTML) {
 
   // Guarda uma cópia no Storage para servir de segunda via depois — não trava
   // a impressão por causa disso (fire-and-forget, como o snapshot de backup).
-  _salvarRelatorioGerado(gestacao.id, printHTML);
+  // salvarFn é parametrizável: o laudo de 1º trimestre usa
+  // _salvarLaudo1TriGerado (mesmo bucket, sufixo de nome diferente) em vez do
+  // _salvarRelatorioGerado padrão do evolutivo.
+  (salvarFn || _salvarRelatorioGerado)(gestacao.id, printHTML);
 }
 
 function confirmarGerarPDF() {
@@ -11824,6 +12199,28 @@ async function _salvarRelatorioGerado(gestacaoId, html) {
   }
 }
 
+// Mesmo bucket, mesma pasta — só o sufixo `_1tri` no nome, pra não colidir
+// com o regex de listagem do evolutivo (`^\d{4}-\d{2}-\d{2}_\d{6}\.html$`,
+// sem sufixo). Nenhuma migração nova: a RLS por auth.uid() já cobre qualquer
+// nome de arquivo dentro da pasta do usuário.
+async function _salvarLaudo1TriGerado(gestacaoId, html) {
+  try {
+    const uid = await _snapshotUid();
+    if (!uid) return;
+    const agora = new Date();
+    const hora  = String(agora.getHours()).padStart(2, '0')
+                + String(agora.getMinutes()).padStart(2, '0')
+                + String(agora.getSeconds()).padStart(2, '0');
+    const nome = `${_hojeISO()}_${hora}_1tri.html`;
+    const { error } = await supabaseClient.storage
+      .from(_RELATORIOS_BUCKET)
+      .upload(`${uid}/${gestacaoId}/${nome}`, html, { contentType: 'text/html' });
+    if (error) throw error;
+  } catch (err) {
+    console.error('[CurvaFetal] falha ao arquivar laudo de 1º trimestre para segunda via:', err);
+  }
+}
+
 async function abrirRelatoriosModal() {
   if (!currentGestacaoId) return;
   openModal('modal-relatorios');
@@ -11840,8 +12237,11 @@ async function abrirRelatoriosModal() {
       .list(`${uid}/${currentGestacaoId}`, { limit: 200, sortBy: { column: 'name', order: 'desc' } });
     if (error) throw error;
 
-    const arquivos = (data || []).filter(f => f && /^\d{4}-\d{2}-\d{2}_\d{6}\.html$/.test(f.name));
-    if (!arquivos.length) {
+    // Duas listas, mesmo bucket/pasta — só o sufixo `_1tri` distingue o laudo
+    // de 1º trimestre do relatório evolutivo (ver _salvarLaudo1TriGerado).
+    const evolutivos = (data || []).filter(f => f && /^\d{4}-\d{2}-\d{2}_\d{6}\.html$/.test(f.name));
+    const laudos1Tri = (data || []).filter(f => f && /^\d{4}-\d{2}-\d{2}_\d{6}_1tri\.html$/.test(f.name));
+    if (!evolutivos.length && !laudos1Tri.length) {
       el.innerHTML =
         '<p style="color:var(--text-muted);font-size:13px;padding:18px 0;line-height:1.65;">' +
         'Nenhum relatório emitido ainda para esta gestação. Toda vez que "Gerar PDF" for usado, ' +
@@ -11849,8 +12249,8 @@ async function abrirRelatoriosModal() {
       return;
     }
 
-    el.innerHTML = arquivos.map(f => {
-      const m = f.name.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(\d{2})\.html$/);
+    const listaHtml = (arquivos, regex) => arquivos.map(f => {
+      const m = f.name.match(regex);
       const [, a, mo, d, hh, mm] = m;
       const path = `${uid}/${currentGestacaoId}/${f.name}`;
       return `
@@ -11861,6 +12261,12 @@ async function abrirRelatoriosModal() {
         <button class="btn btn-secondary btn-sm" onclick="abrirRelatorioArquivado('${escapeHtml(path)}')">Abrir</button>
       </div>`;
     }).join('');
+
+    const secaoTitulo = titulo => `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin:16px 0 4px;">${titulo}</div>`;
+
+    el.innerHTML =
+      (evolutivos.length ? secaoTitulo('Relatórios evolutivos') + listaHtml(evolutivos, /^(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(\d{2})\.html$/) : '') +
+      (laudos1Tri.length ? secaoTitulo('Laudos de 1º trimestre') + listaHtml(laudos1Tri, /^(\d{4})-(\d{2})-(\d{2})_(\d{2})(\d{2})(\d{2})_1tri\.html$/) : '');
   } catch (err) {
     console.error('[CurvaFetal] falha ao listar relatórios emitidos:', err);
     const semBucket = /bucket not found|not_found|does not exist/i.test(err.message || '');

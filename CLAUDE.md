@@ -1015,12 +1015,106 @@ combinado dá um risco só pra gestação inteira). Dicoriônica/triamniótica
 continua um cartão por feto. Pré-eclâmpsia é sempre um cartão à parte,
 independente do número de fetos — é achado da mãe.
 
-### Visual — acento azul, de propósito fora da paleta sálvia/pêssego
+### Visual — sem identidade própria, de propósito
 
-`.charts-1tri`/`.chart-card--1tri`/`.risco-fmf-card` usam um azul
-(`#1a56b0`) que não existe em nenhum outro lugar do app — o mesmo tom que o
-editor de laudos já usa pra imitar o relatório oficial da FMF. Não virou
-variável CSS global: só faz sentido nesta seção, que é conteúdo de
-referência externa (a FMF), não mais um card de biometria comum como os
-outros. `--sage`/`--peach-warm` (degradê padrão do `::before` de
-`.chart-card`) continuam intactos em todo o resto da tela.
+Até 2026-09-28 `.charts-1tri`/`.risco-fmf-card` usavam um azul (`#1a56b0`,
+o tom que o editor de laudos usa pra imitar o relatório oficial da FMF).
+Revertido a pedido da médica, depois de ela ver o preview do relatório
+evolutivo pela primeira vez: o acompanhamento começa no morfológico de 1º
+trimestre, é a mesma gestação, o mesmo documento evoluindo até o final — não
+um produto colado com marca própria. Hoje `.charts-1tri-title`/
+`.risco-fmf-card-t` usam `var(--sage-deep)`, `.risco-fmf-card` usa
+`var(--sage)` no `border-top`, e o `.chart-card--1tri::before` (que
+recolorava o degradê do topo do card) foi removido — os 8 cards da tela
+voltam a usar o mesmo `::before` sálvia/pêssego de qualquer outro
+`.chart-card`. `.risco-fmf-card--pe` (pré-eclâmpsia) continua com
+`--peach-warm`, que já era paleta do app.
+
+## Laudo — Morfológico de 1º Trimestre: documento próprio, mesma paleta do evolutivo
+
+2026-09-28, mesma conversa da reversão do azul acima. Depois de ver o preview
+do relatório evolutivo, a médica decidiu que o 1º trimestre precisa do
+**próprio PDF** — a gestante guarda esse documento na pasta dela, gerado uma
+vez, na janela de 11-14 semanas. Não é uma seção a mais dentro do relatório
+evolutivo (que continua existindo sem mudança de mecânica a partir do 2º
+trimestre) — é um documento novo, mesma paleta roxo/lilás/dourado, gerado
+pelo mesmo mecanismo de impressão.
+
+- **Botão `#btn-laudo-1tri`**, ao lado de "Relatório PDF" na aba Resumo —
+  só aparece com exame na janela de 11-14 semanas (`_temExame1Tri`, a mesma
+  função que já decide `#charts-1tri` na aba Gráficos — nenhuma segunda
+  régua). `setTab()` e o reset de `renderPatientScreen()` tratam esse botão
+  igual aos outros dois.
+- **Modal próprio** (`#modal-laudo-1tri`), não reaproveita `#modal-relatorio`
+  — o botão "Gerar PDF" de lá já tem `onclick="confirmarGerarPDF()"` fixo, e
+  fazer o mesmo modal servir dois fluxos com estado é mais risco do que
+  duplicar uma casca rasa.
+- **`abrirPreviewLaudo1Tri()`/`confirmarGerarLaudo1TriPDF()`** espelham
+  `abrirPreviewRelatorio()`/`confirmarGerarPDF()` — mesmo CSP, mesmo
+  `<body onload="window.print()">`, mesma `_abrirJanelaImpressao()` (que
+  ganhou um 3º parâmetro opcional `salvarFn`, default
+  `_salvarRelatorioGerado`, pra este fluxo passar `_salvarLaudo1TriGerado`
+  no lugar sem duplicar a função inteira). **Sem textarea de Conclusão
+  editável** — não é narrativa que evolui, é achado + gráfico de referência.
+- **`_buildLaudo1TriSheetHtml()`** ancora a IG e a data no exame **mais
+  recente dentro da janela 10-15 semanas**, não no último exame da gestação
+  — o documento é sobre aquela visita específica, mesmo que a gestação já
+  tenha avançado quando for reimpresso. Usa `_relHeaderHtml()` com o novo 2º
+  parâmetro opcional `kicker` (default `'Relatório evolutivo'`, aqui
+  `'Laudo — Morfológico de 1º Trimestre'`) e reaproveita `_relIdentHtml()`/
+  `_relFooterHtml()` sem mudança nenhuma.
+- **8 gráficos de referência, SVG, mesmas classes `.efw-*` do resto do
+  relatório** (banda P10-P90 + mediana + ponto do paciente, sem CSS novo):
+  `_buildRel1TriChartSvg(cfg)` é o motor genérico (grade+banda+curvas+pontos,
+  no molde de `_buildRelChartEfwSvg`/`_buildRelChartUtaSvg`) e 5 funções finas
+  (`_rel1TriChartFcSvg`/`CcnSvg`/`TnSvg`/`DbpSvg`/`DvSvg`) montam `ref`/`pts`
+  a partir das mesmas tabelas portadas ontem pro app (`crlFromGAdays_hyett`,
+  `HADLOCK_CCN_GA_DAYS`, `TN_TABLE`+regressões, `DBP_TABLE_WEEKS`, `DV_TABLE`,
+  `interpTabelaRef`) — usadas até aqui só pelos gráficos em Canvas da tela.
+  As 3 uterinas (E/D/média) reaproveitam `_buildRelChartUtaSvg()` (já
+  existente) tal qual, com `_relPontosUterinasLado()` (variante por lado de
+  `_relPontosUterinas`, que só devolvia a média) alimentando cada uma.
+- **Múltipla: os 5 gráficos "estreitos" se repetem por feto**, usando
+  `feto-card--a` (roxo) pro primeiro e `feto-card--b` (dourado) pro
+  segundo/terceiro — **não** `feto-card--unica`, que apesar do nome é
+  dourado (mesma cor de `--b`); só `--a` é roxo. Uterinas continuam 3 cards
+  só, fora do laço — é medida materna, não duplica por feto.
+- **Cartões de risco reaproveitados da tela**: `renderRiscoFmfCards()`
+  (aba Gráficos) foi dividida em `_riscoFmfCardsHtml(gestacao, allExams)`
+  (monta a string, com a regra de monocoriônica — um cartão só — já
+  documentada acima) + `renderRiscoFmfCards()` (só faz `wrap.innerHTML =`).
+  O laudo novo chama a mesma `_riscoFmfCardsHtml()` direto, sem precisar de
+  nó no DOM. `.risco-fmf-card*` ganhou cópia em `_relPrintStyleBlock()` (o
+  documento exportado é standalone — não herda o `<style>` da SPA) com a
+  paleta própria do relatório (`--roxo`/`--dourado`, não `--sage`/
+  `--peach-warm`, que não existem lá).
+- **Segunda via**: `_salvarLaudo1TriGerado()` é cópia de
+  `_salvarRelatorioGerado()`, mesmo bucket `relatorios`, sufixo `_1tri` no
+  nome do arquivo (`{data}_{hora}_1tri.html`) pra não colidir com o regex de
+  listagem do evolutivo. `abrirRelatoriosModal()` agora lista as duas
+  famílias de arquivo em seções separadas ("Relatórios evolutivos" / "Laudos
+  de 1º trimestre") — nenhuma migração nova, a RLS por `auth.uid()` já cobre
+  qualquer nome de arquivo dentro da pasta do usuário.
+
+### Evolutivo: uma linha sobre a pré-eclâmpsia do 1º trimestre
+
+O relatório evolutivo (2º trimestre em diante) não ganhou o laudo inteiro —
+só uma menção ao risco de pré-eclâmpsia apurado no 1º trimestre, porque é
+o achado que orienta AAS profilático e vigilância Doppler pelo resto da
+gestação (T21/T18/T13 não são mencionados lá: são assunto resolvido no
+momento do rastreio, não da vigilância de crescimento contínua).
+
+`_achadoRiscoPreEclampsia1Tri(exams)` é independente de
+`avaliarRiscoPreEclampsia()` (que lê o Doppler uterino do exame **atual**) —
+lê `risco_pre_eclampsia` (rastreio combinado da FMF, digitado uma vez, 11-14
+semanas). Os dois podem aparecer juntos na Conclusão, são achados de origem
+diferente. Reaproveita `_riscoLinhaTexto()` sem nenhuma mudança nela — só
+mais um achado no mesmo formato dos outros (colo curto, IP-uterinas, TAPS).
+
+- `_gerarConclusaoUnicaInicial(impressao, exams)` já recebia `exams` — soma a
+  linha direto, sem parâmetro novo.
+- `_gerarConclusaoGemelarInicial()` ganhou um 4º parâmetro
+  `riscoPreEclampsia1Tri`, computado no único call site
+  (`_abrirPreviewRelatorioMultiplo`) como `_achadoRiscoPreEclampsia1Tri(allExams)`
+  — mesmo padrão de `taps = avaliarTAPS(gestacao, allExams)`, calculado do
+  lado de fora e passado pronto.

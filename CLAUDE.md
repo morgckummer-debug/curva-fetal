@@ -895,3 +895,259 @@ gemelar (`_buildRelGemelarPaginaHtml`).
   embaixo do card virou dois planos escritos lado a lado, um dos quais nem é
   mais o que vale. A conduta continua central: só mudou de lugar, da margem
   de cada card para a Conclusão, que é onde ela já é decidida.
+
+## 1º trimestre — gráficos e riscos FMF, e o corte que virou 15 semanas
+
+2026-09-27. A médica relatou dois problemas na aba "Gráficos": um feto de 13
+semanas abria a aba e via os 9 cards de biometria/peso/Doppler de 2º/3º
+trimestre com a curva de referência desenhada e nenhum ponto — gráfico que
+"não tem nada a ver" com um feto tão pequeno — e, de um modo geral, nenhum
+gráfico plotava ponto antes de ~20-21 semanas. Junto, ela já tinha montado no
+editor de laudos (`laudos-dramorgana/morfologico-1trimestre.html`) uma página
+de referência da FMF (8 gráficos + campos de risco T21/T18/T13/pré-eclâmpsia)
+e queria isso replicado aqui, com layout próprio.
+
+### O corte de 20 semanas era maior do que a própria tabela de referência
+
+`buildChart()`, `buildEFWChart()` e `_relPatientPoints()` (PDF) recusavam
+qualquer exame com `igDays < 140` (20 semanas) — comentado como intencional,
+em três lugares independentes. Mas `REF_TABLES` (CA/CC/fêmur/DBP, Hadlock
+1984) já tem entradas a partir da **semana 14**, e `TABELA_PESO_HADLOCK`
+(EFW) começa na semana **10** — o corte de tela não vinha de falta de dado,
+era só mais conservador do que a própria referência que ele usa.
+
+Confirmado com a médica: os 8 gráficos do editor (FC/CCN/TN/DBP-precoce/DV/PI
+uterina E,D,média) cobrem 11-14 semanas com referências próprias, **não** é
+pra calcular peso por Hadlock nessa janela, e o corte dos gráficos padrão
+(biometria/EFW) devia virar **15 semanas** (105 dias), não mais 20 — nem 14.
+Mudou nos três lugares (mais os domínios de eixo hardcoded em `_buildRelChartSvg`/
+`_buildRelChartEfwSvg`, que iam de 20 a 40 semanas e agora vão de 15 a 40 —
+sem isso um ponto de 15-19 semanas simplesmente cairia fora do viewBox do
+relatório). Os gráficos de Doppler AU/ACM/CPR/DV **continuam em 20 semanas**
+— não há referência publicada nem prática clínica padrão pra eles antes
+disso, e o achado precoce (ducto venoso) entra pela seção nova, com
+referência própria (Pruksanasuk 2014), não estendendo a curva de 2º/3º
+trimestre pra trás.
+
+### Bloco novo, não substituição: `#charts-1tri`
+
+Os 8 gráficos do editor foram portados **linha a linha** (mesma tabela, mesma
+citação de fonte) pra dentro de `index.html` — `crlFromGAdays_hyett`,
+`HADLOCK_CCN_GA_DAYS`/`crlFromGAdays_hadlock`, `TN_TABLE`/`linRegress`/
+`TN_P5_REG`/`TN_P50_REG`/`TN_P95_REG`, `DBP_TABLE_WEEKS`, `DV_TABLE`,
+`interpTabelaRef` — logo depois de `ccnToIgStr()`. As 3 uterinas (E/D/média)
+**não** duplicam fórmula: reaproveitam `_utGomezParams`/`dopplerUtRef`, que já
+cobre 11-41 semanas, chamando `buildDopplerChart()` três vezes (uma por
+lado/média) em vez de escrever um desenho novo.
+
+Os 5 gráficos restantes (`buildChart1TriFC`, `buildChart1TriCcn`,
+`buildChart1TriTN`, `buildChart1TriDbp`, `buildChart1TriDV`) usam o **mesmo**
+motor Canvas da aba (`_drawChart`) — não o SVG desenhado à mão do editor
+(`buildGraficoCard`/`renderGraficoCardHtml`). Só ter um sistema de gráfico na
+mesma tela era mais importante do que economizar a portagem do motor SVG.
+Isso exigiu dois parâmetros novos em `_drawChart`, os dois opcionais e com
+default igual ao comportamento antigo — `xStep` (espaçamento da grade
+vertical, default 2, pequeno demais pros cards com eixo em CCN/mm) e `xFmt`
+(formata o rótulo do eixo X, default `x+'s'` assumindo semanas — os cards de
+TN/DV, com eixo em mm, passam o próprio).
+
+`_pointsForFeto1Tri(gestacao, exams, extractor)` filtra os 5 gráficos
+"estreitos" pra janela 10-15 semanas (a mesma do editor); as uterinas ficam
+de fora desse filtro de propósito — mostram a gestação inteira, é o mesmo
+comportamento do card "IP Médio — Artérias Uterinas" que já existe no grid
+padrão, só que em 3 cards em vez de 1.
+
+**O bloco não substitui o grid padrão — os dois convivem, cada um só quando
+há dado pra ele:**
+
+```
+renderCharts(gestacao, exams, allExams):
+  mostrar1Tri = existe exame com IG entre 10 e 15 semanas   → #charts-1tri
+  mostrarGrid = existe exame com IG ≥ 15 semanas            → #charts-grid-padrao
+```
+
+`_temExame1Tri`/`_temExameDesde15Sem` decidem isso a partir do dado que
+existe, não de corionicidade/feto — é o que resolve o bug relatado: uma
+gestação só com exame de 11-14 semanas não tem `mostrarGrid`, então o grid de
+biometria/peso/Doppler de 2º/3º trimestre nem aparece (em vez de aparecer
+vazio); assim que existir um exame ≥15 semanas, ele volta, ao lado do bloco
+de 1º trimestre — histórico completo, nada escondido.
+
+**Cuidado ao mexer no grid padrão: ele ganhou um id.** `document.querySelector
+('#tab-charts .charts-grid')` (usado por `renderCharts`/`applyChartsScope`)
+parava de funcionar assim que existisse um segundo `.charts-grid` na mesma
+aba — o `#charts-1tri` reaproveita essa classe pro layout de grade, e
+`querySelector` pega o primeiro que aparece no DOM (o de 1º trimestre, que
+vem antes). Os dois lugares que liam por classe passaram a ler por
+`document.getElementById('charts-grid-padrao')`, o id do grid de sempre.
+
+**O seletor Feto 1/2/Gestação (`renderChartsFetoToggle`) é chamado sempre**,
+antes de decidir qual bloco aparece — os 5 gráficos "estreitos" também são
+por feto (FC, CCN, TN, DBP, DV), então gemelar/trigemelar precisa dele mesmo
+quando só o bloco de 1º trimestre está visível. `applyChartsScope()` chama de
+novo mais abaixo (idempotente, harmless) — não valeu a pena tirar a chamada
+de lá só por isso.
+
+### Riscos T21/T18/T13/pré-eclâmpsia — Fase 1: digitados aqui, não sincronizados do editor
+
+Mesma decisão do editor de laudos: **não são calculados**, são digitados a
+partir do resultado do software oficial da FMF. Seis colunas novas em
+`exams` (migração `012_campos_1_trimestre.sql`): `nt`, `fc` (marcadores, por
+feto — mesmo tratamento de `ccn`/`dbp` no rascunho por feto,
+`_ME_FETO_FIELD_IDS`), `risco_t21`/`risco_t18`/`risco_t13` (por feto, texto
+livre "1 em X") e `risco_pre_eclampsia` (achado **materno** da visita, lido
+sempre do formulário na tela via `sharedStr`, nunca do rascunho de outro
+feto — mesmo padrão de `colo`/`aut_e`/`aut_d`).
+
+**Decisão explícita de escopo, confirmada com a médica**: por enquanto é só
+aqui. O editor de laudos continua sem gravar esses campos no Supabase (a
+página de risco dele nunca teve integração — é só cálculo/impressão local,
+ver o `CLAUDE.md` de lá). Um loop fechado (editor grava, Curvas só lê) fica
+pra quando ela pedir; até lá, quem quiser ver o risco no Curvas digita aqui
+também, sem sincronizar com o laudo impresso.
+
+`renderRiscoFmfCards()` replica a regra de monocoriônica do editor (ver
+`CLAUDE.md` de lá, "Monocoriônica: um cálculo de risco só") — reaproveitando
+`_ehMonocorionica()`, que já existia aqui pro TAPS: quando a gestação é
+monocoriônica, sai **um cartão só**, com os valores do feto A, rotulado
+"Ambos os fetos"/"Os três fetos" (nunca um cartão por feto — o rastreamento
+combinado dá um risco só pra gestação inteira). Dicoriônica/triamniótica
+continua um cartão por feto. Pré-eclâmpsia é sempre um cartão à parte,
+independente do número de fetos — é achado da mãe.
+
+### Visual — sem identidade própria, de propósito
+
+Até 2026-09-28 `.charts-1tri`/`.risco-fmf-card` usavam um azul (`#1a56b0`,
+o tom que o editor de laudos usa pra imitar o relatório oficial da FMF).
+Revertido a pedido da médica, depois de ela ver o preview do relatório
+evolutivo pela primeira vez: o acompanhamento começa no morfológico de 1º
+trimestre, é a mesma gestação, o mesmo documento evoluindo até o final — não
+um produto colado com marca própria. Hoje `.charts-1tri-title`/
+`.risco-fmf-card-t` usam `var(--sage-deep)`, `.risco-fmf-card` usa
+`var(--sage)` no `border-top`, e o `.chart-card--1tri::before` (que
+recolorava o degradê do topo do card) foi removido — os 8 cards da tela
+voltam a usar o mesmo `::before` sálvia/pêssego de qualquer outro
+`.chart-card`. `.risco-fmf-card--pe` (pré-eclâmpsia) continua com
+`--peach-warm`, que já era paleta do app.
+
+## Laudo — Morfológico de 1º Trimestre: documento próprio, mesma paleta do evolutivo
+
+2026-09-28, mesma conversa da reversão do azul acima. Depois de ver o preview
+do relatório evolutivo, a médica decidiu que o 1º trimestre precisa do
+**próprio PDF** — a gestante guarda esse documento na pasta dela, gerado uma
+vez, na janela de 11-14 semanas. Não é uma seção a mais dentro do relatório
+evolutivo (que continua existindo sem mudança de mecânica a partir do 2º
+trimestre) — é um documento novo, mesma paleta roxo/lilás/dourado, gerado
+pelo mesmo mecanismo de impressão.
+
+- **Botão `#btn-laudo-1tri`**, ao lado de "Relatório PDF" na aba Resumo —
+  só aparece com exame na janela de 11-14 semanas (`_temExame1Tri`, a mesma
+  função que já decide `#charts-1tri` na aba Gráficos — nenhuma segunda
+  régua). `setTab()` e o reset de `renderPatientScreen()` tratam esse botão
+  igual aos outros dois.
+- **Modal próprio** (`#modal-laudo-1tri`), não reaproveita `#modal-relatorio`
+  — o botão "Gerar PDF" de lá já tem `onclick="confirmarGerarPDF()"` fixo, e
+  fazer o mesmo modal servir dois fluxos com estado é mais risco do que
+  duplicar uma casca rasa.
+- **`abrirPreviewLaudo1Tri()`/`confirmarGerarLaudo1TriPDF()`** espelham
+  `abrirPreviewRelatorio()`/`confirmarGerarPDF()` — mesmo CSP, mesmo
+  `<body onload="window.print()">`, mesma `_abrirJanelaImpressao()` (que
+  ganhou um 3º parâmetro opcional `salvarFn`, default
+  `_salvarRelatorioGerado`, pra este fluxo passar `_salvarLaudo1TriGerado`
+  no lugar sem duplicar a função inteira). **Sem textarea de Conclusão
+  editável** — não é narrativa que evolui, é achado + gráfico de referência.
+- **`_buildLaudo1TriSheetHtml()`** ancora a IG e a data no exame **mais
+  recente dentro da janela 10-15 semanas**, não no último exame da gestação
+  — o documento é sobre aquela visita específica, mesmo que a gestação já
+  tenha avançado quando for reimpresso. Usa `_relHeaderHtml()` com o novo 2º
+  parâmetro opcional `kicker` (default `'Relatório evolutivo'`, aqui
+  `'Laudo — Morfológico de 1º Trimestre'`) e reaproveita `_relIdentHtml()`/
+  `_relFooterHtml()` sem mudança nenhuma.
+- **8 gráficos de referência, SVG, mesmas classes `.efw-*` do resto do
+  relatório** (banda P10-P90 + mediana + ponto do paciente, sem CSS novo):
+  `_buildRel1TriChartSvg(cfg)` é o motor genérico (grade+banda+curvas+pontos,
+  no molde de `_buildRelChartEfwSvg`/`_buildRelChartUtaSvg`) e 5 funções finas
+  (`_rel1TriChartFcSvg`/`CcnSvg`/`TnSvg`/`DbpSvg`/`DvSvg`) montam `ref`/`pts`
+  a partir das mesmas tabelas portadas ontem pro app (`crlFromGAdays_hyett`,
+  `HADLOCK_CCN_GA_DAYS`, `TN_TABLE`+regressões, `DBP_TABLE_WEEKS`, `DV_TABLE`,
+  `interpTabelaRef`) — usadas até aqui só pelos gráficos em Canvas da tela.
+  As 3 uterinas (E/D/média) reaproveitam `_buildRelChartUtaSvg()` (já
+  existente) tal qual, com `_relPontosUterinasLado()` (variante por lado de
+  `_relPontosUterinas`, que só devolvia a média) alimentando cada uma.
+- **Múltipla: os 5 gráficos "estreitos" se repetem por feto**, usando
+  `feto-card--a` (roxo) pro primeiro e `feto-card--b` (dourado) pro
+  segundo/terceiro — **não** `feto-card--unica`, que apesar do nome é
+  dourado (mesma cor de `--b`); só `--a` é roxo. Uterinas continuam 3 cards
+  só, fora do laço — é medida materna, não duplica por feto.
+- **Cartões de risco reaproveitados da tela**: `renderRiscoFmfCards()`
+  (aba Gráficos) foi dividida em `_riscoFmfCardsHtml(gestacao, allExams)`
+  (monta a string, com a regra de monocoriônica — um cartão só — já
+  documentada acima) + `renderRiscoFmfCards()` (só faz `wrap.innerHTML =`).
+  O laudo novo chama a mesma `_riscoFmfCardsHtml()` direto, sem precisar de
+  nó no DOM. `.risco-fmf-card*` ganhou cópia em `_relPrintStyleBlock()` (o
+  documento exportado é standalone — não herda o `<style>` da SPA) com a
+  paleta própria do relatório (`--roxo`/`--dourado`, não `--sage`/
+  `--peach-warm`, que não existem lá).
+- **Segunda via**: `_salvarLaudo1TriGerado()` é cópia de
+  `_salvarRelatorioGerado()`, mesmo bucket `relatorios`, sufixo `_1tri` no
+  nome do arquivo (`{data}_{hora}_1tri.html`) pra não colidir com o regex de
+  listagem do evolutivo. `abrirRelatoriosModal()` agora lista as duas
+  famílias de arquivo em seções separadas ("Relatórios evolutivos" / "Laudos
+  de 1º trimestre") — nenhuma migração nova, a RLS por `auth.uid()` já cobre
+  qualquer nome de arquivo dentro da pasta do usuário.
+
+### Evolutivo: uma linha sobre a pré-eclâmpsia do 1º trimestre
+
+O relatório evolutivo (2º trimestre em diante) não ganhou o laudo inteiro —
+só uma menção ao risco de pré-eclâmpsia apurado no 1º trimestre, porque é
+o achado que orienta AAS profilático e vigilância Doppler pelo resto da
+gestação (T21/T18/T13 não são mencionados lá: são assunto resolvido no
+momento do rastreio, não da vigilância de crescimento contínua).
+
+`_achadoRiscoPreEclampsia1Tri(exams)` é independente de
+`avaliarRiscoPreEclampsia()` (que lê o Doppler uterino do exame **atual**) —
+lê `risco_pre_eclampsia` (rastreio combinado da FMF, digitado uma vez, 11-14
+semanas). Os dois podem aparecer juntos na Conclusão, são achados de origem
+diferente. Reaproveita `_riscoLinhaTexto()` sem nenhuma mudança nela — só
+mais um achado no mesmo formato dos outros (colo curto, IP-uterinas, TAPS).
+
+- `_gerarConclusaoUnicaInicial(impressao, exams)` já recebia `exams` — soma a
+  linha direto, sem parâmetro novo.
+- `_gerarConclusaoGemelarInicial()` ganhou um 4º parâmetro
+  `riscoPreEclampsia1Tri`, computado no único call site
+  (`_abrirPreviewRelatorioMultiplo`) como `_achadoRiscoPreEclampsia1Tri(allExams)`
+  — mesmo padrão de `taps = avaliarTAPS(gestacao, allExams)`, calculado do
+  lado de fora e passado pronto.
+
+### O laudo de 1º trimestre também ganhou Conclusão
+
+Mesmo dia, a médica mandou um print do laudo antigo (editor de laudos) com a
+"Impressão Diagnóstica" em lista — o laudo novo daqui tinha ficado sem
+Conclusão nenhuma (decisão inicial: "não é narrativa que evolui"). Ela quis
+de volta, no mesmo formato de checklist.
+
+`_gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri)` monta o
+rascunho — mesmo padrão de textarea editável no preview / `<ul class="rel-
+lista">` estática no PDF final que o evolutivo já usa
+(`_relListaHtml`/`opts.textareaMode`, sem nenhuma mudança nas duas). Cada
+linha só afirma o que o app realmente tem:
+
+- Tipo de gestação + IG, a partir do exame de 1º trimestre (não do mais
+  recente da gestação — mesma âncora do resto do documento).
+- Anomalia estrutural: frase padrão, sempre igual (editável).
+- Cromossomopatias: **não afirma "baixo risco"** — o app não calcula esse
+  julgamento. A frase aponta pros gráficos de referência e pros cartões de
+  risco (números crus da FMF), quem decide "baixo"/"aumentado" é quem lê,
+  não o texto gerado. Diferente do print que a médica mandou (que dizia
+  "baixo risco" direto) — ela edita essa linha quando quiser afirmar isso.
+- IP médio das uterinas: percentil de verdade, via
+  `_relPontosUterinasLado(gestacao, allExams, 'media')` (a mesma função dos
+  3 gráficos de uterinas) — só entra se houver medida.
+- Pré-eclâmpsia: o valor de `risco_pre_eclampsia` digitado, sem qualificar
+  "baixo"/"aumentado" pelo mesmo motivo da linha de cromossomopatias.
+- Colo: reaproveita `avaliarRiscoColoCurto()` — precisa de `_gaW` no objeto
+  do exame (a função não calcula sozinha), então monta um clone do exame só
+  com esse campo antes de chamar (`{...exame1Tri, _gaW: igDays/7}`). Colo
+  curto vira a mesma frase sublinhada de sempre (`_riscoLinhaTexto`); normal
+  vira "Colo uterino sem anormalidades (X mm)"; sem medida, a linha nem
+  entra.

@@ -1475,6 +1475,40 @@ de '—' é ruído") que poderia se aplicar aqui também (esconder PFE/CA/CC/FÊ
 por completo numa gestação só com exames de 1º trimestre), mas isso é
 extensão de escopo — revisitar se ela pedir.
 
+### Margens da página impressa: 40px (10,6mm) laterais, e só 18px (4,8mm) no rodapé
+
+2026-09-27, mesmo dia. A médica relatou "os textos encostam na borda" no
+PDF. `@page{size:A4;margin:0}` — a margem real de toda folha exportada
+(`.sheet`/`.sheet-flow`, os dois sem padding próprio) vem inteira do
+padding/margin de `.hdr`/`.body`/`.ftr`, que são os únicos elementos que
+tocam as quatro bordas da folha (`.hdr` encosta no topo, `.ftr` encosta no
+fim, os três têm `margin:0 40px` nas laterais). Medido com Playwright
+(`getBoundingClientRect` contra a `.sheet-flow`, em `media: print`, convertido
+de px pra mm a 96px/polegada): **10,6mm nas laterais, ~6,9mm no topo
+(padding-top do `.hdr`), e só ~4,8mm no rodapé** (padding-bottom do `.ftr`,
+o mais apertado dos quatro) — fino demais pra um documento impresso, e o
+rodapé próximo o bastante da margem não-imprimível física de muita
+impressora pra realmente "encostar".
+
+**O conserto foi só nesses três seletores**, replicado nas duas cópias do
+CSS (`.rel-preview .hdr/.body/.ftr`, pro preview em tela, e a versão sem
+prefixo dentro de `_relPrintStyleBlock()`, pro documento exportado — as
+duas precisam bater, senão a tela mostra uma margem e o PDF sai com outra):
+`margin:0 40px` → `0 48px` (10,6mm → 12,7mm), `.hdr` `padding-top:26px` →
+`30px` (6,9mm → 7,9mm), `.ftr` `padding-bottom:18px` → `24px` (4,8mm →
+6,3mm). Não mexeu em `.body`'s padding-top (22px, é espaçamento interno
+entre o fim do cabeçalho e o começo do conteúdo, não margem de página) nem
+em nenhuma medida de gráfico ou tabela.
+
+**Verificado que não estoura a página mais apertada.** `.sheet` (usado só
+na página de gráficos por feto da trigemelar — a única com altura fixa
+297mm + `overflow:hidden`, que corta em silêncio o que não couber) tinha
+~108mm de folga entre o conteúdo natural e o limite da folha antes deste
+conserto; a margem lateral maior estreita o conteúdo em ~8px, folga de
+sobra pra absorver sem chegar perto do corte. `.sheet-flow` (evolutivo
+única/gemelar/trigemelar e Laudo 1º Trimestre) nem tem esse risco — já
+estoura pra uma segunda página em vez de cortar.
+
 ## Risco combinado da FMF: parto prematuro e diabetes gestacional entraram junto com T21/T18/T13/pré-eclâmpsia
 
 2026-09-27, conversa seguinte. A médica pediu os dois riscos que o software

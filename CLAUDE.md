@@ -1316,3 +1316,52 @@ não distorce nada. Só o PDF; a tela (`buildChart1TriCcn`, Canvas) já usa um
 container quadrado (`aspect-ratio:1/1`, compartilhado por todos os cards de
 gráfico) — mais alto proporcionalmente que o card largo do PDF — e não foi
 mexida.
+
+## Risco combinado da FMF: parto prematuro e diabetes gestacional entraram junto com T21/T18/T13/pré-eclâmpsia
+
+2026-09-27, conversa seguinte. A médica pediu os dois riscos que o software
+novo da FMF passou a devolver no mesmo rastreamento combinado do 1º
+trimestre. Achou, ao pedir, que TN/FC/T21/T18/T13/pré-eclâmpsia não existiam
+aqui — na verdade só não tinha reparado no `<details>` colapsado "Risco 1º
+Trimestre — FMF" do formulário de exame (fácil de passar batido: fica junto
+de Doppler/Colo, que também começam fechados). Confirmado com ela: os quatro
+já existentes ficam como estão, só entram os dois novos, no mesmo formato
+("1 em X", texto livre) e no mesmo padrão dos que já existiam — sem inventar
+uma segunda forma de captura pro que é, na prática, o mesmo tipo de campo.
+
+`risco_parto_prematuro`/`risco_diabetes_gestacional` (migração 013) seguem
+exatamente o desenho de `risco_pre_eclampsia`, não o de `risco_t21`/
+`risco_t18`/`risco_t13`: são **achado materno da visita**, um valor só por
+gestação (mesmo numa gemelar/trigemelar — o rastreamento combinado não é por
+feto), lidos sempre do formulário na tela via `sharedStr`, nunca do rascunho
+de outro feto quando o médico alterna de feto no meio do preenchimento —
+mesma razão de `colo`/`aut_e`/`aut_d`/`risco_pre_eclampsia` ficarem fora de
+`_ME_FETO_FIELD_IDS`. Os pontos que replicam `risco_pre_eclampsia` porque o
+campo é desse tipo (materno, opt-in, texto livre): `_EXAM_COLUMNS`,
+`_meClearBioFields`, `openEditExamModal` (`fmt1TriMap`), `_meBuildExamData`,
+`validateImportedDB` (restauração de snapshot/import).
+
+- **Cartões de risco** (`_riscoFmfCardsHtml`): os três achados maternos
+  (pré-eclâmpsia, parto prematuro, diabetes gestacional) viraram um `.map()`
+  sobre `[classe, rótulo, campo]` em vez de três blocos HTML literais quase
+  idênticos — a duplicação que já existia com um só (`preE`) virava
+  triplicação com três. Classes CSS novas `--pp`/`--dg`, mesma cor que `--pe`
+  nas duas cópias de estilo (tela e `_relPrintStyleBlock` do PDF): são o
+  mesmo tipo de achado (rastreamento materno da FMF), inventar uma cor por
+  campo sugeriria uma hierarquia de gravidade que não existe entre os três.
+- **Conclusão do laudo de 1º trimestre** (`_gerarConclusaoLaudo1TriInicial`):
+  duas linhas a mais no checklist, mesmo texto/formato da linha de
+  pré-eclâmpsia ("Rastreamento combinado do 1º trimestre: risco de X para
+  Y..."), sem qualificar "baixo"/"aumentado" — mesmo motivo já documentado
+  pra pré-eclâmpsia e cromossomopatias: quem decide isso é quem lê, o app só
+  repete o número que o software da FMF devolveu.
+- **Relatório evolutivo** (`_gerarConclusaoUnicaInicial`/
+  `_gerarConclusaoGemelarInicial`): duas funções novas,
+  `_achadoRiscoPartoPrematuro1Tri`/`_achadoRiscoDiabetesGestacional1Tri`,
+  cópia de `_achadoRiscoPreEclampsia1Tri` — mesmo formato `{label, conduta}`
+  consumido por `_riscoLinhaTexto` sem nenhuma mudança nela. Na múltipla,
+  `_gerarConclusaoGemelarInicial` ganhou dois parâmetros a mais (mesmo
+  padrão do `riscoPreEclampsia1Tri`: calculado fora, em
+  `_abrirPreviewRelatorioMultiplo`, e passado pronto — não vive dentro do
+  `impressao` de nenhum feto, é achado da gestação).
+

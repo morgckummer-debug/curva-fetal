@@ -148,6 +148,8 @@ create table if not exists public.exams (
   risco_t18        text,
   risco_t13        text,
   risco_pre_eclampsia text,
+  risco_parto_prematuro text,
+  risco_diabetes_gestacional text,
   feto             text check (feto in ('A','B','C')),
   excluido_em      timestamptz,
   created_at       timestamptz not null default now(),

@@ -553,9 +553,9 @@ header::after{display:none;}
   background:var(--clay-card);border-radius:var(--radius);box-shadow:var(--sh);
   padding:14px 18px;min-width:150px;max-width:190px;flex:0 1 170px;border-top:3px solid var(--sage);
 }
-.risco-fmf-card--pe{border-top-color:var(--peach-warm);}
+.risco-fmf-card--pe,.risco-fmf-card--pp,.risco-fmf-card--dg{border-top-color:var(--peach-warm);}
 .risco-fmf-card-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--sage-deep);margin-bottom:8px;}
-.risco-fmf-card--pe .risco-fmf-card-t{color:#8a5800;}
+.risco-fmf-card--pe .risco-fmf-card-t,.risco-fmf-card--pp .risco-fmf-card-t,.risco-fmf-card--dg .risco-fmf-card-t{color:#8a5800;}
 .risco-fmf-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:2px 0;}
 .risco-fmf-k{color:var(--text-muted);font-weight:600;}
 .risco-fmf-v{font-family:var(--font-mono);font-weight:700;color:var(--text);}
@@ -1592,10 +1592,24 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             </div>
           </div>
           <div class="me-bio-label" style="margin-bottom:8px;">Pré-eclâmpsia <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">achado materno da visita</span></div>
-          <div class="me-bio-row">
+          <div class="me-bio-row" style="margin-bottom:14px;">
             <div class="me-bio-field">
               <label>Risco</label>
               <input type="text" id="e-risco-pre-eclampsia" placeholder="1 em X">
+            </div>
+          </div>
+          <div class="me-bio-label" style="margin-bottom:8px;">Parto prematuro <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">achado materno da visita</span></div>
+          <div class="me-bio-row" style="margin-bottom:14px;">
+            <div class="me-bio-field">
+              <label>Risco</label>
+              <input type="text" id="e-risco-parto-prematuro" placeholder="1 em X">
+            </div>
+          </div>
+          <div class="me-bio-label" style="margin-bottom:8px;">Diabetes gestacional <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">achado materno da visita</span></div>
+          <div class="me-bio-row">
+            <div class="me-bio-field">
+              <label>Risco</label>
+              <input type="text" id="e-risco-diabetes-gestacional" placeholder="1 em X">
             </div>
           </div>
         </div>
@@ -3990,7 +4004,7 @@ function _proximoIdLocal(linhas) {
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
 const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,progesterona_vaginal_em_uso,cerclagem_realizada,cerclagem_ig_semanas,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
-const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,feto,excluido_em';
+const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,risco_parto_prematuro,risco_diabetes_gestacional,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
 // memória. Chamado uma vez ao entrar (ver onAuthStateChange, mais abaixo).
@@ -6191,13 +6205,23 @@ function _riscoFmfCardsHtml(gestacao, allExams) {
     cardsHtml = fetos.map(f => _riscoFmfCardHtml(labelFeto(f), _riscoFmfExame(allExams.filter(e => e.feto === f)))).join('');
   }
 
-  const preE = _ultimoExameComCampo(allExams, 'risco_pre_eclampsia');
-  const preEHtml = preE ? `<div class="risco-fmf-card risco-fmf-card--pe">
-    <div class="risco-fmf-card-t">Pré-eclâmpsia</div>
-    <div class="risco-fmf-row"><span class="risco-fmf-k">Risco</span><span class="risco-fmf-v">${escapeHtml(preE.risco_pre_eclampsia)}</span></div>
-  </div>` : '';
+  // Pré-eclâmpsia/parto prematuro/diabetes gestacional: mesmo achado materno
+  // da visita (rastreamento combinado da FMF), um cartão cada, sempre da
+  // gestação inteira — nunca por feto, mesmo padrão dos três.
+  const cardsMaterno = [
+    ['pe', 'Pré-eclâmpsia', 'risco_pre_eclampsia'],
+    ['pp', 'Parto prematuro', 'risco_parto_prematuro'],
+    ['dg', 'Diabetes gestacional', 'risco_diabetes_gestacional'],
+  ].map(([classe, rotulo, campo]) => {
+    const exame = _ultimoExameComCampo(allExams, campo);
+    if (!exame) return '';
+    return `<div class="risco-fmf-card risco-fmf-card--${classe}">
+    <div class="risco-fmf-card-t">${rotulo}</div>
+    <div class="risco-fmf-row"><span class="risco-fmf-k">Risco</span><span class="risco-fmf-v">${escapeHtml(exame[campo])}</span></div>
+  </div>`;
+  }).join('');
 
-  return cardsHtml + preEHtml;
+  return cardsHtml + cardsMaterno;
 }
 
 function renderRiscoFmfCards(gestacao, allExams) {
@@ -7872,7 +7896,7 @@ function _meClearBioFields() {
   if (dvOnda) dvOnda.value = '';
   const auFluxo = document.getElementById('e-au-fluxo');
   if (auFluxo) auFluxo.value = '';
-  ['e-nt','e-fc','e-risco-t21','e-risco-t18','e-risco-t13','e-risco-pre-eclampsia']
+  ['e-nt','e-fc','e-risco-t21','e-risco-t18','e-risco-t13','e-risco-pre-eclampsia','e-risco-parto-prematuro','e-risco-diabetes-gestacional']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   ['badge-au-ip','badge-acm-ip','badge-acm-psv','badge-aut-mean','badge-cpr','badge-ila']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -8081,6 +8105,8 @@ function openEditExamModal(eid) {
     'nt':'nt', 'fc':'fc',
     'risco-t21':'risco_t21', 'risco-t18':'risco_t18', 'risco-t13':'risco_t13',
     'risco-pre-eclampsia':'risco_pre_eclampsia',
+    'risco-parto-prematuro':'risco_parto_prematuro',
+    'risco-diabetes-gestacional':'risco_diabetes_gestacional',
   };
   Object.entries(fmt1TriMap).forEach(([elSuffix, key]) => {
     const el = document.getElementById('e-' + elSuffix);
@@ -8739,10 +8765,14 @@ function _meBuildExamData(feto, draft, data, igManual) {
     dv_onda: str('e-dv-onda'),
     colo: sharedNum('e-colo'), ila: num('e-ila'), bolsao: num('e-bolsao'),
     // Marcadores/riscos da FMF (1º trimestre) — TN e FC são do feto (como CCN);
-    // pré-eclâmpsia é achado materno da visita, igual colo/uterinas (sharedStr).
+    // pré-eclâmpsia/parto prematuro/diabetes gestacional são achado materno da
+    // visita, igual colo/uterinas (sharedStr) — o rastreamento combinado é um
+    // só pra gestação inteira, não por feto.
     nt: num('e-nt'), fc: num('e-fc'),
     risco_t21: str('e-risco-t21'), risco_t18: str('e-risco-t18'), risco_t13: str('e-risco-t13'),
     risco_pre_eclampsia: sharedStr('e-risco-pre-eclampsia'),
+    risco_parto_prematuro: sharedStr('e-risco-parto-prematuro'),
+    risco_diabetes_gestacional: sharedStr('e-risco-diabetes-gestacional'),
     feto,
   };
 }
@@ -9563,6 +9593,14 @@ function _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri) {
   if (riscoPe) {
     linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${riscoPe.risco_pre_eclampsia} para pré-eclâmpsia pré-termo, segundo algoritmo da Fetal Medicine Foundation.`);
   }
+  const riscoPp = _ultimoExameComCampo(allExams, 'risco_parto_prematuro');
+  if (riscoPp) {
+    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${riscoPp.risco_parto_prematuro} para parto prematuro, segundo algoritmo da Fetal Medicine Foundation.`);
+  }
+  const riscoDg = _ultimoExameComCampo(allExams, 'risco_diabetes_gestacional');
+  if (riscoDg) {
+    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${riscoDg.risco_diabetes_gestacional} para diabetes gestacional, segundo algoritmo da Fetal Medicine Foundation.`);
+  }
 
   if (exame1Tri.colo != null) {
     const examComGaW = { ...exame1Tri, _gaW: igDays != null ? igDays / 7 : null };
@@ -9667,7 +9705,7 @@ function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
       ? _gerarTextoCardFetoInicial(pf.impressao)
       : generateSummary(gestacao, pf.exams).paragrafos.join('\n\n');
   });
-  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams), avaliarTAPS(gestacao, allExams), _achadoRiscoPreEclampsia1Tri(allExams));
+  const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams), avaliarTAPS(gestacao, allExams), _achadoRiscoPreEclampsia1Tri(allExams), _achadoRiscoPartoPrematuro1Tri(allExams), _achadoRiscoDiabetesGestacional1Tri(allExams));
 
   const body = document.getElementById('modal-relatorio-body');
   if (body) {
@@ -10003,6 +10041,26 @@ function _achadoRiscoPreEclampsia1Tri(exams) {
   };
 }
 
+// Mesmo padrão de _achadoRiscoPreEclampsia1Tri, um achado a mais que o
+// software da FMF passou a devolver no mesmo rastreamento combinado.
+function _achadoRiscoPartoPrematuro1Tri(exams) {
+  const e = _ultimoExameComCampo(exams, 'risco_parto_prematuro');
+  if (!e) return null;
+  return {
+    label: 'Rastreio de parto prematuro (1º trimestre)',
+    conduta: `Risco combinado (FMF): ${e.risco_parto_prematuro}`,
+  };
+}
+
+function _achadoRiscoDiabetesGestacional1Tri(exams) {
+  const e = _ultimoExameComCampo(exams, 'risco_diabetes_gestacional');
+  if (!e) return null;
+  return {
+    label: 'Rastreio de diabetes gestacional (1º trimestre)',
+    conduta: `Risco combinado (FMF): ${e.risco_diabetes_gestacional}`,
+  };
+}
+
 // Coluna do colo no histórico: o valor de uma visita diz menos que a queda
 // entre visitas, e a tabela do relatório não trazia o colo em nenhuma coluna.
 // Só aparece se alguma visita mediu — coluna inteira de "—" é ruído. Abaixo de
@@ -10089,6 +10147,10 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
   const riscoPe1Tri = _achadoRiscoPreEclampsia1Tri(exams);
   if (riscoPe1Tri) linhas.push(_riscoLinhaTexto(riscoPe1Tri));
+  const riscoPp1Tri = _achadoRiscoPartoPrematuro1Tri(exams);
+  if (riscoPp1Tri) linhas.push(_riscoLinhaTexto(riscoPp1Tri));
+  const riscoDg1Tri = _achadoRiscoDiabetesGestacional1Tri(exams);
+  if (riscoDg1Tri) linhas.push(_riscoLinhaTexto(riscoDg1Tri));
   if (impressao.conduta) linhas.push(`Conduta sugerida: ${impressao.conduta}`);
   (impressao.notas || []).forEach(nota => linhas.push(nota));
   return linhas.join('\n');
@@ -11343,7 +11405,7 @@ function _listaPtBR(itens) {
   return `${itens.slice(0, -1).join(', ')} e ${itens[itens.length - 1]}`;
 }
 
-function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps, riscoPreEclampsia1Tri) {
+function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps, riscoPreEclampsia1Tri, riscoPartoPrematuro1Tri, riscoDiabetesGestacional1Tri) {
   // Rótulo curto depois do travessão, em singular e plural. `adequado` não tem
   // rótulo nenhum: o percentil já diz que está adequado, e "Feto 2 no percentil
   // 40 — Feto adequado" é a mesma informação duas vezes (decisão da médica,
@@ -11459,9 +11521,12 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps, ris
   // vive dentro do `impressao` de nenhum feto — nasce da comparação entre os
   // dois, então não há de quem extraí-la com um .find(Boolean).
   if (taps) linhas.push(_riscoLinhaTexto(taps));
-  // Idem o rastreio combinado do 1º tri (risco_pre_eclampsia) — achado da
-  // gestação, chega pronto de fora (ver _abrirPreviewRelatorioMultiplo).
+  // Idem o rastreio combinado do 1º tri (risco_pre_eclampsia/risco_parto_
+  // prematuro/risco_diabetes_gestacional) — achado da gestação, chega pronto
+  // de fora (ver _abrirPreviewRelatorioMultiplo).
   if (riscoPreEclampsia1Tri) linhas.push(_riscoLinhaTexto(riscoPreEclampsia1Tri));
+  if (riscoPartoPrematuro1Tri) linhas.push(_riscoLinhaTexto(riscoPartoPrematuro1Tri));
+  if (riscoDiabetesGestacional1Tri) linhas.push(_riscoLinhaTexto(riscoDiabetesGestacional1Tri));
 
   // Conduta sugerida: uma só, a do feto de pior prognóstico — não existem dois
   // planos de vigilância paralelos pra uma mãe só (definição da médica,
@@ -11797,10 +11862,10 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .risco-fmf-card{background:var(--nude-2);border-radius:8px;padding:12px 16px;
   min-width:130px;max-width:170px;flex:0 1 150px;border-top:3px solid var(--roxo);
   page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.risco-fmf-card--pe{border-top-color:var(--dourado)}
+.risco-fmf-card--pe,.risco-fmf-card--pp,.risco-fmf-card--dg{border-top-color:var(--dourado)}
 .risco-fmf-card-t{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
   color:var(--roxo);margin-bottom:6px}
-.risco-fmf-card--pe .risco-fmf-card-t{color:var(--dourado-escuro)}
+.risco-fmf-card--pe .risco-fmf-card-t,.risco-fmf-card--pp .risco-fmf-card-t,.risco-fmf-card--dg .risco-fmf-card-t{color:var(--dourado-escuro)}
 .risco-fmf-row{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:2px 0}
 .risco-fmf-k{color:var(--texto-3);font-weight:600}
 .risco-fmf-v{font-weight:700;color:var(--texto)}
@@ -12618,6 +12683,8 @@ function validateImportedDB(raw) {
       risco_t18: sanitizeString(e.risco_t18, 40) || null,
       risco_t13: sanitizeString(e.risco_t13, 40) || null,
       risco_pre_eclampsia: sanitizeString(e.risco_pre_eclampsia, 40) || null,
+      risco_parto_prematuro: sanitizeString(e.risco_parto_prematuro, 40) || null,
+      risco_diabetes_gestacional: sanitizeString(e.risco_diabetes_gestacional, 40) || null,
     });
   });
 

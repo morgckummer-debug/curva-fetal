@@ -5142,6 +5142,18 @@ function _drawChart(canvas, cfg) {
     }
   }
 
+  // ── Straight-line path — mesmo estilo do editor de laudos (pathFromPts,
+  // só M/L), sem suavização. cfg.linear liga isso pros cards de referência
+  // do 1º trimestre (FC/CCN/TN/DBP/DV): a banda ali vem de tabela esparsa
+  // (poucos pontos) interpolada linearmente, e o Catmull-Rom por cima disso
+  // criava uma curvatura a mais que a régua original não tem. ──
+  function _linePath(ctx, pts, toX, toY) {
+    if (!pts.length) return;
+    ctx.moveTo(toX(pts[0].x), toY(pts[0].y));
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(toX(pts[i].x), toY(pts[i].y));
+  }
+  const _tracarPath = cfg.linear ? _linePath : _smoothPath;
+
   // Cores do relatório impresso (--lilas, --lavanda, --roxo) — mesmo gráfico
   // de peso da gemelar/PDF (_buildRelChartEfwSvg), pra não ter dois desenhos
   // diferentes pro mesmo dado entre a tela e o papel.
@@ -5152,7 +5164,7 @@ function _drawChart(canvas, cfg) {
 
   // Shade P10–P90
   ctx.beginPath();
-  _smoothPath(ctx, p90, xS, yS);
+  _tracarPath(ctx, p90, xS, yS);
   [...p10].reverse().forEach(pt => ctx.lineTo(xS(pt.x), yS(pt.y)));
   ctx.closePath();
   ctx.fillStyle = COR_BANDA; ctx.fill();
@@ -5160,19 +5172,19 @@ function _drawChart(canvas, cfg) {
   // P10 line
   ctx.beginPath(); ctx.setLineDash([4,3]);
   ctx.strokeStyle = COR_LAVANDA; ctx.lineWidth = 1.3;
-  _smoothPath(ctx, p10, xS, yS);
+  _tracarPath(ctx, p10, xS, yS);
   ctx.stroke();
 
   // P90 line
   ctx.beginPath(); ctx.setLineDash([4,3]);
   ctx.strokeStyle = COR_LAVANDA; ctx.lineWidth = 1.3;
-  _smoothPath(ctx, p90, xS, yS);
+  _tracarPath(ctx, p90, xS, yS);
   ctx.stroke();
 
   // P50 line
   ctx.beginPath(); ctx.setLineDash([]);
   ctx.strokeStyle = COR_LILAS; ctx.lineWidth = 1.6;
-  _smoothPath(ctx, p50, xS, yS);
+  _tracarPath(ctx, p50, xS, yS);
   ctx.stroke();
 
   // Line labels at right edge — P90/P10 na cor da faixa, P50 na cor da mediana,
@@ -6004,7 +6016,7 @@ function buildChart1TriFC(canvasId, gestacao, exams) {
     refData.p10.push({ x: w, y: m - 1.645 * 6.6 });
   }
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.fc != null ? { x: w, y: e.fc } : null);
-  _drawChart(canvas, { xMin: 10, xMax: 14, yMin: 120, yMax: 200, refData, patientPoints, yLabel: 'FC (bpm)' });
+  _drawChart(canvas, { xMin: 10, xMax: 14, yMin: 120, yMax: 200, refData, patientPoints, yLabel: 'FC (bpm)', linear: true });
 }
 
 function buildChart1TriCcn(canvasId, gestacao, exams) {
@@ -6019,7 +6031,7 @@ function buildChart1TriCcn(canvasId, gestacao, exams) {
     refData.p10.push({ x: w, y: Math.max(0, crl - band) });
   }
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
-  _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)' });
+  _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)', linear: true });
 }
 
 function buildChart1TriTN(canvasId, gestacao, exams) {
@@ -6034,7 +6046,7 @@ function buildChart1TriTN(canvasId, gestacao, exams) {
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, e => (e.ccn != null && e.nt != null) ? { x: e.ccn, y: e.nt } : null);
   _drawChart(canvas, {
     xMin: 45, xMax: 84, yMin: 0, yMax: 4, refData, patientPoints, yLabel: 'TN (mm)',
-    xStep: 5, xLabelStep: 10, xFmt: x => String(x), yFmt: v => v.toFixed(1),
+    xStep: 5, xLabelStep: 10, xFmt: x => String(x), yFmt: v => v.toFixed(1), linear: true,
   });
 }
 
@@ -6049,7 +6061,7 @@ function buildChart1TriDbp(canvasId, gestacao, exams) {
     refData.p90.push({ x: w, y: h });
   }
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.dbp != null ? { x: w, y: e.dbp } : null);
-  _drawChart(canvas, { xMin: 12, xMax: 15, yMin: 5, yMax: 38, refData, patientPoints, yLabel: 'DBP precoce (mm)' });
+  _drawChart(canvas, { xMin: 12, xMax: 15, yMin: 5, yMax: 38, refData, patientPoints, yLabel: 'DBP precoce (mm)', linear: true });
 }
 
 function buildChart1TriDV(canvasId, gestacao, exams) {
@@ -6066,7 +6078,7 @@ function buildChart1TriDV(canvasId, gestacao, exams) {
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.dv_ip != null ? { x: w, y: e.dv_ip } : null);
   _drawChart(canvas, {
     xMin: 11, xMax: 14, yMin: 0, yMax: 1.8, refData, patientPoints, yLabel: 'IP ducto venoso',
-    yFmt: v => v.toFixed(2),
+    yFmt: v => v.toFixed(2), linear: true,
   });
 }
 
@@ -9753,6 +9765,23 @@ function _relBandPath(topPts, bottomPts) {
        + `L${f(bottomRev[0].x)},${f(bottomRev[0].y)} ${cmds(bottomRev)} Z`;
 }
 
+// Reta ponto-a-ponto (M/L), mesmo estilo do pathFromPts() do editor de
+// laudos — sem Catmull-Rom. Usada só pelos 5 gráficos "estreitos" do 1º
+// trimestre (_buildRel1TriChartSvg): a referência ali vem de tabela esparsa
+// (poucos pontos) já interpolada linearmente, e o Catmull-Rom por cima disso
+// inventava uma curvatura que a tabela original não tem (relatado pela
+// médica no gráfico do ducto venoso, 2026-09-27).
+function _relLinearPath(points) {
+  const f = n => n.toFixed(1);
+  if (!points.length) return '';
+  return points.map((p, i) => (i ? 'L' : 'M') + f(p.x) + ',' + f(p.y)).join(' ');
+}
+function _relLinearBandPath(topPts, bottomPts) {
+  const f = n => n.toFixed(1);
+  const bottomRev = bottomPts.slice().reverse();
+  return _relLinearPath(topPts) + ' ' + bottomRev.map(p => `L${f(p.x)},${f(p.y)}`).join(' ') + ' Z';
+}
+
 // Domínio fixo de 20 a 40 semanas (ver handoff) para os cinco gráficos ficarem
 // alinhados entre si na grade. Devolve null quando não há referência (ou,
 // no caso do Doppler, quando a gestação não tem UtA registrada — a célula
@@ -10601,10 +10630,10 @@ function _buildRel1TriChartSvg(cfg) {
 
   return `<svg viewBox="0 0 ${VW} ${VH}" class="efw-chart">
     ${grade}
-    <path class="efw-band" d="${_relBandPath(p90, p10)}"/>
-    <path class="efw-p90" d="${_relSvgPath(p90)}"/>
-    <path class="efw-p50" d="${_relSvgPath(p50)}"/>
-    <path class="efw-p10" d="${_relSvgPath(p10)}"/>
+    <path class="efw-band" d="${_relLinearBandPath(p90, p10)}"/>
+    <path class="efw-p90" d="${_relLinearPath(p90)}"/>
+    <path class="efw-p50" d="${_relLinearPath(p50)}"/>
+    <path class="efw-p10" d="${_relLinearPath(p10)}"/>
     ${eixoX}
     ${refRotulos}
     ${pontos}

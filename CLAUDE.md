@@ -1160,8 +1160,9 @@ de referência saiu como IP × CCN — cópia fiel do gráfico do editor de laud
 mesma fonte de onde `DV_TABLE` foi portada). A médica corrigiu: o eixo certo
 é idade gestacional, como os outros quatro gráficos "estreitos" (FC, DBP) —
 só TN continua em CCN de propósito, porque a tabela de referência da própria
-clínica já vem nesse eixo. **O mesmo erro provavelmente existe no editor** —
-não foi mexido lá, só aqui, porque o pedido foi específico deste app.
+clínica já vem nesse eixo. **O mesmo erro existia no editor** — corrigido lá
+também, no mesmo dia, com o mesmo par de mudanças (ver `CLAUDE.md` do
+`laudos-dramorgana`).
 
 `DV_TABLE` é uma leitura visual do gráfico de Pruksanasuk et al. (2014), cujo
 eixo original já é CCN (mm) — os valores da tabela continuam válidos, não são
@@ -1178,3 +1179,43 @@ Dois lugares, os dois com o mesmo par de mudanças: `buildChart1TriDV`
 (Canvas, tela) e `_rel1TriChartDvSvg` (SVG, laudo PDF) — mais o título do
 card em cada um (`#card-1tri-dv` na tela, `_REL_1TRI_CHARTS` no PDF), de "×
 CCN" para "× Idade Gestacional".
+
+### Os 5 gráficos "estreitos" do 1º trimestre viraram reta, não curva suave
+
+Mesma conversa. A médica notou, olhando o gráfico de ducto venoso já com o
+eixo corrigido: as linhas ainda saíam curvas, e o editor de laudos (de onde
+esses 8 gráficos foram portados) sempre desenhou reta ponto-a-ponto —
+`buildGraficoCard()` lá usa só `M`/`L` (`pathFromPts`), nunca curva. Aqui os
+dois motores de desenho (`_relSvgPath` no PDF, `_smoothPath` dentro de
+`_drawChart` na tela) suavizam todo mundo com Catmull-Rom→Bézier — inclusive
+os 5 gráficos estreitos (FC, CCN, TN, DBP, DV), cuja referência vem de tabela
+esparsa (poucos pontos: `DV_TABLE` tem 11, `DBP_TABLE_WEEKS` só 4) já
+interpolada linearmente antes de chegar no desenho. O Catmull-Rom por cima
+de uma reta já pronta inventa uma curvatura que a tabela original não tem —
+mais visível quanto mais esparsa a tabela, e foi exatamente no ducto venoso
+que ela notou.
+
+**Não mudei o motor de suavização em si** (`_relSvgPath`/`_smoothPath`
+continuam Catmull-Rom, do jeito que sempre foram) — mudei só quem os 5
+gráficos estreitos chamam:
+
+- PDF (`_buildRel1TriChartSvg`): duas funções novas, `_relLinearPath()` e
+  `_relLinearBandPath()`, mesmo estilo do `pathFromPts` do editor (`M`/`L`
+  puro) — usadas só aqui, não em `_relSvgPath`/`_relBandPath` (que
+  continuam servindo o gráfico grande de peso e as uterinas do relatório
+  evolutivo, sem mudança nenhuma).
+- Tela (`_drawChart`): ganhou `cfg.linear` (opcional, default `false`) — com
+  `true`, troca `_smoothPath` por `_linePath` (mesma lógica, sem Bézier). Os
+  cinco `buildChart1Tri*` (FC/CCN/TN/DBP/DV) passam `linear: true`; todo o
+  resto que chama `_drawChart` (grid padrão ≥15 semanas, `_drawThresholdChart`
+  etc.) não passa o parâmetro, então continua suave como sempre.
+
+**As 3 uterinas dentro do mesmo grid 4×2 continuam suaves, de propósito.**
+Elas reaproveitam `_buildRelChartUtaSvg()`, a mesma função do relatório
+evolutivo (não é código novo deste bloco) — mudar o estilo dela mudaria
+também o gráfico de uterinas usado do 2º trimestre em diante, que ninguém
+pediu para mexer. A curva delas vem de fórmula contínua (Gómez et al.,
+amostrada a cada 0,5 semana) e não de tabela esparsa, então a suavização não
+cria o mesmo artefato — a inconsistência visual dentro do mesmo grid (5
+retas + 3 curvas) é o preço de não tocar num componente compartilhado sem
+pedido explícito.

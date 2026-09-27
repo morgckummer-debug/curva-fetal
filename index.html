@@ -10594,7 +10594,12 @@ function _buildRel1TriChartSvg(cfg) {
 
   const todosY = ref.flatMap(r => [r.p10, r.p90]).concat(pts.map(p => p.y));
   const lo = Math.min(...todosY), hi = Math.max(...todosY);
-  const folga = (hi - lo) * 0.12 || Math.max(0.1, hi * 0.1 || 1);
+  // 6%, não 12% (padrão de _buildRelChartSvg/_buildRelChartEfwSvg) — esses 5
+  // cards são bem mais estreitos em IG (3-4 semanas) que o gráfico grande
+  // (15-40 semanas), então a folga de 12% sobra muito mais espaço vazio em
+  // proporção, e a banda P10-P90 saía "achatada" no PDF (relatado pela
+  // médica, 2026-09-27).
+  const folga = (hi - lo) * 0.06 || Math.max(0.1, hi * 0.1 || 1);
   const minY = Math.max(0, lo - folga);
   const maxY = hi + folga;
 

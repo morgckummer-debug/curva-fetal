@@ -1151,3 +1151,30 @@ linha só afirma o que o app realmente tem:
   curto vira a mesma frase sublinhada de sempre (`_riscoLinhaTexto`); normal
   vira "Colo uterino sem anormalidades (X mm)"; sem medida, a linha nem
   entra.
+
+### Ducto venoso do 1º trimestre: eixo X é idade gestacional, não CCN
+
+2026-09-27, um dia depois de publicado. O gráfico "IP — Ducto Venoso" dos 8
+de referência saiu como IP × CCN — cópia fiel do gráfico do editor de laudos
+(`morfologico-1trimestre.html`, `cfgs.push({...xLabel:'CCN (MM)'...})`, a
+mesma fonte de onde `DV_TABLE` foi portada). A médica corrigiu: o eixo certo
+é idade gestacional, como os outros quatro gráficos "estreitos" (FC, DBP) —
+só TN continua em CCN de propósito, porque a tabela de referência da própria
+clínica já vem nesse eixo. **O mesmo erro provavelmente existe no editor** —
+não foi mexido lá, só aqui, porque o pedido foi específico deste app.
+
+`DV_TABLE` é uma leitura visual do gráfico de Pruksanasuk et al. (2014), cujo
+eixo original já é CCN (mm) — os valores da tabela continuam válidos, não são
+o que estava errado. O conserto não trocou a tabela, só a converteu para o
+eixo certo na hora de desenhar: em vez de plotar direto `x = CCN`, cada ponto
+da curva de referência agora varre semanas (`w`, 11 a 14, mesma janela do
+gráfico de CCN vizinho) e usa `crlFromGAdays_hadlock(w*7)` — a mesma função
+que já converte GA→CCN para a curva de CCN×IG — para achar o CCN equivalente
+e só então consultar `DV_TABLE` por ele. O ponto da paciente trocou de `{x:
+e.ccn, y: e.dv_ip}` para `{x: w, y: e.dv_ip}` (`w` = IG do exame, não o CCN
+medido) — mesmo padrão que FC e DBP já usavam.
+
+Dois lugares, os dois com o mesmo par de mudanças: `buildChart1TriDV`
+(Canvas, tela) e `_rel1TriChartDvSvg` (SVG, laudo PDF) — mais o título do
+card em cada um (`#card-1tri-dv` na tela, `_REL_1TRI_CHARTS` no PDF), de "×
+CCN" para "× Idade Gestacional".

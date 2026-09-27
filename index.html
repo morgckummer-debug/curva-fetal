@@ -1210,7 +1210,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-dv">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">IP — Ducto Venoso × CCN</div>
+                <div class="chart-card-title">IP — Ducto Venoso × Idade Gestacional</div>
                 <div class="chart-card-subtitle">Aproximação Pruksanasuk et al. (2014)</div>
               </div>
             </div>
@@ -6056,16 +6056,17 @@ function buildChart1TriDV(canvasId, gestacao, exams) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   const refData = { p10: [], p50: [], p90: [] };
-  for (let x = 44; x <= 84; x += 1) {
-    const [, l, m, h] = interpTabelaRef(DV_TABLE, x);
-    refData.p10.push({ x, y: l });
-    refData.p50.push({ x, y: m });
-    refData.p90.push({ x, y: h });
+  for (let w = 11; w <= 14; w += 0.1) {
+    const ccn = crlFromGAdays_hadlock(w * 7);
+    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    refData.p10.push({ x: w, y: l });
+    refData.p50.push({ x: w, y: m });
+    refData.p90.push({ x: w, y: h });
   }
-  const patientPoints = _pointsForFeto1Tri(gestacao, exams, e => (e.ccn != null && e.dv_ip != null) ? { x: e.ccn, y: e.dv_ip } : null);
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.dv_ip != null ? { x: w, y: e.dv_ip } : null);
   _drawChart(canvas, {
-    xMin: 44, xMax: 84, yMin: 0, yMax: 1.8, refData, patientPoints, yLabel: 'IP ducto venoso',
-    xStep: 5, xLabelStep: 10, xFmt: x => String(x), yFmt: v => v.toFixed(2),
+    xMin: 11, xMax: 14, yMin: 0, yMax: 1.8, refData, patientPoints, yLabel: 'IP ducto venoso',
+    yFmt: v => v.toFixed(2),
   });
 }
 
@@ -10669,12 +10670,13 @@ function _rel1TriChartDbpSvg(gestacao, exams) {
 
 function _rel1TriChartDvSvg(gestacao, exams) {
   const ref = [];
-  for (let x = 44; x <= 84; x += 3) {
-    const [, l, m, h] = interpTabelaRef(DV_TABLE, x);
-    ref.push({ x, p10: l, p50: m, p90: h });
+  for (let w = 11; w <= 14; w += 0.2) {
+    const ccn = crlFromGAdays_hadlock(w * 7);
+    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    ref.push({ x: w, p10: l, p50: m, p90: h });
   }
-  const pts = _rel1TriPontosFeto(gestacao, exams, e => (e.ccn != null && e.dv_ip != null) ? { x: e.ccn, y: e.dv_ip } : null);
-  return _buildRel1TriChartSvg({ xMin: 44, xMax: 84, ref, pts, xTicks: [44, 54, 64, 74, 84], xFmt: x => String(x), yDecimais: 2 });
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.dv_ip != null ? { x: w, y: e.dv_ip } : null);
+  return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 2 });
 }
 
 const _REL_1TRI_CHARTS = [
@@ -10682,7 +10684,7 @@ const _REL_1TRI_CHARTS = [
   { key: 'ccn', titulo: 'CCN × Idade Gestacional',        sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
   { key: 'tn',  titulo: 'Translucência Nucal × CCN',      sub: 'Tabela de referência da clínica',         build: _rel1TriChartTnSvg },
   { key: 'dbp', titulo: 'Diâmetro Biparietal Precoce',    sub: 'Tabela de referência da clínica · 12-15 sem', build: _rel1TriChartDbpSvg },
-  { key: 'dv',  titulo: 'IP — Ducto Venoso × CCN',        sub: 'Aproximação Pruksanasuk et al. (2014)',   build: _rel1TriChartDvSvg },
+  { key: 'dv',  titulo: 'IP — Ducto Venoso × Idade Gestacional', sub: 'Aproximação Pruksanasuk et al. (2014)', build: _rel1TriChartDvSvg },
 ];
 
 // Um card por gráfico "estreito", opcionalmente por feto (múltipla) — mesma

@@ -1256,3 +1256,63 @@ e bem espaçados (DV, DBP) → reta, é o que o dado tem; fórmula fechada e
 contínua (FC) → reta já sai suave sozinha, tanto faz; tabela densa mas
 arredondada representando algo que cresce contínuo (CCN) → suave, porque o
 arredondamento não é sinal, é ruído de captura.
+
+### CCN×IG: a suavização escondia o degrau, mas inventava outra coisa — a curva foi pra raiz
+
+2026-09-27, mesmo dia, mais tarde ainda. A médica reportou de novo: as linhas
+do CCN×IG (mediana e as duas bordas da banda) saíam "serpiginosas" —
+onduladas, não retas — e pediu também mais respiro na faixa P10-P90, achatada
+demais pro ponto da paciente aparecer bem.
+
+A primeira parte não é um problema novo, é o mesmo problema da seção anterior
+por outro ângulo. O Catmull-Rom escondia o degrau do arredondamento da tabela
+(a reta virava suave), mas Catmull-Rom por cima de uma sequência de segmentos
+com inclinação errática (o próprio degrau: 0,7mm, 2,7mm, 0,7, 0,7, 1,7mm...)
+não produz uma curva parecida com o crescimento real — produz uma curva que
+ziguezagueia tentando concordar com cada inclinação diferente, e isso *é* a
+serpentina. Trocar reta por suave só troca a aparência do mesmo ruído; não
+tira o ruído do caminho. A decisão de manter o CCN suave (seção anterior)
+resolvia o sintoma errado.
+
+**A correção foi na tabela, não no desenho.** `crlFromGAdays_hadlock()`
+deixou de interpolar `HADLOCK_CCN_GA_DAYS` ponto a ponto e passou a ler uma
+parábola ajustada por mínimos quadrados sobre a tabela inteira (`quadRegress`,
+mesma ideia do `linRegress` que já resolvia esse problema pro `TN_TABLE` —
+só que ali uma reta bastava e aqui não, porque o CCN acelera com a IG).
+Erro máximo da parábola contra os 77 pontos da tabela: ~1,6mm — e boa parte
+disso é inevitável, não é erro da regressão: a própria tabela tem o mesmo dia
+de GA arredondado pra CCNs vizinhos (ex.: GA=78 aparece para CCN 42, 43 *e*
+44), e nenhuma função de um valor só passa pelos três. O erro fica bem abaixo
+da banda (±9 a ±15mm na janela de 11-14 semanas), então não muda leitura
+clínica nenhuma — só troca "77 segmentos com inclinação aleatória" por uma
+curva contínua de verdade. Com a fonte do ruído removida, `cfg.smooth`
+deixou de fazer sentido pro CCN: ele voltou a usar reta
+(`_relLinearPath`/`_relLinearBandPath` no PDF, `linear: true` no
+`_drawChart` da tela), igual aos outros 4 — a amostragem em passos de 0,1
+semana já é fina o bastante pra uma parábola parecer suave sem precisar de
+Bézier por cima. **O "critério pra decidir reta vs. suave" da seção anterior
+fica errado pro CCN especificamente** — valia enquanto a única fonte
+disponível era a tabela arredondada; deixa de valer assim que existe uma
+curva contínua ajustada a ela. Continua valendo pra DV/DBP (tabela
+genuinamente esparsa, sem regressão feita) e FC (fórmula fechada).
+
+**A faixa P10-P90 achatada é outra causa, e não tinha arrumo no desenho.** A
+mediana do CCN sobe ~40mm em 3 semanas (11 a 14 semanas); a banda em qualquer
+ponto x é bem mais estreita que isso (±9 a ±15mm). Como o eixo Y do gráfico
+tem que caber a subida inteira da mediana, a banda ocupa só uma fração da
+altura do card em qualquer ponto — reduzir a folga ao redor (já feito hoje
+mais cedo, ver "Laudo 1º trimestre: reduz a folga vertical") não muda essa
+proporção, só o espaço morto nas bordas. A única forma de dar mais respiro
+sem inflar a banda estatística (que seria inventar precisão que a
+aproximação ±(2+0,16×CCN) não tem) é aumentar o card fisicamente:
+`_buildRel1TriChartSvg` ganhou `cfg.vh` (altura do viewBox, default `176`,
+igual a antes) e só `_rel1TriChartCcnSvg` passa um valor maior (`230`) — mais
+pixel por mm sem mudar o que a faixa significa. Escopado só ao CCN, de
+propósito: os outros 4 não foram tocados, ninguém pediu. Efeito colateral
+aceito: na grade 4×2 do laudo (FC/CCN/TN/DBP na primeira linha), o CSS Grid
+estica os três vizinhos pra acompanhar a altura do card do CCN — como
+`.feto-card` não é flex, a sobra vira um respiro em branco no rodapé deles,
+não distorce nada. Só o PDF; a tela (`buildChart1TriCcn`, Canvas) já usa um
+container quadrado (`aspect-ratio:1/1`, compartilhado por todos os cards de
+gráfico) — mais alto proporcionalmente que o card largo do PDF — e não foi
+mexida.

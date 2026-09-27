@@ -2536,6 +2536,35 @@ function crlFromGAdays_hyett(gaDays) {
 
 // CCN × IG — Hadlock, Shah, Kanon, Lindsey. Radiology 1992;182:501-505 —
 // tabela fornecida pela clínica (só mediana; banda é aproximação ±(2+0,16×CCN)).
+// Arredondada a cada 1mm de CCN (e o dia de GA correspondente também
+// arredondado, com dias repetidos para CCNs vizinhos) — ligar os pontos direto
+// (reta) produz um degrau real, não ruído de desenho (ver "CCN×IG virou
+// serrote com reta" no CLAUDE.md); e suavizar por cima com Catmull-Rom (como
+// era até 2026-09-27) inventa uma ondulação que a tabela também não tem —
+// sai "serpiginosa". A correção fica na origem: uma parábola ajustada por
+// mínimos quadrados sobre a tabela inteira (quadRegress, mesmo espírito do
+// linRegress do TN abaixo — só que aqui o CCN acelera com a IG e uma reta não
+// bastava). Erro máx. ~1,6mm contra a tabela — bem menor que a banda (±9 a
+// ±15mm na janela de 11-14 semanas) — e nenhum dado novo: são os mesmos 77
+// pontos fornecidos pela clínica, só lidos por uma curva contínua em vez de
+// ponto a ponto.
+function quadRegress(pts) {
+  const n = pts.length;
+  let sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
+  pts.forEach(([x, y]) => {
+    const x2 = x * x;
+    sx += x; sx2 += x2; sx3 += x2 * x; sx4 += x2 * x2;
+    sy += y; sxy += x * y; sx2y += x2 * y;
+  });
+  const A = [[n, sx, sx2], [sx, sx2, sx3], [sx2, sx3, sx4]];
+  const B = [sy, sxy, sx2y];
+  const det3 = m => m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                   - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                   + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+  const repl = (m, col, vals) => m.map((row, i) => row.map((v, j) => j === col ? vals[i] : v));
+  const d = det3(A);
+  return { b: det3(repl(A, 0, B)) / d, m: det3(repl(A, 1, B)) / d, m2: det3(repl(A, 2, B)) / d };
+}
 const HADLOCK_CCN_GA_DAYS = [
   [2,40],[3,41],[4,43],[5,43],[6,45],[7,46],[8,47],[9,48],[10,50],[11,50],
   [12,52],[13,53],[14,54],[15,55],[16,56],[17,57],[18,58],[19,59],[20,60],
@@ -2547,19 +2576,10 @@ const HADLOCK_CCN_GA_DAYS = [
   [63,89],[64,90],[65,90],[66,90],[67,91],[68,92],[69,92],[70,92],[71,93],
   [72,94],[73,94],[74,95],[75,95],[76,96],[77,97],[78,97],
 ];
+const HADLOCK_CCN_REG = quadRegress(HADLOCK_CCN_GA_DAYS.map(([ccn, ga]) => [ga, ccn]));
 function crlFromGAdays_hadlock(gaDays) {
-  const pts = HADLOCK_CCN_GA_DAYS;
-  if (gaDays <= pts[0][1]) return pts[0][0];
-  if (gaDays >= pts[pts.length - 1][1]) return pts[pts.length - 1][0];
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [ccnA, gaA] = pts[i], [ccnB, gaB] = pts[i + 1];
-    if (gaDays >= gaA && gaDays <= gaB) {
-      if (gaB === gaA) return ccnB;
-      const t = (gaDays - gaA) / (gaB - gaA);
-      return ccnA + t * (ccnB - ccnA);
-    }
-  }
-  return pts[pts.length - 1][0];
+  const { b, m, m2 } = HADLOCK_CCN_REG;
+  return b + m * gaDays + m2 * gaDays * gaDays;
 }
 
 // Translucência nucal — tabela de referência fornecida pela clínica (P5/P50/P95
@@ -6031,7 +6051,7 @@ function buildChart1TriCcn(canvasId, gestacao, exams) {
     refData.p10.push({ x: w, y: Math.max(0, crl - band) });
   }
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
-  _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)' });
+  _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)', linear: true });
 }
 
 function buildChart1TriTN(canvasId, gestacao, exams) {
@@ -10588,7 +10608,18 @@ function _relPontosUterinasLado(gestacao, exams, lado) {
 function _buildRel1TriChartSvg(cfg) {
   const { xMin, xMax, ref, pts, xTicks, xFmt, yFmt, yDecimais } = cfg;
   if (!ref.length) return null;
-  const VW = 340, VH = 176;
+  // cfg.vh: só o CCN×IG usa (ver call site). Nos outros 4 a banda P10-P90 é
+  // uma faixa de largura ~constante ao lado da mediana; no CCN a mediana sobe
+  // ~40mm em 3 semanas e a banda (±9 a ±15mm) é pequena diante desse percurso
+  // — o domínio Y (que tem de caber a curva inteira) sobra bem maior que a
+  // banda local em qualquer ponto x, e a banda sai "achatada" mesmo com a
+  // folga mínima (ver abaixo). Aumentar a altura do card não muda essa
+  // proporção, mas dá mais pixel por mm — o ponto da paciente para de
+  // encostar nas linhas de P10/P90 ao lado. Repetir esse VH nos outros 4
+  // deixaria a linha do grid 4×2 (FC/CCN/TN/DBP) desigual sem necessidade —
+  // só o card do CCN cresce; os vizinhos ficam com uma faixa em branco no pé,
+  // preço aceito por ser só um card.
+  const VW = 340, VH = cfg.vh || 176;
   const padL = 34, padR = 30, padT = 12, padB = 22;
   const chartW = VW - padL - padR, chartH = VH - padT - padB;
 
@@ -10633,12 +10664,17 @@ function _buildRel1TriChartSvg(cfg) {
   // sem "Pxx" em cima, igual o editor de laudos já fazia.
   const pontos = pts.map(p => `<circle class="efw-pt" cx="${f(x(p.x))}" cy="${f(y(p.y))}" r="5"/>`).join('');
 
-  // cfg.smooth: só o CCN×IG usa (ver call site) — sua referência vem de uma
-  // tabela densa mas arredondada (mm/dia inteiros) que representa um
-  // fenômeno contínuo de verdade; interpolada em linha reta, o arredondamento
-  // da tabela aparece como serrote. Os outros 4 continuam em reta: DV/DBP têm
-  // tabela genuinamente esparsa (poucos pontos reais, suavizar inventaria
-  // curva que o dado não tem) e FC já é uma fórmula fechada, suave sozinha.
+  // cfg.smooth: nenhum dos 5 usa hoje. O CCN×IG usou entre 2026-09-27 (commit
+  // cbc8fc6) e agora — a tabela do Hadlock é densa mas arredondada, e ligar
+  // os pontos em reta expunha o degrau do arredondamento (ver "CCN×IG virou
+  // serrote com reta" no CLAUDE.md); suavizar por cima com Catmull-Rom
+  // escondia o degrau mas inventava a ondulação que a médica reportou agora
+  // ("serpiginosas"). A correção foi na raiz — `crlFromGAdays_hadlock` virou
+  // uma parábola ajustada por regressão sobre a tabela (`quadRegress`), sem
+  // degrau nem necessidade de suavização por cima — então o CCN volta a usar
+  // reta como os outros 4. Critério pra um gráfico novo que precisar disso de
+  // verdade: tabela genuinamente esparsa (DV/DBP) não suaviza — inventaria
+  // curva que o dado não tem; fórmula fechada (FC) já sai suave sozinha.
   const tracoPath = cfg.smooth ? _relSvgPath : _relLinearPath;
   const tracoBand = cfg.smooth ? _relBandPath : _relLinearBandPath;
 
@@ -10689,7 +10725,7 @@ function _rel1TriChartCcnSvg(gestacao, exams) {
     ref.push({ x: w, p50: crl, p90: crl + band, p10: Math.max(0, crl - band) });
   }
   const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
-  return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 0, smooth: true });
+  return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 0, vh: 230 });
 }
 
 function _rel1TriChartTnSvg(gestacao, exams) {

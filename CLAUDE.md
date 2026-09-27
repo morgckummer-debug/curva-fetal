@@ -1374,6 +1374,54 @@ container quadrado (`aspect-ratio:1/1`, compartilhado por todos os cards de
 gráfico) — mais alto proporcionalmente que o card largo do PDF — e não foi
 mexida.
 
+### Os 5 gráficos "estreitos" não mostravam a tag de percentil — só os de ≥15 semanas mostravam
+
+2026-09-27, mesmo dia. A médica notou que a pequena tag "Pxx" que aparece
+acima de cada ponto nos gráficos padrão (biometria/EFW, ≥15 semanas) não
+aparecia nos 5 gráficos "estreitos" do 1º trimestre (FC/CCN/TN/DBP/DV) — nem
+na tela (`#charts-1tri`) nem no PDF do Laudo 1º Trimestre. Não era regressão:
+esses 5 nunca tiveram a tag, por uma decisão registrada no próprio código na
+hora em que os builders SVG foram escritos ("Nenhum dos 5 tem percentil de
+verdade... só a bolinha, sem 'Pxx' em cima") — a banda desses gráficos vem de
+uma aproximação P10/P50/P90 (Hyett/Hadlock/tabela da clínica/Pruksanasuk), não
+de uma tabela de z-score publicada como as do gráfico padrão, e por isso não
+tinham percentil calculado para mostrar.
+
+A médica quis a tag mesmo assim — ela já usa a mesma aproximação
+P10/P50/P90 para decidir se um ponto está dentro ou fora da faixa; só faltava
+transformar isso num número. `_pctAprox(val, p10, p50, p90)`, novo, no início
+da seção "1º TRIMESTRE — referências da página de risco/gráficos da FMF",
+reaproveita a mesma fórmula que o **editor de laudos** já usa para o selo de
+cada marcador (z-score assumindo distribuição simétrica em torno da mediana,
+`normalCDF` via `_pnorm` — já existente aqui, usado noutros cálculos —,
+clampado em [5,95]): é uma aproximação, igual à banda que a origina, não uma
+tabela de referência nova.
+
+- **Canvas (tela)**: os 5 `buildChart1Tri*` já computam p10/p50/p90 dentro do
+  próprio extractor de `patientPoints` (a mesma fórmula que já monta `refData`
+  para aquele x) — só precisou passar `p: _pctAprox(val, p10, p50, p90)` junto
+  de `x`/`y`. `_drawChart` **não mudou**: já suportava `pt.p` desde os
+  gráficos padrão, só nunca tinha sido alimentado por estes 5.
+- **SVG (PDF)**: os 5 `_rel1TriChart*Svg` ganharam o mesmo cálculo. O motor
+  `_buildRel1TriChartSvg` **não tinha nenhum código de tag** (só desenhava a
+  bolinha) — ganhou a mesma lógica dos gráficos padrão
+  (`_buildRelChartSvg`/`_buildRelChartEfwSvg`): um `<text class="efw-pt-t">`
+  antes do `<circle>`, com a mesma regra de colisão (dois pontos a menos de
+  28px um do outro — no eixo já desenhado — só o mais recente ganha o
+  rótulo). `.efw-pt-t` já existia no CSS (tela e `_relPrintStyleBlock`), então
+  não precisou de nenhuma classe nova.
+- **Uterinas (3 cards, `buildDopplerChart`/`_buildRelChartUtaSvg`) continuam
+  sem tag, fora de propósito.** Esse motor nunca calculou percentil algum em
+  lugar nenhum do app (nem nos gráficos padrão de uterinas ≥15 semanas) — não
+  é uma inconsistência introduzida aqui, é o comportamento de sempre da
+  família Doppler/uterinas. Adicionar percentil ali seria mudar um componente
+  usado do 2º trimestre em diante, sem pedido.
+- Testado (Playwright, sem depender de login/Supabase): chamada direta das 5
+  funções SVG com exames fictícios confirma `<text class="efw-pt-t">P\d+`
+  presente nas 5; um monkeypatch de `_drawChart` confirma que os 5
+  `patientPoints` chegam com `.p` preenchido. Smoke test da página inteira sem
+  erro novo no console.
+
 ## Risco combinado da FMF: parto prematuro e diabetes gestacional entraram junto com T21/T18/T13/pré-eclâmpsia
 
 2026-09-27, conversa seguinte. A médica pediu os dois riscos que o software

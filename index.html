@@ -2538,6 +2538,19 @@ function ccnToIgStr(ccnMm) {
 // gráficos padrão (buildChart/buildEFWChart, ≥15 semanas) já respondem.
 // ═══════════════════════════════════════════════════════════
 
+// Percentil aproximado a partir da banda P10/P50/P90 — mesma fórmula que o
+// editor de laudos já usa pro selo de cada marcador (z-score assumindo
+// distribuição simétrica, normalCDF via _pnorm) — nenhum dos 5 gráficos
+// "estreitos" (FC/CCN/TN/DBP/DV) tem tabela de z-score publicada, só a
+// banda de referência; esta é a mesma aproximação, só que desenhada como
+// tag em cima do ponto (igual aos gráficos padrão de ≥15 semanas), não como
+// selo separado. Clampado em [5,95] como o editor também faz.
+function _pctAprox(val, p10, p50, p90) {
+  if (val == null || p10 == null || p50 == null || p90 == null) return null;
+  const z = val >= p50 ? 1.645 * (val - p50) / ((p90 - p50) || 1) : -1.645 * (p50 - val) / ((p50 - p10) || 1);
+  return Math.max(5, Math.min(95, Math.round(_pnorm(z) * 100)));
+}
+
 // Frequência cardíaca fetal — Hyett, Noble, Snijders, Montenegro, Nicolaides.
 // Ultrasound Obstet Gynecol 1996;7:239-244. FHR = 181,409 − 0,324×CCN;
 // banda ±1,645×6,6bpm (desvio-padrão do artigo). CCN aqui vem da idade
@@ -6049,7 +6062,12 @@ function buildChart1TriFC(canvasId, gestacao, exams) {
     refData.p90.push({ x: w, y: m + 1.645 * 6.6 });
     refData.p10.push({ x: w, y: m - 1.645 * 6.6 });
   }
-  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.fc != null ? { x: w, y: e.fc } : null);
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => {
+    if (e.fc == null) return null;
+    const crl = crlFromGAdays_hyett(w * 7);
+    const m = 181.409 - 0.324 * crl;
+    return { x: w, y: e.fc, p: _pctAprox(e.fc, m - 1.645 * 6.6, m, m + 1.645 * 6.6) };
+  });
   _drawChart(canvas, { xMin: 10, xMax: 14, yMin: 120, yMax: 200, refData, patientPoints, yLabel: 'FC (bpm)', linear: true });
 }
 
@@ -6064,7 +6082,12 @@ function buildChart1TriCcn(canvasId, gestacao, exams) {
     refData.p90.push({ x: w, y: crl + band });
     refData.p10.push({ x: w, y: Math.max(0, crl - band) });
   }
-  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => {
+    if (e.ccn == null) return null;
+    const crl = crlFromGAdays_hadlock(w * 7);
+    const band = 2 + 0.16 * crl;
+    return { x: w, y: e.ccn, p: _pctAprox(e.ccn, Math.max(0, crl - band), crl, crl + band) };
+  });
   _drawChart(canvas, { xMin: 11, xMax: 14, yMin: 20, yMax: 100, refData, patientPoints, yLabel: 'CCN (mm)', linear: true });
 }
 
@@ -6077,7 +6100,13 @@ function buildChart1TriTN(canvasId, gestacao, exams) {
     refData.p50.push({ x, y: TN_P50_REG.m * x + TN_P50_REG.b });
     refData.p90.push({ x, y: TN_P95_REG.m * x + TN_P95_REG.b });
   }
-  const patientPoints = _pointsForFeto1Tri(gestacao, exams, e => (e.ccn != null && e.nt != null) ? { x: e.ccn, y: e.nt } : null);
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, e => {
+    if (e.ccn == null || e.nt == null) return null;
+    const p10 = TN_P5_REG.m * e.ccn + TN_P5_REG.b;
+    const p50 = TN_P50_REG.m * e.ccn + TN_P50_REG.b;
+    const p90 = TN_P95_REG.m * e.ccn + TN_P95_REG.b;
+    return { x: e.ccn, y: e.nt, p: _pctAprox(e.nt, p10, p50, p90) };
+  });
   _drawChart(canvas, {
     xMin: 45, xMax: 84, yMin: 0, yMax: 4, refData, patientPoints, yLabel: 'TN (mm)',
     xStep: 5, xLabelStep: 10, xFmt: x => String(x), yFmt: v => v.toFixed(1), linear: true,
@@ -6094,7 +6123,11 @@ function buildChart1TriDbp(canvasId, gestacao, exams) {
     refData.p50.push({ x: w, y: m });
     refData.p90.push({ x: w, y: h });
   }
-  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.dbp != null ? { x: w, y: e.dbp } : null);
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => {
+    if (e.dbp == null) return null;
+    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
+    return { x: w, y: e.dbp, p: _pctAprox(e.dbp, l, m, h) };
+  });
   _drawChart(canvas, { xMin: 12, xMax: 15, yMin: 5, yMax: 38, refData, patientPoints, yLabel: 'DBP precoce (mm)', linear: true });
 }
 
@@ -6109,7 +6142,12 @@ function buildChart1TriDV(canvasId, gestacao, exams) {
     refData.p50.push({ x: w, y: m });
     refData.p90.push({ x: w, y: h });
   }
-  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => e.dv_ip != null ? { x: w, y: e.dv_ip } : null);
+  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => {
+    if (e.dv_ip == null) return null;
+    const ccn = crlFromGAdays_hadlock(w * 7);
+    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    return { x: w, y: e.dv_ip, p: _pctAprox(e.dv_ip, l, m, h) };
+  });
   _drawChart(canvas, {
     xMin: 11, xMax: 14, yMin: 0, yMax: 1.8, refData, patientPoints, yLabel: 'IP ducto venoso',
     yFmt: v => v.toFixed(2), linear: true,
@@ -10729,10 +10767,18 @@ function _buildRel1TriChartSvg(cfg) {
     + `<text class="efw-ref-t efw-ref-t--50" x="${VW - 4}" y="${f(ultima(p50) + 3)}" text-anchor="end">P50</text>`
     + `<text class="efw-ref-t efw-ref-t--10" x="${VW - 4}" y="${f(ultima(p10) + 3)}" text-anchor="end">P10</text>`;
 
-  // Nenhum dos 5 tem percentil de verdade (bandas são aproximação, não tabela
-  // de z-score publicada — ver comentário de cada tabela) — só a bolinha,
-  // sem "Pxx" em cima, igual o editor de laudos já fazia.
-  const pontos = pts.map(p => `<circle class="efw-pt" cx="${f(x(p.x))}" cy="${f(y(p.y))}" r="5"/>`).join('');
+  // Percentil aproximado (banda P10/P50/P90, não tabela de z-score publicada
+  // — mesma aproximação de `_pctAprox`, já usada pelo motor Canvas da tela)
+  // escrito em cima do ponto, igual ao gráfico padrão de ≥15 semanas — mesma
+  // regra de colisão (exames próximos demais só a bolinha fica).
+  let ultimoRotuloX = -Infinity;
+  const pontos = pts.map(p => {
+    const cx = x(p.x), cy = y(p.y);
+    const circulo = `<circle class="efw-pt" cx="${f(cx)}" cy="${f(cy)}" r="5"/>`;
+    if (p.p == null || cx - ultimoRotuloX < 28) return circulo;
+    ultimoRotuloX = cx;
+    return `<text class="efw-pt-t" x="${f(cx)}" y="${f(Math.max(padT + 8, cy - 11))}" text-anchor="middle">P${p.p}</text>` + circulo;
+  }).join('');
 
   // cfg.smooth: nenhum dos 5 usa hoje. O CCN×IG usou entre 2026-09-27 (commit
   // cbc8fc6) e agora — a tabela do Hadlock é densa mas arredondada, e ligar
@@ -10783,7 +10829,12 @@ function _rel1TriChartFcSvg(gestacao, exams) {
     const m = 181.409 - 0.324 * crl;
     ref.push({ x: w, p50: m, p90: m + 1.645 * 6.6, p10: m - 1.645 * 6.6 });
   }
-  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.fc != null ? { x: w, y: e.fc } : null);
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => {
+    if (e.fc == null) return null;
+    const crl = crlFromGAdays_hyett(w * 7);
+    const m = 181.409 - 0.324 * crl;
+    return { x: w, y: e.fc, p: _pctAprox(e.fc, m - 1.645 * 6.6, m, m + 1.645 * 6.6) };
+  });
   return _buildRel1TriChartSvg({ xMin: 10, xMax: 14, ref, pts, xTicks: [10, 11, 12, 13, 14], yDecimais: 0 });
 }
 
@@ -10794,7 +10845,12 @@ function _rel1TriChartCcnSvg(gestacao, exams) {
     const band = 2 + 0.16 * crl;
     ref.push({ x: w, p50: crl, p90: crl + band, p10: Math.max(0, crl - band) });
   }
-  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.ccn != null ? { x: w, y: e.ccn } : null);
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => {
+    if (e.ccn == null) return null;
+    const crl = crlFromGAdays_hadlock(w * 7);
+    const band = 2 + 0.16 * crl;
+    return { x: w, y: e.ccn, p: _pctAprox(e.ccn, Math.max(0, crl - band), crl, crl + band) };
+  });
   return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 0, vh: 230 });
 }
 
@@ -10803,7 +10859,13 @@ function _rel1TriChartTnSvg(gestacao, exams) {
   for (let x = 45; x <= 84; x += 3) {
     ref.push({ x, p10: TN_P5_REG.m * x + TN_P5_REG.b, p50: TN_P50_REG.m * x + TN_P50_REG.b, p90: TN_P95_REG.m * x + TN_P95_REG.b });
   }
-  const pts = _rel1TriPontosFeto(gestacao, exams, e => (e.ccn != null && e.nt != null) ? { x: e.ccn, y: e.nt } : null);
+  const pts = _rel1TriPontosFeto(gestacao, exams, e => {
+    if (e.ccn == null || e.nt == null) return null;
+    const p10 = TN_P5_REG.m * e.ccn + TN_P5_REG.b;
+    const p50 = TN_P50_REG.m * e.ccn + TN_P50_REG.b;
+    const p90 = TN_P95_REG.m * e.ccn + TN_P95_REG.b;
+    return { x: e.ccn, y: e.nt, p: _pctAprox(e.nt, p10, p50, p90) };
+  });
   return _buildRel1TriChartSvg({ xMin: 45, xMax: 84, ref, pts, xTicks: [45, 55, 65, 75, 84], xFmt: x => String(x), yDecimais: 1 });
 }
 
@@ -10813,7 +10875,11 @@ function _rel1TriChartDbpSvg(gestacao, exams) {
     const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
     ref.push({ x: w, p10: l, p50: m, p90: h });
   }
-  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.dbp != null ? { x: w, y: e.dbp } : null);
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => {
+    if (e.dbp == null) return null;
+    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
+    return { x: w, y: e.dbp, p: _pctAprox(e.dbp, l, m, h) };
+  });
   return _buildRel1TriChartSvg({ xMin: 12, xMax: 15, ref, pts, xTicks: [12, 13, 14, 15], yDecimais: 0 });
 }
 
@@ -10824,7 +10890,12 @@ function _rel1TriChartDvSvg(gestacao, exams) {
     const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
     ref.push({ x: w, p10: l, p50: m, p90: h });
   }
-  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => e.dv_ip != null ? { x: w, y: e.dv_ip } : null);
+  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => {
+    if (e.dv_ip == null) return null;
+    const ccn = crlFromGAdays_hadlock(w * 7);
+    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    return { x: w, y: e.dv_ip, p: _pctAprox(e.dv_ip, l, m, h) };
+  });
   return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 2 });
 }
 

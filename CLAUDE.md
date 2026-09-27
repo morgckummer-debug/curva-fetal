@@ -999,12 +999,14 @@ livre "1 em X") e `risco_pre_eclampsia` (achado **materno** da visita, lido
 sempre do formulário na tela via `sharedStr`, nunca do rascunho de outro
 feto — mesmo padrão de `colo`/`aut_e`/`aut_d`).
 
-**Decisão explícita de escopo, confirmada com a médica**: por enquanto é só
-aqui. O editor de laudos continua sem gravar esses campos no Supabase (a
-página de risco dele nunca teve integração — é só cálculo/impressão local,
-ver o `CLAUDE.md` de lá). Um loop fechado (editor grava, Curvas só lê) fica
-pra quando ela pedir; até lá, quem quiser ver o risco no Curvas digita aqui
-também, sem sincronizar com o laudo impresso.
+**Decisão explícita de escopo, confirmada com a médica, à época**: por
+enquanto era só aqui — o editor de laudos continuava sem gravar esses campos
+no Supabase. O loop fechado (editor grava, Curvas só lê) ficou pendente até
+ela pedir — o pedido veio em 2026-09-27 e fechou essa lacuna (ver "Loop
+fechado: o morfológico de 1º trimestre também grava estes campos", logo
+abaixo). Até lá, quem quisesse ver o risco no Curvas tinha que digitar aqui
+também, sem sincronizar com o laudo impresso — essa frase descreve o estado
+antes da mudança, não o atual.
 
 `renderRiscoFmfCards()` replica a regra de monocoriônica do editor (ver
 `CLAUDE.md` de lá, "Monocoriônica: um cálculo de risco só") — reaproveitando
@@ -1029,6 +1031,61 @@ recolorava o degradê do topo do card) foi removido — os 8 cards da tela
 voltam a usar o mesmo `::before` sálvia/pêssego de qualquer outro
 `.chart-card`. `.risco-fmf-card--pe` (pré-eclâmpsia) continua com
 `--peach-warm`, que já era paleta do app.
+
+## Loop fechado: o morfológico de 1º trimestre também grava estes campos
+
+2026-09-27. A seção anterior deixava documentado que TN/FC/T21/T18/T13/
+pré-eclâmpsia/parto prematuro/diabetes gestacional eram "Fase 1" — só
+digitados aqui, com o editor de laudos (`laudos-dramorgana`,
+`morfologico-1trimestre.html`) sem gravar nada disso no Supabase, mesmo já
+tendo os mesmos campos no próprio formulário dele (é de lá que a página de
+referência FMF foi portada, ver "1º trimestre — gráficos e riscos FMF",
+acima). A médica pediu para fechar esse loop: agora o botão "Salvar na Curva
+de Crescimento" desse laudo também manda esses oito campos.
+
+**Nada mudou deste lado.** As colunas já existiam (migrações 012/013), a
+tela já lia e exibia tudo (`_EXAM_COLUMNS`, `renderRiscoFmfCards`,
+`_achadoRiscoPreEclampsia1Tri` e as duas irmãs) — o Curvas nunca soube (nem
+precisa saber) se o valor de um exame veio de alguém digitando aqui ou do
+insert do editor. Só o `morfologico-1trimestre.html`, no bloco `// ----
+Integração com a Curva de Crescimento (Supabase) ----`, ganhou os campos
+novos no `exames.map()` que já monta um `exams` por feto:
+
+- **`nt`/`fc`: por feto, sempre.** São medida física do feto (TN em mm,
+  frequência cardíaca em bpm) — não tem variante "materna" nem precisa de
+  tratamento especial em monocoriônica, mesmo grupo de `ccn`/`dbp` que o
+  laudo já mandava.
+- **`risco_t21`/`risco_t18`/`risco_t13`: por feto, sem replicar em
+  monocoriônica.** O formulário do editor só mostra (e só deixa preencher)
+  o cartão de risco do 1º feto quando a gestação é monocoriônica
+  (`feto{uid}RiscoWrap` escondido para os demais, ver `CLAUDE.md` de lá,
+  "Monocoriônica: um cálculo de risco só") — então o 2º/3º feto chegam aqui
+  com esses três campos vazios/null por construção. Não é bug nem precisa de
+  correção: `_riscoFmfCardsHtml`/`_ehMonocorionica`, deste lado, já filtram
+  só os exames do feto A nesse caso (`allExams.filter(e => e.feto ===
+  fetos[0])`) — os dois lados concordam em qual feto carrega o cálculo
+  combinado sem precisar duplicar o valor.
+- **`risco_pre_eclampsia`/`risco_parto_prematuro`/`risco_diabetes_gestacional`:
+  achado materno, replicado em todos os fetos** — mesmo padrão de `aut_e`/
+  `aut_d`/`colo`, que já iam repetidos numa gemelar. Pré-eclâmpsia só entra
+  se o cartão "Rastreamento de pré-eclâmpsia (FMF)" estiver marcado no
+  editor (`chkPreEclampsia`); os outros dois entram sempre que o campo do
+  denominador ("1 para X") estiver preenchido na última página do laudo.
+- **Formato: só o denominador chega no editor** (ela digita "1200", não
+  "1 em 1200" — os campos de lá pedem só o número, que a impressão do
+  próprio laudo já mostra como "1: 1200"). Uma função local, `riscoTxt`,
+  prefixa `'1 em '` antes de gravar — para bater com o texto livre que o
+  Curvas já espera (mesmo placeholder "1 em X" dos seis campos aqui) e com
+  o que entra direto nas frases da Conclusão (`Rastreamento combinado do 1º
+  trimestre: risco de ${valor} para...`).
+
+**O que fica de fora, de propósito:** o editor não manda `nt`/`fc`/os seis
+riscos para nenhum outro laudo (`obstetrico-1trimestre.html` não tem esses
+campos) nem tenta reconciliar divergência entre o que já está salvo aqui e o
+que o editor está mandando — diferente do GPA (`askGpaDivergencia`), estes
+oito campos não têm conceito de "valor anterior que pode estar errado": cada
+exame é uma visita nova, os valores vêm do software oficial da FMF na hora,
+não há o que perguntar à médica.
 
 ## Laudo — Morfológico de 1º Trimestre: documento próprio, mesma paleta do evolutivo
 

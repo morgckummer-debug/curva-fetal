@@ -1118,3 +1118,36 @@ mais um achado no mesmo formato dos outros (colo curto, IP-uterinas, TAPS).
   (`_abrirPreviewRelatorioMultiplo`) como `_achadoRiscoPreEclampsia1Tri(allExams)`
   — mesmo padrão de `taps = avaliarTAPS(gestacao, allExams)`, calculado do
   lado de fora e passado pronto.
+
+### O laudo de 1º trimestre também ganhou Conclusão
+
+Mesmo dia, a médica mandou um print do laudo antigo (editor de laudos) com a
+"Impressão Diagnóstica" em lista — o laudo novo daqui tinha ficado sem
+Conclusão nenhuma (decisão inicial: "não é narrativa que evolui"). Ela quis
+de volta, no mesmo formato de checklist.
+
+`_gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri)` monta o
+rascunho — mesmo padrão de textarea editável no preview / `<ul class="rel-
+lista">` estática no PDF final que o evolutivo já usa
+(`_relListaHtml`/`opts.textareaMode`, sem nenhuma mudança nas duas). Cada
+linha só afirma o que o app realmente tem:
+
+- Tipo de gestação + IG, a partir do exame de 1º trimestre (não do mais
+  recente da gestação — mesma âncora do resto do documento).
+- Anomalia estrutural: frase padrão, sempre igual (editável).
+- Cromossomopatias: **não afirma "baixo risco"** — o app não calcula esse
+  julgamento. A frase aponta pros gráficos de referência e pros cartões de
+  risco (números crus da FMF), quem decide "baixo"/"aumentado" é quem lê,
+  não o texto gerado. Diferente do print que a médica mandou (que dizia
+  "baixo risco" direto) — ela edita essa linha quando quiser afirmar isso.
+- IP médio das uterinas: percentil de verdade, via
+  `_relPontosUterinasLado(gestacao, allExams, 'media')` (a mesma função dos
+  3 gráficos de uterinas) — só entra se houver medida.
+- Pré-eclâmpsia: o valor de `risco_pre_eclampsia` digitado, sem qualificar
+  "baixo"/"aumentado" pelo mesmo motivo da linha de cromossomopatias.
+- Colo: reaproveita `avaliarRiscoColoCurto()` — precisa de `_gaW` no objeto
+  do exame (a função não calcula sozinha), então monta um clone do exame só
+  com esse campo antes de chamar (`{...exame1Tri, _gaW: igDays/7}`). Colo
+  curto vira a mesma frase sublinhada de sempre (`_riscoLinhaTexto`); normal
+  vira "Colo uterino sem anormalidades (X mm)"; sem medida, a linha nem
+  entra.

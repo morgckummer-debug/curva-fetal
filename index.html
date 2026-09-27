@@ -9448,11 +9448,18 @@ function abrirPreviewLaudo1Tri() {
     return;
   }
 
+  const examesJanela = allExams.filter(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    return igDays && igDays / 7 >= 10 && igDays / 7 <= 15;
+  });
+  const exame1Tri = examesJanela[examesJanela.length - 1] || allExams[allExams.length - 1];
+  const textoConclusaoInicial = _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri);
+
   const body = document.getElementById('modal-laudo-1tri-body');
   if (body) {
     body.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
       + `<div class="sheet-preview rel-page-gap" style="background-image:url(data:image/png;base64,${_REL_WATERMARK_MK})">`
-      + _buildLaudo1TriSheetHtml(patient, gestacao, allExams)
+      + _buildLaudo1TriSheetHtml(patient, gestacao, allExams, { textareaMode: true, textoConclusaoInicial })
       + `</div></div>`;
   }
   openModal('modal-laudo-1tri');
@@ -9466,7 +9473,10 @@ function confirmarGerarLaudo1TriPDF() {
   const allExams = getExamsByGestacao(gestacao.id);
   if (!_temExame1Tri(gestacao, allExams)) return;
 
-  const sheetHtml = _buildLaudo1TriSheetHtml(patient, gestacao, allExams);
+  const taConclusao = document.getElementById('laudo1tri-texto-conclusao');
+  const textoConclusaoFinal = taConclusao ? taConclusao.value : '';
+
+  const sheetHtml = _buildLaudo1TriSheetHtml(patient, gestacao, allExams, { textareaMode: false, textoConclusaoFinal });
 
   const printHTML = `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8">
@@ -9487,10 +9497,52 @@ ${sheetHtml}
   _abrirJanelaImpressao(gestacao, printHTML, _salvarLaudo1TriGerado);
 }
 
+// Rascunho da Conclusão do laudo de 1º trimestre — mesmo padrão das outras
+// Conclusões do app (textarea editável no preview, lista estática no PDF
+// final, ver opts.textareaMode em _buildLaudo1TriSheetHtml). Cada linha vem
+// de dado que o app já tem (IG, uterinas, colo, o risco digitado) — nenhuma
+// linha afirma um "baixo risco" para cromossomopatias que o app não calcula:
+// essa leitura fica com os cartões de risco (números da FMF) e os gráficos,
+// quem decide "baixo"/"aumentado" é quem lê, não um texto gerado sozinho.
+function _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri) {
+  const linhas = [];
+  const igDays = exame1Tri.ig_dias_manual ?? calcIgDays(gestacao, exame1Tri.data_exame);
+  const nFetos = fetosDaGestacao(gestacao).length;
+  const tipoTxt = nFetos === 3 ? 'Gestação trigemelar' : nFetos === 2 ? 'Gestação gemelar' : 'Gestação única';
+  if (igDays) {
+    linhas.push(`${tipoTxt}, compatível com ${Math.floor(igDays / 7)} semanas e ${igDays % 7} dias de acordo com a datação da gestação.`);
+  }
+  linhas.push('Não evidenciamos nenhuma anomalia estrutural maior, passível de identificação para essa idade gestacional.');
+  linhas.push('Os marcadores ultrassonográficos avaliados (vide gráficos de referência) foram considerados no rastreamento combinado de aneuploidias do 1º trimestre — a ultrassonografia isolada não permite excluir cromossomopatias.');
+
+  const pontosUta = _relPontosUterinasLado(gestacao, allExams, 'media');
+  const utaNaJanela = pontosUta.filter(p => p.w >= 10 && p.w <= 15);
+  const utaUltimo = (utaNaJanela.length ? utaNaJanela : pontosUta).slice(-1)[0];
+  if (utaUltimo && utaUltimo.pct != null) {
+    linhas.push(`IP médio das artérias uterinas no percentil ${utaUltimo.pct} para a idade gestacional.`);
+  }
+
+  const riscoPe = _ultimoExameComCampo(allExams, 'risco_pre_eclampsia');
+  if (riscoPe) {
+    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${riscoPe.risco_pre_eclampsia} para pré-eclâmpsia pré-termo, segundo algoritmo da Fetal Medicine Foundation.`);
+  }
+
+  if (exame1Tri.colo != null) {
+    const examComGaW = { ...exame1Tri, _gaW: igDays != null ? igDays / 7 : null };
+    const coloRisco = avaliarRiscoColoCurto(examComGaW, gestacao);
+    linhas.push(coloRisco
+      ? _riscoLinhaTexto(coloRisco)
+      : `Colo uterino sem anormalidades (${_numBR(exame1Tri.colo, Number.isInteger(exame1Tri.colo) ? 0 : 1)} mm).`);
+  }
+
+  return linhas.join('\n');
+}
+
 // Ancorado na visita de 1º trimestre (a mais recente dentro da janela
 // 10-15 sem), não na visita mais recente da gestação — este documento é
 // sobre AQUELA consulta, mesmo que a gestação já tenha avançado.
-function _buildLaudo1TriSheetHtml(patient, gestacao, allExams) {
+function _buildLaudo1TriSheetHtml(patient, gestacao, allExams, opts) {
+  opts = opts || {};
   const examesJanela = allExams.filter(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return false;
@@ -9505,10 +9557,19 @@ function _buildLaudo1TriSheetHtml(patient, gestacao, allExams) {
     <div class="risco-fmf-cards">${riscoCards}</div>
   </section>` : '';
 
+  const conclusaoHtml = opts.textareaMode
+    ? `<textarea id="laudo1tri-texto-conclusao" class="rel-texto rel-texto--full" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
+      <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
+    : _relListaHtml(opts.textoConclusaoFinal);
+
   return `${_relHeaderHtml(patient.nome || patient.cpf, 'Laudo — Morfológico de 1º Trimestre')}
     ${_relIdentHtml(patient, gestacao, exame1Tri)}
     ${_rel1TriGraficosHtml(gestacao, patient, allExams)}
     ${riscoSecao}
+    <section class="rel-secao">
+      <h2 class="rel-secao-t">Conclusão</h2>
+      <div class="descricao">${conclusaoHtml}</div>
+    </section>
   ${_relFooterHtml()}`;
 }
 

@@ -3549,25 +3549,31 @@ function _fraseTrajetoriaTxt(classe) {
 }
 
 // A desaceleração em linha própria da Conclusão, com o texto definido pela
-// médica em 2026-09-20.
+// médica em 2026-09-20, reformulado em 2026-09-28 (tom mais afetivo, mesma
+// leitura clínica): "Nota-se desaceleração..., sem critérios de CIUR no
+// momento" virou "Observa-se uma desaceleração..., sem critérios de CIUR até
+// o momento" — mais cuidado do que a reformulação do caso "adequado": é um
+// achado que pede atenção, então o texto não pode soar tranquilizador demais,
+// só menos seco.
 //
-// "Sem critérios de CIUR no momento" só é verdade porque quem chama já
+// "Sem critérios de CIUR até o momento" só é verdade porque quem chama já
 // garantiu que o diagnóstico é `adequado` — é o único que não tem rótulo em
 // DX_ROTULO, e em gestação única o trajetoriaOk exige o mesmo. Se um dia a
 // nota passar a sair em outro diagnóstico, essa metade da frase vira mentira.
 //
-// `fetos` vazio = gestação única, onde não há feto a nomear. Na múltipla os
-// fetos são sempre nomeados: num relatório de dois ou três, "nota-se
-// desaceleração" sem dizer em quem não serve para nada.
+// `fetos` vazio = gestação única, onde não há feto a nomear ("velocidade de
+// crescimento fetal"). Na múltipla os fetos são sempre nomeados: num
+// relatório de dois ou três, "observa-se desaceleração" sem dizer em quem não
+// serve para nada.
 //
 // O plural junta os números sob um "Fetos" só ("nos Fetos 1 e 2"), em vez de
 // repetir o substantivo a cada item como faria um _listaPtBR sobre labelFeto
 // ("nos Feto 1 e Feto 2").
 function _notaDesaceleracaoTxt(fetos) {
-  let onde = '';
+  let onde = ' fetal';
   if (fetos && fetos.length === 1) onde = ` no ${labelFeto(fetos[0])}`;
   else if (fetos && fetos.length)  onde = ` nos Fetos ${_listaPtBR(fetos.map(numeroDoFeto))}`;
-  return `Nota-se desaceleração da velocidade de crescimento${onde}, sem critérios de CIUR no momento.`;
+  return `Observa-se uma desaceleração na velocidade de crescimento${onde} em relação às avaliações anteriores, sem critérios de CIUR até o momento.`;
 }
 
 const _DX_NOME = {

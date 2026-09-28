@@ -1170,7 +1170,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-fc">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">Frequência Cardíaca Fetal</div>
+                <div class="chart-card-title">BCF</div>
                 <div class="chart-card-subtitle">Referência Hyett/Nicolaides (1996)</div>
               </div>
             </div>
@@ -1180,7 +1180,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-ccn">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">CCN × Idade Gestacional</div>
+                <div class="chart-card-title">CCN</div>
                 <div class="chart-card-subtitle">Referência Hadlock (1992)</div>
               </div>
             </div>
@@ -1190,7 +1190,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-tn">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">Translucência Nucal × CCN</div>
+                <div class="chart-card-title">Transl. Nucal</div>
                 <div class="chart-card-subtitle">Tabela de referência da clínica</div>
               </div>
             </div>
@@ -1200,7 +1200,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-dbp">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">Diâmetro Biparietal Precoce</div>
+                <div class="chart-card-title">DBP</div>
                 <div class="chart-card-subtitle">Tabela de referência da clínica · 12-15 semanas</div>
               </div>
             </div>
@@ -1210,7 +1210,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-dv">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">IP — Ducto Venoso × Idade Gestacional</div>
+                <div class="chart-card-title">Ducto Venoso (IP)</div>
                 <div class="chart-card-subtitle">Aproximação Pruksanasuk et al. (2014)</div>
               </div>
             </div>
@@ -1220,7 +1220,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-uta-e">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">IP Uterina — Esquerda</div>
+                <div class="chart-card-title">Art. Uterina Esq. (IP)</div>
                 <div class="chart-card-subtitle">Referência Gómez et al. (2008)</div>
               </div>
             </div>
@@ -1230,7 +1230,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-uta-d">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">IP Uterina — Direita</div>
+                <div class="chart-card-title">Art. Uterina Dir. (IP)</div>
                 <div class="chart-card-subtitle">Referência Gómez et al. (2008)</div>
               </div>
             </div>
@@ -1240,7 +1240,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card chart-card--1tri" id="card-1tri-uta-media">
             <div class="chart-card-header">
               <div class="chart-card-left">
-                <div class="chart-card-title">IP Uterina — Média</div>
+                <div class="chart-card-title">IP Médio Art. Uterinas</div>
                 <div class="chart-card-subtitle">Referência Gómez et al. (2008)</div>
               </div>
             </div>
@@ -11037,12 +11037,17 @@ function _rel1TriChartDvSvg(gestacao, exams) {
   return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 2 });
 }
 
+// Títulos abreviados a pedido da médica (2026-09-28), espelhando os mesmos 8
+// cartões do editor de laudos (morfologico-1trimestre.html,
+// renderGraficosReferencia()/cfgs.push) — os dois repositórios não
+// compartilham código (ver CLAUDE.md), então o nome precisa ser trocado nos
+// dois lados.
 const _REL_1TRI_CHARTS = [
-  { key: 'fc',  titulo: 'Frequência Cardíaca Fetal',    sub: 'Referência Hyett/Nicolaides (1996)',      build: _rel1TriChartFcSvg },
-  { key: 'ccn', titulo: 'CCN × Idade Gestacional',        sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
-  { key: 'tn',  titulo: 'Translucência Nucal × CCN',      sub: 'Tabela de referência da clínica',         build: _rel1TriChartTnSvg },
-  { key: 'dbp', titulo: 'Diâmetro Biparietal Precoce',    sub: 'Tabela de referência da clínica · 12-15 sem', build: _rel1TriChartDbpSvg },
-  { key: 'dv',  titulo: 'IP — Ducto Venoso × Idade Gestacional', sub: 'Aproximação Pruksanasuk et al. (2014)', build: _rel1TriChartDvSvg },
+  { key: 'fc',  titulo: 'BCF',                sub: 'Referência Hyett/Nicolaides (1996)',      build: _rel1TriChartFcSvg },
+  { key: 'ccn', titulo: 'CCN',                sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
+  { key: 'tn',  titulo: 'Transl. Nucal',      sub: 'Tabela de referência da clínica',         build: _rel1TriChartTnSvg },
+  { key: 'dbp', titulo: 'DBP',                sub: 'Tabela de referência da clínica · 12-15 sem', build: _rel1TriChartDbpSvg },
+  { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'Aproximação Pruksanasuk et al. (2014)', build: _rel1TriChartDvSvg },
 ];
 
 // Um card por gráfico "estreito", opcionalmente por feto (múltipla) — mesma
@@ -11061,7 +11066,7 @@ function _rel1TriChartCardHtml(gestacao, exams, chartCfg, fetoClasse) {
 }
 
 function _rel1TriUtaCardHtml(gestacao, allExams, lado, classe) {
-  const titulo = lado === 'e' ? 'IP Uterina — Esquerda' : lado === 'd' ? 'IP Uterina — Direita' : 'IP Uterina — Média';
+  const titulo = lado === 'e' ? 'Art. Uterina Esq. (IP)' : lado === 'd' ? 'Art. Uterina Dir. (IP)' : 'IP Médio Art. Uterinas';
   const pontos = _relPontosUterinasLado(gestacao, allExams, lado);
   const svg = _buildRelChartUtaSvg(pontos);
   if (!svg) return '';

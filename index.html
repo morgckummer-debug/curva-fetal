@@ -3532,10 +3532,13 @@ function _velocidadeCrescimento(enriched) {
 // Queda acima da tolerância não entra aqui: o fecho da linha vira o neutro (só
 // Doppler) e a leitura sai numa linha própria, _notaDesaceleracaoTxt — a frase
 // da médica começa período ("Nota-se...") e não caberia depois de uma vírgula.
+// Fecho reformulado pela médica em 2026-09-28: "Doppler dentro da
+// normalidade" virou "sinais de bom funcionamento placentário ao Doppler" —
+// mesma leitura clínica, tom mais próximo do que ela diz para a paciente.
 function _fraseTrajetoriaTxt(classe) {
-  if (classe === 'esperada')  return ', com velocidade de crescimento dentro do esperado e Doppler dentro da normalidade';
-  if (classe === 'acelerada') return ', com aceleração do crescimento e Doppler dentro da normalidade';
-  return ', com Doppler dentro da normalidade';
+  if (classe === 'esperada')  return ', com velocidade de crescimento dentro do esperado e sinais de bom funcionamento placentário ao Doppler';
+  if (classe === 'acelerada') return ', com aceleração do crescimento e sinais de bom funcionamento placentário ao Doppler';
+  return ', com sinais de bom funcionamento placentário ao Doppler';
 }
 
 // A desaceleração em linha própria da Conclusão, com o texto definido pela
@@ -10289,6 +10292,19 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // (P45)". Aqui o percentil fica entre parênteses depois do rótulo, e não
   // colado num feto como na múltipla — não há feto a nomear.
   //
+  // Abertura reformulada em 2026-09-28, só para `adequado`: "Feto com
+  // biometria adequada para a idade gestacional (P45)[, com velocidade de
+  // crescimento dentro do esperado e sinais de bom funcionamento placentário
+  // ao Doppler]" — mais afetiva que "Crescimento fetal adequado" para a
+  // paciente que lê o papel. `impressao.label` (usado na faixa de status em
+  // tela e no card da gemelar) não mudou — a troca é só aqui, na Conclusão da
+  // gestação única. O trecho de Doppler continua condicionado a
+  // `trajetoriaOk`, então uma primeira visita sem histórico comparável
+  // continua sem afirmar nada sobre a placenta.
+  const labelTxt = impressao.diagnostico === 'adequado'
+    ? 'Feto com biometria adequada para a idade gestacional'
+    : impressao.label;
+  //
   // Até 2026-09-25 o critério que fechou o diagnóstico saía daqui — "informação
   // a mais que tirava o foco". A médica reverteu essa parte: só o percentil não
   // justifica RCIU/CIUR sozinho pro obstetra que lê o papel, ele precisa ver o
@@ -10298,7 +10314,7 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // linha própria de `estadio` saiu daqui porque agora é redundante — a
   // deterioração Doppler que ela resumia já está dentro de `critItems`.
   const critTxt = (impressao.critItems && impressao.critItems.length) ? ` + ${impressao.critItems.join(' + ')}` : '';
-  const linhas = [`${impressao.label}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
+  const linhas = [`${labelTxt}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
   if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));

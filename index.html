@@ -3534,10 +3534,17 @@ function _velocidadeCrescimento(enriched) {
 // da médica começa período ("Nota-se...") e não caberia depois de uma vírgula.
 // Fecho reformulado pela médica em 2026-09-28: "Doppler dentro da
 // normalidade" virou "sinais de bom funcionamento placentário ao Doppler" —
-// mesma leitura clínica, tom mais próximo do que ela diz para a paciente.
+// mesma leitura clínica, tom mais próximo do que ela diz para a paciente. A
+// abertura de "esperada" ("velocidade de crescimento dentro do esperado")
+// destoava desse tom mais afetivo — virou "mantendo velocidade de
+// crescimento adequada ao longo do acompanhamento", mesma leitura clínica
+// (percentil estável dentro da tolerância, ver _velocidadeCrescimento), só
+// mais próxima do resto da frase. "acelerada" é leitura distinta — não é
+// "estável", é crescimento acima do esperado — por isso continua com frase
+// própria, não reaproveita "mantendo... adequada".
 function _fraseTrajetoriaTxt(classe) {
-  if (classe === 'esperada')  return ', com velocidade de crescimento dentro do esperado e sinais de bom funcionamento placentário ao Doppler';
-  if (classe === 'acelerada') return ', com aceleração do crescimento e sinais de bom funcionamento placentário ao Doppler';
+  if (classe === 'esperada')  return ', mantendo velocidade de crescimento adequada ao longo do acompanhamento, com sinais de bom funcionamento placentário ao Doppler';
+  if (classe === 'acelerada') return ', com uma evolução de crescimento um pouco mais acelerada, e sinais de bom funcionamento placentário ao Doppler';
   return ', com sinais de bom funcionamento placentário ao Doppler';
 }
 

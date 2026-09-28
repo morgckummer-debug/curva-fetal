@@ -5876,11 +5876,18 @@ function buildDvChart(canvasId, gestacao, exams) {
 // conduta — só o número da ÚLTIMA visita com os fetos medidos importa
 // (cruzou ou não os 25%), por isso vira card de ênfase (ver
 // _discrepanciaPesoCardHtml), reaproveitado pela aba Gráficos e pelo Resumo.
-function _discrepanciaPesoResumo(gestacao, allExams) {
+// Compara um valor por feto (peso, TN ou CCN) na mesma visita e devolve a
+// discordância da visita mais recente em que pelo menos 2 fetos têm o valor
+// medido — mesma mecânica pros três, só troca o extrator e qual extremo vai
+// no denominador. `denominador: 'maior'` é a convenção de sempre (peso, CCN);
+// `'menor'` é a fórmula própria da TN (ver _discrepanciaTnResumo). `diffAbs`
+// sai em unidade bruta (mm), pro corte de TN que também olha a diferença
+// absoluta, não só o percentual.
+function _discrepanciaResumoGenerica(gestacao, exams, extrator, denominador) {
   const fetos = fetosDaGestacao(gestacao);
   if (!fetos.length) return null;
   const byDate = {};
-  (allExams || []).forEach(e => {
+  (exams || []).forEach(e => {
     if (!e.feto) return;
     (byDate[e.data_exame] ||= {})[e.feto] = e;
   });
@@ -5888,30 +5895,97 @@ function _discrepanciaPesoResumo(gestacao, allExams) {
   let ultimo = null;
   Object.keys(byDate).sort().forEach(date => {
     const doDia = byDate[date];
-    // Só entram na conta os fetos daquela visita que já têm peso estimado —
+    // Só entram na conta os fetos daquela visita que já têm o valor medido —
     // numa trigemelar com só dois fetos medidos, sobra a comparação do par.
     const medidos = fetos
       .map(f => {
         const e = doDia[f];
         if (!e) return null;
-        const efw = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
-        return efw ? { efw, exam: e } : null;
+        const v = extrator(e);
+        return (v != null) ? { v, exam: e } : null;
       })
       .filter(Boolean)
-      .sort((a, b) => b.efw - a.efw); // maior primeiro
+      .sort((a, b) => b.v - a.v); // maior primeiro
     if (medidos.length < 2) return;
 
-    const maior = medidos[0].efw;
-    const disc  = outro => Math.round(((maior - outro) / maior) * 1000) / 10; // % com 1 casa
+    const maior = medidos[0].v;
+    const menor = medidos[medidos.length - 1].v;
+    const base  = denominador === 'menor' ? menor : maior;
+    const disc  = outro => Math.round(((maior - outro) / base) * 1000) / 10; // % com 1 casa
     ultimo = {
       data:      date,
-      pct:       disc(medidos[medidos.length - 1].efw),
-      pctInterm: medidos.length >= 3 ? disc(medidos[1].efw) : null,
+      pct:       disc(menor),
+      pctInterm: medidos.length >= 3 ? disc(medidos[1].v) : null,
+      diffAbs:   Math.round((maior - menor) * 10) / 10,
     };
   });
-  if (!ultimo) return null;
-  ultimo.severidade = _discrepanciaSeveridade(ultimo.pct);
   return ultimo;
+}
+
+function _discrepanciaPesoResumo(gestacao, allExams) {
+  const r = _discrepanciaResumoGenerica(gestacao, allExams, e => e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur), 'maior');
+  if (!r) return null;
+  r.severidade = _discrepanciaSeveridade(r.pct);
+  return r;
+}
+
+// Discordância de TN entre os fetos — só existe medida até ~14 semanas
+// (rastreio combinado), janela em que o peso ainda não é calculável. Fórmula
+// própria, diferente do peso: divide pelo MENOR, não pelo maior. Um corte só
+// (sem faixa intermediária de "atenção" como o peso): acima de 20%, OU
+// diferença absoluta acima de 0,6mm, é o alerta.
+function _discrepanciaTnResumo(gestacao, exames1Tri) {
+  const r = _discrepanciaResumoGenerica(gestacao, exames1Tri, e => e.nt, 'menor');
+  if (!r) return null;
+  r.severidade = (r.pct >= 20 || r.diffAbs > 0.6) ? 'alerta' : 'ok';
+  return r;
+}
+
+// Discordância de CCN entre os fetos — mesma convenção do peso (divide pelo
+// maior); só o corte muda, um só, sem faixa intermediária: acima de 20% é o
+// alerta. Diferença absoluta não entra aqui — 0,6mm é irrelevante numa medida
+// que varia de ~45 a 84mm (diferente da TN, que varia poucos milímetros).
+function _discrepanciaCcnResumo(gestacao, exames1Tri) {
+  const r = _discrepanciaResumoGenerica(gestacao, exames1Tri, e => e.ccn, 'maior');
+  if (!r) return null;
+  r.severidade = (r.pct >= 20) ? 'alerta' : 'ok';
+  return r;
+}
+
+// Exames dentro da janela do 1º trimestre (10-15 semanas, mesma de
+// _temExame1Tri) — é onde TN/CCN fazem sentido como discordância; fora dela
+// não têm leitura (TN não se mede depois do rastreio combinado, e CCN some
+// de tabela depois de ~14 semanas).
+function _examesJanela1Tri(gestacao, allExams) {
+  return (allExams || []).filter(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays) return false;
+    const w = igDays / 7;
+    return w >= 10 && w <= 15;
+  });
+}
+
+// Decide o que o card/seção de discordância mostra: peso a partir de quando
+// há EFW de 2 fetos na mesma visita (como sempre foi); antes disso — sem
+// isso simplesmente não existir, não por falta de tentar — TN e/ou CCN da
+// janela do 1º trimestre. Nunca os dois ao mesmo tempo: assim que há peso,
+// TN/CCN já passaram (não fazem mais sentido como discordância) e somem.
+function _discrepanciaResumo(gestacao, allExams) {
+  const peso = _discrepanciaPesoResumo(gestacao, allExams);
+  if (peso) return { tipo: 'peso', peso };
+
+  const exames1Tri = _examesJanela1Tri(gestacao, allExams);
+  const tn  = _discrepanciaTnResumo(gestacao, exames1Tri);
+  const ccn = _discrepanciaCcnResumo(gestacao, exames1Tri);
+  if (!tn && !ccn) return null;
+  return { tipo: 'tn_ccn', tn, ccn };
+}
+
+// Rótulo do alerta de TN/CCN — CIUR seletivo vale nas duas corionicidades,
+// TFF (transfusão feto-fetal) só existe onde há anastomoses vasculares
+// (monocoriônica) — mesma distinção já feita pra TAPS/Gratacós no app.
+function _discrepancia1TriAlertaTxt(gestacao) {
+  return _ehMonocorionica(gestacao) ? 'alerta para CIUR seletivo/TFF' : 'alerta para CIUR seletivo';
 }
 
 // Três faixas em vez de duas: abaixo de 20% lê como dentro do esperado, 20 a
@@ -5967,20 +6041,46 @@ function _discrepFaixaFrase(severidade) {
   return t.charAt(0).toUpperCase() + t.slice(1) + '.';
 }
 
-function _discrepanciaPesoCardHtml(gestacao, allExams) {
-  const r = _discrepanciaPesoResumo(gestacao, allExams);
-  if (!r) {
-    return `<p style="font-size:13px;color:var(--text-muted);padding:8px 4px;">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita — sem isso não dá para calcular a discordância.</p>`;
-  }
-  const cls = { ok: 'discrepancia-emphasis-ok', atencao: 'discrepancia-emphasis-atencao', alerta: 'discrepancia-emphasis-alert' }[r.severidade];
+// Uma caixa TN ou CCN — mesmo visual do card de peso, um corte só (ok/alerta,
+// sem o degrau intermediário de "atenção" que o peso tem).
+function _discrepancia1TriBoxHtml(rotulo, r, alertaTxt) {
+  const cls   = r.severidade === 'alerta' ? 'discrepancia-emphasis-alert' : 'discrepancia-emphasis-ok';
+  const texto = r.severidade === 'alerta' ? alertaTxt : 'dentro do esperado';
   const intermHtml = r.pctInterm != null
     ? `<div class="discrepancia-emphasis-sub">Maior × intermediário: ${r.pctInterm.toFixed(1)}%</div>` : '';
-  return `
+  return `<div>
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:4px;">${rotulo}</div>
     <div class="discrepancia-emphasis ${cls}">
       <div class="discrepancia-emphasis-value">${r.pct.toFixed(1)}%</div>
-      <div class="discrepancia-emphasis-label">${_discrepFaixaFrase(r.severidade)}</div>
+      <div class="discrepancia-emphasis-label">${texto.charAt(0).toUpperCase() + texto.slice(1)}.</div>
       ${intermHtml}
-    </div>`;
+    </div>
+  </div>`;
+}
+
+function _discrepanciaPesoCardHtml(gestacao, allExams) {
+  const d = _discrepanciaResumo(gestacao, allExams);
+  if (!d) {
+    return `<p style="font-size:13px;color:var(--text-muted);padding:8px 4px;">Ainda sem peso, TN ou CCN de pelo menos 2 fetos na mesma visita — sem isso não dá para calcular a discordância.</p>`;
+  }
+  if (d.tipo === 'peso') {
+    const r = d.peso;
+    const cls = { ok: 'discrepancia-emphasis-ok', atencao: 'discrepancia-emphasis-atencao', alerta: 'discrepancia-emphasis-alert' }[r.severidade];
+    const intermHtml = r.pctInterm != null
+      ? `<div class="discrepancia-emphasis-sub">Maior × intermediário: ${r.pctInterm.toFixed(1)}%</div>` : '';
+    return `
+      <div class="discrepancia-emphasis ${cls}">
+        <div class="discrepancia-emphasis-value">${r.pct.toFixed(1)}%</div>
+        <div class="discrepancia-emphasis-label">${_discrepFaixaFrase(r.severidade)}</div>
+        ${intermHtml}
+      </div>`;
+  }
+  // 1º trimestre: ainda sem peso — TN e/ou CCN, cada um com seu corte.
+  const alertaTxt = _discrepancia1TriAlertaTxt(gestacao);
+  const boxes = [];
+  if (d.tn)  boxes.push(_discrepancia1TriBoxHtml('Translucência nucal', d.tn, alertaTxt));
+  if (d.ccn) boxes.push(_discrepancia1TriBoxHtml('CCN', d.ccn, alertaTxt));
+  return `<div style="display:flex;flex-direction:column;gap:10px;">${boxes.join('')}</div>`;
 }
 
 function renderDiscrepanciaCard(gestacao, allExams) {
@@ -11375,26 +11475,49 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
 // destaque em vez de faixa de status: é a primeira pergunta do obstetra numa
 // gemelar e ganha ler antes até do comparativo por feto logo abaixo.
 function _buildRelDiscrepanciaHtml(gestacao, allExams) {
-  const r = _discrepanciaPesoResumo(gestacao, allExams);
-  if (!r) {
+  const d = _discrepanciaResumo(gestacao, allExams);
+  if (!d) {
     return `<section class="status status--atencao">
       <div class="status-ic">•</div>
       <div class="status-body">
         <div class="status-t">Discordância de peso entre os fetos</div>
-        <div class="status-s">Ainda sem peso estimado de pelo menos 2 fetos na mesma visita.</div>
+        <div class="status-s">Ainda sem peso, TN ou CCN de pelo menos 2 fetos na mesma visita.</div>
       </div>
     </section>`;
   }
-  const variante   = { ok: '', atencao: 'rel-discrep--atencao', alerta: 'rel-discrep--alerta' }[r.severidade];
-  const aviso      = _discrepFaixaTexto(r.severidade);
-  const intermTxt  = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${_numBR(r.pctInterm, 1)}%</div>` : '';
-  return `<section class="rel-discrep ${variante}">
-    <div class="rel-discrep-val">${_numBR(r.pct, 1)}%</div>
-    <div class="rel-discrep-body">
-      <div class="rel-discrep-label">Discordância de peso entre os fetos (maior × menor) — ${aviso}.</div>
-      ${intermTxt}
-    </div>
-  </section>`;
+  if (d.tipo === 'peso') {
+    const r = d.peso;
+    const variante   = { ok: '', atencao: 'rel-discrep--atencao', alerta: 'rel-discrep--alerta' }[r.severidade];
+    const aviso      = _discrepFaixaTexto(r.severidade);
+    const intermTxt  = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${_numBR(r.pctInterm, 1)}%</div>` : '';
+    return `<section class="rel-discrep ${variante}">
+      <div class="rel-discrep-val">${_numBR(r.pct, 1)}%</div>
+      <div class="rel-discrep-body">
+        <div class="rel-discrep-label">Discordância de peso entre os fetos (maior × menor) — ${aviso}.</div>
+        ${intermTxt}
+      </div>
+    </section>`;
+  }
+  // 1º trimestre: ainda sem peso — TN e/ou CCN, cada um com seu corte
+  // (ver _discrepanciaTnResumo/_discrepanciaCcnResumo), nunca os dois
+  // misturados numa frase só.
+  const alertaTxt = _discrepancia1TriAlertaTxt(gestacao);
+  const linha = (rotulo, r, formulaTxt) => {
+    const variante  = r.severidade === 'alerta' ? 'rel-discrep--alerta' : '';
+    const texto     = r.severidade === 'alerta' ? alertaTxt : 'dentro do esperado';
+    const intermTxt = r.pctInterm != null ? `<div class="rel-discrep-sub">Maior × intermediário: ${_numBR(r.pctInterm, 1)}%</div>` : '';
+    return `<section class="rel-discrep ${variante}">
+      <div class="rel-discrep-val">${_numBR(r.pct, 1)}%</div>
+      <div class="rel-discrep-body">
+        <div class="rel-discrep-label">Discordância de ${rotulo} entre os fetos (${formulaTxt}) — ${texto}.</div>
+        ${intermTxt}
+      </div>
+    </section>`;
+  };
+  return [
+    d.tn  ? linha('TN', d.tn, 'maior − menor / menor')  : '',
+    d.ccn ? linha('CCN', d.ccn, 'maior − menor / maior') : '',
+  ].join('');
 }
 
 // Página de avaliação conjunta — discordância de peso seguida da impressão

@@ -11754,8 +11754,14 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps, ris
       // Velocidades diferentes dentro do mesmo grupo caem no fecho neutro (só
       // Doppler): o grupo é formado por diagnóstico igual, não por trajetória
       // igual, e uma frase só não pode afirmar duas leituras diferentes.
-      let linha = _listaPtBR(g.fetos.map(_fetoPercentilTxt));
-      const semAchados   = g.fetos.every(pf => !(pf.impressao?.peRisco) && !(pf.impressao?.coloRisco));
+      // Mesma abertura da gestação única (2026-09-28): "Feto 1 (P20) e Feto 2
+      // (P45) com biometria adequada para a idade gestacional". Só quando todos
+      // do grupo têm PFE; sem peso, o percentil cru cai na frase antiga.
+      const adequado = g.chave === 'adequado' && g.fetos.every(pf => pf.impressao?.efwPercentil != null);
+      let linha = adequado
+        ? `${_listaPtBR(g.fetos.map(pf => `${labelFeto(pf.feto)} (P${pf.impressao.efwPercentil})`))} com biometria adequada para a idade gestacional`
+        : _listaPtBR(g.fetos.map(_fetoPercentilTxt));
+      const semAchados  = g.fetos.every(pf => !(pf.impressao?.peRisco) && !(pf.impressao?.coloRisco));
       const trajetoriaOk = semAchados && g.fetos.every(pf => (pf.exams?.length || 0) >= 2);
       if (trajetoriaOk) {
         const classes = new Set(g.fetos.map(pf => pf.impressao?.velocidade?.classe || null));

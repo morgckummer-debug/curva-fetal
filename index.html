@@ -1212,7 +1212,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <div class="chart-card-header">
               <div class="chart-card-left">
                 <div class="chart-card-title">Ducto Venoso (IP)</div>
-                <div class="chart-card-subtitle">Aproximação Pruksanasuk et al. (2014)</div>
+                <div class="chart-card-subtitle">Aproximação Pruksanusak et al. (2014)</div>
               </div>
             </div>
             <div class="chart-wrapper"><canvas id="chart-1tri-dv"></canvas></div>
@@ -2644,7 +2644,7 @@ const TN_P95_REG = linRegress(TN_TABLE.map(r => [r[0], r[3]]));
 // semanas).
 const DBP_TABLE_WEEKS = [[12,12.4,17.3,22.2],[13,16.3,21.2,26.1],[14,20.0,24.9,29.8],[15,23.7,28.6,33.5],[16,27.4,32.3,37.2]];
 
-// IP ducto venoso × CCN — leitura visual do gráfico de Pruksanasuk et al.
+// IP ducto venoso × CCN — leitura visual do gráfico de Pruksanusak et al.
 // (Gynecol Obstet Invest 2014;78:22-25) fornecido pela clínica — aproximação,
 // sem tabela numérica publicada disponível.
 const DV_TABLE = [
@@ -9732,7 +9732,7 @@ function confirmarGerarLaudo1TriPDF() {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Risco combinado (T21/T18/T13/pré-eclâmpsia): calculado pelo software oficial da FMF, apenas transcrito aqui · Referências: Hyett/Nicolaides 1996 (FC) · Hadlock 1992 (CCN) · Gómez et al. 2008 (uterinas) · Pruksanasuk et al. 2014 (ducto venoso)</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Risco combinado (T21/T18/T13/pré-eclâmpsia): calculado pelo software oficial da FMF, apenas transcrito aqui · Referências: Hyett/Nicolaides 1996 (FC) · Hadlock 1992 (CCN) · Gómez et al. 2008 (uterinas) · Pruksanusak et al. 2014 (ducto venoso)</div>
 
 <div class="sheet-flow">
 ${sheetHtml}
@@ -11106,7 +11106,7 @@ const _REL_1TRI_CHARTS = [
   { key: 'ccn', titulo: 'CCN',                sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
   { key: 'tn',  titulo: 'Transl. Nucal',      sub: 'Referência FMF (Wright et al., 2008)',    build: _rel1TriChartTnSvg },
   { key: 'dbp', titulo: 'DBP',                sub: 'Referência Hadlock · 12-15 sem', build: _rel1TriChartDbpSvg },
-  { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'Aproximação Pruksanasuk et al. (2014)', build: _rel1TriChartDvSvg },
+  { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'Aproximação Pruksanusak et al. (2014)', build: _rel1TriChartDvSvg },
 ];
 
 // Um card por gráfico "estreito", opcionalmente por feto (múltipla) — mesma

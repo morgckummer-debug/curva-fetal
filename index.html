@@ -4937,6 +4937,14 @@ function renderPercentilePanelForExam(gestacao, e) {
 // ═══════════════════════════════════════════════════════════
 
 // Selo "Externo" (+ serviço, se informado) na linha do exame/visita.
+// Alerta de BCF fora de 110–170 bpm na linha do exame/visita (por feto na múltipla).
+function _exameBcfAlertaHtml(exams) {
+  const fora = exams.filter(e => _bcfFora(e.fc));
+  if (!fora.length) return '';
+  const txt = fora.map(e => `${e.fc}${e.feto ? ' (F' + numeroDoFeto(e.feto) + ')' : ''}`).join(' · ');
+  return `<span class="exam-row-alert-dot" title="BCF fora de ${_BCF_ALERTA_MIN}–${_BCF_ALERTA_MAX} bpm">⚠ BCF ${txt}</span>`;
+}
+
 function _exameExternoBadgeHtml(exams) {
   if (!exams.some(e => e.externo)) return '';
   const sv = (exams.find(e => e.servico_externo) || {}).servico_externo;
@@ -5005,6 +5013,7 @@ function renderExamList(gestacao, exams) {
           <span class="exam-row-sep">•</span>
           <span class="exam-row-ig">${igToStr(igDays)}</span>
           ${_exameExternoBadgeHtml([e])}
+          ${_exameBcfAlertaHtml([e])}
           ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
           ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
         </div>
@@ -5038,6 +5047,7 @@ function renderExamList(gestacao, exams) {
         <span class="exam-row-sep">•</span>
         <span class="exam-row-ig">${igToStr(igDays)}</span>
         ${_exameExternoBadgeHtml(examsDoDia)}
+        ${_exameBcfAlertaHtml(examsDoDia)}
         ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
         ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
       </div>
@@ -10422,6 +10432,20 @@ const _COLO_CURTO_MM = 25;
 
 function _relTemColo(exams) { return exams.some(e => e.colo != null); }
 
+// BCF (coluna `fc`, bpm). Alerta só abaixo de 110 ou acima de 170 — decisão da
+// médica em 2026-09-29; 110–160 é a faixa de referência, mas 160–170 não alerta.
+// Mesma regra da coluna Colo: só existe se alguma visita mediu, e o valor de
+// alerta sai em negrito. Dado ausente é "—", nunca "normal".
+const _BCF_ALERTA_MIN = 110;
+const _BCF_ALERTA_MAX = 170;
+function _bcfFora(v) { return v != null && (v < _BCF_ALERTA_MIN || v > _BCF_ALERTA_MAX); }
+function _relTemBcf(exams) { return exams.some(e => e.fc != null); }
+function _relBcfCel(exam) {
+  if (!exam || exam.fc == null) return '<td>—</td>';
+  const txt = `${exam.fc} bpm`;
+  return _bcfFora(exam.fc) ? `<td><b>${txt}</b></td>` : `<td>${txt}</td>`;
+}
+
 function _relColoCel(exam) {
   if (!exam || exam.colo == null) return '<td>—</td>';
   const txt = `${_numBR(exam.colo, Number.isInteger(exam.colo) ? 0 : 1)} mm`;
@@ -10431,6 +10455,7 @@ function _relColoCel(exam) {
 function _buildRelHistoricoUnicaHtml(gestacao, exams) {
   if (!exams.length) return '';
   const temColo = _relTemColo(exams);
+  const temBcf  = _relTemBcf(exams);
   const linhas = exams.map(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
@@ -10445,13 +10470,13 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
     const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
     return `<tr><td><b>${formatDateBR(e.data_exame)}</b></td><td>${igTxt}</td><td>${efwTxt}</td>`
       + `<td>${cel(e.ca, caC, 1)}</td><td>${cel(e.cc, ccC, 1)}</td><td>${cel(e.femur, flC, 1)}</td>`
-      + (temColo ? _relColoCel(e) : '') + `</tr>`;
+      + (temBcf ? _relBcfCel(e) : '') + (temColo ? _relColoCel(e) : '') + `</tr>`;
   }).join('');
 
   return `<section class="rel-secao">
     <h2 class="rel-secao-t">Histórico biométrico</h2>
     <table class="rel-tabela">
-      <thead><tr><th>Data</th><th>IG</th><th>PFE</th><th>CA</th><th>CC</th><th>Fêmur</th>${temColo ? '<th>Colo</th>' : ''}</tr></thead>
+      <thead><tr><th>Data</th><th>IG</th><th>PFE</th><th>CA</th><th>CC</th><th>Fêmur</th>${temBcf ? '<th>BCF</th>' : ''}${temColo ? '<th>Colo</th>' : ''}</tr></thead>
       <tbody>${linhas}</tbody>
     </table>
   </section>`;
@@ -11787,18 +11812,19 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
   const datas = Object.keys(porData).sort();
   if (!datas.length) return '';
   const temColo = porFeto.some(pf => _relTemColo(pf.exams));
+  const temBcf  = porFeto.some(pf => _relTemBcf(pf.exams));
 
   const linhas = datas.map(data => {
     const cels = porFeto.map(pf => {
       const e = porData[data][pf.feto];
-      if (!e) return '<td>—</td><td>—</td>';
+      if (!e) return '<td>—</td><td>—</td>' + (temBcf ? '<td>—</td>' : '');
       const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
       const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
       const efwC   = calcEFWPercentile(efw, igDays);
       const caC    = calcBiometria(e.ca, 'ca', igDays);
       const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
       const caTxt  = e.ca != null ? `${_numBR(e.ca / 10, 1)} cm${caC?.percentil != null ? ' · P' + caC.percentil : ''}` : '—';
-      return `<td>${efwTxt}</td><td>${caTxt}</td>`;
+      return `<td>${efwTxt}</td><td>${caTxt}</td>` + (temBcf ? _relBcfCel(e) : '');
     }).join('');
     // O colo é da gestação, não do feto: uma coluna só no fim, tirada de
     // qualquer um dos fetos daquela data (o campo é compartilhado na visita).
@@ -11808,7 +11834,7 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
     return `<tr><td><b>${formatDateBR(data)}</b></td>${cels}${coloDaData}</tr>`;
   }).join('');
 
-  const headCols = porFeto.map(pf => `<th>${labelFeto(pf.feto)} — PFE</th><th>${labelFeto(pf.feto)} — CA</th>`).join('');
+  const headCols = porFeto.map(pf => `<th>${labelFeto(pf.feto)} — PFE</th><th>${labelFeto(pf.feto)} — CA</th>${temBcf ? `<th>${labelFeto(pf.feto)} — BCF</th>` : ''}`).join('');
   return `<section class="rel-secao">
     <h2 class="rel-secao-t">Histórico biométrico</h2>
     <table class="rel-tabela">

@@ -1670,5 +1670,9 @@ entram no histórico para a revisão pré-exame e para as curvas de tendência.
   existia (por feto) e alimenta o gráfico de BCF do 1º trimestre, mas o input vivia
   escondido no bloco recolhido "Risco 1º Trimestre — FMF", com o nome "FC", e só
   parecia servir ao 1º trimestre. Saiu de lá; vale para qualquer IG (30–250 bpm).
-  **Pendência aberta:** fora do gráfico do 1º trimestre, o BCF não aparece em lugar
-  nenhum (Resumo, lista de exames, histórico biométrico do PDF, Conclusão).
+  **Onde aparece (mesmo dia):** coluna BCF no histórico biométrico do PDF (única:
+  uma coluna; múltipla: uma por feto, porque BCF é do feto) e alerta na linha do
+  exame na tela. **Alerta só abaixo de 110 ou acima de 170 bpm** (`_BCF_ALERTA_MIN/
+  MAX`, decisão da médica); 110–160 é a faixa de referência, mas 160–170 não
+  alerta. Coluna só existe se alguma visita mediu, valor de alerta em negrito, dado
+  ausente é "—". **Ainda fora:** Resumo em tela e Conclusão não mencionam o BCF.

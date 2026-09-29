@@ -1676,3 +1676,24 @@ entram no histórico para a revisão pré-exame e para as curvas de tendência.
   MAX`, decisão da médica); 110–160 é a faixa de referência, mas 160–170 não
   alerta. Coluna só existe se alguma visita mediu, valor de alerta em negrito, dado
   ausente é "—". **Ainda fora:** Resumo em tela e Conclusão não mencionam o BCF.
+
+## 1º trimestre: sem gráfico de DBP; Feto 3 em marrom (2026-09-29)
+
+A pedido da médica, nos dois repositórios no mesmo dia (o editor de laudos tem o
+mesmo bloco de gráficos; ver o `CLAUDE.md` de lá).
+
+- **Saiu o gráfico de DBP** da aba Gráficos (`#card-1tri-dbp`, `buildChart1TriDbp`)
+  e do Laudo 1º Trimestre (`_rel1TriChartDbpSvg`, entrada de `_REL_1TRI_CHARTS`),
+  com a tabela `DBP_TABLE_WEEKS`. Ficam 7 cartões: BCF, CCN, TN, Ducto Venoso e as
+  3 uterinas — no PDF a grade `feto-cards--quad` já fecha 4 + 3; na tela,
+  `.charts-1tri-grid` passou a 4 colunas acima de 1100px. Na múltipla, cada feto
+  tem uma linha de 4. Motivo: o DBP a 11–14 semanas acrescenta pouco ao CCN, e a
+  referência era a mais fraca do app (média ± DP aproximado, sem ano; o editor
+  usava outra tabela, Chitty & Altman) — isso fecha também a pendência "confirmar a
+  publicação exata" da seção da TN/DBP. **O campo DBP do formulário fica**: é medida
+  de biometria e entra no peso a partir de 15 semanas.
+- **Feto 3 da trigemelar é marrom** (`--marrom:#6F3F22`, `.feto-card--c`,
+  `.feto-badge--c`, `.comparativo-item--c`, nas duas cópias do CSS). Antes
+  `idx === 0 ? --a : --b` deixava o 2 e o 3 dourados. O marrom só aparece onde há
+  três fetos com cor por feto (hoje, os gráficos do Laudo 1º Trimestre); as
+  páginas por feto do evolutivo da trigemelar não usam cor por feto.

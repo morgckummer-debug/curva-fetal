@@ -554,6 +554,7 @@ header::after{display:none;}
 }
 .charts-1tri-subtitle{font-size:11.5px;color:var(--text-muted);}
 .charts-1tri-grid{margin-bottom:18px;}
+@media(min-width:1101px){.charts-1tri-grid{grid-template-columns:repeat(4,1fr);}}
 
 .risco-fmf-cards{
   display:flex;flex-wrap:wrap;gap:14px;margin-bottom:20px;justify-content:center;
@@ -823,6 +824,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
   --roxo:#3D2352; --lilas:#8B6BA8; --lavanda:#C3B1D1; --lavanda-bg:#F1ECF4;
   --nude:#F5EDE3; --nude-2:#EDE4F2; --dourado:#B08D3F; --dourado-claro:#D9BE7A;
   --dourado-escuro:#8A651F;
+  --marrom:#6F3F22; --marrom-claro:#B08A6E; --marrom-escuro:#4E2A14;
   --texto-2:#6B5A5A; --texto-3:#9B8C8C; --papel:#FFFDFB; --linha:#E3D9DE;
 }
 .rel-preview{display:flex;justify-content:center;}
@@ -928,13 +930,15 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .feto-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .rel-preview .feto-cards--unica{grid-template-columns:repeat(3,1fr)}
 .feto-cards--unica{grid-template-columns:repeat(3,1fr)}
-/* Laudo 1º trimestre — mesma grade 4×2 do editor de laudos (.anexo-graficos-grid,
-   morfologico-1trimestre.html) pros 8 gráficos de referência. */
+/* Laudo 1º trimestre — mesma grade de 4 colunas do editor de laudos
+   (.anexo-graficos-grid, morfologico-1trimestre.html) pros 7 gráficos de
+   referência (4 + 3; o DBP saiu em 2026-09-29). */
 .rel-preview .feto-cards--quad{grid-template-columns:repeat(4,1fr)}
 .feto-cards--quad{grid-template-columns:repeat(4,1fr)}
 .rel-preview .feto-card{background:var(--papel);border:1px solid var(--linha);border-radius:6px;padding:13px}
 .rel-preview .feto-card--a{border-top:3px solid var(--roxo)}
 .rel-preview .feto-card--b,.rel-preview .feto-card--unica{border-top:3px solid var(--dourado)}
+.rel-preview .feto-card--c{border-top:3px solid var(--marrom)}
 .rel-preview .feto-card svg{width:100%;height:auto;display:block}
 .rel-preview .feto-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .rel-preview .feto-card-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo)}
@@ -942,13 +946,17 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .feto-badge{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap}
 .rel-preview .feto-badge--a{background:var(--lavanda-bg);color:var(--roxo)}
 .rel-preview .feto-badge--b,.rel-preview .feto-badge--unica{background:var(--nude);color:var(--dourado-escuro)}
+.rel-preview .feto-badge--c{background:var(--nude);color:var(--marrom-escuro)}
 .rel-preview .legend--card{margin-top:8px;gap:12px;flex-wrap:wrap}
 .rel-preview .k-p90,.rel-preview .k-p10{width:14px;border-top:1.3px dashed var(--lavanda)}
 .rel-preview .k-p50{width:14px;border-top:1.6px solid var(--lilas)}
 .rel-preview .k-pt{width:8px;height:8px;border-radius:50%;background:var(--papel);border:2px solid var(--roxo)}
 .rel-preview .feto-card--b .k-p90,.rel-preview .feto-card--b .k-p10{border-top-color:var(--dourado-claro)}
+.rel-preview .feto-card--c .k-p90,.rel-preview .feto-card--c .k-p10{border-top-color:var(--marrom-claro)}
 .rel-preview .feto-card--b .k-p50{border-top-color:var(--dourado)}
+.rel-preview .feto-card--c .k-p50{border-top-color:var(--marrom)}
 .rel-preview .feto-card--b .k-pt{border-color:var(--dourado-escuro)}
+.rel-preview .feto-card--c .k-pt{border-color:var(--marrom-escuro)}
 .rel-preview .efw-chart{width:100%;height:auto;display:block}
 .rel-preview .efw-grid{stroke:var(--linha);stroke-width:1}
 .rel-preview .efw-grid-t{font-family:'Lato',Georgia,serif;font-size:9px;fill:var(--texto-3)}
@@ -960,12 +968,19 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .efw-pt{fill:var(--papel);stroke:var(--roxo);stroke-width:2}
 .rel-preview .efw-pt-t{font-family:'Lato',Georgia,serif;font-size:9px;font-weight:700;fill:var(--roxo)}
 .rel-preview .feto-card--b .efw-band{fill:var(--dourado)}
+.rel-preview .feto-card--c .efw-band{fill:var(--marrom)}
 .rel-preview .feto-card--b .efw-p90,.rel-preview .feto-card--b .efw-p10{stroke:var(--dourado-claro)}
+.rel-preview .feto-card--c .efw-p90,.rel-preview .feto-card--c .efw-p10{stroke:var(--marrom-claro)}
 .rel-preview .feto-card--b .efw-p50{stroke:var(--dourado)}
+.rel-preview .feto-card--c .efw-p50{stroke:var(--marrom)}
 .rel-preview .feto-card--b .efw-ref-t{fill:var(--dourado)}
+.rel-preview .feto-card--c .efw-ref-t{fill:var(--marrom)}
 .rel-preview .feto-card--b .efw-ref-t--90,.rel-preview .feto-card--b .efw-ref-t--10{fill:var(--dourado-claro)}
+.rel-preview .feto-card--c .efw-ref-t--90,.rel-preview .feto-card--c .efw-ref-t--10{fill:var(--marrom-claro)}
 .rel-preview .feto-card--b .efw-pt{stroke:var(--dourado-escuro)}
+.rel-preview .feto-card--c .efw-pt{stroke:var(--marrom-escuro)}
 .rel-preview .feto-card--b .efw-pt-t{fill:var(--dourado-escuro)}
+.rel-preview .feto-card--c .efw-pt-t{fill:var(--marrom-escuro)}
 .rel-preview .descricao p{margin:0 0 8px;font-size:13px;line-height:1.62;max-width:62ch}
 .rel-preview .rel-lista{list-style:none;margin:0;padding:0}
 .rel-preview .rel-lista li{position:relative;padding-left:14px;margin:0 0 6px;font-size:13px;line-height:1.5}
@@ -994,6 +1009,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 .rel-preview .comparativo-pct b{color:var(--roxo)}
 .rel-preview .comparativo-item--a{border-top:3px solid var(--roxo)}
 .rel-preview .comparativo-item--b{border-top:3px solid var(--dourado)}
+.rel-preview .comparativo-item--c{border-top:3px solid var(--marrom)}
 /* Tabela de histórico biométrico — espelha .rel-tabela do CSS exportado. */
 .rel-preview .rel-tabela{width:100%;border-collapse:collapse;font-size:11.5px}
 .rel-preview .rel-tabela th{background:var(--roxo);color:#F6EACD;text-align:left;padding:4px 9px;
@@ -1207,16 +1223,6 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
               </div>
             </div>
             <div class="chart-wrapper"><canvas id="chart-1tri-tn"></canvas></div>
-          </div>
-
-          <div class="chart-card chart-card--1tri" id="card-1tri-dbp">
-            <div class="chart-card-header">
-              <div class="chart-card-left">
-                <div class="chart-card-title">DBP</div>
-                <div class="chart-card-subtitle">Referência Hadlock · 12-15 semanas</div>
-              </div>
-            </div>
-            <div class="chart-wrapper"><canvas id="chart-1tri-dbp"></canvas></div>
           </div>
 
           <div class="chart-card chart-card--1tri" id="card-1tri-dv">
@@ -2594,7 +2600,7 @@ function ccnToIgStr(ccnMm) {
 // Percentil aproximado a partir da banda P10/P50/P90 — mesma fórmula que o
 // editor de laudos já usa pro selo de cada marcador (z-score assumindo
 // distribuição simétrica, normalCDF via _pnorm) — nenhum dos 5 gráficos
-// "estreitos" (FC/CCN/TN/DBP/DV) tem tabela de z-score publicada, só a
+// "estreitos" (FC/CCN/TN/DV) tem tabela de z-score publicada, só a
 // banda de referência; esta é a mesma aproximação, só que desenhada como
 // tag em cima do ponto (igual aos gráficos padrão de ≥15 semanas), não como
 // selo separado. Clampado em [5,95] como o editor também faz.
@@ -2686,15 +2692,6 @@ function linRegress(pts) {
 const TN_P5_REG  = linRegress(TN_TABLE.map(r => [r[0], r[1]]));
 const TN_P50_REG = linRegress(TN_TABLE.map(r => [r[0], r[2]]));
 const TN_P95_REG = linRegress(TN_TABLE.map(r => [r[0], r[3]]));
-
-// DBP precoce (12-16 semanas) — média ± 1 DP por semana (Hadlock), enviada pela
-// médica em 2026-09-29 para substituir a antiga "tabela da clínica", sem fonte
-// citável. DP ≈ 3 mm (aproximado, informado por ela). Colunas: [semana, P5,
-// P50, P95] com P5/P95 = média ∓ 1,645 × DP — ±1 DP seria P16–P84, não P5/P95.
-// A semana 16 entra só para a interpolação de exames em 15,x; o gráfico segue
-// de 12 a 15. Distinta da tabela de DBP do grid padrão (REF_TABLES.dbp, ≥ 15
-// semanas).
-const DBP_TABLE_WEEKS = [[12,12.4,17.3,22.2],[13,16.3,21.2,26.1],[14,20.0,24.9,29.8],[15,23.7,28.6,33.5],[16,27.4,32.3,37.2]];
 
 // IP ducto venoso × CCN — leitura visual do gráfico de Pruksanusak et al.
 // (Gynecol Obstet Invest 2014;78:22-25) fornecido pela clínica — aproximação,
@@ -5296,7 +5293,7 @@ function _drawChart(canvas, cfg) {
 
   // ── Straight-line path — mesmo estilo do editor de laudos (pathFromPts,
   // só M/L), sem suavização. cfg.linear liga isso pros cards de referência
-  // do 1º trimestre (FC/CCN/TN/DBP/DV): a banda ali vem de tabela esparsa
+  // do 1º trimestre (FC/CCN/TN/DV): a banda ali vem de tabela esparsa
   // (poucos pontos) interpolada linearmente, e o Catmull-Rom por cima disso
   // criava uma curvatura a mais que a régua original não tem. ──
   function _linePath(ctx, pts, toX, toY) {
@@ -6318,24 +6315,6 @@ function buildChart1TriTN(canvasId, gestacao, exams) {
   });
 }
 
-function buildChart1TriDbp(canvasId, gestacao, exams) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const refData = { p10: [], p50: [], p90: [] };
-  for (let w = 12; w <= 15; w += 0.1) {
-    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
-    refData.p10.push({ x: w, y: l });
-    refData.p50.push({ x: w, y: m });
-    refData.p90.push({ x: w, y: h });
-  }
-  const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => {
-    if (e.dbp == null) return null;
-    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
-    return { x: w, y: e.dbp, p: _pctAprox(e.dbp, l, m, h) };
-  });
-  _drawChart(canvas, { xMin: 12, xMax: 15, yMin: 5, yMax: 38, refData, patientPoints, yLabel: 'DBP precoce (mm)', linear: true });
-}
-
 function buildChart1TriDV(canvasId, gestacao, exams) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -6386,7 +6365,6 @@ function renderCharts1Tri(gestacao, exams, allExams) {
   buildChart1TriFC('chart-1tri-fc', gestacao, exams);
   buildChart1TriCcn('chart-1tri-ccn', gestacao, exams);
   buildChart1TriTN('chart-1tri-tn', gestacao, exams);
-  buildChart1TriDbp('chart-1tri-dbp', gestacao, exams);
   buildChart1TriDV('chart-1tri-dv', gestacao, exams);
 
   const utExtractor = lado => (e) => {
@@ -6485,7 +6463,7 @@ function renderCharts(gestacao, exams, allExams) {
   allExams = allExams || exams;
 
   // O seletor Feto 1/2/Gestação vale tanto pro grid padrão quanto pro bloco de
-  // 1º trimestre (FC/CCN/TN/DBP/DV também são por feto) — chamado sempre, antes
+  // 1º trimestre (FC/CCN/TN/DV também são por feto) — chamado sempre, antes
   // de decidir qual bloco aparece. applyChartsScope() chama de novo mais abaixo
   // (idempotente); é o preço de manter a função de baixo intacta.
   renderChartsFetoToggle(gestacao);
@@ -11052,7 +11030,7 @@ function _relPontosUterinasLado(gestacao, exams, lado) {
 
 // ═══════════════════════════════════════════════════════════
 // LAUDO — MORFOLÓGICO DE 1º TRIMESTRE
-// Os 5 gráficos "estreitos" (FC, CCN, TN, DBP precoce, ducto venoso) usam as
+// Os 5 gráficos "estreitos" (FC, CCN, TN, ducto venoso) usam as
 // mesmas tabelas de referência portadas em 2026-09-27 pro app (hoje já
 // usadas pelos gráficos em Canvas da tela — buildChart1TriFC etc.) — aqui só
 // o desenho muda, de Canvas pra SVG (papel), mesma fórmula de sempre
@@ -11077,7 +11055,7 @@ function _buildRel1TriChartSvg(cfg) {
   // folga mínima (ver abaixo). Aumentar a altura do card não muda essa
   // proporção, mas dá mais pixel por mm — o ponto da paciente para de
   // encostar nas linhas de P10/P90 ao lado. Repetir esse VH nos outros 4
-  // deixaria a linha do grid 4×2 (FC/CCN/TN/DBP) desigual sem necessidade —
+  // deixaria a linha do grid 4×2 (FC/CCN/TN/DV) desigual sem necessidade —
   // só o card do CCN cresce; os vizinhos ficam com uma faixa em branco no pé,
   // preço aceito por ser só um card.
   // cfg.vw: só CC/CA/Fêmur do evolutivo, na grade de 3 colunas — com 340 de
@@ -11242,20 +11220,6 @@ function _rel1TriChartTnSvg(gestacao, exams) {
   return _buildRel1TriChartSvg({ xMin: 45, xMax: 84, ref, pts, xTicks: [45, 55, 65, 75, 84], xFmt: x => String(x), yDecimais: 1 });
 }
 
-function _rel1TriChartDbpSvg(gestacao, exams) {
-  const ref = [];
-  for (let w = 12; w <= 15; w += 0.2) {
-    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
-    ref.push({ x: w, p10: l, p50: m, p90: h });
-  }
-  const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => {
-    if (e.dbp == null) return null;
-    const [, l, m, h] = interpTabelaRef(DBP_TABLE_WEEKS, w);
-    return { x: w, y: e.dbp, p: _pctAprox(e.dbp, l, m, h) };
-  });
-  return _buildRel1TriChartSvg({ xMin: 12, xMax: 15, ref, pts, xTicks: [12, 13, 14, 15], yDecimais: 0 });
-}
-
 function _rel1TriChartDvSvg(gestacao, exams) {
   const ref = [];
   for (let w = 11; w <= 14; w += 0.2) {
@@ -11281,12 +11245,11 @@ const _REL_1TRI_CHARTS = [
   { key: 'fc',  titulo: 'BCF',                sub: 'Referência Hyett/Nicolaides (1996)',      build: _rel1TriChartFcSvg },
   { key: 'ccn', titulo: 'CCN',                sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
   { key: 'tn',  titulo: 'Transl. Nucal',      sub: 'Referência FMF (Wright et al., 2008)',    build: _rel1TriChartTnSvg },
-  { key: 'dbp', titulo: 'DBP',                sub: 'Referência Hadlock · 12-15 sem', build: _rel1TriChartDbpSvg },
   { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'Aproximação Pruksanusak et al. (2014)', build: _rel1TriChartDvSvg },
 ];
 
 // Um card por gráfico "estreito", opcionalmente por feto (múltipla) — mesma
-// classe feto-card--b que já recolore pra dourado no resto do relatório
+// classe feto-card--b que já recolore pra dourado no resto do relatório (e --c, marrom, pro Feto 3)
 // (11243+), sem inventar forma de marcador nova.
 function _rel1TriChartCardHtml(gestacao, exams, chartCfg, fetoClasse) {
   const svg = chartCfg.build(gestacao, exams);
@@ -11312,18 +11275,18 @@ function _rel1TriUtaCardHtml(gestacao, allExams, lado, classe) {
   </div>`;
 }
 
-// Seção "Gráficos de referência" do laudo de 1º trimestre — grade única 4×2,
-// mesma ordem e mesma grade do editor de laudos (.anexo-graficos-grid em
-// morfologico-1trimestre.html: FC, CCN, TN, DBP, ducto venoso, PI uterina
-// E/D/média — 8 cards, confirmado com a médica). Múltipla: os 5 "estreitos"
-// se repetem por feto, cada bloco de feto com sua própria grade 4×2; as 3
-// uterinas (medida materna, não duplica por feto) saem numa grade à parte,
-// no fim.
+// Seção "Gráficos de referência" do laudo de 1º trimestre — grade única de 4
+// colunas (4 + 3), mesma ordem e mesma grade do editor de laudos
+// (.anexo-graficos-grid em morfologico-1trimestre.html: FC, CCN, TN, ducto
+// venoso, PI uterina E/D/média — 7 cards; o DBP saiu dos dois lados em
+// 2026-09-29, a pedido da médica). Múltipla: os 4 "estreitos" se repetem por
+// feto, cada bloco de feto com sua própria linha; as 3 uterinas (medida
+// materna, não duplica por feto) saem numa grade à parte, no fim.
 function _rel1TriGraficosHtml(gestacao, patient, allExams) {
   const fetos = fetosDaGestacao(gestacao);
 
   if (!fetos.length) {
-    const oito = [
+    const sete = [
       ..._REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, allExams, c, 'feto-card--unica')),
       _rel1TriUtaCardHtml(gestacao, allExams, 'e', 'feto-card--unica'),
       _rel1TriUtaCardHtml(gestacao, allExams, 'd', 'feto-card--unica'),
@@ -11331,7 +11294,7 @@ function _rel1TriGraficosHtml(gestacao, patient, allExams) {
     ].filter(Boolean).join('');
     return `<section class="rel-secao">
       <div class="eyebrow">Gráficos de referência</div>
-      <div class="feto-cards feto-cards--quad">${oito}</div>
+      <div class="feto-cards feto-cards--quad">${sete}</div>
     </section>`;
   }
 
@@ -11339,7 +11302,7 @@ function _rel1TriGraficosHtml(gestacao, patient, allExams) {
   // pra gemelar/trigemelar (11243+); --unica é dourado, não serve aqui.
   const porFetoHtml = fetos.map((f, idx) => {
     const examsF = allExams.filter(e => e.feto === f);
-    const classe = idx === 0 ? 'feto-card--a' : 'feto-card--b';
+    const classe = idx === 0 ? 'feto-card--a' : idx === 1 ? 'feto-card--b' : 'feto-card--c';
     const cards = _REL_1TRI_CHARTS.map(c => _rel1TriChartCardHtml(gestacao, examsF, c, classe)).join('');
     return `<div class="eyebrow" style="margin:14px 0 8px">${labelFeto(f)}</div>
       <div class="feto-cards feto-cards--quad">${cards}</div>`;
@@ -11588,7 +11551,7 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
     const impressao = computeImpressaoDiagnostica(gestacao, pf.exams);
     const pct    = impressao?.efwPercentil;
     const svg    = _buildRelChartEfwSvg(gestacao, pf.exams);
-    const cor    = i === 0 ? 'a' : 'b';
+    const cor    = i === 0 ? 'a' : i === 1 ? 'b' : 'c';
 
     // O texto por feto (rótulo + critério + deterioração Doppler) saiu do card
     // em 2026-09-29: repetia o que a Conclusão já diz, com o percentil no badge
@@ -12145,6 +12108,7 @@ function _relPrintStyleBlock() {
   --roxo:#3D2352; --lilas:#8B6BA8; --lavanda:#C3B1D1; --lavanda-bg:#F1ECF4;
   --nude:#F5EDE3; --nude-2:#EDE4F2; --dourado:#B08D3F; --dourado-claro:#D9BE7A;
   --dourado-escuro:#8A651F;
+  --marrom:#6F3F22; --marrom-claro:#B08A6E; --marrom-escuro:#4E2A14;
   --texto:#3B2A2A; --texto-2:#6B5A5A; --texto-3:#9B8C8C; --papel:#FFFDFB; --linha:#E3D9DE;
 }
 @font-face{font-family:'Comfortaa';font-style:normal;font-weight:600;font-display:swap;
@@ -12280,6 +12244,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .comparativo-pct b{color:var(--roxo)}
 .comparativo-item--a{border-top:3px solid var(--roxo)}
 .comparativo-item--b{border-top:3px solid var(--dourado)}
+.comparativo-item--c{border-top:3px solid var(--marrom)}
 
 /* Card de feto da gemelar (ver _buildRelGemelarPaginaHtml) — Feto 1 no
    roxo, Feto 2 no dourado, as duas cores que o relatório já usa. */
@@ -12303,6 +12268,7 @@ html,body{margin:0;padding:0;background:#e9e6e4}
   page-break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .feto-card--a{border-top:3px solid var(--roxo)}
 .feto-card--b,.feto-card--unica{border-top:3px solid var(--dourado)}
+.feto-card--c{border-top:3px solid var(--marrom)}
 .feto-card svg{width:100%;height:auto;display:block}
 .feto-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .feto-card-t{font-family:'Comfortaa',system-ui,sans-serif;font-size:12.5px;font-weight:600;color:var(--roxo)}
@@ -12311,13 +12277,17 @@ html,body{margin:0;padding:0;background:#e9e6e4}
   white-space:nowrap;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .feto-badge--a{background:var(--lavanda-bg);color:var(--roxo)}
 .feto-badge--b,.feto-badge--unica{background:var(--nude);color:var(--dourado-escuro)}
+.feto-badge--c{background:var(--nude);color:var(--marrom-escuro)}
 .legend--card{margin-top:8px;gap:12px;flex-wrap:wrap}
 .k-p90,.k-p10{width:14px;border-top:1.3px dashed var(--lavanda)}
 .k-p50{width:14px;border-top:1.6px solid var(--lilas)}
 .k-pt{width:8px;height:8px;border-radius:50%;background:var(--papel);border:2px solid var(--roxo)}
 .feto-card--b .k-p90,.feto-card--b .k-p10{border-top-color:var(--dourado-claro)}
+.feto-card--c .k-p90,.feto-card--c .k-p10{border-top-color:var(--marrom-claro)}
 .feto-card--b .k-p50{border-top-color:var(--dourado)}
+.feto-card--c .k-p50{border-top-color:var(--marrom)}
 .feto-card--b .k-pt{border-color:var(--dourado-escuro)}
+.feto-card--c .k-pt{border-color:var(--marrom-escuro)}
 
 .efw-chart{width:100%;height:auto;display:block}
 .efw-grid{stroke:var(--linha);stroke-width:1}
@@ -12330,12 +12300,19 @@ html,body{margin:0;padding:0;background:#e9e6e4}
 .efw-pt{fill:var(--papel);stroke:var(--roxo);stroke-width:2}
 .efw-pt-t{font-family:'Lato',Georgia,serif;font-size:9px;font-weight:700;fill:var(--roxo)}
 .feto-card--b .efw-band{fill:var(--dourado)}
+.feto-card--c .efw-band{fill:var(--marrom)}
 .feto-card--b .efw-p90,.feto-card--b .efw-p10{stroke:var(--dourado-claro)}
+.feto-card--c .efw-p90,.feto-card--c .efw-p10{stroke:var(--marrom-claro)}
 .feto-card--b .efw-p50{stroke:var(--dourado)}
+.feto-card--c .efw-p50{stroke:var(--marrom)}
 .feto-card--b .efw-ref-t{fill:var(--dourado)}
+.feto-card--c .efw-ref-t{fill:var(--marrom)}
 .feto-card--b .efw-ref-t--90,.feto-card--b .efw-ref-t--10{fill:var(--dourado-claro)}
+.feto-card--c .efw-ref-t--90,.feto-card--c .efw-ref-t--10{fill:var(--marrom-claro)}
 .feto-card--b .efw-pt{stroke:var(--dourado-escuro)}
+.feto-card--c .efw-pt{stroke:var(--marrom-escuro)}
 .feto-card--b .efw-pt-t{fill:var(--dourado-escuro)}
+.feto-card--c .efw-pt-t{fill:var(--marrom-escuro)}
 
 /* Cartões de risco T21/T18/T13/pré-eclâmpsia — laudo de 1º trimestre. Mesmas
    classes do bloco #charts-1tri da tela (.risco-fmf-*, index.html), com a

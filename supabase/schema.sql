@@ -57,6 +57,11 @@ create trigger set_updated_at
 
 alter table public.patients enable row level security;
 
+-- Data API: desde 30/10/2026 tabela nova em public não recebe grant automático.
+-- Sem `anon`: o app exige login e a RLS já amarra tudo a auth.uid().
+grant select, insert, update, delete on public.patients to authenticated;
+grant select, insert, update, delete on public.patients to service_role;
+
 drop policy if exists "patients: dono pode tudo" on public.patients;
 create policy "patients: dono pode tudo"
   on public.patients
@@ -102,6 +107,11 @@ create trigger set_updated_at
   for each row execute function public.set_updated_at();
 
 alter table public.gestacoes enable row level security;
+
+-- Data API: desde 30/10/2026 tabela nova em public não recebe grant automático.
+-- Sem `anon`: o app exige login e a RLS já amarra tudo a auth.uid().
+grant select, insert, update, delete on public.gestacoes to authenticated;
+grant select, insert, update, delete on public.gestacoes to service_role;
 
 drop policy if exists "gestacoes: dono pode tudo" on public.gestacoes;
 create policy "gestacoes: dono pode tudo"
@@ -165,6 +175,11 @@ create trigger set_updated_at
   for each row execute function public.set_updated_at();
 
 alter table public.exams enable row level security;
+
+-- Data API: desde 30/10/2026 tabela nova em public não recebe grant automático.
+-- Sem `anon`: o app exige login e a RLS já amarra tudo a auth.uid().
+grant select, insert, update, delete on public.exams to authenticated;
+grant select, insert, update, delete on public.exams to service_role;
 
 drop policy if exists "exams: dono pode tudo" on public.exams;
 create policy "exams: dono pode tudo"

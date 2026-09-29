@@ -28,6 +28,11 @@ insert into public.manutencao_keepalive (id) values (1) on conflict (id) do noth
 -- fica com RLS ligado, para não destoar do resto do schema.
 alter table public.manutencao_keepalive enable row level security;
 
+-- Data API: desde 30/10/2026 tabela nova em public não recebe grant automático.
+-- `anon` não lê a tabela: a rotina diária só chama a função registrar_keepalive.
+grant select on public.manutencao_keepalive to authenticated;
+grant select, insert, update, delete on public.manutencao_keepalive to service_role;
+
 drop policy if exists authenticated_select_keepalive on public.manutencao_keepalive;
 
 create policy authenticated_select_keepalive

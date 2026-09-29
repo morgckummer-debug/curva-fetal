@@ -6329,6 +6329,14 @@ function renderCharts1Tri(gestacao, exams, allExams) {
   renderRiscoFmfCards(gestacao, allExams);
 }
 
+// Risco da FMF é sempre "1 em X". O editor de laudos manda só o denominador em
+// alguns caminhos; valor só com dígitos ganha o prefixo na leitura, para tela,
+// relatório e laudo dizerem a mesma coisa.
+function _riscoFmfTxt(v) {
+  const t = String(v == null ? '' : v).trim();
+  return /^\d+$/.test(t) ? '1 em ' + t : t;
+}
+
 function _ultimoExameComCampo(exams, campo) {
   const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
   for (let i = sorted.length - 1; i >= 0; i--) {
@@ -6350,7 +6358,7 @@ function _riscoFmfCardHtml(rotulo, exam) {
   if (!linhas.length) return '';
   return `<div class="risco-fmf-card">
     <div class="risco-fmf-card-t">${escapeHtml(rotulo)}</div>
-    ${linhas.map(([k, v]) => `<div class="risco-fmf-row"><span class="risco-fmf-k">${k}</span><span class="risco-fmf-v">${escapeHtml(v)}</span></div>`).join('')}
+    ${linhas.map(([k, v]) => `<div class="risco-fmf-row"><span class="risco-fmf-k">${k}</span><span class="risco-fmf-v">${escapeHtml(_riscoFmfTxt(v))}</span></div>`).join('')}
   </div>`;
 }
 
@@ -6385,7 +6393,7 @@ function _riscoFmfCardsHtml(gestacao, allExams) {
     if (!exame) return '';
     return `<div class="risco-fmf-card risco-fmf-card--${classe}">
     <div class="risco-fmf-card-t">${rotulo}</div>
-    <div class="risco-fmf-row"><span class="risco-fmf-k">Risco</span><span class="risco-fmf-v">${escapeHtml(exame[campo])}</span></div>
+    <div class="risco-fmf-row"><span class="risco-fmf-k">Risco</span><span class="risco-fmf-v">${escapeHtml(_riscoFmfTxt(exame[campo]))}</span></div>
   </div>`;
   }).join('');
 
@@ -9759,15 +9767,15 @@ function _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri) {
 
   const riscoPe = _ultimoExameComCampo(allExams, 'risco_pre_eclampsia');
   if (riscoPe) {
-    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${riscoPe.risco_pre_eclampsia} para pré-eclâmpsia pré-termo, segundo algoritmo da Fetal Medicine Foundation.`);
+    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${_riscoFmfTxt(riscoPe.risco_pre_eclampsia)} para pré-eclâmpsia pré-termo, segundo algoritmo da Fetal Medicine Foundation.`);
   }
   const riscoPp = _ultimoExameComCampo(allExams, 'risco_parto_prematuro');
   if (riscoPp) {
-    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${riscoPp.risco_parto_prematuro} para parto prematuro, segundo algoritmo da Fetal Medicine Foundation.`);
+    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${_riscoFmfTxt(riscoPp.risco_parto_prematuro)} para parto prematuro, segundo algoritmo da Fetal Medicine Foundation.`);
   }
   const riscoDg = _ultimoExameComCampo(allExams, 'risco_diabetes_gestacional');
   if (riscoDg) {
-    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${riscoDg.risco_diabetes_gestacional} para diabetes gestacional, segundo algoritmo da Fetal Medicine Foundation.`);
+    linhas.push(`Rastreamento combinado do 1º trimestre: risco de ${_riscoFmfTxt(riscoDg.risco_diabetes_gestacional)} para diabetes gestacional, segundo algoritmo da Fetal Medicine Foundation.`);
   }
 
   if (exame1Tri.colo != null) {
@@ -10223,7 +10231,7 @@ function _achadoRiscoPreEclampsia1Tri(exams) {
   if (!e) return null;
   return {
     label: 'Rastreio de pré-eclâmpsia (1º trimestre)',
-    conduta: `Risco combinado (FMF): ${e.risco_pre_eclampsia}`,
+    conduta: `Risco combinado (FMF): ${_riscoFmfTxt(e.risco_pre_eclampsia)}`,
   };
 }
 
@@ -10234,7 +10242,7 @@ function _achadoRiscoPartoPrematuro1Tri(exams) {
   if (!e) return null;
   return {
     label: 'Rastreio de parto prematuro (1º trimestre)',
-    conduta: `Risco combinado (FMF): ${e.risco_parto_prematuro}`,
+    conduta: `Risco combinado (FMF): ${_riscoFmfTxt(e.risco_parto_prematuro)}`,
   };
 }
 
@@ -10243,7 +10251,7 @@ function _achadoRiscoDiabetesGestacional1Tri(exams) {
   if (!e) return null;
   return {
     label: 'Rastreio de diabetes gestacional (1º trimestre)',
-    conduta: `Risco combinado (FMF): ${e.risco_diabetes_gestacional}`,
+    conduta: `Risco combinado (FMF): ${_riscoFmfTxt(e.risco_diabetes_gestacional)}`,
   };
 }
 

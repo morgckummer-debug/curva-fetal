@@ -1613,5 +1613,9 @@ substituída por ela; o subtítulo (tela e PDF) passou a "Referência FMF (Wrigh
 et al., 2008)". A curva continua sendo a reta de mínimos quadrados sobre a
 tabela (erro máximo 0,05 mm). **A atribuição a Wright 2008 é minha, não veio
 com a tabela — a médica precisa confirmar a fonte.** O editor de laudos tem o
-mesmo subtítulo e a mesma tabela antiga. **Pendência:** DBP precoce (12–15 sem)
-segue com "Tabela de referência da clínica" até ela enviar uma tabela publicada.
+mesmo subtítulo e a mesma tabela antiga. **DBP precoce (12–15 sem):** mesma data, mesma troca. A médica enviou média ±
+1 DP por semana (12–16 sem, Hadlock, DP ≈ 3 mm aproximado) e `DBP_TABLE_WEEKS`
+passou a guardar P5/P50/P95 = média ∓ 1,645 × DP (±1 DP seria P16–P84).
+Subtítulo: "Referência Hadlock" — **sem ano, porque ela não informou; confirmar a
+publicação exata.** Nada mais de "tabela da clínica" nos gráficos do 1º
+trimestre.

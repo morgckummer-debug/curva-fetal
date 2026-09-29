@@ -1611,8 +1611,7 @@ clínica" — sem fonte citável, inadequado para um laudo. A médica enviou a
 tabela P5/P50/P95 por CCN (45–84 mm, 2 casas decimais) e `TN_TABLE` foi
 substituída por ela; o subtítulo (tela e PDF) passou a "Referência FMF (Wright
 et al., 2008)". A curva continua sendo a reta de mínimos quadrados sobre a
-tabela (erro máximo 0,05 mm). **A atribuição a Wright 2008 é minha, não veio
-com a tabela — a médica precisa confirmar a fonte.** O editor de laudos tem o
+tabela (erro máximo 0,05 mm). A atribuição a Wright 2008 foi proposta por Claude e **confirmada pela médica em 2026-09-29**. O editor de laudos tem o
 mesmo subtítulo e a mesma tabela antiga. **DBP precoce (12–15 sem):** mesma data, mesma troca. A médica enviou média ±
 1 DP por semana (12–16 sem, Hadlock, DP ≈ 3 mm aproximado) e `DBP_TABLE_WEEKS`
 passou a guardar P5/P50/P95 = média ∓ 1,645 × DP (±1 DP seria P16–P84).

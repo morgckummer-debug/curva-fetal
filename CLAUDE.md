@@ -1626,3 +1626,36 @@ gestation.* Gynecol Obstet Invest 2014;78(1):22–25. (O sobrenome é
 **Pruksanusak** — a grafia "Pruksanasuk" usada antes no app estava errada e foi
 corrigida.) Os valores de `DV_TABLE` continuam sendo leitura visual do gráfico
 do artigo, por isso o subtítulo diz "Aproximação".
+
+## Exame externo: entrada rápida reaproveita o modal de exame
+
+2026-09-29, a pedido da médica: laudos de outro serviço, trazidos pela paciente,
+entram no histórico para a revisão pré-exame e para as curvas de tendência.
+
+- **Não é um formulário novo.** É o modal "Novo Exame" com a caixa "Exame externo"
+  marcada — o botão "+ Exame externo" só abre o modal já marcado. Assim gemelar
+  (rascunho por feto), datação e Doppler recolhido funcionam sem uma segunda cópia.
+- **Migração 014** (`externo`, `servico_externo`, `efw`, `impressao_externa`).
+  **Tem de estar aplicada no Supabase antes de publicar**: `_EXAM_COLUMNS` passou a
+  pedir as colunas, e sem elas o bootstrap inteiro falha (e todo upsert também).
+- **`efw` é o peso digitado do laudo externo, em gramas.** O código já lia
+  `e.efw ?? calcEFW(...)` em ~20 lugares (percentil, gráficos, discordância) mas
+  nada gravava `efw`; a coluna liga o gancho que já existia, sem tocar em nenhum
+  deles. Com `efw` preenchido o percentil sai dele; sem, continua Hadlock pelas
+  quatro medidas. A prévia do modal mostra os dois quando existem. Aceita peso
+  sem nenhuma medida. Faixa 20–7000 g, validada em `saveExam`.
+- **Por feto: `efw`** (entra em `_ME_FETO_FIELD_IDS`). **Da visita: `externo`,
+  `servico_externo`, `impressao_externa`** — lidos com `sharedStr`, replicados em
+  todos os registros da visita, como colo/uterinas. Sem a marca `externo`,
+  `_meBuildExamData` grava `efw` nulo: nunca sobra peso digitado escondido num
+  exame da casa.
+- **A IG continua vindo da datação da gestação (DUM/CCN)**, não da IG impressa no
+  laudo externo — o percentil é lido na régua da clínica. Só sem âncora o campo de
+  IG fica editável, como sempre.
+- Selo "Externo · serviço" na linha do exame/visita (`_exameExternoBadgeHtml`).
+  Import/restauração de snapshot conhecem os quatro campos (`validateImportedDB`).
+- **Ficou de fora, por decidir:** o exame externo entra nos cálculos e no
+  "Histórico biométrico" do PDF como qualquer outro, sem marca — pode confundir
+  quem lê o papel da clínica, e a medida de outro aparelho/operador tem outro erro
+  (pesa na leitura de "queda de percentil"). Se ela quiser, marcar no PDF e/ou
+  avisar na tendência.

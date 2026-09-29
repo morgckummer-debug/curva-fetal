@@ -462,6 +462,14 @@ header::after{display:none;}
   border-radius:99px;border:none;white-space:nowrap;
   box-shadow:2px 2px 6px rgba(61,35,82,0.14),-1px -1px 4px rgba(46,33,56,0.52);
 }
+.exam-row-ext-badge{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+  color:var(--peach-warm);background:var(--clay-bg);padding:3px 10px;
+  border-radius:99px;white-space:nowrap;box-shadow:var(--sh-in);
+}
+.me-externo-box{margin-bottom:14px;padding:10px 14px;border-radius:12px;background:var(--clay-bg);box-shadow:var(--sh-in);}
+.me-externo-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;}
+.me-externo-check input{accent-color:var(--sage);}
 .exam-row-actions{display:flex;gap:7px;flex-shrink:0;align-items:center;}
 
 /* ── ALERTS ── */
@@ -1139,7 +1147,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <div class="action-bar-left">
           <span style="font-weight:500;font-size:14px;">Histórico de Exames</span>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="openExamModal()">+ Novo Exame</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="openExamModal(true)" title="Laudo de outro serviço, trazido pela paciente">+ Exame externo</button>
+          <button class="btn btn-primary btn-sm" onclick="openExamModal()">+ Novo Exame</button>
+        </div>
       </div>
       <div id="alerts-container" style="margin-bottom:10px;"></div>
       <!-- PERCENTILE PANEL removed -->
@@ -1469,6 +1480,22 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         </div>
       </div>
 
+      <!-- Exame externo — laudo de outro serviço. Marcar libera o campo de peso
+           informado e a conclusão do laudo; serviço/conclusão são da visita, não
+           do feto (mesma regra de colo/uterinas). -->
+      <div class="me-externo-box">
+        <label class="me-externo-check">
+          <input type="checkbox" id="e-externo" onchange="meToggleExterno()">
+          Exame externo <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">feito em outro serviço</span>
+        </label>
+        <div id="me-externo-fields" style="display:none;margin-top:10px;">
+          <div class="me-bio-field">
+            <label>Serviço / profissional <span class="optional-tag">opcional</span></label>
+            <input type="text" id="e-servico-externo" maxlength="80" placeholder="ex.: Clínica X — Dr. Fulano">
+          </div>
+        </div>
+      </div>
+
       <!-- Feto — só aparece em gestação múltipla (Feto 3 só na trigemelar) -->
       <div id="me-feto-row" style="display:none;margin-bottom:14px;">
         <label style="display:block;margin-bottom:6px;">Feto <span style="color:var(--danger)">*</span></label>
@@ -1641,6 +1668,15 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <input type="number" id="e-dof" step="0.1" placeholder="mm">
           </div>
         </div>
+        <!-- Peso informado no laudo externo (g). Quando preenchido, o percentil sai
+             dele; senão o app calcula por Hadlock com as 4 medidas. Por feto. -->
+        <div id="me-efw-informado" style="display:none;margin-top:10px;">
+          <div class="me-bio-field" style="max-width:200px;">
+            <label>Peso estimado do laudo <span class="optional-tag">g</span></label>
+            <input type="number" id="e-efw" step="1" min="20" max="7000" placeholder="g" oninput="meUpdate()">
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:5px;">O percentil usa este peso. Sem ele, o app calcula pelas medidas (Hadlock).</div>
+        </div>
       </div>
 
       <!-- Live results table -->
@@ -1657,7 +1693,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <tbody id="me-tbody"></tbody>
         </table>
         <div id="me-efw-block" class="calc-efw-block" style="display:none;margin-top:12px;">
-          <div class="calc-efw-label">Peso Fetal Estimado — Hadlock · DBP + CC + CA + CF</div>
+          <div class="calc-efw-label" id="me-efw-label">Peso Fetal Estimado — Hadlock · DBP + CC + CA + CF</div>
           <div class="calc-efw-row">
             <div class="calc-efw-weight" id="me-efw-weight" style="font-size:28px;">—</div>
             <div class="calc-efw-meta">
@@ -1795,6 +1831,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div id="me-ila-gemelar-note" style="display:none;font-size:10px;color:var(--text-muted);margin-top:-2px;">Em gestação múltipla usamos apenas o maior bolsão — ILA não se aplica por feto.</div>
         </div>
       </details>
+
+      <!-- Conclusão do laudo externo — só com "Exame externo" marcado -->
+      <div id="me-impressao-externa-wrap" style="display:none;margin-top:8px;margin-bottom:8px;">
+        <div class="me-bio-label" style="margin-bottom:6px;">Conclusão do laudo externo <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">opcional — o que o colega concluiu</span></div>
+        <textarea id="e-impressao-externa" maxlength="500" rows="3" placeholder="ex.: PIG, Doppler normal, ILA normal" style="width:100%;padding:9px 12px;border:none;border-radius:var(--radius-sm);font-size:13px;font-family:var(--font-sans);color:var(--text);background:var(--clay-bg);box-shadow:var(--sh-in);outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
 
     </div>
 
@@ -4038,7 +4080,7 @@ function _proximoIdLocal(linhas) {
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
 const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,progesterona_vaginal_em_uso,cerclagem_realizada,cerclagem_ig_semanas,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
-const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,risco_parto_prematuro,risco_diabetes_gestacional,feto,excluido_em';
+const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,risco_parto_prematuro,risco_diabetes_gestacional,efw,externo,servico_externo,impressao_externa,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
 // memória. Chamado uma vez ao entrar (ver onAuthStateChange, mais abaixo).
@@ -4884,6 +4926,13 @@ function renderPercentilePanelForExam(gestacao, e) {
 // EXAM LIST
 // ═══════════════════════════════════════════════════════════
 
+// Selo "Externo" (+ serviço, se informado) na linha do exame/visita.
+function _exameExternoBadgeHtml(exams) {
+  if (!exams.some(e => e.externo)) return '';
+  const sv = (exams.find(e => e.servico_externo) || {}).servico_externo;
+  return `<span class="exam-row-ext-badge" title="Exame feito em outro serviço${sv ? ': ' + escapeHtml(sv) : ''}">Externo${sv ? ' · ' + escapeHtml(sv) : ''}</span>`;
+}
+
 function renderExamList(gestacao, exams) {
   const container = document.getElementById('exam-list');
   if (!gestacao) {
@@ -4945,6 +4994,7 @@ function renderExamList(gestacao, exams) {
           <span class="exam-row-date">${formatDateBR(e.data_exame)}</span>
           <span class="exam-row-sep">•</span>
           <span class="exam-row-ig">${igToStr(igDays)}</span>
+          ${_exameExternoBadgeHtml([e])}
           ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
           ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
         </div>
@@ -4977,6 +5027,7 @@ function renderExamList(gestacao, exams) {
         <span class="exam-row-date">${formatDateBR(date)}</span>
         <span class="exam-row-sep">•</span>
         <span class="exam-row-ig">${igToStr(igDays)}</span>
+        ${_exameExternoBadgeHtml(examsDoDia)}
         ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
         ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
       </div>
@@ -8068,7 +8119,7 @@ function _meSetIGMode() {
 // do preenchimento de um exame novo (_meOnFetoChange), quando data/IG devem
 // permanecer intactos por serem da visita, não do feto.
 function _meClearBioFields() {
-  ['e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula','e-colo','e-ila','e-bolsao']
+  ['e-dbp','e-cc','e-ca','e-femur','e-dof','e-efw','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula','e-colo','e-ila','e-bolsao']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   ['e-au-ip','e-acm-ip','e-acm-psv','e-aut-e','e-aut-d','e-dv-ip']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
@@ -8087,8 +8138,40 @@ function _meClearBioFields() {
   _meDatacaoTipo = null;
 }
 
+// ── Exame externo ─────────────────────────────────────────────
+function _meExterno() {
+  const el = document.getElementById('e-externo');
+  return !!(el && el.checked);
+}
+
+// Mostra/esconde o que só existe em exame externo (serviço, peso informado,
+// conclusão) e ajusta o título. Não apaga o que foi digitado ao desmarcar:
+// _meBuildExamData é quem descarta, na gravação.
+function meToggleExterno() { _meApplyExternoUI(); meUpdate(); }
+
+function _meApplyExternoUI() {
+  const on = _meExterno();
+  [['me-externo-fields','block'],['me-efw-informado','block'],['me-impressao-externa-wrap','block']]
+    .forEach(([id, disp]) => { const el = document.getElementById(id); if (el) el.style.display = on ? disp : 'none'; });
+  const t = document.getElementById('modal-exam-title');
+  if (t) t.textContent = t.textContent.replace(/ — Externo$/, '') + (on ? ' — Externo' : '');
+}
+
+// Preenche o bloco "externo" a partir dos registros da visita (1 exame, ou 1 por
+// feto numa múltipla). Lista vazia = limpa. É da visita: vale o primeiro registro
+// que trouxer cada campo.
+function _meLoadExterno(exams) {
+  const first = k => { const f = exams.find(e => e[k]); return f ? f[k] : ''; };
+  const chk = document.getElementById('e-externo');
+  if (chk) chk.checked = exams.some(e => e.externo);
+  const sv = document.getElementById('e-servico-externo'); if (sv) sv.value = first('servico_externo');
+  const im = document.getElementById('e-impressao-externa'); if (im) im.value = first('impressao_externa');
+  _meApplyExternoUI();
+}
+
 function _meClearBio() {
   _meClearBioFields();
+  _meLoadExterno([]);
   ['me-sem','me-dia'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   const fetoA = document.getElementById('me-feto-a');
   if (fetoA) fetoA.checked = true;
@@ -8163,7 +8246,7 @@ let _meFetoExamIds = { A: null, B: null, C: null };
 // pra não sumir da tela quando o médico troca de Feto 1 pra Feto 2 no meio do
 // preenchimento (ver _meOnFetoChange e _meBuildExamData).
 const _ME_FETO_FIELD_IDS = [
-  'e-dbp','e-cc','e-ca','e-femur','e-dof','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula',
+  'e-dbp','e-cc','e-ca','e-femur','e-dof','e-efw','e-ccn','e-umero','e-radio','e-ulna','e-tibia','e-fibula',
   'e-au-ip','e-au-fluxo','e-acm-ip','e-acm-psv','e-dv-ip','e-dv-onda',
   'e-ila','e-bolsao',
   'e-nt','e-fc','e-risco-t21','e-risco-t18','e-risco-t13',
@@ -8208,7 +8291,7 @@ function _meOnFetoChange() {
   updateDopplerLivePreview();
 }
 
-function openExamModal() {
+function openExamModal(externo = false) {
   if (!currentGestacaoId) {
     alert('Nenhuma gestação selecionada. Crie ou selecione uma gestação antes de adicionar um exame.');
     return;
@@ -8220,6 +8303,7 @@ function openExamModal() {
 
   document.getElementById('modal-exam-title').textContent = 'Novo Exame';
   _meClearBio();
+  if (externo) _meLoadExterno([{ externo: true }]);
   _meApplyGemelarUI(getGestacaoById(currentGestacaoId), null, false);
   const _eDataNew = document.getElementById('e-data');
   if (_eDataNew) _eDataNew.value = new Date().toISOString().split('T')[0];
@@ -8271,7 +8355,7 @@ function openEditExamModal(eid) {
   const _eDataEdit = document.getElementById('e-data');
   if (_eDataEdit) _eDataEdit.value = exam.data_exame;
 
-  const bioFields = ['dbp','cc','ca','femur','dof','ccn','umero','radio','ulna','tibia','fibula','colo','ila','bolsao'];
+  const bioFields = ['dbp','cc','ca','femur','dof','efw','ccn','umero','radio','ulna','tibia','fibula','colo','ila','bolsao'];
   bioFields.forEach(f => { const el = document.getElementById('e-' + f); if (el) el.value = exam[f] != null ? exam[f] : ''; });
 
   const dopplerFieldMap = { 'au-ip':'au_ip','acm-ip':'acm_ip','acm-psv':'acm_psv','aut-e':'aut_e','aut-d':'aut_d','dv-ip':'dv_ip' };
@@ -8292,6 +8376,8 @@ function openEditExamModal(eid) {
     const el = document.getElementById('e-' + elSuffix);
     if (el) el.value = exam[key] != null ? exam[key] : '';
   });
+
+  _meLoadExterno([exam]);
 
   const gestacao = getGestacaoById(currentGestacaoId);
   _meApplyGemelarUI(gestacao, exam.feto, true);
@@ -8343,7 +8429,7 @@ function openEditExamModal(eid) {
 function _meExamToDraft(exam) {
   const v = (x) => (x != null ? String(x) : '');
   return {
-    'e-dbp': v(exam.dbp), 'e-cc': v(exam.cc), 'e-ca': v(exam.ca), 'e-femur': v(exam.femur), 'e-dof': v(exam.dof),
+    'e-dbp': v(exam.dbp), 'e-cc': v(exam.cc), 'e-ca': v(exam.ca), 'e-femur': v(exam.femur), 'e-dof': v(exam.dof), 'e-efw': v(exam.efw),
     'e-ccn': v(exam.ccn), 'e-umero': v(exam.umero), 'e-radio': v(exam.radio), 'e-ulna': v(exam.ulna),
     'e-tibia': v(exam.tibia), 'e-fibula': v(exam.fibula),
     'e-au-ip': v(exam.au_ip), 'e-au-fluxo': v(exam.au_fluxo), 'e-acm-ip': v(exam.acm_ip), 'e-acm-psv': v(exam.acm_psv),
@@ -8378,6 +8464,7 @@ function openEditVisitGemelar(date) {
 
   const _eDataEdit = document.getElementById('e-data');
   if (_eDataEdit) _eDataEdit.value = date;
+  _meLoadExterno(examsDoDia);
 
   // Colo e IP das artérias uterinas ficam fora de _ME_FETO_FIELD_IDS (são da
   // visita, não do feto) — _meLoadDraftToForm não os toca. Preenche uma vez
@@ -8781,10 +8868,19 @@ function _meCalcTable() {
     </tr>`;
   });
 
-  if (!hasAny) { if (resDiv) resDiv.style.display = 'none'; return; }
+  // Peso digitado do laudo externo: dispensa as medidas para mostrar o percentil.
+  const efwInfEl = document.getElementById('e-efw');
+  const efwInf   = (_meExterno() && efwInfEl) ? parseFloat(efwInfEl.value) : NaN;
+  const temEfwInf = !isNaN(efwInf) && efwInf > 0;
+
+  if (!hasAny && !temEfwInf) { if (resDiv) resDiv.style.display = 'none'; return; }
 
   tbody.innerHTML = rows;
-  if (resDiv) resDiv.style.display = 'block';
+  if (resDiv) {
+    resDiv.style.display = 'block';
+    const tbl = resDiv.querySelector('table');
+    if (tbl) tbl.style.display = hasAny ? '' : 'none';
+  }
 
   // EFW
   const dbpEl = document.getElementById('e-dbp');
@@ -8796,9 +8892,15 @@ function _meCalcTable() {
   const caV   = caEl  ? parseFloat(caEl.value)  : NaN;
   const flV   = flEl  ? parseFloat(flEl.value)  : NaN;
 
-  if (!isNaN(dbpV) && !isNaN(ccV) && !isNaN(caV) && !isNaN(flV)) {
-    const efw  = calcEFW(dbpV, ccV, caV, flV);
+  const temMedidas = !isNaN(dbpV) && !isNaN(ccV) && !isNaN(caV) && !isNaN(flV);
+  if (temEfwInf || temMedidas) {
+    const efwHadlock = temMedidas ? calcEFW(dbpV, ccV, caV, flV) : null;
+    const efw  = temEfwInf ? efwInf : efwHadlock;
     const pEfw = calcEFWPercentile(efw, igDays);
+    const lbl  = document.getElementById('me-efw-label');
+    if (lbl) lbl.textContent = temEfwInf
+      ? 'Peso estimado — informado no laudo externo' + (efwHadlock ? ` · Hadlock pelas medidas: ${efwHadlock.toLocaleString('pt-BR')} g` : '')
+      : 'Peso Fetal Estimado — Hadlock · DBP + CC + CA + CF';
     const pVal = pEfw ? pEfw.percentil : null;
     const cls  = pctClass(pVal, 'calc-pct');
     const wt   = document.getElementById('me-efw-weight');
@@ -8953,6 +9055,14 @@ function _meBuildExamData(feto, draft, data, igManual) {
     risco_pre_eclampsia: sharedStr('e-risco-pre-eclampsia'),
     risco_parto_prematuro: sharedStr('e-risco-parto-prematuro'),
     risco_diabetes_gestacional: sharedStr('e-risco-diabetes-gestacional'),
+    // Exame externo: marcação, serviço e conclusão são da visita (sharedStr); o
+    // peso informado é do feto (num, vem do rascunho na múltipla). Sem a marca,
+    // o peso volta a ser calculado por Hadlock — nunca sobra um peso digitado
+    // "escondido" num exame da casa.
+    externo: _meExterno(),
+    efw: _meExterno() ? num('e-efw') : null,
+    servico_externo: _meExterno() ? sharedStr('e-servico-externo') : null,
+    impressao_externa: _meExterno() ? sharedStr('e-impressao-externa') : null,
     feto,
   };
 }
@@ -9008,6 +9118,13 @@ function saveExam() {
   const _eData = document.getElementById('e-data');
   const data = _eData ? _eData.value : '';
   if (!data) { alert('Informe a data do exame.'); return; }
+
+  if (_meExterno()) {
+    const efwEls = ['e-efw'].map(id => document.getElementById(id)).filter(Boolean);
+    const fora = [...efwEls.map(el => el.value), ...Object.values(_meFetoDrafts).filter(Boolean).map(d => d['e-efw'])]
+      .filter(v => v !== '' && v != null).map(Number).some(v => !(v >= 20 && v <= 7000));
+    if (fora) { alert('O peso estimado do laudo externo deve estar entre 20 e 7000 g.'); return; }
+  }
 
   const isFirstNew = _meIsFirstExam() && isNewExam;
 
@@ -12992,6 +13109,10 @@ function validateImportedDB(raw) {
       risco_pre_eclampsia: sanitizeString(e.risco_pre_eclampsia, 40) || null,
       risco_parto_prematuro: sanitizeString(e.risco_parto_prematuro, 40) || null,
       risco_diabetes_gestacional: sanitizeString(e.risco_diabetes_gestacional, 40) || null,
+      efw: numOrNull(e.efw),
+      externo: !!e.externo,
+      servico_externo: sanitizeString(e.servico_externo, 80) || null,
+      impressao_externa: sanitizeString(e.impressao_externa, 500) || null,
     });
   });
 

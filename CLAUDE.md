@@ -1697,3 +1697,31 @@ mesmo bloco de gráficos; ver o `CLAUDE.md` de lá).
   `idx === 0 ? --a : --b` deixava o 2 e o 3 dourados. O marrom só aparece onde há
   três fetos com cor por feto (hoje, os gráficos do Laudo 1º Trimestre); as
   páginas por feto do evolutivo da trigemelar não usam cor por feto.
+
+## Aba "Revisão": reler a paciente antes de chamá-la (2026-09-29)
+
+Primeira aba da tela da paciente (`renderRevisao`, `#tab-revisao`). Feita para a
+médica rever, na sala, tudo o que a paciente já fez — dela e de outros serviços —
+antes de chamá-la. **A aba padrão ao abrir a paciente continua "Exames"**
+(`setTab('exams')` em `openPatient`); mudar para "Revisão" é uma linha, se ela quiser.
+
+- **Não calcula nada clínico novo.** Só junta o que o app já decide:
+  `computeImpressaoDiagnostica` (diagnóstico, critérios, deterioração Doppler,
+  conduta, notas, pré-eclâmpsia), `generateAlerts`, `avaliarTAPS`,
+  `_discrepanciaPesoCardHtml`, `avaliarRiscoColoCurto`, `_bcfFora`. Uma regra
+  clínica nova não entra aqui: entra na função de origem, e a revisão herda.
+- **Três blocos:** Situação (IG hoje, DPP, tipo/corionicidade, G/P/A, último exame
+  e há quantos dias, antecedentes/cerclagem/progesterona); "O que merece atenção";
+  e a tabela de todos os exames, do mais recente ao mais antigo (PFE e CA com
+  percentil, líquido, colo, BCF, AU, ACM/RCP, UtA, DV). Exame externo leva selo,
+  serviço e a conclusão do laudo externo embaixo da linha. Na múltipla, uma linha
+  por feto por visita.
+- **Colo: vale o exame MAIS RECENTE que mediu, não o último exame.** O último pode
+  ser um laudo externo sem colo, e o achado sumiria da revisão. Idem BCF.
+  (`computeImpressaoDiagnostica` continua avaliando só o último exame, como antes.)
+- **"Nenhum ponto de atenção" nunca vira "está tudo bem"**: o texto diz que vale só
+  para o que foi cadastrado e que não substitui reler os laudos. Exame ausente é
+  dado ausente, não normalidade (mesma regra do PIG constitucional).
+- **Ainda não tem:** gráfico de tendência dentro da aba (os gráficos ficam na aba
+  Gráficos), a lista "pacientes de hoje" (depende da agenda da Feegow) e o
+  "o que medir hoje" — este último exigiria texto clínico novo, decisão dela.

@@ -471,6 +471,30 @@ header::after{display:none;}
 .me-externo-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;}
 .me-externo-check input{accent-color:var(--sage);}
 .exam-row-actions{display:flex;gap:7px;flex-shrink:0;align-items:center;}
+/* Revisão pré-exame */
+.rv-sec{margin-bottom:24px;}
+.rv-sec-t{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.3px;color:var(--text-light);margin-bottom:10px;padding-bottom:6px;border-bottom:1.5px solid rgba(61,35,82,0.14);}
+.rv-hoje{display:flex;flex-wrap:wrap;gap:8px 26px;align-items:baseline;background:#faf8f4;border-radius:var(--radius-sm);padding:14px 16px;}
+.rv-hoje-item{display:flex;flex-direction:column;gap:2px;}
+.rv-hoje-l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text-light);}
+.rv-hoje-v{font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--text);}
+.rv-chip{display:inline-block;font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;background:var(--peach-pale);color:#7a4800;margin:6px 6px 0 0;}
+.rv-item{border-left:4px solid var(--text-light);background:#faf8f4;border-radius:0 10px 10px 0;padding:10px 14px;margin-bottom:8px;font-size:13px;line-height:1.5;color:var(--text);}
+.rv-item--danger{border-left-color:#c0392b;background:#fff5f4;}
+.rv-item--warn{border-left-color:#e67e22;background:#fffaf0;}
+.rv-item--info{border-left-color:var(--sage);}
+.rv-item-t{font-weight:700;}
+.rv-item-d{font-size:12.5px;color:var(--text-muted);margin-top:2px;}
+.rv-item-c{font-size:12.5px;margin-top:4px;}
+.rv-item-n{font-size:12px;color:var(--text-muted);margin-top:3px;}
+.rv-vazio{font-size:13px;color:var(--text-muted);padding:10px 0;}
+.rv-tab-wrap{overflow-x:auto;}
+.rv-tab{border-collapse:collapse;width:100%;font-size:12.5px;}
+.rv-tab th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-light);padding:6px 10px;border-bottom:1.5px solid rgba(61,35,82,0.14);white-space:nowrap;}
+.rv-tab td{padding:8px 10px;border-bottom:1px solid rgba(61,35,82,0.07);white-space:nowrap;font-family:var(--font-mono);vertical-align:top;}
+.rv-tab tr.rv-nota td{white-space:normal;font-family:var(--font-sans);font-size:12px;color:var(--text-muted);padding-top:0;}
+.rv-fora{font-weight:700;color:#b06820;}
+.rv-mau{font-weight:700;color:#c0392b;}
 
 /* ── ALERTS ── */
 .alerts-container{margin-bottom:24px;}
@@ -1148,6 +1172,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 
     <div class="tabs-row">
       <div class="tabs">
+        <button class="tab" onclick="setTab('revisao')">Revisão</button>
         <button class="tab active" onclick="setTab('exams')">Exames</button>
         <button class="tab" onclick="setTab('charts')">Gráficos</button>
         <button class="tab" onclick="setTab('summary')">Resumo</button>
@@ -1155,6 +1180,11 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <button class="btn-pdf-report" id="btn-pdf-report" onclick="abrirPreviewRelatorio()" style="display:none;">⬇ Relatório PDF</button>
       <button class="btn-pdf-report" id="btn-laudo-1tri" onclick="abrirPreviewLaudo1Tri()" style="display:none;" title="Laudo do morfológico de 1º trimestre — gerado uma vez, 11-14 semanas">📋 Laudo 1º Trimestre</button>
       <button class="btn-pdf-report" id="btn-relatorios-emitidos" onclick="abrirRelatoriosModal()" style="display:none;" title="Segunda via de relatórios já gerados para esta gestação">📄 Relatórios emitidos</button>
+    </div>
+
+    <!-- REVISÃO PRÉ-EXAME TAB — uma página só para reler a paciente antes de chamá-la -->
+    <div id="tab-revisao" class="tab-content" style="display:none;">
+      <div id="revisao-content"></div>
     </div>
 
     <!-- EXAMS TAB -->
@@ -4861,6 +4891,7 @@ const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica
 
   renderAlerts(gestacao, exams);
   renderExamList(gestacao, allExams);
+  if (currentTab === 'revisao') renderRevisao(gestacao, allExams);
   if (currentTab === 'charts')  renderCharts(gestacao, exams, allExams);
   if (currentTab === 'summary') renderSummary(gestacao, allExams);
 }
@@ -7720,6 +7751,183 @@ function renderSummary(gestacao, allExams) {
 }
 
 // ═══════════════════════════════════════════════════════════
+// REVISÃO PRÉ-EXAME
+// ═══════════════════════════════════════════════════════════
+// Uma página só para reler a paciente antes de chamá-la (inclusive exames de
+// outro serviço). NÃO calcula nada clínico novo: junta o que o app já decide em
+// outros lugares (computeImpressaoDiagnostica, avaliarTAPS, discordância,
+// alertas longitudinais, BCF) e mostra todos os exames numa linha do tempo.
+// "Nenhum ponto de atenção" nunca é dito como "está tudo bem": o app só sabe o
+// que foi cadastrado.
+
+function _rvAddDias(iso, n) {
+  const d = new Date(iso + 'T12:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function _rvItemHtml(it) {
+  const linhas = [];
+  if (it.detalhe) linhas.push(`<div class="rv-item-d">${escapeHtml(it.detalhe)}</div>`);
+  if (it.conduta) linhas.push(`<div class="rv-item-c"><b>Conduta:</b> ${escapeHtml(it.conduta)}</div>`);
+  const notas = Array.isArray(it.notas) ? it.notas : (it.notas ? [it.notas] : []);
+  notas.forEach(n => linhas.push(`<div class="rv-item-n">${escapeHtml(String(n))}</div>`));
+  return `<div class="rv-item rv-item--${it.tone}"><div class="rv-item-t">${escapeHtml(it.titulo)}</div>${linhas.join('')}</div>`;
+}
+
+function _rvAtencaoItens(gestacao, allExams) {
+  const itens = [];
+  const fetos = fetosDaGestacao(gestacao);
+  const grupos = fetos.length
+    ? fetos.map(f => ({ feto: f, exams: allExams.filter(e => e.feto === f) }))
+    : [{ feto: null, exams: allExams }];
+  let peRisco = null;
+  const vistos = new Set();
+
+  grupos.forEach(({ feto, exams }) => {
+    if (!exams.length) return;
+    const pre = feto ? `${labelFeto(feto)} — ` : '';
+    const imp = computeImpressaoDiagnostica(gestacao, exams);
+    if (imp) {
+      if (imp.diagnostico !== 'adequado') {
+        const partes = [];
+        if (imp.efwPercentil != null) partes.push(`PFE no percentil ${imp.efwPercentil}`);
+        if (Array.isArray(imp.critItems) && imp.critItems.length) partes.push(imp.critItems.join(' · '));
+        if (imp.estadio && imp.estadio.label) partes.push(imp.estadio.label);
+        itens.push({ tone: imp.diagnostico === 'gig' ? 'warn' : 'danger', titulo: pre + imp.label,
+                     detalhe: partes.join(' — '), conduta: imp.conduta, notas: imp.notas });
+      }
+      peRisco = peRisco || imp.peRisco;
+    }
+    generateAlerts(gestacao, exams).filter(a => a.type === 'danger' || a.type === 'warning').forEach(a => {
+      const t = pre + String(a.msg).replace(/<[^>]+>/g, '');
+      if (vistos.has(t)) return;
+      vistos.add(t);
+      itens.push({ tone: a.type === 'danger' ? 'danger' : 'warn', titulo: t });
+    });
+    const comBcf = [...exams].reverse().find(e => e.fc != null);
+    if (comBcf && _bcfFora(comBcf.fc)) {
+      itens.push({ tone: 'warn', titulo: `${pre}BCF ${comBcf.fc} bpm em ${formatDateBR(comBcf.data_exame)}`,
+                   detalhe: `Fora de ${_BCF_ALERTA_MIN}–${_BCF_ALERTA_MAX} bpm.` });
+    }
+  });
+
+  // Colo: o do exame MAIS RECENTE que mediu (não o do último exame — o último
+  // pode ser um laudo externo sem colo, e o achado sumiria da revisão).
+  const comColo = [...allExams].reverse().find(e => e.colo != null);
+  if (comColo) {
+    const igC = comColo.ig_dias_manual ?? calcIgDays(gestacao, comColo.data_exame);
+    const cr = igC ? avaliarRiscoColoCurto({ ...comColo, _gaW: igC / 7 }, gestacao) : null;
+    if (cr) itens.push({ tone: 'warn', titulo: cr.label, conduta: cr.conduta,
+                         detalhe: `Colo de ${comColo.colo} mm em ${formatDateBR(comColo.data_exame)} (${igToStr(igC)})` });
+  }
+  if (peRisco) itens.push({ tone: 'warn', titulo: peRisco.label, detalhe: peRisco.subtitulo, conduta: peRisco.conduta });
+  const taps = avaliarTAPS(gestacao, allExams);
+  if (taps) itens.push({ tone: 'danger', titulo: taps.label, detalhe: taps.subtitulo, conduta: taps.conduta });
+
+  const ultimo = allExams[allExams.length - 1];
+  if (ultimo && ultimo.externo) {
+    const sv = allExams.filter(e => e.data_exame === ultimo.data_exame && e.servico_externo).map(e => e.servico_externo)[0];
+    const im = allExams.filter(e => e.data_exame === ultimo.data_exame && e.impressao_externa).map(e => e.impressao_externa)[0];
+    itens.push({ tone: 'info', titulo: `O último exame (${formatDateBR(ultimo.data_exame)}) foi feito em outro serviço${sv ? ': ' + sv : ''}`,
+                 detalhe: im ? `Conclusão do laudo externo: ${im}` : '' });
+  }
+  return itens;
+}
+
+function _rvPct(p) {
+  if (p == null) return '';
+  const cls = p <= 3 || p >= 97 ? 'rv-mau' : (p < 10 || p > 90) ? 'rv-fora' : '';
+  return ` · <span class="${cls}">P${p}</span>`;
+}
+
+function _rvLinhaExame(gestacao, e, fetoCol) {
+  const ig   = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+  const efw  = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+  const pEfw = efw != null ? calcEFWPercentile(efw, ig) : null;
+  const pCa  = e.ca != null ? calcBiometria(e.ca, 'ca', ig) : null;
+  const pfe  = efw != null ? `${efw} g${_rvPct(pEfw && pEfw.percentil)}` : '—';
+  const ca   = e.ca != null ? `${(e.ca / 10).toFixed(1)} cm${_rvPct(pCa && pCa.percentil)}` : '—';
+  const liq  = e.ila != null ? `ILA ${e.ila}` : e.bolsao != null ? `MBV ${e.bolsao}` : '—';
+  const colo = e.colo != null ? `<span class="${e.colo < _COLO_CURTO_MM ? 'rv-fora' : ''}">${e.colo} mm</span>` : '—';
+  const bcf  = e.fc != null ? `<span class="${_bcfFora(e.fc) ? 'rv-fora' : ''}">${e.fc}</span>` : '—';
+  const fluxo = e.au_fluxo && e.au_fluxo !== 'normal' ? ` <span class="rv-mau">${{ ausente: 'AEDF', reversa: 'REDF', intermitente: 'iAREDF' }[e.au_fluxo] || e.au_fluxo}</span>` : '';
+  const au   = e.au_ip != null ? `${e.au_ip}${fluxo}` : (fluxo ? fluxo.trim() : '—');
+  const acm  = (e.acm_ip != null || e.cpr != null) ? `${e.acm_ip != null ? e.acm_ip : '—'} / ${e.cpr != null ? e.cpr : '—'}` : '—';
+  const ut   = (e.aut_e != null || e.aut_d != null)
+    ? String(Math.round(((e.aut_e != null && e.aut_d != null) ? (e.aut_e + e.aut_d) / 2 : (e.aut_e ?? e.aut_d)) * 100) / 100) : '—';
+  const dvOnda = e.dv_onda && e.dv_onda !== 'positiva' ? ` <span class="rv-mau">onda ${escapeHtml(e.dv_onda)}</span>` : '';
+  const dv   = e.dv_ip != null ? `${e.dv_ip}${dvOnda}` : (dvOnda ? dvOnda.trim() : '—');
+  const origem = e.externo
+    ? `<span class="exam-row-ext-badge">Externo${e.servico_externo ? ' · ' + escapeHtml(e.servico_externo) : ''}</span>` : 'Clínica';
+  const tds = [formatDateBR(e.data_exame), origem, igToStr(ig)];
+  if (fetoCol) tds.push(e.feto ? labelFeto(e.feto) : '—');
+  tds.push(pfe, ca, liq, colo, bcf, au, acm, ut, dv);
+  const linha = `<tr>${tds.map(t => `<td>${t}</td>`).join('')}</tr>`;
+  const nota = e.externo && e.impressao_externa
+    ? `<tr class="rv-nota"><td colspan="${tds.length}">Conclusão do laudo externo: ${escapeHtml(e.impressao_externa)}</td></tr>` : '';
+  return linha + nota;
+}
+
+function _rvTimelineHtml(gestacao, allExams) {
+  const multipla = isMultipla(gestacao);
+  const head = ['Data', 'Origem', 'IG'].concat(multipla ? ['Feto'] : [])
+    .concat(['PFE', 'CA', 'Líquido', 'Colo', 'BCF', 'AU (IP)', 'ACM / RCP', 'UtA (IP)', 'DV (IP)']);
+  const ordenados = [...allExams].sort((a, b) => b.data_exame.localeCompare(a.data_exame) || String(a.feto || '').localeCompare(String(b.feto || '')));
+  return `<div class="rv-tab-wrap"><table class="rv-tab">
+    <thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${ordenados.map(e => _rvLinhaExame(gestacao, e, multipla)).join('')}</tbody></table></div>`;
+}
+
+function renderRevisao(gestacao, allExams) {
+  const el = document.getElementById('revisao-content');
+  if (!el) return;
+  if (!gestacao) { el.innerHTML = '<p class="rv-vazio">Nenhuma gestação selecionada.</p>'; return; }
+
+  const hoje = _hojeISO();
+  const igHoje = calcIgDays(gestacao, hoje);
+  const dpp = gestacao.dpp || (gestacao.dum ? _rvAddDias(gestacao.dum, 280) : null);
+  const ultimo = allExams[allExams.length - 1];
+  const dias = ultimo ? Math.round((new Date(hoje + 'T12:00:00') - new Date(ultimo.data_exame + 'T12:00:00')) / 86400000) : null;
+  const nFetos = fetosDaGestacao(gestacao).length;
+  const tipo = (nFetos === 3 ? 'Trigemelar' : nFetos === 2 ? 'Gemelar' : 'Única')
+    + (gestacao.corionicidade && _CORIO_EXTENSO[gestacao.corionicidade] ? ' — ' + _CORIO_EXTENSO[gestacao.corionicidade] : '');
+  const item = (l, v) => `<div class="rv-hoje-item"><span class="rv-hoje-l">${l}</span><span class="rv-hoje-v">${v}</span></div>`;
+  const chips = [];
+  if (gestacao.ppt_espontaneo_previo) chips.push('Parto prematuro espontâneo prévio');
+  if (gestacao.cerclagem_realizada) chips.push('Cerclagem realizada' + (gestacao.cerclagem_ig_semanas ? ` (${gestacao.cerclagem_ig_semanas} sem)` : ''));
+  if (gestacao.progesterona_vaginal_em_uso) chips.push('Progesterona vaginal em uso');
+  const antecedentes = gestacao.antecedentes_obstetricos ? `<div style="font-size:12.5px;color:var(--text-muted);margin-top:8px;"><b>Antecedentes:</b> ${escapeHtml(gestacao.antecedentes_obstetricos)}</div>` : '';
+
+  const hojeHtml = `<div class="rv-hoje">
+      ${item('IG hoje', igHoje ? igToStr(igHoje) : '—')}
+      ${item('DPP', dpp ? formatDateBR(dpp) : '—')}
+      ${item('Gestação', escapeHtml(tipo))}
+      ${item('G/P/A', (gestacao.gestas == null && gestacao.partos == null && gestacao.abortos == null) ? '—' : resumoObstetrico(gestacao))}
+      ${item('Último exame', ultimo ? `${formatDateBR(ultimo.data_exame)} (há ${dias} d)` : '—')}
+    </div>
+    ${chips.length ? '<div>' + chips.map(c => `<span class="rv-chip">${escapeHtml(c)}</span>`).join('') + '</div>' : ''}${antecedentes}`;
+
+  if (!allExams.length) {
+    el.innerHTML = `<div class="rv-sec"><div class="rv-sec-t">Situação</div>${hojeHtml}</div>
+      <p class="rv-vazio">Nenhum exame registrado para esta gestação. Use "+ Exame externo" para lançar laudos que a paciente trouxer.</p>`;
+    return;
+  }
+
+  const itens = _rvAtencaoItens(gestacao, allExams);
+  const disc = nFetos > 1 ? _discrepanciaPesoCardHtml(gestacao, allExams) : '';
+  const atencaoHtml = itens.length
+    ? itens.map(_rvItemHtml).join('')
+    : '<p class="rv-vazio">O app não identificou pontos de atenção nos exames registrados. Isso vale só para o que foi cadastrado — não substitui reler os laudos.</p>';
+
+  el.innerHTML = `
+    <div class="rv-sec"><div class="rv-sec-t">Situação</div>${hojeHtml}</div>
+    <div class="rv-sec"><div class="rv-sec-t">O que merece atenção</div>${atencaoHtml}${disc ? `<div style="margin-top:12px;">${disc}</div>` : ''}</div>
+    <div class="rv-sec"><div class="rv-sec-t">Todos os exames — do mais recente ao mais antigo</div>${_rvTimelineHtml(gestacao, allExams)}
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Valores em laranja/vermelho: fora da faixa (percentil &lt; 10 ou &gt; 90, colo &lt; 25 mm, BCF fora de ${_BCF_ALERTA_MIN}–${_BCF_ALERTA_MAX}). Curvas completas na aba Gráficos.</div></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
 // MODALS — genérico
 // ═══════════════════════════════════════════════════════════
 
@@ -9690,10 +9898,11 @@ function showPatientScreen(pid) {
 
 function setTab(tab) {
   currentTab = tab;
-  const tabNames = ['exams','charts','summary'];
+  const tabNames = ['revisao','exams','charts','summary'];
   document.querySelectorAll('.tab').forEach((t, i) => {
     t.classList.toggle('active', tabNames[i] === tab);
   });
+  document.getElementById('tab-revisao').style.display = tab === 'revisao' ? 'block' : 'none';
   document.getElementById('tab-exams').style.display   = tab === 'exams'   ? 'block' : 'none';
   document.getElementById('tab-charts').style.display  = tab === 'charts'  ? 'block' : 'none';
   document.getElementById('tab-summary').style.display = tab === 'summary' ? 'block' : 'none';
@@ -9711,6 +9920,10 @@ function setTab(tab) {
     laudo1TriBtn.style.display = (g && _temExame1Tri(g, getExamsByGestacao(g.id))) ? '' : 'none';
   }
 
+  if (tab === 'revisao') {
+    const gestacao = getGestacaoById(currentGestacaoId);
+    renderRevisao(gestacao, gestacao ? getExamsByGestacao(gestacao.id) : []);
+  }
   if (tab === 'charts') {
     const gestacao = getGestacaoById(currentGestacaoId);
     const allExams = gestacao ? getExamsByGestacao(gestacao.id) : [];

@@ -1605,10 +1605,6 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
               <label>TN <span class="optional-tag">mm</span></label>
               <input type="number" id="e-nt" step="0.1" min="0" max="10" placeholder="mm">
             </div>
-            <div class="me-bio-field">
-              <label>FC <span class="optional-tag">bpm</span></label>
-              <input type="number" id="e-fc" step="1" min="100" max="220" placeholder="bpm">
-            </div>
           </div>
           <div class="me-bio-label" style="margin-bottom:8px;">Risco combinado (software da FMF) <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">digitado, não calculado aqui</span></div>
           <div class="me-bio-row" style="margin-bottom:14px;">
@@ -1672,6 +1668,14 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="me-bio-field">
             <label>DOF <span class="optional-tag">opc</span></label>
             <input type="number" id="e-dof" step="0.1" placeholder="mm">
+          </div>
+        </div>
+        <!-- BCF: qualquer idade gestacional (por feto). Mesma coluna `fc` que já
+             alimentava o gráfico de BCF do 1º trimestre. -->
+        <div style="margin-top:10px;">
+          <div class="me-bio-field" style="max-width:200px;">
+            <label>BCF <span class="optional-tag">bpm</span></label>
+            <input type="number" id="e-fc" step="1" min="30" max="250" placeholder="bpm">
           </div>
         </div>
         <!-- Peso informado no laudo externo (g). Quando preenchido, o percentil sai

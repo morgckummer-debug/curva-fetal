@@ -1666,3 +1666,9 @@ entram no histórico para a revisão pré-exame e para as curvas de tendência.
   quando o CCN de um exame externo diverge da IG atual além do corte usual de
   redatação (ISUOG: > 5 dias até 8+6 sem; > 7 dias de 9+0 a 13+6). Só avisa; quem
   redata é a médica. Exame da casa não ganha aviso.
+- **BCF é campo visível, junto da biometria (2026-09-29).** A coluna `fc` já
+  existia (por feto) e alimenta o gráfico de BCF do 1º trimestre, mas o input vivia
+  escondido no bloco recolhido "Risco 1º Trimestre — FMF", com o nome "FC", e só
+  parecia servir ao 1º trimestre. Saiu de lá; vale para qualquer IG (30–250 bpm).
+  **Pendência aberta:** fora do gráfico do 1º trimestre, o BCF não aparece em lugar
+  nenhum (Resumo, lista de exames, histórico biométrico do PDF, Conclusão).

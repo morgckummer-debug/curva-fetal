@@ -1529,6 +1529,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           </div>
           <div id="me-ccn-ig-chip" class="me-ig-chip" style="display:none;margin-top:20px;"></div>
         </div>
+        <!-- Só em exame externo: o CCN de um laudo de fora pode datar a gestação. -->
+        <div id="me-ccn-externo-hint" style="display:none;font-size:11px;color:var(--text-muted);margin-top:8px;">
+          Exame externo: o CCN pode datar a gestação. Sem data ainda, o painel abaixo pergunta; com data já definida, use
+          <b>Editar gestação → Redatar por um exame já feito</b> (salve este exame antes).
+        </div>
+        <div id="me-ccn-aviso" style="display:none;margin-top:8px;padding:8px 12px;border-radius:10px;background:var(--clay-bg);box-shadow:var(--sh-in);font-size:12px;font-weight:600;color:#b06820;"></div>
 
         <!-- Painel de decisão DUM vs US — aparece quando CCN medido e DUM disponível -->
         <div id="me-datacao-panel" style="display:none;margin-top:14px;padding:14px 16px;background:var(--clay-bg);border:none;border-radius:16px;box-shadow:var(--sh-in);">
@@ -8153,8 +8159,31 @@ function _meApplyExternoUI() {
   const on = _meExterno();
   [['me-externo-fields','block'],['me-efw-informado','block'],['me-impressao-externa-wrap','block']]
     .forEach(([id, disp]) => { const el = document.getElementById(id); if (el) el.style.display = on ? disp : 'none'; });
+  const hint = document.getElementById('me-ccn-externo-hint'); if (hint) hint.style.display = on ? 'block' : 'none';
   const t = document.getElementById('modal-exam-title');
   if (t) t.textContent = t.textContent.replace(/ — Externo$/, '') + (on ? ' — Externo' : '');
+}
+
+// Exame externo com CCN quando a gestação JÁ tem data: avisa se o CCN discorda da
+// datação atual além do corte usual de redatação (ISUOG: > 5 dias até 8+6 sem;
+// > 7 dias de 9+0 a 13+6). Só avisa — quem decide redatar é a médica, em
+// "Editar gestação". Sem data ainda, quem decide é o painel de datação do
+// formulário; exame da casa não ganha aviso (comportamento antigo intacto).
+function _meAvisoCcnExterno() {
+  const box = document.getElementById('me-ccn-aviso');
+  if (!box) return;
+  box.style.display = 'none';
+  if (!_meExterno() || !_meHasAnchor()) return;
+  const el = document.getElementById('e-ccn');
+  const igCcn = ccnToIgDays(el ? parseFloat(el.value) : NaN);
+  const igAtual = _meIgAuto;
+  if (!igCcn || !igAtual) return;
+  const dif = igCcn - igAtual;
+  const limite = igCcn < 63 ? 5 : 7;
+  if (Math.abs(dif) <= limite) return;
+  box.textContent = `⚠ IG pelo CCN (${igToStr(igCcn)}) difere da IG atual da gestação (${igToStr(igAtual)}) em ${Math.abs(dif)} dias `
+    + `— acima do corte de ${limite} dias. Para datar por este CCN: Editar gestação → Redatar por um exame já feito.`;
+  box.style.display = 'block';
 }
 
 // Preenche o bloco "externo" a partir dos registros da visita (1 exame, ou 1 por
@@ -8820,6 +8849,7 @@ function meEscolheDatacaoGemelar(tipo) {
 }
 
 function _meCalcTable() {
+  _meAvisoCcnExterno();
   const igDays = _meGetIG();
   const tbody  = document.getElementById('me-tbody');
   const resDiv = document.getElementById('me-results');

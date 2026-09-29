@@ -1659,3 +1659,10 @@ entram no histórico para a revisão pré-exame e para as curvas de tendência.
   quem lê o papel da clínica, e a medida de outro aparelho/operador tem outro erro
   (pesa na leitura de "queda de percentil"). Se ela quiser, marcar no PDF e/ou
   avisar na tendência.
+- **CCN de exame externo pode datar a gestação — sem código novo de datação.** O
+  painel DUM x CCN (primeiro exame) e "Editar gestação → Redatar por um exame já
+  feito" já aceitam qualquer exame com CCN, externo ou não. Só entraram um
+  lembrete no bloco do CCN e `_meAvisoCcnExterno`: com data já definida, avisa
+  quando o CCN de um exame externo diverge da IG atual além do corte usual de
+  redatação (ISUOG: > 5 dias até 8+6 sem; > 7 dias de 9+0 a 13+6). Só avisa; quem
+  redata é a médica. Exame da casa não ganha aviso.

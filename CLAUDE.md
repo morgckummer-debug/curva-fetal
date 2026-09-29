@@ -926,7 +926,7 @@ sem isso um ponto de 15-19 semanas simplesmente cairia fora do viewBox do
 relatório). Os gráficos de Doppler AU/ACM/CPR/DV **continuam em 20 semanas**
 — não há referência publicada nem prática clínica padrão pra eles antes
 disso, e o achado precoce (ducto venoso) entra pela seção nova, com
-referência própria (Pruksanasuk 2014), não estendendo a curva de 2º/3º
+referência própria (Pruksanusak 2014), não estendendo a curva de 2º/3º
 trimestre pra trás.
 
 ### Bloco novo, não substituição: `#charts-1tri`
@@ -1221,7 +1221,7 @@ clínica já vem nesse eixo. **O mesmo erro existia no editor** — corrigido l�
 também, no mesmo dia, com o mesmo par de mudanças (ver `CLAUDE.md` do
 `laudos-dramorgana`).
 
-`DV_TABLE` é uma leitura visual do gráfico de Pruksanasuk et al. (2014), cujo
+`DV_TABLE` é uma leitura visual do gráfico de Pruksanusak et al. (2014), cujo
 eixo original já é CCN (mm) — os valores da tabela continuam válidos, não são
 o que estava errado. O conserto não trocou a tabela, só a converteu para o
 eixo certo na hora de desenhar: em vez de plotar direto `x = CCN`, cada ponto
@@ -1383,7 +1383,7 @@ na tela (`#charts-1tri`) nem no PDF do Laudo 1º Trimestre. Não era regressão:
 esses 5 nunca tiveram a tag, por uma decisão registrada no próprio código na
 hora em que os builders SVG foram escritos ("Nenhum dos 5 tem percentil de
 verdade... só a bolinha, sem 'Pxx' em cima") — a banda desses gráficos vem de
-uma aproximação P10/P50/P90 (Hyett/Hadlock/tabela da clínica/Pruksanasuk), não
+uma aproximação P10/P50/P90 (Hyett/Hadlock/tabela da clínica/Pruksanusak), não
 de uma tabela de z-score publicada como as do gráfico padrão, e por isso não
 tinham percentil calculado para mostrar.
 
@@ -1618,3 +1618,11 @@ passou a guardar P5/P50/P95 = média ∓ 1,645 × DP (±1 DP seria P16–P84).
 Subtítulo: "Referência Hadlock" — **sem ano, porque ela não informou; confirmar a
 publicação exata.** Nada mais de "tabela da clínica" nos gráficos do 1º
 trimestre.
+
+**Ducto venoso de 1º trimestre — fonte confirmada pela médica em 2026-09-29:**
+Pruksanusak N, Suntharasaj T, Suwanrath C, Phukaoloun M, Kor-anantakul O,
+Geater A. *A reference for ductus venosus blood flow at 11–13+6 weeks of
+gestation.* Gynecol Obstet Invest 2014;78(1):22–25. (O sobrenome é
+**Pruksanusak** — a grafia "Pruksanasuk" usada antes no app estava errada e foi
+corrigida.) Os valores de `DV_TABLE` continuam sendo leitura visual do gráfico
+do artigo, por isso o subtítulo diz "Aproximação".

@@ -9813,7 +9813,10 @@ function _buildLaudo1TriSheetHtml(patient, gestacao, allExams, opts) {
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
     : _relListaHtml(opts.textoConclusaoFinal);
 
+  // <main class="body"> é o que dá a margem lateral (48px) — igual ao relatório
+  // de 2º trimestre. Sem ele o conteúdo encostava nas bordas da folha.
   return `${_relHeaderHtml(patient.nome || patient.cpf, 'Laudo — Morfológico de 1º Trimestre')}
+  <main class="body" style="gap:0;padding-top:0">
     ${_relIdentHtml(patient, gestacao, exame1Tri)}
     ${_rel1TriGraficosHtml(gestacao, patient, allExams)}
     ${riscoSecao}
@@ -9821,6 +9824,7 @@ function _buildLaudo1TriSheetHtml(patient, gestacao, allExams, opts) {
       <h2 class="rel-secao-t">Conclusão</h2>
       <div class="descricao">${conclusaoHtml}</div>
     </section>
+  </main>
   ${_relFooterHtml()}`;
 }
 

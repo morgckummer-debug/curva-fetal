@@ -4087,6 +4087,19 @@ async function _bootstrapFromSupabaseImpl() {
       if (digits.length === 11) p.cpf = formatCpf(digits);
     });
 
+    // Zero nunca é medida válida nestes campos (DBP, IP, colo, uterina… de 0 não
+    // existem); é "não preenchido". Exames gravados até ~2026-08-26 (e um de
+    // 09-18) guardaram 0 no lugar de vazio e apareciam como "0" nas telas e nos
+    // relatórios, além de contarem como medida (percentil de DBP 0, Doppler
+    // "medido" sem valor). Hoje o editor e este app já gravam null para vazio;
+    // normaliza na leitura e o próximo saveDB conserta a linha no banco, como
+    // no CPF. Fora da lista: ig_dias_manual (0 é IG válida) e os campos de texto.
+    const CAMPOS_NUM_EXAME = ['dbp','cc','ca','femur','dof','ccn','umero','radio','ulna','tibia','fibula',
+      'au_ip','acm_ip','acm_psv','aut_e','aut_d','dv_ip','cpr','colo','ila','bolsao','nt','fc'];
+    db.exams.forEach(e => {
+      CAMPOS_NUM_EXAME.forEach(c => { if (e[c] != null && Number(e[c]) === 0) e[c] = null; });
+    });
+
     // Se ainda há alteração local esperando gravação, o que está na memória é mais
     // novo que o que acabou de vir do servidor — trocar agora apagaria o cadastro.
     if (_syncPending) {

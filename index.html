@@ -9857,7 +9857,7 @@ function _abrirPreviewRelatorioMultiplo(patient, gestacao) {
   const textosIniciais = {};
   porFetoComDados.forEach(pf => {
     textosIniciais[pf.feto] = ehGemelar
-      ? _gerarTextoCardFetoInicial(pf.impressao)
+      ? ''
       : generateSummary(gestacao, pf.exams).paragrafos.join('\n\n');
   });
   const textoConclusaoInicial = _gerarConclusaoGemelarInicial(porFetoComDados, _discrepanciaPesoResumo(gestacao, allExams), avaliarTAPS(gestacao, allExams), _achadoRiscoPreEclampsia1Tri(allExams), _achadoRiscoPartoPrematuro1Tri(allExams), _achadoRiscoDiabetesGestacional1Tri(allExams));
@@ -11385,11 +11385,9 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
     const svg    = _buildRelChartEfwSvg(gestacao, pf.exams);
     const cor    = i === 0 ? 'a' : 'b';
 
-    const textoHtml = opts.textareaMode
-      ? `<textarea id="rel-texto-clinico-${pf.feto}" class="rel-texto rel-texto--card" oninput="_atualizarRelPageMarkMultipla()">${escapeHtml((opts.textosIniciais || {})[pf.feto] || '')}</textarea>`
-      : ((opts.textosFinais || {})[pf.feto] || '').split('\n\n').filter(p => p.trim())
-          .map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
-
+    // O texto por feto (rótulo + critério + deterioração Doppler) saiu do card
+    // em 2026-09-29: repetia o que a Conclusão já diz, com o percentil no badge
+    // do cabeçalho, e ocupava boa parte da folha.
     return `<div class="feto-card feto-card--${cor}">
       <div class="feto-card-head">
         <div class="feto-card-t">Peso fetal estimado — Hadlock</div>
@@ -11403,7 +11401,6 @@ function _buildRelGemelarPaginaHtml(patient, gestacao, porFeto, allExams, opts) 
         <span><i class="k-p10"></i>P10</span>
         <span><i class="k-pt"></i>Paciente</span>
       </div>
-      <div class="feto-card-texto">${textoHtml}</div>
     </div>`;
   }).join('');
 

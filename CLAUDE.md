@@ -549,17 +549,24 @@ O corte de 25mm (Fonseca et al. 2007) é da janela clássica de rastreio de
 - O rótulo continua o mesmo dos dois lados: "Colo curto — Risco aumentado de
   parto prematuro" (ver decisão de nome único, 2026-09-19, acima).
 
-## RCP: fórmula única com o editor de laudos
+## Doppler fetal (umbilical, ACM, RCP): tabelas iguais às do editor de laudos
 
-2026-09-21. O editor de laudos (`laudos-dramorgana/obstetrico.html`) calculava
-o percentil do RCP com uma tabela própria (média/DP por semana, sem citação de
-origem, via z-score) que divergia da fórmula usada aqui (`calcDopplerCpr`,
-Figueras/Barcelona, linear). O mesmo RCP medido dava percentis incompatíveis
-nos dois papéis — RCP 1,2 em 34-35 semanas: ~P40 aqui, <P5 lá. Confirmado com
-a médica em 2026-09-21: a fórmula desta app é a referência; o editor foi
-ajustado para usar a mesma (`dopplerCprRef`/`cprPercentil` lá, ported linha a
-linha desta `dopplerCprRef`/`calcDopplerCpr`). Mudar a fórmula aqui sem mudar
-lá volta a abrir a divergência — ver o `CLAUDE.md` do outro repositório.
+2026-10-01. A fórmula anterior da RCP (`P50 = 1,08 + 0,006 × IG`, "Figueras")
+punha a mediana em ~1,3 — muito abaixo de uma RCP normal (~1,9 em 34
+semanas) — e quase todo exame normal saía P95, aqui e nos laudos. Trocada,
+nos dois repositórios, por **tabelas P5/P50/P95** escolhidas pela Dra.
+Morgana (`DOPPLER_FMF` no `index.html`; no `laudo-core.js` do
+`laudos-dramorgana` é a mesma):
+
+- IP da umbilical: Acharya 2005 (AJOG 192(3):937-944), 19–40 semanas;
+- IP da ACM e RCP: Ciobanu/FMF 2019 (UOG 53(4):465-472), 20–41 semanas.
+
+`dopplerAuRef`/`dopplerAcmRef`/`dopplerCprRef` seguem devolvendo
+`{p10,p50,p90}` (agora com o P5 e o P95 de verdade nessas chaves, que é como
+os cortes "≤P5"/"≥P95" e os gráficos já as liam) e `calcDoppler*` e o z-score
+de `_z.au/acm/cpr` usam a normal "dividida" (DP inferior = (P50−P5)/1,645,
+superior = (P95−P50)/1,645). Fora da faixa da tabela devolvem `null`.
+**Mudou uma tabela aqui, mude no `laudo-core.js` — e vice-versa.**
 
 ## PIG vs CIUR: o laudo passou a aplicar os mesmos critérios menores
 

@@ -559,7 +559,11 @@ Morgana (`DOPPLER_FMF` no `index.html`; no `laudo-core.js` do
 `laudos-dramorgana` é a mesma):
 
 - IP da umbilical: Acharya 2005 (AJOG 192(3):937-944), 19–40 semanas;
-- IP da ACM e RCP: Ciobanu/FMF 2019 (UOG 53(4):465-472), 20–41 semanas.
+- IP da ACM: Ciobanu/FMF 2019 (UOG 53(4):465-472), 20–41 semanas;
+- **RCP: Baschat & Gembruch 2003 (UOG 21:124-127), por equações**, 20–42
+  semanas: média = −0,0059×IG² + 0,383×IG − 4,0636 e DP = −0,00113×IG² +
+  0,07156×IG − 0,67418 (versão corrigida do DP). É o que o Fetalmed e a
+  Cetrus usam — o mesmo exame dava P61 pelo Ciobanu e P48 neles.
 
 `dopplerAuRef`/`dopplerAcmRef`/`dopplerCprRef` seguem devolvendo
 `{p10,p50,p90}` (agora com o P5 e o P95 de verdade nessas chaves, que é como

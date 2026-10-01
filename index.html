@@ -3487,10 +3487,12 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   if (isRCIU) {
     if (dvAlteracaoTardia) {
       deterioracaoDoppler = 'dv_tardio';                        // Onda A ausente/linha de base/reversa no DV
-    } else if (lastExam.au_fluxo === 'reversa' || dvIpAboveP95) {
-      deterioracaoDoppler = 'redf_dv';                          // REDF na AU ou IP do DV > P95 (onda A presente)
+    } else if (lastExam.au_fluxo === 'reversa') {
+      deterioracaoDoppler = 'redf';                             // REDF na AU
     } else if (lastExam.au_fluxo === 'ausente' || lastExam.au_fluxo === 'intermitente') {
       deterioracaoDoppler = 'aedf';                             // AEDF na AU (iAREDF entra aqui: ver auDiastoleZero)
+    } else if (dvIpAboveP95) {
+      deterioracaoDoppler = 'dv_precoce';                       // IP do DV > P95 com onda A presente
     } else if (auAboveP95 || cprBelowP5 || utAboveP95) {
       deterioracaoDoppler = 'leve';                             // Doppler alterado, fluxo presente
     }
@@ -3499,7 +3501,8 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
 
   return {
     diagnostico,   // 'adequado'|'pig'|'gig'|'rciu_precoce'|'rciu_tardio'
-    deterioracaoDoppler, // 'leve'|'aedf'|'redf_dv'|'dv_tardio'|null — ver _DETERIORACAO_CFG
+    deterioracaoDoppler, // 'leve'|'dv_precoce'|'aedf'|'redf'|'dv_tardio'|null — ver _DETERIORACAO_CFG
+    multipla,
     gratacos,      // 1–3 ou null (só monocoriônica com feto restrito)
     isPrecoce,
     gaW,
@@ -3525,8 +3528,9 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
 // obstetra não reconhece a sigla, só a descrição do achado.
 const _DETERIORACAO_CFG = {
   leve:      { label: 'Doppler alterado — fluxo diastólico presente na artéria umbilical',                     cor: '#b87a20' },
+  dv_precoce:{ label: 'Ducto venoso com IP > P95 e onda A presente — alteração precoce do DV',                 cor: '#c05a14' },
   aedf:      { label: 'Diástole ausente em artéria umbilical',                                                 cor: '#b84010' },
-  redf_dv:   { label: 'Diástole reversa em artéria umbilical e/ou ducto venoso com IP > P95 — alteração precoce do DV', cor: '#8a1010' },
+  redf:      { label: 'Diástole reversa em artéria umbilical',                                                 cor: '#8a1010' },
   dv_tardio: { label: 'Ducto venoso — onda A ausente, na linha de base ou reversa (alteração tardia)',         cor: '#6a0010' },
 };
 
@@ -3535,7 +3539,7 @@ const _DETERIORACAO_CFG = {
 // ver _gerarConclusaoGemelarInicial). Não é um "estágio": é só uma chave de
 // ordenação, sem número exposto em lugar nenhum do app. `null`/achado
 // ausente vale 0 (pior que nada é ainda pior que "sem achado").
-const _DETERIORACAO_ORDEM = { leve: 1, aedf: 2, redf_dv: 3, dv_tardio: 4 };
+const _DETERIORACAO_ORDEM = { leve: 1, dv_precoce: 2, aedf: 3, redf: 4, dv_tardio: 5 };
 
 // ── Classificação de Gratacós — CIUR seletivo em monocoriônica ────────────
 // Pelo Doppler da artéria umbilical DO FETO RESTRITO, e só em gestação
@@ -3855,22 +3859,21 @@ function _notasDiagnostico(dx) {
   return notas;
 }
 
-// Conduta sugerida. Intervalos de reavaliação (política da Dra. Morgana,
-// 2026-09): crescimento normal a cada 4 semanas até 36 semanas e a cada 2
-// semanas até o parto daí em diante; PIG a cada 4 semanas com Doppler; GIG a
-// cada 4 semanas; RCIU sem deterioração Doppler classificável ainda, semanal
-// com Doppler até o parto; achado leve mantém a cadência anterior (mais
-// intensa que semanal); AEDF, Doppler 2×/semana; REDF/DV-precoce e
-// DV-tardio, Doppler diário em ambiente hospitalar.
+// Conduta sugerida: SÓ vigilância por ultrassom (exame e frequência) — decisão
+// da médica, 2026-10-01: o app não traz conduta clínica (parto, corticoide,
+// internação, via de parto). Cadência de Doppler do serviço dela, igual para
+// RCIU precoce e tardio: sem diástole zero/reversa, semanal; diástole ausente,
+// 2×/semana; diástole reversa, 2×/dia; ducto venoso alterado (IP > P95 ou onda
+// A ausente/reversa), diário ou 3×/semana. PIG, semanal enquanto o Doppler
+// estiver normal. Crescimento normal a cada 4 semanas até 36 semanas e a cada
+// 2 daí em diante; GIG a cada 4. A ISUOG 2020 não fixa frequência ("não há
+// consenso"), por isso a cadência é do serviço; dela vem só a confirmação em
+// 24 h de ACM/RCP alterados. As janelas de parto da ISUOG/TRUFFLE foram
+// estudadas e deliberadamente NÃO entraram. Intervalos em semanas continuam
+// cortados por _intervaloAteOTermo.
 //
-// Até 2026-09-25 esta função também dizia o alvo de resolução por estágio
-// Barcelona/FIGO (Estágio I ≥ 37 semanas, II ≥ 34, III ≥ 30, IV ≥ 26) e
-// avisava quando a IG já o alcançava. A pedido da médica isso saiu: a função
-// descreve o achado e a cadência de vigilância, e não afirma mais uma IG-alvo
-// de parto — quando resolver a gestação é decisão do obstetra, não deste
-// resumo (mesma régua já usada para o colo curto). Os intervalos que restam
-// continuam cortados por _intervaloAteOTermo, para nenhum cair depois do
-// parto.
+// Obs.: os ramos GIG e "adequado" ainda têm frases de decisão obstétrica
+// ("discutir via de parto"); não foram tocados nesta revisão.
 function _condutaDiagnostico(dx) {
   const diagnostico = dx?.diagnostico || 'adequado';
   const gaW = dx?.gaW != null ? dx.gaW : null;
@@ -3882,28 +3885,34 @@ function _condutaDiagnostico(dx) {
     if (!det) {
       return 'Completar avaliação com Doppler (AU e ducto venoso). Seguimento semanal com Doppler até o parto.';
     }
+    const crit = dx?.criterios || {};
     if (det === 'dv_tardio') {
-      return 'Ducto venoso com onda A ausente, na linha de base ou reversa — conduta hospitalar com Doppler diário e corticoterapia; avaliar resolução da gestação com o obstetra.';
+      return 'Ducto venoso com onda A ausente, na linha de base ou reversa — Doppler diário ou 3×/semana.';
     }
-    if (det === 'redf_dv') {
-      return 'Diástole reversa em artéria umbilical e/ou ducto venoso com IP > P95 — Doppler diário em ambiente hospitalar; avaliar timing do parto com o obstetra, conforme protocolo institucional.';
+    if (det === 'redf') {
+      return 'Diástole reversa em artéria umbilical — Doppler 2×/dia.';
     }
     if (det === 'aedf') {
-      return 'Diástole ausente em artéria umbilical confirmada — Doppler 2×/semana.';
+      return 'Diástole ausente em artéria umbilical — Doppler 2×/semana.'
+        + (crit.dvIpAboveP95 ? ' Ducto venoso com IP > P95 associado: Doppler diário ou 3×/semana.' : '');
     }
-    return diagnostico === 'rciu_precoce'
-      ? 'Doppler seriado intensificado. Considerar internação conforme IG e contexto clínico.'
-      : 'Doppler seriado 2–3×/semana. Avaliar internação conforme IG e contexto clínico.';
+    if (det === 'dv_precoce') {
+      return 'Ducto venoso com IP > P95 e onda A presente — Doppler diário ou 3×/semana.';
+    }
+    // 'leve': fluxo diastólico presente. ACM/RCP alterados se confirmam em nova
+    // medida em até 24 h (ISUOG 2020): a medida do IP da ACM tem
+    // variabilidade interobservador e o falso-positivo pesa na conduta.
+    return 'Doppler semanal.'
+      + ((crit.cprBelowP5 || crit.acmBelowP5) ? ' Confirmar a alteração de ACM/RCP em nova medida em até 24 h.' : '');
   }
 
   if (diagnostico === 'pig') {
-    const n = _intervaloAteOTermo(gaW, 4);
+    // Só vigilância por ultrassom: a decisão de parto não é deste app.
+    const n = _intervaloAteOTermo(gaW, 1);
     if (n == null) {
-      return `Fim do termo (${igTxt}) — não cabe outro controle de crescimento antes do parto. Definir a resolução com o obstetra (PIG isolado, com Doppler normal: habitualmente entre 38 e 40 semanas) e manter vigilância do bem-estar fetal até lá.`;
+      return `Fim do termo (${igTxt}) — não cabe outro controle de crescimento antes do parto.`;
     }
-    let txt = `Reavaliação em ${_txtSemanas(n)}, com estudo Doppler, para excluir evolução para RCIU.`;
-    if (aTermo) txt += ` Gestação a termo (${igTxt}) — em paralelo, definir o momento da resolução com o obstetra: PIG isolado, com Doppler normal, costuma ser resolvido entre 38 e 40 semanas.`;
-    return txt;
+    return `Reavaliação em ${_txtSemanas(n)}, com ultrassom e Doppler (semanal enquanto o Doppler estiver normal), para excluir evolução para RCIU.`;
   }
 
   if (diagnostico === 'gig') {
@@ -10043,7 +10052,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     isPrecoce: !!dx?.isPrecoce,
     critItems,
     estadio,
-    // Chave crua ('leve'|'aedf'|'redf_dv'|'dv_tardio'|null), separada do
+    // Chave crua ('leve'|'dv_precoce'|'aedf'|'redf'|'dv_tardio'|null), separada do
     // `estadio` (que já é o objeto {label,cor} pra exibir): quem precisa
     // comparar gravidade entre fetos — a escolha do pior prognóstico na
     // Conclusão da múltipla, 2026-09-25 — usa esta chave, não o rótulo.
@@ -12226,7 +12235,7 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps, ris
   // 2026-09-25). Entre os fetos com CIUR (pig/rciu_precoce/rciu_tardio — todo
   // grau de restrição vira "CIUR seletivo" na múltipla, ver _DX_NOME_MULTIPLA),
   // decide primeiro a deterioração Doppler (_DETERIORACAO_ORDEM: DV tardio >
-  // REDF/DV precoce > AEDF > achado leve > nenhuma) — ela já enxerga o ducto
+  // REDF > AEDF > DV precoce > achado leve > nenhuma) — ela já enxerga o ducto
   // venoso, que pesa mais que a umbilical isolada — e só dentro do MESMO
   // patamar o IP da artéria umbilical decide (maior = pior; mesma visita,
   // mesma IG, direto comparável, sem precisar de percentil). Sem nenhum feto

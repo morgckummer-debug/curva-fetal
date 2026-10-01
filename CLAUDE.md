@@ -1736,3 +1736,25 @@ antes de chamá-la. **A aba padrão ao abrir a paciente continua "Exames"**
 - **Ainda não tem:** gráfico de tendência dentro da aba (os gráficos ficam na aba
   Gráficos), a lista "pacientes de hoje" (depende da agenda da Feegow) e o
   "o que medir hoje" — este último exigiria texto clínico novo, decisão dela.
+
+## Conduta no app: só ultrassom — cadência de Doppler do serviço (2026-10-01)
+
+A médica decidiu que o app **não traz conduta clínica**, só o que é do
+ultrassom (qual exame, com que frequência). Estudamos o protocolo ISUOG 2020
+(Lees et al.) inteiro para isso e as janelas de parto, corticoide, magnésio, via
+de parto e indução dele **não entraram** — não reintroduzir por "completude".
+
+- **Cadência (RCIU precoce e tardio, igual):** sem diástole zero/reversa →
+  Doppler semanal; diástole ausente → 2×/semana; diástole reversa → 2×/dia;
+  ducto venoso alterado (IP > P95 com onda A presente, ou onda A ausente/
+  reversa) → diário ou 3×/semana. PIG: reavaliação semanal com Doppler enquanto
+  o Doppler for normal. Isso substitui o "2–3×/semana" do achado leve, que
+  constava como política dela. A ISUOG diz que não há consenso de frequência.
+- **`redf_dv` foi dividido em `redf` e `dv_precoce`** (ordem de gravidade:
+  leve < dv_precoce < aedf < redf < dv_tardio), porque as cadências diferem.
+  AEDF com DV IP > P95 associado acrescenta a cadência do DV ao texto.
+- **Vem da ISUOG só uma coisa de ultrassom:** alteração de ACM/RCP se confirma
+  em nova medida em até 24 h (variabilidade interobservador).
+- **Pendência:** os ramos GIG e "adequado" de `_condutaDiagnostico` e algumas
+  notas ainda têm frases obstétricas; ela pediu "não colocar", não "tirar" —
+  decidir se limpa.

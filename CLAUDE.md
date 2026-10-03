@@ -1772,3 +1772,16 @@ como critério (Delphi puro): CA < P10 + uterinas > P95 antes de 32 semanas, ou
 2 de 3 depois. O laudo obstétrico do editor (`laudos-dramorgana`)
 já decidia PIG só pelo percentil de peso e não calcula CA: nenhum código mudou lá
 (ver o `CLAUDE.md` dele); a única diferença é o critério CA + Doppler do CIUR.
+
+## Filtros da busca: morfológico 1º/2º trimestre e gemelar (2026-10-03)
+
+Três botões sob o campo de busca (`#filtro-chips`, `toggleFiltroBusca`,
+`aplicarFiltrosBusca`). **O app não guarda o tipo do exame**, só a IG da visita:
+"morfológico 1º tri" = exame entre 10 e 15 semanas (`_temExame1Tri`, a mesma
+janela do Laudo 1º Trimestre e dos gráficos) e "2º tri" = entre 18 e 24
+semanas (`_temExameMorfo2`) — é dedução, não rótulo. **Exame externo não conta.**
+Os filtros combinam (E) entre si e com o texto digitado, e valem para a MESMA
+gestação (`_gestacaoPassaFiltros`). Com filtro ativo, a lista de resultados
+substitui "Pacientes Recentes" e Enter/Buscar só reaplica os filtros (não abre
+a ficha). Só mostra quem JÁ fez; "ainda não fez, na janela" ficou de fora por
+decisão dela.

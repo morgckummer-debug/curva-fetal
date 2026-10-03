@@ -327,6 +327,11 @@ header::after{display:none;}
 }
 .recent-patients-pager-info{font-size:12.5px;color:var(--text-muted);white-space:nowrap;}
 .recent-patients-pager button:disabled{opacity:0.4;cursor:default;transform:none !important;}
+.filtro-chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:-24px 0 28px;}
+.filtro-chip{padding:7px 15px;border:none;border-radius:999px;background:var(--clay-card);box-shadow:var(--sh);
+  font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all .18s var(--ease);}
+.filtro-chip:hover{transform:translateY(-1px);}
+.filtro-chip.on{background:var(--sage-deep);color:#fff;}
 .patient-chip{
   display:flex;align-items:center;gap:16px;padding:18px 22px;
   background:var(--clay-card);border:none;border-radius:var(--radius);
@@ -1159,6 +1164,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <input type="file" id="import-file-input" accept="application/json" style="display:none" onchange="importData(this)">
         </div>
       </div>
+      <div class="filtro-chips" id="filtro-chips">
+        <button class="filtro-chip" data-filtro="morfo1" onclick="toggleFiltroBusca('morfo1')" title="Tem exame entre 10 e 15 semanas (mesma janela do Laudo 1º Trimestre)">Morfológico 1º trimestre</button>
+        <button class="filtro-chip" data-filtro="morfo2" onclick="toggleFiltroBusca('morfo2')" title="Tem exame entre 18 e 24 semanas">Morfológico 2º trimestre</button>
+        <button class="filtro-chip" data-filtro="multipla" onclick="toggleFiltroBusca('multipla')" title="Gestação gemelar ou trigemelar">Gemelar/trigemelar</button>
+      </div>
+      <div class="recent-patients" id="filtro-resultado" style="display:none;"></div>
       <div id="aviso-backup" class="aviso-backup" style="display:none;"></div>
       <div class="recent-patients" id="recent-list"></div>
     </div>
@@ -4715,6 +4726,7 @@ function smartSearchInput(input) {
   if (raw.length > 0 && /^[\d\.\-]+$/.test(input.value.replace(/\s/g,''))) {
     maskCpf(input);
   }
+  if (_filtrosBuscaAtivos()) { _hideNameSuggestions(); aplicarFiltrosBusca(); return; }
   const q = input.value.trim().toLowerCase();
   // Vale também para CPF digitado pela metade — antes só nome abria as sugestões.
   if (q.length >= 2) {
@@ -4793,6 +4805,81 @@ function _onMoreMenuEsc(ev) {
   if (ev.key === 'Escape') closeMoreMenu();
 }
 
+// ── Filtros da busca: morfológico 1º/2º trimestre e gemelar ───────────────
+// O app não guarda o TIPO do exame, só a IG de cada visita — então "morfológico"
+// é deduzido pela janela de IG (1º: 10–15 semanas, a mesma do Laudo 1º Trimestre
+// e dos gráficos; 2º: 18–24 semanas). Exame externo não conta: o filtro é de quem
+// fez o morfológico aqui. Os filtros combinam (E) entre si e com o texto digitado,
+// e todos valem para a MESMA gestação — "1º tri + gemelar" não casa uma paciente
+// com morfológico numa gestação única e gemelar em outra.
+const _FILTROS_BUSCA = { morfo1: false, morfo2: false, multipla: false };
+const _MORFO2_SEM_MIN = 18, _MORFO2_SEM_MAX_EXCL = 25;
+
+function _filtrosBuscaAtivos() { return Object.values(_FILTROS_BUSCA).some(Boolean); }
+
+function _temExameMorfo2(gestacao, exams) {
+  return exams.some(e => {
+    const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+    if (!igDays) return false;
+    const w = igDays / 7;
+    return w >= _MORFO2_SEM_MIN && w < _MORFO2_SEM_MAX_EXCL;
+  });
+}
+
+function _gestacaoPassaFiltros(g) {
+  if (_FILTROS_BUSCA.multipla && !_ehMultipla(g)) return false;
+  const exams = getExamsByGestacao(g.id).filter(e => !e.externo);
+  if (_FILTROS_BUSCA.morfo1 && !_temExame1Tri(g, exams)) return false;
+  if (_FILTROS_BUSCA.morfo2 && !_temExameMorfo2(g, exams)) return false;
+  return true;
+}
+
+function toggleFiltroBusca(chave) {
+  _FILTROS_BUSCA[chave] = !_FILTROS_BUSCA[chave];
+  aplicarFiltrosBusca();
+}
+
+function aplicarFiltrosBusca() {
+  document.querySelectorAll('#filtro-chips .filtro-chip').forEach(b =>
+    b.classList.toggle('on', !!_FILTROS_BUSCA[b.dataset.filtro]));
+  const box    = document.getElementById('filtro-resultado');
+  const recent = document.getElementById('recent-list');
+  if (!box) return;
+  if (!_filtrosBuscaAtivos()) {
+    box.style.display = 'none'; box.innerHTML = '';
+    if (recent) recent.style.display = '';
+    return;
+  }
+  _hideNameSuggestions();
+  if (recent) recent.style.display = 'none';
+  DB = loadDB();
+  const termo = (document.getElementById('search-cpf')?.value || '').trim();
+  const base  = termo.length >= 2
+    ? _matchPatients(termo)
+    : DB.patients.filter(p => !p.excluido_em);
+  const achadas = base
+    .map(p => ({ p, gests: getGestacoesByPatient(p.id).filter(_gestacaoPassaFiltros) }))
+    .filter(x => x.gests.length)
+    .sort((a, b) => (a.p.nome || '').localeCompare(b.p.nome || '', 'pt-BR'));
+
+  box.style.display = '';
+  box.innerHTML = `<h3>${achadas.length} paciente${achadas.length !== 1 ? 's' : ''} com os filtros selecionados</h3>` +
+    (achadas.length ? achadas.map(({ p, gests }) => {
+      const g = gests.find(x => x.status === 'ativa') || gests[gests.length - 1];
+      const exams = getExamsByGestacao(g.id);
+      const ec = new Set(exams.map(e => e.data_exame)).size;
+      const ult = exams[exams.length - 1];
+      const igStr = ult ? igToStr(ult.ig_dias_manual ?? calcIgDays(g, ult.data_exame)) : '';
+      return `<div class="patient-chip" onclick="openPatient(${safeId(p.id)})">
+        <div class="patient-chip-info">
+          <div class="patient-chip-name">${escapeHtml(p.nome || 'Sem nome')}</div>
+          <div class="patient-chip-meta">${escapeHtml(p.cpf || '')}</div>
+        </div>
+        <div class="patient-chip-exams">${ec} exame${ec !== 1 ? 's' : ''}${igStr ? ' · ' + igStr : ''}</div>
+      </div>`;
+    }).join('') : '<p style="text-align:center;color:var(--text-muted);font-size:13px;">Nenhuma paciente encontrada.</p>');
+}
+
 function searchPatient() {
   const _searchEl = document.getElementById('search-cpf');
   const val = _searchEl ? _searchEl.value.trim() : '';
@@ -4811,6 +4898,8 @@ function searchPatient() {
       return;
     }
   }
+
+  if (_filtrosBuscaAtivos()) { aplicarFiltrosBusca(); return; }
 
   if (val.length >= 2) {
     const matches = _matchPatients(val);

@@ -1758,3 +1758,16 @@ de parto e indução dele **não entraram** — não reintroduzir por "completud
 - **Pendência:** os ramos GIG e "adequado" de `_condutaDiagnostico` e algumas
   notas ainda têm frases obstétricas; ela pediu "não colocar", não "tirar" —
   decidir se limpa.
+
+## PIG exige PFE < P10; CA < P10 isolada vira nota (2026-10-03)
+
+Decisão da médica: o consenso Delphi 2016 define CIUR, não PIG, e usa "CA/PFE"
+como critério de crescimento. O **nome PIG**, porém, só sai com PFE < P10
+(`efwBelowP10`, nos dois ramos de `calcDiagnosticoFGR`). CA < P10 com PFE ≥ P10
+(`criterios.caIsoladaP10`, só quando há z de PFE) **não** nomeia PIG: o
+diagnóstico fica `adequado`/`gig`, `_critItemsDiagnostico` diz "CA abaixo do P10,
+com PFE adequada" (e por isso a Conclusão não afirma "trajetória estável") e
+`_notasDiagnostico` pede reavaliar a CA. Dentro do CIUR a CA continua contando
+como critério (Delphi puro): CA < P10 + uterinas > P95 antes de 32 semanas, ou
+2 de 3 depois. **Pendência:** o laudo obstétrico do editor (`laudos-dramorgana`)
+classifica PIG × CIUR por percentil e ainda não foi espelhado.

@@ -3406,6 +3406,13 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   const auDiastoleZero = lastExam.au_fluxo === 'ausente' || lastExam.au_fluxo === 'reversa'
                       || lastExam.au_fluxo === 'intermitente';
 
+  // PIG exige PFE < P10 (decisão da médica, 2026-10-03). CA < P10 com PFE ≥ P10
+  // continua contando como critério de crescimento dentro do CIUR (Delphi puro:
+  // "CA/PFE"), mas sozinha NÃO nomeia PIG — a CA isolada tem erro de medida
+  // maior que a PFE. O achado não some: vira nota (_notasDiagnostico) e item
+  // próprio em _critItemsDiagnostico.
+  const caIsoladaP10 = caBelowP10 && z.efw != null && !efwBelowP10;
+
   // ── Diagnóstico Delphi ────────────────────────────────────
   let diagnostico = 'adequado';
 
@@ -3416,7 +3423,7 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
       diagnostico = 'rciu_precoce';
     } else if ((caBelowP10 || efwBelowP10) && (auAboveP95 || utAboveP95)) {
       diagnostico = 'rciu_precoce';
-    } else if (caBelowP10 || efwBelowP10) {
+    } else if (efwBelowP10) {
       diagnostico = 'pig';
     }
   } else {
@@ -3464,7 +3471,7 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
       // invariante em vez de deixá-lo depender da contagem.
       const temCrescimento = (caBelowP10 || efwBelowP10) || cruzamentoQuartis;
       if (nCrit >= 2 && temCrescimento) diagnostico = 'rciu_tardio';
-      else if (caBelowP10 || efwBelowP10) diagnostico = 'pig';
+      else if (efwBelowP10) diagnostico = 'pig';
     }
   }
 
@@ -3508,7 +3515,7 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
     gaW,
     trajetoria: _trajetoriaPIG(allExams, igDays),
     criterios: {
-      caBelowP3, caBelowP10, caAboveP90,
+      caBelowP3, caBelowP10, caAboveP90, caIsoladaP10,
       efwBelowP3, efwBelowP10, efwAboveP90,
       auAboveP95, utAboveP95, cprBelowP5,
       acmBelowP5: acmBelowP5 && !multipla,
@@ -3765,6 +3772,7 @@ function _critItemsDiagnostico(dx) {
   const c = dx?.criterios;
   if (!c) return items;
   if (c.caBelowP3 || c.efwBelowP3)        items.push('CA e/ou PFE abaixo do P3 (critério Delphi primário)');
+  else if (c.caIsoladaP10)                items.push('CA abaixo do P10, com PFE adequada');
   else if (c.caBelowP10 || c.efwBelowP10) items.push('CA e/ou PFE abaixo do P10');
   if (c.caAboveP90 || c.efwAboveP90)      items.push('CA e/ou PFE acima do P90');
   if (c.auAboveP95)                        items.push('IP artéria umbilical acima do P95');
@@ -3847,6 +3855,13 @@ function _notasDiagnostico(dx) {
 
   if (d === 'rciu_precoce' || d === 'rciu_tardio') {
     notas.push('Após o nascimento, orientar seguimento do neurodesenvolvimento nos primeiros anos de vida — risco aumentado de atraso motor e cognitivo, maior nas formas precoces e graves, além de risco cardiometabólico na vida adulta (programação fetal).');
+  }
+
+  // CA < P10 com PFE ≥ P10 não é PIG (decisão da médica, 2026-10-03), mas também
+  // não é "tudo adequado": fica registrado para reavaliar a CA. Em RCIU a CA já
+  // entrou como critério, então a nota só vale fora dele.
+  if (dx.criterios?.caIsoladaP10 && (d === 'adequado' || d === 'gig')) {
+    notas.push('CA abaixo do P10 com PFE adequada — não caracteriza PIG; sugere-se reavaliar a CA em novo exame.');
   }
 
   if (d === 'pig') {

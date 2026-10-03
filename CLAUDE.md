@@ -1769,5 +1769,6 @@ diagnóstico fica `adequado`/`gig`, `_critItemsDiagnostico` diz "CA abaixo do P1
 com PFE adequada" (e por isso a Conclusão não afirma "trajetória estável") e
 `_notasDiagnostico` pede reavaliar a CA. Dentro do CIUR a CA continua contando
 como critério (Delphi puro): CA < P10 + uterinas > P95 antes de 32 semanas, ou
-2 de 3 depois. **Pendência:** o laudo obstétrico do editor (`laudos-dramorgana`)
-classifica PIG × CIUR por percentil e ainda não foi espelhado.
+2 de 3 depois. O laudo obstétrico do editor (`laudos-dramorgana`)
+já decidia PIG só pelo percentil de peso e não calcula CA: nenhum código mudou lá
+(ver o `CLAUDE.md` dele); a única diferença é o critério CA + Doppler do CIUR.

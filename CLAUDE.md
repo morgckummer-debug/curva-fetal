@@ -1793,3 +1793,8 @@ um feto no percentil 82 de peso saiu GIG só pela CA. Agora GIG exige `efwAboveP
 (mesma regra do laudo obstétrico, que decide só pelo percentil de peso). CA > P90 com
 PFE adequada não nomeia nada; fica só como critério em `_critItemsDiagnostico`
 ("CA acima do P90, com PFE adequada"), espelho da CA < P10 isolada do PIG.
+
+**Conclusão com CA > P90 isolada (2026-10-06):** `_gerarConclusaoUnicaInicial` escreve
+uma linha por achado — "Peso fetal no percentil 82." e "Circunferência abdominal acima
+do percentil 90." — mais uma linha para cada outro critério, em vez de emendar tudo no
+rótulo. Só gestação única; usa `impressao.caAcimaP90Isolada`.

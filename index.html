@@ -10157,6 +10157,7 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     icon: DX_ICONE[diagnostico],
     isPrecoce: !!dx?.isPrecoce,
     critItems,
+    caAcimaP90Isolada: !!dx?.criterios?.caIsoladaP90,
     estadio,
     // Chave crua ('leve'|'dv_precoce'|'aedf'|'redf'|'dv_tardio'|null), separada do
     // `estadio` (que já é o objeto {label,cor} pra exibir): quem precisa
@@ -10871,7 +10872,19 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // linha própria de `estadio` saiu daqui porque agora é redundante — a
   // deterioração Doppler que ela resumia já está dentro de `critItems`.
   const critTxt = (impressao.critItems && impressao.critItems.length) ? ` + ${impressao.critItems.join(' + ')}` : '';
-  const linhas = [`${labelTxt}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`];
+  // CA > P90 com PFE adequada (2026-10-06, pedido da médica): peso e CA saem em
+  // linhas próprias — "Peso fetal no percentil 82." / "Circunferência
+  // abdominal acima do percentil 90." — em vez de emendados no rótulo. Os
+  // demais critérios (Doppler etc.) também viram uma linha cada.
+  const linhas = [];
+  if (impressao.caAcimaP90Isolada && impressao.efwPercentil != null) {
+    linhas.push(`${labelTxt}.`);
+    linhas.push(`Peso fetal no percentil ${impressao.efwPercentil}.`);
+    linhas.push('Circunferência abdominal acima do percentil 90.');
+    impressao.critItems.filter(i => !/^CA acima do P90/.test(i)).forEach(i => linhas.push(`${i}.`));
+  } else {
+    linhas.push(`${labelTxt}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`);
+  }
   if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));

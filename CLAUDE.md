@@ -1785,3 +1785,11 @@ gestação (`_gestacaoPassaFiltros`). Com filtro ativo, a lista de resultados
 substitui "Pacientes Recentes" e Enter/Buscar só reaplica os filtros (não abre
 a ficha). Só mostra quem JÁ fez; "ainda não fez, na janela" ficou de fora por
 decisão dela.
+
+## GIG é conceito de peso: só PFE > P90 (2026-10-06)
+
+`calcDiagnosticoFGR` chamava GIG qualquer feto `adequado` com CA **ou** PFE > P90:
+um feto no percentil 82 de peso saiu GIG só pela CA. Agora GIG exige `efwAboveP90`
+(mesma regra do laudo obstétrico, que decide só pelo percentil de peso). CA > P90 com
+PFE adequada não nomeia nada; fica só como critério em `_critItemsDiagnostico`
+("CA acima do P90, com PFE adequada"), espelho da CA < P10 isolada do PIG.

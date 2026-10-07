@@ -1657,36 +1657,36 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="me-bio-row" style="margin-bottom:14px;">
             <div class="me-bio-field">
               <label>T21</label>
-              <input type="text" id="e-risco-t21" placeholder="1 em X">
+              <input type="text" id="e-risco-t21" placeholder="X">
             </div>
             <div class="me-bio-field">
               <label>T18</label>
-              <input type="text" id="e-risco-t18" placeholder="1 em X">
+              <input type="text" id="e-risco-t18" placeholder="X">
             </div>
             <div class="me-bio-field">
               <label>T13</label>
-              <input type="text" id="e-risco-t13" placeholder="1 em X">
+              <input type="text" id="e-risco-t13" placeholder="X">
             </div>
           </div>
           <div class="me-bio-label" style="margin-bottom:8px;">Pré-eclâmpsia <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">achado materno da visita</span></div>
           <div class="me-bio-row" style="margin-bottom:14px;">
             <div class="me-bio-field">
               <label>Risco</label>
-              <input type="text" id="e-risco-pre-eclampsia" placeholder="1 em X">
+              <input type="text" id="e-risco-pre-eclampsia" placeholder="X">
             </div>
           </div>
           <div class="me-bio-label" style="margin-bottom:8px;">Parto prematuro <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">achado materno da visita</span></div>
           <div class="me-bio-row" style="margin-bottom:14px;">
             <div class="me-bio-field">
               <label>Risco</label>
-              <input type="text" id="e-risco-parto-prematuro" placeholder="1 em X">
+              <input type="text" id="e-risco-parto-prematuro" placeholder="X">
             </div>
           </div>
           <div class="me-bio-label" style="margin-bottom:8px;">Diabetes gestacional <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">achado materno da visita</span></div>
           <div class="me-bio-row">
             <div class="me-bio-field">
               <label>Risco</label>
-              <input type="text" id="e-risco-diabetes-gestacional" placeholder="1 em X">
+              <input type="text" id="e-risco-diabetes-gestacional" placeholder="X">
             </div>
           </div>
         </div>
@@ -6569,6 +6569,14 @@ function _riscoFmfTxt(v) {
   return /^\d+$/.test(t) ? '1 em ' + t : t;
 }
 
+// Campo do formulário mostra só o denominador ("390"): tira "1 em"/"1:"/"1/" na
+// ida e na volta. A leitura (_riscoFmfTxt) devolve o prefixo na exibição.
+function _riscoSoNumero(v) {
+  const t = String(v == null ? '' : v).trim();
+  const m = t.match(/^1\s*(?:em|:|\/)\s*(\d+)$/i);
+  return m ? m[1] : t;
+}
+
 function _ultimoExameComCampo(exams, campo) {
   const sorted = [...exams].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
   for (let i = sorted.length - 1; i >= 0; i--) {
@@ -8751,7 +8759,7 @@ function openEditExamModal(eid) {
   };
   Object.entries(fmt1TriMap).forEach(([elSuffix, key]) => {
     const el = document.getElementById('e-' + elSuffix);
-    if (el) el.value = exam[key] != null ? exam[key] : '';
+    if (el) el.value = exam[key] != null ? (key.startsWith('risco_') ? _riscoSoNumero(exam[key]) : exam[key]) : '';
   });
 
   _meLoadExterno([exam]);
@@ -9429,10 +9437,10 @@ function _meBuildExamData(feto, draft, data, igManual) {
     // visita, igual colo/uterinas (sharedStr) — o rastreamento combinado é um
     // só pra gestação inteira, não por feto.
     nt: num('e-nt'), fc: num('e-fc'),
-    risco_t21: str('e-risco-t21'), risco_t18: str('e-risco-t18'), risco_t13: str('e-risco-t13'),
-    risco_pre_eclampsia: sharedStr('e-risco-pre-eclampsia'),
-    risco_parto_prematuro: sharedStr('e-risco-parto-prematuro'),
-    risco_diabetes_gestacional: sharedStr('e-risco-diabetes-gestacional'),
+    risco_t21: _riscoSoNumero(str('e-risco-t21')) || null, risco_t18: _riscoSoNumero(str('e-risco-t18')) || null, risco_t13: _riscoSoNumero(str('e-risco-t13')) || null,
+    risco_pre_eclampsia: _riscoSoNumero(sharedStr('e-risco-pre-eclampsia')) || null,
+    risco_parto_prematuro: _riscoSoNumero(sharedStr('e-risco-parto-prematuro')) || null,
+    risco_diabetes_gestacional: _riscoSoNumero(sharedStr('e-risco-diabetes-gestacional')) || null,
     // Exame externo: marcação, serviço e conclusão são da visita (sharedStr); o
     // peso informado é do feto (num, vem do rascunho na múltipla). Sem a marca,
     // o peso volta a ser calculado por Hadlock — nunca sobra um peso digitado

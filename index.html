@@ -582,8 +582,8 @@ header::after{display:none;}
   font-size:15px;font-weight:800;color:var(--sage-deep);letter-spacing:-.1px;margin-bottom:3px;
 }
 .charts-1tri-subtitle{font-size:11.5px;color:var(--text-muted);}
-.charts-1tri-grid{margin-bottom:18px;}
-@media(min-width:1101px){.charts-1tri-grid{grid-template-columns:repeat(4,1fr);}}
+.charts-1tri-grid{margin-bottom:18px;grid-template-columns:repeat(3,1fr);gap:16px;}
+@media(max-width:700px){.charts-1tri-grid{grid-template-columns:1fr;}}
 
 .risco-fmf-cards{
   display:flex;flex-wrap:wrap;gap:14px;margin-bottom:20px;justify-content:center;
@@ -11695,7 +11695,7 @@ function _rel1TriGraficosHtml(gestacao, patient, allExams) {
   return `<section class="rel-secao">
     <div class="eyebrow">Gráficos de referência</div>
     ${porFetoHtml}
-    ${utaCards ? `<div class="feto-cards">${utaCards}</div>` : ''}
+    ${utaCards ? `<div class="feto-cards feto-cards--quad">${utaCards}</div>` : ''}
   </section>`;
 }
 

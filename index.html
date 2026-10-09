@@ -505,18 +505,94 @@ header::after{display:none;}
 .ac-st--prox{color:var(--text);background:var(--peach,#f6e3d3);border-radius:6px;padding:1px 7px;}
 .ac-st--falta{color:var(--text-muted);}
 .ac-nota{font-size:12px;color:var(--text-muted);margin-top:8px;}
-#recepcao-screen{display:none;position:fixed;inset:0;z-index:9000;overflow:auto;background:var(--clay-bg,#e3dbe6);}
-.rc-wrap{max-width:860px;margin:0 auto;padding:18px 16px 40px;}
-.rc-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px;}
-.rc-top h1{font-family:var(--font-serif);font-size:22px;margin:0;color:var(--text);}
-.rc-btn{padding:8px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:13px;cursor:pointer;}
-.rc-busca{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid var(--border);font:inherit;margin-bottom:12px;background:var(--surface);color:var(--text);}
-.rc-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);margin-bottom:10px;}
-.rc-card summary{cursor:pointer;padding:12px 14px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;list-style:none;}
-.rc-card summary::-webkit-details-marker{display:none;}
-.rc-nome{font-weight:700;color:var(--text);}
-.rc-res{font-size:12.5px;color:var(--text-muted);}
-.rc-corpo{padding:0 14px 14px;}
+#recepcao-screen{display:none;position:fixed;inset:0;z-index:9000;overflow:auto;background:var(--clay-bg,#e3dbe6);font-family:var(--font-sans);}
+.rc-bar{background:linear-gradient(120deg,#2e1d3c 0%,var(--sage-deep) 55%,#5a3a78 100%);color:#fff;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 4px 22px rgba(46,33,56,.28);}
+.rc-bar h1{font-family:var(--font-serif);font-size:25px;font-weight:600;margin:0;letter-spacing:.2px;}
+.rc-bar h1 small{display:block;font-family:var(--font-sans);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.6px;color:var(--peach-warm);margin-bottom:2px;}
+.rc-marca{display:flex;align-items:center;gap:14px;}
+.rc-marca img{width:52px;height:52px;border-radius:50%;background:#fff;padding:2px;box-shadow:0 2px 10px rgba(0,0,0,.25);object-fit:contain;}
+.rc-bar-acoes{display:flex;gap:10px;align-items:center;}
+.rc-bar-user{font-size:12.5px;color:rgba(255,255,255,.7);margin-right:6px;}
+.rc-btn{padding:8px 16px;border-radius:10px;border:1.5px solid rgba(255,255,255,.3);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.rc-btn:hover{background:rgba(255,255,255,.2);}
+.rc-main{max-width:1500px;margin:0 auto;padding:22px 32px 40px;}
+.rc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px;}
+.rc-kpi{background:var(--surface,#fff);border-radius:16px;padding:16px 20px;box-shadow:0 2px 14px rgba(61,35,82,.08);border-left:5px solid var(--sage);cursor:pointer;text-align:left;border-top:0;border-right:0;border-bottom:0;font:inherit;}
+.rc-kpi b{display:block;font-family:var(--font-serif);font-size:32px;line-height:1.1;color:var(--text);}
+.rc-kpi span{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text-muted);}
+.rc-kpi--alerta{border-left-color:var(--danger);}
+.rc-kpi--alerta b{color:var(--danger);}
+.rc-kpi--atencao{border-left-color:var(--peach-warm);}
+.rc-kpi.rc-on{outline:2.5px solid var(--sage);}
+.rc-busca-row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:16px;}
+.rc-busca{flex:1 1 380px;max-width:520px;padding:13px 18px;border-radius:14px;border:1.5px solid var(--border);font:inherit;font-size:15px;background:var(--surface,#fff);color:var(--text);box-shadow:0 2px 10px rgba(61,35,82,.06);}
+.rc-busca:focus{outline:none;border-color:var(--sage);}
+.rc-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.rc-chip{padding:8px 15px;border-radius:999px;border:1.5px solid var(--border);background:var(--surface,#fff);font:inherit;font-size:12.5px;font-weight:600;color:var(--text-muted);cursor:pointer;}
+.rc-chip.rc-on{background:var(--sage-deep);border-color:var(--sage-deep);color:#fff;}
+.rc-grade{display:grid;grid-template-columns:minmax(340px,430px) 1fr;gap:20px;align-items:start;}
+.rc-lista{background:var(--surface,#fff);border-radius:18px;box-shadow:0 2px 16px rgba(61,35,82,.09);overflow:hidden;max-height:calc(100vh - 330px);min-height:240px;overflow-y:auto;}
+.rc-item{display:flex;gap:12px;align-items:center;padding:13px 16px;border-bottom:1px solid rgba(61,35,82,.07);cursor:pointer;border-left:4px solid transparent;}
+.rc-item:hover{background:rgba(139,107,168,.07);}
+.rc-item.rc-sel{background:rgba(139,107,168,.13);border-left-color:var(--sage-deep);}
+.rc-av{flex:0 0 40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--sage),var(--sage-deep));color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.rc-it-corpo{flex:1;min-width:0;}
+.rc-it-nome{font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rc-it-sub{font-size:12px;color:var(--text-muted);margin-top:1px;}
+.rc-prog{height:5px;border-radius:3px;background:rgba(61,35,82,.1);margin-top:7px;overflow:hidden;}
+.rc-prog i{display:block;height:100%;background:linear-gradient(90deg,var(--sage),var(--sage-deep));border-radius:3px;}
+.rc-it-lado{display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
+.rc-pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;}
+.rc-pill--ok{background:#dcefe3;color:#1f6b3a;}
+.rc-pill--parcial{background:#fbeccb;color:#7a5200;}
+.rc-pill--pend{background:#f6d9d9;color:#8a2323;}
+.rc-pill--plano{background:rgba(139,107,168,.16);color:var(--sage-deep);}
+.rc-pill--alerta{background:#f6d9d9;color:#8a2323;}
+.rc-det{background:var(--surface,#fff);border-radius:18px;box-shadow:0 2px 16px rgba(61,35,82,.09);padding:26px 30px 28px;min-height:300px;}
+.rc-vazio{color:var(--text-muted);text-align:center;padding:48px 20px;font-size:14px;}
+.rc-det-top{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-bottom:18px;}
+.rc-det h2{font-family:var(--font-serif);font-size:27px;margin:0 0 4px;color:var(--text);}
+.rc-det-meta{font-size:13px;color:var(--text-muted);display:flex;gap:6px 16px;flex-wrap:wrap;align-items:center;}
+.rc-ring{text-align:center;}
+.rc-ring b{display:block;font-family:var(--font-serif);font-size:30px;color:var(--sage-deep);line-height:1;}
+.rc-ring span{font-size:11px;text-transform:uppercase;letter-spacing:.9px;font-weight:700;color:var(--text-muted);}
+.rc-prox{background:linear-gradient(120deg,rgba(201,167,92,.18),rgba(139,107,168,.14));border-radius:14px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;}
+.rc-prox small{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);}
+.rc-prox b{font-size:16px;color:var(--text);}
+.rc-prox span{font-size:13px;color:var(--text-muted);}
+.rc-btn-dark{padding:9px 16px;border-radius:10px;border:none;background:var(--sage-deep);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.rc-btn-dark:hover{background:#2e1d3c;}
+.rc-btn-dark:disabled{opacity:.55;cursor:wait;}
+.rc-sec-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:var(--text-light);margin:4px 0 10px;}
+.rc-tl{border-collapse:collapse;width:100%;margin-bottom:6px;}
+.rc-tl td{padding:11px 10px;border-bottom:1px solid rgba(61,35,82,.08);vertical-align:middle;font-size:13.5px;}
+.rc-tl td.rc-ic{width:34px;}
+.rc-dot{width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:rgba(61,35,82,.1);color:var(--text-muted);}
+.rc-dot--feito{background:#1f6b3a;color:#fff;}
+.rc-dot--atrasado{background:var(--danger);color:#fff;}
+.rc-dot--prox{background:var(--peach-warm);color:#fff;}
+.rc-tl .rc-ex-n{font-weight:700;color:var(--text);}
+.rc-tl .rc-ex-s{display:block;font-size:12px;color:var(--text-muted);font-weight:400;}
+.rc-tl td.rc-ex-dt{text-align:right;white-space:nowrap;color:var(--text-muted);}
+.rc-tl td.rc-ex-dt b{display:block;color:var(--text);}
+.rc-tl .rc-feito-t{color:#1f6b3a;font-weight:700;}
+.rc-tl .rc-atras-t{color:var(--danger);font-weight:700;}
+.rc-pag{margin-top:22px;border-radius:14px;border:1.5px solid rgba(61,35,82,.14);padding:18px 20px;background:#fbf9fc;}
+.rc-pag-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.rc-seg{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.rc-seg button{padding:9px 16px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font:inherit;font-size:13px;font-weight:700;color:var(--text-muted);cursor:pointer;}
+.rc-seg button.rc-on{color:#fff;border-color:transparent;}
+.rc-seg button.rc-on[data-v="quitado"]{background:#1f6b3a;}
+.rc-seg button.rc-on[data-v="parcial"]{background:#b07a00;}
+.rc-seg button.rc-on[data-v="pendente"]{background:#a63a3a;}
+.rc-form{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.rc-form label{display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:3px;}
+.rc-form select,.rc-form textarea,.rc-form input[type=text]{width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;background:#fff;color:var(--text);box-sizing:border-box;}
+.rc-form .rc-col2{grid-column:span 2;}
+.rc-form .rc-chk{display:flex;align-items:center;gap:8px;padding-top:22px;font-size:13.5px;font-weight:600;color:var(--text);}
+.rc-pag-msg{font-size:12.5px;margin-top:10px;color:var(--text-muted);}
+.rc-aviso{font-size:12px;color:var(--text-muted);margin-top:18px;}
+@media(max-width:1000px){.rc-grade{grid-template-columns:1fr;}.rc-kpis{grid-template-columns:1fr 1fr;}.rc-lista{max-height:340px;}.rc-form{grid-template-columns:1fr 1fr;}.rc-main{padding:16px;}.rc-bar{padding:14px 16px;}}
 .rv-tab-wrap{overflow-x:auto;}
 .rv-tab{border-collapse:collapse;width:100%;font-size:12.5px;}
 .rv-tab th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-light);padding:6px 10px;border-bottom:1.5px solid rgba(61,35,82,0.14);white-space:nowrap;}
@@ -1128,17 +1204,25 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 <!-- Tela de login — cobre a página inteira enquanto não há sessão válida no Supabase.
      Fica por cima de tudo (z-index alto) e não deixa nada por baixo ser clicado. -->
 <div id="recepcao-screen">
-  <div class="rc-wrap">
-    <div class="rc-top">
-      <h1>Recepção — acompanhamentos</h1>
-      <div style="display:flex;gap:8px;">
-        <button type="button" class="rc-btn" onclick="recepcaoAtualizar()">Atualizar</button>
-        <button type="button" class="rc-btn" onclick="doLogout()">Sair</button>
-      </div>
+  <div class="rc-bar">
+    <div class="rc-marca"><img src="hero-logo.png" alt="MK Medicina Fetal" width="52" height="52"><h1><small>Recepção — acompanhamentos</small>Acompanhamento Fetal MK</h1></div>
+    <div class="rc-bar-acoes">
+      <span class="rc-bar-user" id="rc-user"></span>
+      <button type="button" class="rc-btn" onclick="recepcaoAtualizar()">Atualizar</button>
+      <button type="button" class="rc-btn" id="rc-sair" onclick="recepcaoSair()">Sair</button>
     </div>
-    <input type="search" id="rc-busca" class="rc-busca" placeholder="Buscar paciente pelo nome" oninput="recepcaoFiltrar()" autocomplete="off">
-    <div id="rc-lista"></div>
-    <p class="ac-nota">Esta tela mostra só o nome da paciente, a modalidade contratada e as datas dos exames realizados. As datas são calculadas pela IG; confirme a agenda na Feegow.</p>
+  </div>
+  <div class="rc-main">
+    <div class="rc-kpis" id="rc-kpis"></div>
+    <div class="rc-busca-row">
+      <input type="search" id="rc-busca" class="rc-busca" placeholder="Buscar por nome ou CPF" oninput="recepcaoFiltrar()" autocomplete="off">
+      <div class="rc-chips" id="rc-chips"></div>
+    </div>
+    <div class="rc-grade">
+      <div class="rc-lista" id="rc-lista"></div>
+      <div class="rc-det" id="rc-det"></div>
+    </div>
+    <p class="rc-aviso">As datas são calculadas pela IG de cada paciente; a agenda oficial continua na Feegow. A conferência de pagamento é um registro desta tela, não substitui o financeiro.</p>
   </div>
 </div>
 
@@ -1194,6 +1278,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="more-menu" id="more-menu">
             <button class="btn btn-secondary" onclick="toggleMoreMenu(event)" aria-haspopup="true" aria-expanded="false" id="more-menu-btn">⋯ Mais opções</button>
             <div class="more-menu-list" id="more-menu-list">
+              <button onclick="abrirPainelRecepcao();closeMoreMenu()" title="Tela da recepção: exames feitos e a fazer, e conferência de pagamento">💳 Painel da recepção</button>
               <button onclick="openLixeiraModal();closeMoreMenu()" title="Pacientes e exames excluídos">🗑 Lixeira</button>
               <button onclick="exportData();closeMoreMenu()" title="Baixar uma cópia de segurança de todos os dados">⬇ Backup</button>
               <button onclick="document.getElementById('import-file-input').click();closeMoreMenu()" title="Restaurar a partir de um arquivo de backup">⬆ Importar</button>
@@ -2635,7 +2720,7 @@ async function _aposLogin() {
     const { data, error } = await supabaseClient.rpc('eh_recepcao');
     recepcao = !error && data === true;
   } catch (err) { console.error('[CurvaFetal] eh_recepcao:', err); }
-  if (recepcao) { _abrirRecepcao(); return; }
+  if (recepcao) { _rcMedica = false; _abrirRecepcao(); return; }
   _fecharRecepcao();
   _bootstrapFromSupabase();
 }
@@ -2645,16 +2730,46 @@ function _fecharRecepcao() {
   if (el) el.style.display = 'none';
 }
 
+// Estado da tela: paciente aberta, filtro ativo e quem a abriu (a médica entra pelo menu
+// "Mais opções" e volta ao app; a secretária só tem esta tela e sair).
+let _rcSel = null;
+let _rcFiltro = 'todas';
+let _rcMedica = false;
+
+const _RC_FILTROS = [
+  ['todas', 'Todas'], ['pendencia', 'Com pendência'], ['atrasadas', 'Janela vencida'],
+  ['pagamento', 'Pagamento a confirmar'], ['semana', 'Exame nos próximos 7 dias'],
+];
+const _RC_PAG = {
+  quitado:  { rotulo: 'Pago',          cls: 'rc-pill--ok' },
+  parcial:  { rotulo: 'Pago em parte', cls: 'rc-pill--parcial' },
+  pendente: { rotulo: 'A confirmar',   cls: 'rc-pill--pend' },
+};
+
 async function _abrirRecepcao() {
   const el = document.getElementById('recepcao-screen');
   if (!el) return;
   el.style.display = 'block';
+  const sair = document.getElementById('rc-sair');
+  if (sair) sair.textContent = _rcMedica ? 'Voltar ao app' : 'Sair';
+  const u = document.getElementById('rc-user');
+  if (u) u.textContent = _rcMedica ? 'Visão da médica' : '';
   await recepcaoAtualizar();
+  const b = document.getElementById('rc-busca');
+  if (b) b.focus();
+}
+
+// A médica abre a mesma tela das secretárias para conferir pagamentos e pendências.
+function abrirPainelRecepcao() { _rcMedica = true; _abrirRecepcao(); }
+
+function recepcaoSair() {
+  if (_rcMedica) { _fecharRecepcao(); return; }
+  doLogout();
 }
 
 async function recepcaoAtualizar() {
   const lista = document.getElementById('rc-lista');
-  if (lista) lista.innerHTML = '<p class="rv-vazio">Carregando…</p>';
+  if (lista) lista.innerHTML = '<p class="rc-vazio">Carregando…</p>';
   try {
     const { data, error } = await supabaseClient.rpc('painel_recepcao');
     if (error) throw error;
@@ -2662,31 +2777,208 @@ async function recepcaoAtualizar() {
     recepcaoFiltrar();
   } catch (err) {
     console.error('[CurvaFetal] painel_recepcao:', err);
-    if (lista) lista.innerHTML = '<p class="rv-vazio">Não consegui carregar a lista: ' + escapeHtml(err.message || String(err)) + '</p>';
+    if (lista) lista.innerHTML = '<p class="rc-vazio">Não consegui carregar a lista: ' + escapeHtml(err.message || String(err)) + '</p>';
   }
 }
 
 function _rcNorm(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
 
+// Tudo o que a tela precisa saber de uma paciente, calculado uma vez.
+function _rcInfo(r) {
+  const sit = _acompSituacao(r, r.exames || []);
+  if (!sit) return null;
+  const hoje = _hojeISO();
+  const em7 = _rvAddDias(hoje, 7);
+  const pag = (r.pagamento && r.pagamento.status) || 'pendente';
+  const atrasadas = sit.slots.filter(s => s.status === 'atrasado');
+  const p = sit.prox;
+  const limite = p ? (p.ateTol || p.ate) : null;
+  const semana = !!(p && p.de && limite && p.de <= em7 && limite >= hoje);
+  return { r, sit, pag, atrasadas, semana, pendencia: atrasadas.length > 0 || pag !== 'quitado' };
+}
+
+function _rcPassaFiltro(i) {
+  switch (_rcFiltro) {
+    case 'pendencia': return i.pendencia;
+    case 'atrasadas': return i.atrasadas.length > 0;
+    case 'pagamento': return i.pag !== 'quitado';
+    case 'semana':    return i.semana;
+    default:          return true;
+  }
+}
+
+function _rcIniciais(nome) {
+  const p = String(nome || '?').trim().split(/\s+/);
+  return ((p[0] || '?')[0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase();
+}
+
+function recepcaoFiltro(f) { _rcFiltro = _rcFiltro === f ? 'todas' : f; recepcaoFiltrar(); }
+function recepcaoAbrir(id) { _rcSel = id; recepcaoFiltrar(); }
+
 function recepcaoFiltrar() {
   const lista = document.getElementById('rc-lista');
   if (!lista) return;
+  const todos = _recepcaoDados.map(_rcInfo).filter(Boolean);
+
+  const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
+  document.getElementById('rc-kpis').innerHTML =
+    kpi('todas', todos.length, 'Acompanhamentos ativos') +
+    kpi('semana', todos.filter(i => i.semana).length, 'Exame nos próximos 7 dias', 'rc-kpi--atencao') +
+    kpi('atrasadas', todos.filter(i => i.atrasadas.length).length, 'Janela vencida', 'rc-kpi--alerta') +
+    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta');
+  document.getElementById('rc-chips').innerHTML = _RC_FILTROS.map(([f, t]) =>
+    `<button type="button" class="rc-chip ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')">${t}</button>`).join('');
+
   const q = _rcNorm((document.getElementById('rc-busca') || {}).value);
-  const itens = _recepcaoDados.filter(r => !q || _rcNorm(r.nome).includes(q));
+  const qDig = q.replace(/\D/g, '');
+  const itens = todos.filter(i => {
+    if (!_rcPassaFiltro(i)) return false;
+    if (!q) return true;
+    if (_rcNorm(i.r.nome).includes(q)) return true;
+    return qDig.length >= 3 && String(i.r.cpf || '').replace(/\D/g, '').includes(qDig);
+  });
+
   if (!itens.length) {
-    lista.innerHTML = '<p class="rv-vazio">' + (_recepcaoDados.length ? 'Nenhuma paciente com esse nome.' : 'Nenhuma paciente com acompanhamento cadastrado.') + '</p>';
+    lista.innerHTML = '<p class="rc-vazio">' + (todos.length
+      ? 'Nenhuma paciente encontrada com essa busca ou filtro.'
+      : 'Nenhuma paciente com acompanhamento cadastrado.') + '</p>';
+    document.getElementById('rc-det').innerHTML = '<p class="rc-vazio">Selecione uma paciente na lista.</p>';
     return;
   }
-  lista.innerHTML = itens.map(r => {
-    const sit = _acompSituacao(r, r.exames || []);
-    if (!sit) return '';
-    const prox = sit.prox ? `Próximo: ${escapeHtml(sit.prox.def.n)}${sit.prox.de ? ' (' + _acompDataCurta(sit.prox.de) + ' a ' + _acompDataCurta(sit.prox.ate) + ')' : ''}` : '';
-    const atras = sit.slots.some(s => s.status === 'atrasado') ? ' · <span style="color:var(--danger);font-weight:700;">há exame com janela vencida</span>' : '';
-    return `<details class="rc-card"><summary><span class="rc-nome">${escapeHtml(r.nome)}</span>
-      <span class="rc-res">${escapeHtml(sit.plano.nome)}${sit.igHoje != null ? ' · IG ' + _acompSemDia(sit.igHoje) : ''} · ${escapeHtml(_acompResumoTxt(sit))}</span>
-      <span class="rc-res">${prox}${atras}</span></summary>
-      <div class="rc-corpo">${_acompQuadroHtml(sit)}</div></details>`;
+  if (!itens.some(i => i.r.gestacao_id === _rcSel)) _rcSel = itens[0].r.gestacao_id;
+
+  lista.innerHTML = itens.map(i => {
+    const r = i.r, pg = _RC_PAG[i.pag];
+    const pct = Math.round(100 * i.sit.feitos / i.sit.slots.length);
+    return `<div class="rc-item ${r.gestacao_id === _rcSel ? 'rc-sel' : ''}" onclick="recepcaoAbrir(${r.gestacao_id})">
+      <div class="rc-av">${escapeHtml(_rcIniciais(r.nome))}</div>
+      <div class="rc-it-corpo"><div class="rc-it-nome">${escapeHtml(r.nome)}</div>
+        <div class="rc-it-sub">${escapeHtml(i.sit.plano.nome)}${i.sit.igHoje != null ? ' · IG ' + _acompSemDia(i.sit.igHoje) : ''} · ${i.sit.feitos}/${i.sit.slots.length} exames</div>
+        <div class="rc-prog"><i style="width:${pct}%"></i></div></div>
+      <div class="rc-it-lado"><span class="rc-pill ${pg.cls}">${pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
+    </div>`;
   }).join('');
+  const sel = itens.find(i => i.r.gestacao_id === _rcSel);
+  document.getElementById('rc-det').innerHTML = _rcDetalheHtml(sel);
+  _rcPagUi();
+}
+
+// Texto para colar no agendamento da Feegow.
+function _rcTextoAgenda(i) {
+  const p = i.sit.prox;
+  if (!p) return '';
+  const rot = p.def.n + (p.def.sub ? ' ' + p.def.sub : '');
+  return `Acompanhamento ${i.sit.plano.nome} – ${rot} (${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}) – ${i.r.nome}`;
+}
+
+function recepcaoCopiarAgenda(btn) {
+  const i = _rcInfo(_recepcaoDados.find(x => x.gestacao_id === _rcSel) || {});
+  if (!i) return;
+  const txt = _rcTextoAgenda(i);
+  const ok = () => { if (btn) { const t = btn.textContent; btn.textContent = 'Copiado ✓'; setTimeout(() => { btn.textContent = t; }, 1600); } };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, () => window.prompt('Copie o texto:', txt));
+  else window.prompt('Copie o texto:', txt);
+}
+
+function _rcDetalheHtml(i) {
+  const r = i.r, sit = i.sit, pg = r.pagamento || {};
+  const p = sit.prox;
+  const prox = p
+    ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
+        <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}${p.de ? ' · entre ' + _acompDataCurta(p.de) + ' e ' + _acompDataCurta(p.ate) : ''}${p.ateTol ? ' · tolerância até ' + _acompDataCurta(p.ateTol) : ''}</span></div>
+        <button type="button" class="rc-btn-dark" onclick="recepcaoCopiarAgenda(this)" title="Copia o texto para colar no agendamento da Feegow">Copiar para a agenda</button></div>`
+    : `<div class="rc-prox"><div><small>Calendário</small><b>${sit.feitos === sit.slots.length ? 'Todos os exames do plano foram feitos' : 'Sem exame pendente dentro do prazo'}</b></div></div>`;
+
+  const linhas = sit.slots.map(s => {
+    let ic, st;
+    if (s.status === 'feito') { ic = '<span class="rc-dot rc-dot--feito">✓</span>'; st = `<b class="rc-feito-t">Feito em ${formatDateBR(s.hit.v.data_exame)}</b>`; }
+    else if (s.status === 'atrasado') { ic = '<span class="rc-dot rc-dot--atrasado">!</span>'; st = `<b class="rc-atras-t">Janela vencida${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</b>`; }
+    else if (s === p) { ic = '<span class="rc-dot rc-dot--prox">→</span>'; st = '<b>Próximo</b>'; }
+    else { ic = '<span class="rc-dot">·</span>'; st = '<b>A fazer</b>'; }
+    const janela = s.de && s.ate ? `${_acompDataCurta(s.de)} a ${_acompDataCurta(s.ate)}` : '';
+    return `<tr><td class="rc-ic">${ic}</td>
+      <td><span class="rc-ex-n">${escapeHtml(s.def.n)}</span>${s.def.sub ? `<span class="rc-ex-s">${escapeHtml(s.def.sub)}</span>` : ''}</td>
+      <td>${_acompSemDia(s.def.ini)}${s.def.fim !== s.def.ini ? ' a ' + _acompSemDia(s.def.fim) : ''}${janela ? `<span class="rc-ex-s">${janela}${s.ateTol ? ' · tolerância até ' + _acompDataCurta(s.ateTol) : ''}</span>` : ''}</td>
+      <td class="rc-ex-dt">${st}</td></tr>`;
+  }).join('');
+
+  const usados = sit.extras.length, inclu = sit.plano.extras;
+  const extras = `<p class="rc-det-meta" style="margin-top:8px;">Ultrassons extras: ${usados} de ${inclu} usados${usados ? ' (' + sit.extras.map(x => formatDateBR(x.v.data_exame)).join(', ') + ')' : ''}${usados > inclu ? ' — acima do incluído, cobrar à parte' : ''}.</p>`;
+  const fora = sit.fora.length
+    ? `<p class="rc-det-meta" style="margin-top:4px;color:var(--danger);">Exame fora das janelas e sem marca de extra: ${sit.fora.map(x => formatDateBR(x.v.data_exame)).join(', ')}.</p>` : '';
+
+  const st = i.pag, stRot = _RC_PAG[st];
+  const quando = pg.atualizado_em ? new Date(pg.atualizado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  const quem = pg.atualizado_em
+    ? `Última conferência: ${escapeHtml(pg.atualizado_por || '—')}, ${quando}`
+    : 'Nenhuma conferência registrada ainda.';
+  const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
+  const pagHtml = `<div class="rc-pag">
+    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Pagamento do acompanhamento</div><span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span></div>
+    <div class="rc-seg" id="rc-pg-seg">
+      <button type="button" data-v="quitado" class="${st === 'quitado' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('quitado')">Pago por completo</button>
+      <button type="button" data-v="parcial" class="${st === 'parcial' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('parcial')">Pago em parte</button>
+      <button type="button" data-v="pendente" class="${st === 'pendente' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('pendente')">Ainda não pago</button>
+    </div>
+    <div class="rc-form">
+      <div><label for="rc-pg-forma">Forma de pagamento</label><select id="rc-pg-forma" onchange="_rcPagUi()">
+        ${opt('', 'Selecione', pg.forma || '')}${opt('cartao', 'Cartão de crédito', pg.forma)}${opt('pix', 'Pix', pg.forma)}${opt('dinheiro', 'Dinheiro', pg.forma)}${opt('outro', 'Outra', pg.forma)}</select></div>
+      <div id="rc-pg-parc-w"><label for="rc-pg-parc">Parcelas</label><select id="rc-pg-parc">
+        ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${(pg.parcelas || 1) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></div>
+      <label class="rc-chk"><input type="checkbox" id="rc-pg-contrato" ${pg.contrato_assinado ? 'checked' : ''}> Contrato assinado</label>
+      <div class="rc-col2" style="grid-column:1/-1;"><label for="rc-pg-obs">Observação (opcional)</label><input type="text" id="rc-pg-obs" maxlength="500" value="${escapeHtml(pg.observacao || '')}" placeholder="Ex.: entrada no Pix, restante em 5x no cartão"></div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap;">
+      <button type="button" class="rc-btn-dark" id="rc-pg-salvar" onclick="recepcaoSalvarPagamento(${r.gestacao_id})">Salvar conferência</button>
+      <span class="rc-pag-msg" id="rc-pg-msg">${quem}</span></div>
+  </div>`;
+
+  return `<div class="rc-det-top"><div><h2>${escapeHtml(r.nome)}</h2>
+      <div class="rc-det-meta"><span class="rc-pill rc-pill--plano">${escapeHtml(sit.plano.nome)}</span>
+        ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}
+        <span>${sit.igHoje != null ? 'IG hoje: ' + _acompSemDia(sit.igHoje) : 'IG hoje: sem data de referência'}</span></div></div>
+      <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
+    ${prox}
+    <div class="rc-sec-t">Exames do plano</div>
+    <table class="rc-tl"><tbody>${linhas}</tbody></table>${extras}${fora}
+    ${pagHtml}`;
+}
+
+// Segmento "pago / em parte / não pago": guarda a escolha no próprio botão até salvar.
+function recepcaoPagSeg(v) {
+  document.querySelectorAll('#rc-pg-seg button').forEach(b => b.classList.toggle('rc-on', b.dataset.v === v));
+}
+function _rcPagUi() {
+  const f = document.getElementById('rc-pg-forma');
+  const w = document.getElementById('rc-pg-parc-w');
+  if (f && w) w.style.visibility = f.value === 'cartao' ? 'visible' : 'hidden';
+}
+
+async function recepcaoSalvarPagamento(gid) {
+  const on = document.querySelector('#rc-pg-seg button.rc-on');
+  const msg = document.getElementById('rc-pg-msg');
+  const btn = document.getElementById('rc-pg-salvar');
+  const status = on ? on.dataset.v : 'pendente';
+  const forma = document.getElementById('rc-pg-forma').value;
+  const parcelas = forma === 'cartao' ? parseInt(document.getElementById('rc-pg-parc').value, 10) : null;
+  if (status !== 'pendente' && !forma) { msg.style.color = 'var(--danger)'; msg.textContent = 'Escolha a forma de pagamento.'; return; }
+  btn.disabled = true; msg.style.color = ''; msg.textContent = 'Salvando…';
+  try {
+    const { error } = await supabaseClient.rpc('recepcao_pagamento', {
+      p_gestacao_id: gid, p_status: status, p_forma: forma, p_parcelas: parcelas,
+      p_contrato: document.getElementById('rc-pg-contrato').checked,
+      p_obs: document.getElementById('rc-pg-obs').value.trim(),
+    });
+    if (error) throw error;
+    await recepcaoAtualizar();
+    const m = document.getElementById('rc-pg-msg');
+    if (m) { m.style.color = '#1f6b3a'; m.textContent = '✓ Conferência salva — ' + m.textContent; }
+  } catch (err) {
+    console.error('[CurvaFetal] recepcao_pagamento:', err);
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Não consegui salvar: ' + (err.message || err);
+    btn.disabled = false;
+  }
 }
 
 // ── Classe CSS para coloração de percentil ──────────────────

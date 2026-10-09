@@ -2513,12 +2513,12 @@ initAuth();
 const ACOMP_EX = {
   m1:   { n: 'Morfológico de 1º trimestre', sub: '',                     ini: 12*7, fim: 13*7+5 },
   colo: { n: 'Obstétrico com colo',         sub: '',                     ini: 16*7, fim: 18*7 },
-  m2:   { n: 'Morfológico de 2º trimestre', sub: 'com colo e Doppler',   ini: 22*7, fim: 24*7 },
-  d28:  { n: 'Doppler + PBF',               sub: '',                     ini: 28*7, fim: 28*7+6 },
-  d32:  { n: 'Doppler + PBF',               sub: '',                     ini: 32*7, fim: 32*7+6 },
-  d36:  { n: 'Doppler + PBF',               sub: '',                     ini: 36*7, fim: 36*7+6 },
+  m2:   { n: 'Morfológico de 2º trimestre', sub: 'com colo e Doppler',   ini: 21*7, fim: 26*7 },
+  d28:  { n: 'Doppler + PBF',               sub: '',                     ini: 28*7, fim: 28*7+6, tol: 7 },
+  d32:  { n: 'Doppler + PBF',               sub: '',                     ini: 32*7, fim: 32*7+6, tol: 7 },
+  d36:  { n: 'Doppler + PBF',               sub: '',                     ini: 36*7, fim: 36*7+6, tol: 7 },
   m3:   { n: 'Morfológico de 3º trimestre', sub: 'com Doppler',          ini: 36*7, fim: 36*7+6 },
-  d38:  { n: 'Doppler + PBF',               sub: '',                     ini: 38*7, fim: 38*7+6 },
+  d38:  { n: 'Doppler + PBF',               sub: '',                     ini: 38*7, fim: 38*7+6, tol: 7 },
 };
 const ACOMP_PLANOS = {
   essencial:  { nome: 'Essencial',            extras: 1, ex: ['m1','colo','m2','d28','d32','d36'] },
@@ -2560,13 +2560,16 @@ function _acompSituacao(g, exams) {
   const usados = new Set();
   const slots = plano.ex.map(k => {
     const def = ACOMP_EX[k];
-    const hit = normais.find(x => !usados.has(x) && x.ig != null && x.ig >= def.ini && x.ig <= def.fim);
+    const hit = normais.find(x => !usados.has(x) && x.ig != null && x.ig >= def.ini && x.ig <= def.fim + (def.tol || 0));
     if (hit) usados.add(hit);
-    const status = hit ? 'feito' : (igHoje != null && igHoje > def.fim) ? 'atrasado' : 'falta';
-    return { def, hit, status, de: _acompIgParaData(g, def.ini), ate: _acompIgParaData(g, def.fim) };
+    const limite = def.fim + (def.tol || 0);
+    const status = hit ? 'feito'
+      : (igHoje != null && igHoje > limite) ? 'atrasado'
+      : (igHoje != null && igHoje > def.fim) ? 'tolerancia' : 'falta';
+    return { def, hit, status, de: _acompIgParaData(g, def.ini), ate: _acompIgParaData(g, def.fim), ateTol: def.tol ? _acompIgParaData(g, limite) : null };
   });
   // Próximo a fazer: primeiro pendente ainda dentro do prazo (ou o mais antigo atrasado, se não houver).
-  const prox = slots.find(s => s.status === 'falta') || null;
+  const prox = slots.find(s => s.status === 'tolerancia') || slots.find(s => s.status === 'falta') || null;
   return {
     plano, igHoje, slots, prox, extras,
     fora: normais.filter(x => !usados.has(x)),
@@ -2591,11 +2594,12 @@ function _acompQuadroHtml(sit) {
     const ig = `${_acompSemDia(s.def.ini)} a ${_acompSemDia(s.def.fim)}`;
     let st;
     if (s.status === 'feito') st = `<span class="ac-st ac-st--feito">✓ Feito ${formatDateBR(s.hit.v.data_exame)}</span>`;
-    else if (s.status === 'atrasado') st = `<span class="ac-st ac-st--atrasado">Janela passou${s.ate ? ' em ' + _acompDataCurta(s.ate) : ''}</span>`;
+    else if (s.status === 'atrasado') st = `<span class="ac-st ac-st--atrasado">Janela passou${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</span>`;
+    else if (s.status === 'tolerancia') st = `<span class="ac-st ac-st--prox">Na tolerância${s.ateTol ? ' até ' + _acompDataCurta(s.ateTol) : ''}</span>`;
     else if (s === sit.prox) st = '<span class="ac-st ac-st--prox">Próximo</span>';
     else st = '<span class="ac-st ac-st--falta">Falta</span>';
     return `<tr><td>${escapeHtml(s.def.n)}${s.def.sub ? `<span class="ac-sub">${escapeHtml(s.def.sub)}</span>` : ''}</td>
-      <td>${ig}${janela ? `<span class="ac-sub">${janela}</span>` : ''}</td><td>${st}</td></tr>`;
+      <td>${ig}${janela ? `<span class="ac-sub">${janela}${s.ateTol ? ' · tolerância até ' + _acompDataCurta(s.ateTol) : ''}</span>` : ''}</td><td>${st}</td></tr>`;
   }).join('');
   const extras = sit.extras.length
     ? `<div class="ac-nota">Extras usados (${sit.extras.length} de ${sit.plano.extras}): ${sit.extras.map(x => formatDateBR(x.v.data_exame)).join(', ')}${sit.extras.length > sit.plano.extras ? ' — acima do incluído, cobrar à parte' : ''}.</div>`

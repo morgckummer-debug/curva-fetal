@@ -1819,6 +1819,7 @@ patients/gestacoes/exams.
   20.251.640/0001-81. Telefone, e-mail, nascimento e obstetra vão só para o papel, não são
   gravados. **Mudou o contrato ou os preços (`_ADESAO_PRECO`, Anexos)? Mude nos dois lugares**
   (o .docx e esta função) — não há geração compartilhada. Texto ainda sem revisão de advogado.
+- **Idade gestacional (019):** DUM, 1º ultrassom (data + IG) ou IG de hoje; US/hoje gravam `ig_base_*` (tipo US), que o `calcIgDays` já prefere à DUM. Em gestação existente só preenche se não houver datação.
 - **Risco conhecido:** se a médica estiver com o app aberto e a paciente já estiver carregada
   na memória dela, um saveDB pode devolver `acompanhamento` a nulo (a RPC mexeu no servidor,
   a memória dela não sabe). Paciente nova não tem esse problema.

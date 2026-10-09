@@ -601,6 +601,7 @@ header::after{display:none;}
 .rc-modal .rc-form .rc-full{grid-column:1/-1;}
 .rc-modal-acoes{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
 .rc-btn-claro{padding:9px 16px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.rc-ig-par{display:flex;align-items:center;gap:8px;font-size:13.5px;}.rc-ig-par input{width:90px;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;box-sizing:border-box;}
 .rc-form input[type=date],.rc-form input[type=email]{width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;background:#fff;color:var(--text);box-sizing:border-box;}
 .rv-tab-wrap{overflow-x:auto;}
 .rv-tab{border-collapse:collapse;width:100%;font-size:12.5px;}
@@ -1245,7 +1246,11 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <div class="rc-full"><label for="rc-ad-obst">Médico(a) obstetra assistente (se souber)</label><input type="text" id="rc-ad-obst" autocomplete="off"></div>
       <div><label for="rc-ad-mod">Modalidade</label><select id="rc-ad-mod"><option value="">Selecione</option><option value="essencial">Essencial — R$ 3.400</option><option value="premium">Premium — R$ 4.200</option><option value="gemelar_essencial">Gemelar Essencial — R$ 6.800</option><option value="gemelar_dc">Gemelar Premium — R$ 8.400</option></select></div>
       <div><label for="rc-ad-parc">Parcelas no cartão</label><select id="rc-ad-parc"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option selected>6</option></select></div>
-      <div class="rc-full"><label for="rc-ad-dum">DUM (opcional — com ela as datas dos exames já aparecem)</label><input type="date" id="rc-ad-dum"></div>
+      <div class="rc-full"><label for="rc-ad-igmodo">Idade gestacional (com ela as datas dos exames já aparecem)</label>
+        <select id="rc-ad-igmodo" onchange="_rcIgModo()"><option value="">Não informar agora</option><option value="dum">Pela DUM</option><option value="us">Pelo 1º ultrassom (data e IG do exame)</option><option value="hoje">IG de hoje (já calculada)</option></select></div>
+      <div id="rc-ad-ig-dum" class="rc-full rc-ig" style="display:none"><label for="rc-ad-dum">Data da última menstruação (DUM)</label><input type="date" id="rc-ad-dum"></div>
+      <div id="rc-ad-ig-us" class="rc-full rc-ig" style="display:none"><label for="rc-ad-usdata">Data do ultrassom</label><input type="date" id="rc-ad-usdata"></div>
+      <div id="rc-ad-ig-ig" class="rc-full rc-ig" style="display:none"><label id="rc-ad-iglab">IG</label><div class="rc-ig-par"><input type="number" id="rc-ad-igsem" min="0" max="42" placeholder="semanas"> <span>semanas e</span> <input type="number" id="rc-ad-igdias" min="0" max="6" placeholder="dias"> <span>dias</span></div></div>
     </div>
     <div class="rc-modal-acoes">
       <button type="button" class="rc-btn-dark" id="rc-ad-ok" onclick="recepcaoAdesaoConfirmar()">Cadastrar e abrir contrato</button>
@@ -2997,14 +3002,15 @@ function _rcMascaraCpf(el) {
 function recepcaoAdesaoAbrir(r) {
   _rcAdesaoGid = r ? r.gestacao_id : null;
   const set = (id, v) => { document.getElementById(id).value = v || ''; };
-  let dum = '';
+  let modo = '', dum = '', igSem = '', igDias = '';
   if (r) {
-    dum = r.dum || '';
-    if (!dum) { const ig = calcIgDays(r, _hojeISO()); if (ig != null) dum = _rvAddDias(_hojeISO(), -ig); }
+    const ig = calcIgDays(r, _hojeISO());
+    if (ig != null && ig >= 0) { modo = 'hoje'; igSem = Math.floor(ig / 7); igDias = ig % 7; }
   }
   set('rc-ad-nome', r && r.nome); set('rc-ad-cpf', r && r.cpf); set('rc-ad-nasc', '');
   set('rc-ad-tel', ''); set('rc-ad-email', ''); set('rc-ad-obst', '');
-  set('rc-ad-mod', r && r.acompanhamento); set('rc-ad-dum', dum); set('rc-ad-parc', '6');
+  set('rc-ad-mod', r && r.acompanhamento); set('rc-ad-dum', dum); set('rc-ad-usdata', ''); set('rc-ad-igsem', igSem); set('rc-ad-igdias', igDias);
+  set('rc-ad-igmodo', modo); _rcIgModo(); set('rc-ad-parc', '6');
   document.getElementById('rc-ad-msg').textContent = '';
   document.getElementById('rc-ad-ok').textContent = r ? 'Abrir contrato' : 'Cadastrar e abrir contrato';
   document.getElementById('rc-ad-titulo').textContent = r ? 'Contrato de ' + r.nome : 'Nova adesão';
@@ -3013,6 +3019,36 @@ function recepcaoAdesaoAbrir(r) {
   document.getElementById('rc-ad-mod').disabled = !!r;
   document.getElementById('rc-adesao').style.display = 'flex';
   document.getElementById(r ? 'rc-ad-tel' : 'rc-ad-nome').focus();
+}
+function _rcIgModo() {
+  const m = document.getElementById('rc-ad-igmodo').value;
+  const show = (id, on) => { document.getElementById(id).style.display = on ? '' : 'none'; };
+  show('rc-ad-ig-dum', m === 'dum'); show('rc-ad-ig-us', m === 'us'); show('rc-ad-ig-ig', m === 'us' || m === 'hoje');
+  document.getElementById('rc-ad-iglab').textContent = m === 'us' ? 'IG no dia do ultrassom' : 'IG de hoje';
+}
+// Lê o modo de IG do formulário e devolve { dum, igBaseData, igBaseDias, igHoje (dias) , dpp } ou { erro }.
+function _rcLerIg(v) {
+  const m = v('rc-ad-igmodo'), hoje = _hojeISO();
+  const sem = parseInt(v('rc-ad-igsem'), 10), dias = parseInt(v('rc-ad-igdias'), 10) || 0;
+  const igDias = sem * 7 + dias;
+  if (!m) return {};
+  if (m === 'dum') {
+    const dum = v('rc-ad-dum');
+    if (!dum) return { erro: 'Informe a DUM ou escolha outra forma.' };
+    const ig = Math.round((new Date(hoje + 'T12:00:00Z') - new Date(dum + 'T12:00:00Z')) / 864e5);
+    if (ig < 0 || ig > 300) return { erro: 'Essa DUM não faz sentido (data futura ou há mais de 300 dias).' };
+    return { dum, igHoje: ig, dpp: _rvAddDias(dum, 280) };
+  }
+  if (isNaN(sem) || sem < 0 || sem > 42 || dias < 0 || dias > 6 || igDias < 1) return { erro: 'Informe a IG em semanas e dias (dias de 0 a 6).' };
+  let base = hoje;
+  if (m === 'us') {
+    base = v('rc-ad-usdata');
+    if (!base) return { erro: 'Informe a data do ultrassom.' };
+    if (base > hoje) return { erro: 'A data do ultrassom está no futuro.' };
+  }
+  const igHoje = igDias + Math.round((new Date(hoje + 'T12:00:00Z') - new Date(base + 'T12:00:00Z')) / 864e5);
+  if (igHoje > 300) return { erro: 'Pelos dados informados a IG de hoje passaria de 42 semanas. Confira a data e a IG.' };
+  return { igBaseData: base, igBaseDias: igDias, igHoje, dpp: _rvAddDias(base, 280 - igDias) };
 }
 function recepcaoAdesaoFechar() { document.getElementById('rc-adesao').style.display = 'none'; }
 
@@ -3024,8 +3060,11 @@ async function recepcaoAdesaoConfirmar() {
   const d = {
     nome: v('rc-ad-nome'), cpf: v('rc-ad-cpf'), nasc: v('rc-ad-nasc'), tel: v('rc-ad-tel'),
     email: v('rc-ad-email'), obst: v('rc-ad-obst'), mod: document.getElementById('rc-ad-mod').value,
-    dum: v('rc-ad-dum'), parcelas: parseInt(v('rc-ad-parc'), 10) || 1,
+    parcelas: parseInt(v('rc-ad-parc'), 10) || 1,
   };
+  const ig = _rcLerIg(v);
+  if (ig.erro) return erro(ig.erro);
+  Object.assign(d, ig);
   if (!d.nome) return erro('Informe o nome da gestante.');
   if (d.cpf.replace(/\D/g, '').length !== 11) return erro('O CPF precisa ter 11 dígitos.');
   if (!_ADESAO_PRECO[d.mod]) return erro('Escolha a modalidade.');
@@ -3037,6 +3076,7 @@ async function recepcaoAdesaoConfirmar() {
     if (!_rcAdesaoGid) {
       const { error } = await supabaseClient.rpc('recepcao_nova_adesao', {
         p_nome: d.nome, p_cpf: d.cpf, p_modalidade: d.mod, p_dum: d.dum || null,
+        p_ig_base_data: d.igBaseData || null, p_ig_base_dias: d.igBaseDias || null,
       });
       if (error) throw error;
     }
@@ -3061,9 +3101,8 @@ function _contratoHtml(d) {
   const dataExt = `${parseInt(ad, 10)} de ${_ADESAO_MESES[parseInt(am, 10) - 1]} de ${ay}`;
   const fmt = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   let igTxt = '____ semanas e ____ dias', dppTxt = '___/___/______';
-  if (d.dum) {
-    const ig = Math.floor((new Date(hoje + 'T12:00:00Z') - new Date(d.dum + 'T12:00:00Z')) / 864e5);
-    if (ig >= 0 && ig < 330) { igTxt = `${Math.floor(ig / 7)} semanas e ${ig % 7} dias`; dppTxt = _contratoDataBR(_rvAddDias(d.dum, 280)); }
+  if (d.igHoje != null && d.dpp) {
+    igTxt = `${Math.floor(d.igHoje / 7)} semanas e ${d.igHoje % 7} dias`; dppTxt = _contratoDataBR(d.dpp);
   }
   const campo = (v, ph) => v ? `<b>${E(v)}</b>` : ph;
   const mod = k => `( ${d.mod === k ? '<b>X</b>' : '&nbsp;'} ) ${_ADESAO_PRECO[k].nome}`;

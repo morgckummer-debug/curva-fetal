@@ -1244,13 +1244,14 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <div><label for="rc-ad-tel">Telefone</label><input type="text" id="rc-ad-tel" autocomplete="off"></div>
       <div><label for="rc-ad-email">E-mail</label><input type="email" id="rc-ad-email" autocomplete="off"></div>
       <div class="rc-full"><label for="rc-ad-obst">Médico(a) obstetra assistente (se souber)</label><input type="text" id="rc-ad-obst" autocomplete="off"></div>
-      <div><label for="rc-ad-mod">Modalidade</label><select id="rc-ad-mod"><option value="">Selecione</option><option value="essencial">Essencial — R$ 3.400</option><option value="premium">Premium — R$ 4.200</option><option value="gemelar_essencial">Gemelar Essencial — R$ 6.800</option><option value="gemelar_dc">Gemelar Premium — R$ 8.400</option></select></div>
+      <div><label for="rc-ad-mod">Modalidade</label><select id="rc-ad-mod" onchange="_rcValorSugerir(true)"><option value="">Selecione</option><option value="essencial">Essencial — R$ 3.400</option><option value="premium">Premium — R$ 4.200</option><option value="gemelar_essencial">Gemelar Essencial — R$ 6.800</option><option value="gemelar_dc">Gemelar Premium — R$ 8.400</option></select></div>
       <div><label for="rc-ad-parc">Parcelas no cartão</label><select id="rc-ad-parc"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option selected>6</option></select></div>
+      <div class="rc-full" id="rc-ad-valor-w"><label for="rc-ad-valor">Valor do acompanhamento (R$)</label><input type="number" id="rc-ad-valor" min="1" step="1" oninput="_rcValorEditado()"><div id="rc-ad-valor-dica" style="font-size:12px;color:var(--text-muted);margin-top:3px"></div></div>
       <div class="rc-full"><label for="rc-ad-igmodo">Idade gestacional (com ela as datas dos exames já aparecem)</label>
-        <select id="rc-ad-igmodo" onchange="_rcIgModo()"><option value="">Não informar agora</option><option value="dum">Pela DUM</option><option value="us">Pelo 1º ultrassom (data e IG do exame)</option><option value="hoje">IG de hoje (já calculada)</option></select></div>
-      <div id="rc-ad-ig-dum" class="rc-full rc-ig" style="display:none"><label for="rc-ad-dum">Data da última menstruação (DUM)</label><input type="date" id="rc-ad-dum"></div>
-      <div id="rc-ad-ig-us" class="rc-full rc-ig" style="display:none"><label for="rc-ad-usdata">Data do ultrassom</label><input type="date" id="rc-ad-usdata"></div>
-      <div id="rc-ad-ig-ig" class="rc-full rc-ig" style="display:none"><label id="rc-ad-iglab">IG</label><div class="rc-ig-par"><input type="number" id="rc-ad-igsem" min="0" max="42" placeholder="semanas"> <span>semanas e</span> <input type="number" id="rc-ad-igdias" min="0" max="6" placeholder="dias"> <span>dias</span></div></div>
+        <select id="rc-ad-igmodo" onchange="_rcIgModo();_rcValorSugerir(true)"><option value="">Não informar agora</option><option value="dum">Pela DUM</option><option value="us">Pelo 1º ultrassom (data e IG do exame)</option><option value="hoje">IG de hoje (já calculada)</option></select></div>
+      <div id="rc-ad-ig-dum" class="rc-full rc-ig" style="display:none"><label for="rc-ad-dum">Data da última menstruação (DUM)</label><input type="date" id="rc-ad-dum" oninput="_rcValorSugerir(false)"></div>
+      <div id="rc-ad-ig-us" class="rc-full rc-ig" style="display:none"><label for="rc-ad-usdata">Data do ultrassom</label><input type="date" id="rc-ad-usdata" oninput="_rcValorSugerir(false)"></div>
+      <div id="rc-ad-ig-ig" class="rc-full rc-ig" style="display:none"><label id="rc-ad-iglab">IG</label><div class="rc-ig-par"><input type="number" id="rc-ad-igsem" oninput="_rcValorSugerir(false)" min="0" max="42" placeholder="semanas"> <span>semanas e</span> <input type="number" id="rc-ad-igdias" oninput="_rcValorSugerir(false)" min="0" max="6" placeholder="dias"> <span>dias</span></div></div>
     </div>
     <div class="rc-modal-acoes">
       <button type="button" class="rc-btn-dark" id="rc-ad-ok" onclick="recepcaoAdesaoConfirmar()">Cadastrar e abrir contrato</button>
@@ -3010,7 +3011,7 @@ function recepcaoAdesaoAbrir(r) {
   set('rc-ad-nome', r && r.nome); set('rc-ad-cpf', r && r.cpf); set('rc-ad-nasc', '');
   set('rc-ad-tel', ''); set('rc-ad-email', ''); set('rc-ad-obst', '');
   set('rc-ad-mod', r && r.acompanhamento); set('rc-ad-dum', dum); set('rc-ad-usdata', ''); set('rc-ad-igsem', igSem); set('rc-ad-igdias', igDias);
-  set('rc-ad-igmodo', modo); _rcIgModo(); set('rc-ad-parc', '6');
+  set('rc-ad-igmodo', modo); _rcIgModo(); set('rc-ad-parc', '6'); _rcValorSugerir(true);
   document.getElementById('rc-ad-msg').textContent = '';
   document.getElementById('rc-ad-ok').textContent = r ? 'Abrir contrato' : 'Cadastrar e abrir contrato';
   document.getElementById('rc-ad-titulo').textContent = r ? 'Contrato de ' + r.nome : 'Nova adesão';
@@ -3019,6 +3020,58 @@ function recepcaoAdesaoAbrir(r) {
   document.getElementById('rc-ad-mod').disabled = !!r;
   document.getElementById('rc-adesao').style.display = 'flex';
   document.getElementById(r ? 'rc-ad-tel' : 'rc-ad-nome').focus();
+}
+// Entrada com o calendário já andado: o valor é proporcional aos exames cujas janelas ainda não
+// passaram, pesados pelo valor avulso (Anexo II). É sugestão — a recepção pode ajustar o valor combinado.
+const _ADESAO_PESO = { m1: 500, colo: 250, m2: 500, d28: 295, d32: 295, d36: 295, m3: 500, d38: 295 };
+let _rcValorManual = false;
+function _adesaoProporcao(mod, igHoje) {
+  const plano = ACOMP_PLANOS[mod];
+  if (!plano || igHoje == null) return null;
+  let tot = 0, rest = 0; const faltam = [], perdidos = [];
+  plano.ex.forEach(k => {
+    const def = ACOMP_EX[k], w = _ADESAO_PESO[k];
+    tot += w;
+    if (igHoje <= def.fim + (def.tol || 0)) { rest += w; faltam.push(k); } else perdidos.push(k);
+  });
+  const total = _ADESAO_PRECO[mod].total;
+  return { total, sugerido: perdidos.length ? Math.min(total, Math.round(total * rest / tot / 10) * 10) : total, faltam, perdidos };
+}
+function _adesaoNomeEx(k) {
+  const d = ACOMP_EX[k];
+  const sem = Math.floor(d.ini / 7) + (d.fim - d.ini >= 7 ? '–' + Math.floor(d.fim / 7) : '');
+  return d.n + ' (' + sem + ' sem.)';
+}
+function _rcValorEditado() { _rcValorManual = true; }
+function _rcValorSugerir(forcar) {
+  const v = id => document.getElementById(id).value.trim();
+  const mod = v('rc-ad-mod'), inp = document.getElementById('rc-ad-valor'), dica = document.getElementById('rc-ad-valor-dica');
+  if (forcar) _rcValorManual = false;
+  if (!_ADESAO_PRECO[mod]) { inp.value = ''; dica.textContent = ''; return; }
+  const ig = _rcLerIg(v);
+  const pr = _adesaoProporcao(mod, ig.igHoje);
+  const total = _ADESAO_PRECO[mod].total;
+  if (!_rcValorManual) inp.value = pr ? pr.sugerido : total;
+  dica.textContent = pr && pr.perdidos.length
+    ? `Valor cheio R$ ${total.toLocaleString('pt-BR')}. Já passaram: ${pr.perdidos.map(_adesaoNomeEx).join('; ')}. Sugestão proporcional aos ${pr.faltam.length} exames que faltam; ajuste se combinou outro valor.`
+    : `Valor cheio da modalidade (nenhuma janela passou).`;
+}
+function _extensoReais(n) {
+  const U = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const D = ['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const C = ['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  const ate999 = x => {
+    if (x === 100) return 'cem';
+    const c = Math.floor(x / 100), r = x % 100, p = [];
+    if (c) p.push(C[c]);
+    if (r) p.push(r < 20 ? U[r] : D[Math.floor(r / 10)] + (r % 10 ? ' e ' + U[r % 10] : ''));
+    return p.join(' e ');
+  };
+  const mil = Math.floor(n / 1000), r = n % 1000;
+  let t = '';
+  if (mil) t = (mil === 1 ? 'mil' : ate999(mil) + ' mil');
+  if (r) t += (t ? (r < 100 || r % 100 === 0 ? ' e ' : ' ') : '') + ate999(r);
+  return (t || 'zero') + (n === 1 ? ' real' : ' reais');
 }
 function _rcIgModo() {
   const m = document.getElementById('rc-ad-igmodo').value;
@@ -3065,6 +3118,8 @@ async function recepcaoAdesaoConfirmar() {
   const ig = _rcLerIg(v);
   if (ig.erro) return erro(ig.erro);
   Object.assign(d, ig);
+  d.valor = parseInt(v('rc-ad-valor'), 10);
+  if (!(d.valor > 0)) return erro('Informe o valor do acompanhamento.');
   if (!d.nome) return erro('Informe o nome da gestante.');
   if (d.cpf.replace(/\D/g, '').length !== 11) return erro('O CPF precisa ter 11 dígitos.');
   if (!_ADESAO_PRECO[d.mod]) return erro('Escolha a modalidade.');
@@ -3095,7 +3150,11 @@ function _contratoDataBR(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(
 
 function _contratoHtml(d) {
   const E = escapeHtml;
-  const p = _ADESAO_PRECO[d.mod];
+  const p0 = _ADESAO_PRECO[d.mod];
+  const valor = d.valor > 0 ? d.valor : p0.total;
+  const p = { ...p0, total: valor, extenso: _extensoReais(valor) };
+  const pr = _adesaoProporcao(d.mod, d.igHoje);
+  const parcial = pr && pr.perdidos.length && valor !== p0.total;
   const hoje = _hojeISO();
   const [ay, am, ad] = hoje.split('-');
   const dataExt = `${parseInt(ad, 10)} de ${_ADESAO_MESES[parseInt(am, 10) - 1]} de ${ay}`;
@@ -3121,6 +3180,7 @@ function _contratoHtml(d) {
   const linhasAx = L.map(([j, ex, m]) => `<tr><td>${j}</td><td>${ex}</td>${m.map((x, i) => `<td${colOk(ks[i])}>${x ? '✓' : '—'}</td>`).join('')}</tr>`).join('')
     + `<tr><td>Até o parto</td><td>Ultrassons extras</td><td${colOk('essencial')}>1</td><td${colOk('premium')}>2</td><td${colOk('gemelar_essencial')}>1</td><td${colOk('gemelar_dc')}>2</td></tr>`
     + `<tr><td>Até o parto</td><td>Canal direto pelo Telegram</td><td${colOk('essencial')}>—</td><td${colOk('premium')}>✓</td><td${colOk('gemelar_essencial')}>—</td><td${colOk('gemelar_dc')}>✓</td></tr>`
+    + (parcial ? `<tr><td>Valor desta adesão</td><td>Proporcional aos exames restantes (${pr.faltam.length} de ${pr.faltam.length + pr.perdidos.length})</td><td colspan="4" class="sel">R$ ${fmt(valor)} (${d.parcelas}x de R$ ${fmt(valor / d.parcelas)})</td></tr>` : '')
     + `<tr><td>Valor</td><td>Valor da modalidade (cartão de crédito, em até 6x)</td><td${colOk('essencial')}>R$ 3.400,00</td><td${colOk('premium')}>R$ 4.200,00 (6x de R$ 700,00)</td><td${colOk('gemelar_essencial')}>R$ 6.800,00 (6x de R$ 1.133,33)</td><td${colOk('gemelar_dc')}>R$ 8.400,00 (6x de R$ 1.400,00)</td></tr>`;
   const avulsos = [['Morfológico de 1º trimestre','500,00'],['Obstétrico com medida do colo','250,00'],['Morfológico de 2º trimestre + colo + Doppler','500,00'],['Doppler + perfil biofísico fetal','295,00'],['Morfológico de 3º trimestre + Doppler','500,00'],['Obstétrico com Doppler','270,00'],['Ultrassom extra (obstétrico simples)','230,00']]
     .map(([e, v]) => `<tr><td>${e}</td><td>R$ ${v}</td></tr>`).join('');
@@ -3153,6 +3213,7 @@ th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
 <p>Gestação de alto risco ou com necessidade de vigilância mais frequente é atendida na modalidade Premium. Exames além dos previstos na modalidade, quando indicados clinicamente, são cobrados pelo valor avulso vigente.</p>
 <h2>3) Valor e pagamento</h2>
 <p>Valor da modalidade: <b>R$ ${fmt(p.total)}</b> (${p.extenso}), pago em <b>${d.parcelas}</b> parcela(s) de <b>R$ ${fmt(p.total / d.parcelas)}</b> no cartão de crédito, em até 6 (seis) vezes. Não são aceitos boleto ou PIX parcelado.</p>
+${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesão, as janelas dos exames a seguir já haviam passado e eles não fazem parte deste acompanhamento, não sendo realizados nem creditados: ${pr.perdidos.map(_adesaoNomeEx).join('; ')}. O valor acima (modalidade cheia: R$ ${fmt(p0.total)}) é o proposto para os ${pr.faltam.length} exames restantes e os extras da modalidade.</p>` : ''}
 <p>O valor corresponde ao acompanhamento como um todo (organização, reserva de agenda em todas as janelas, exames, relatórios e materiais descritos neste contrato), e não à soma de exames avulsos.</p>
 <h2>4) O que está incluído</h2>
 <p>Em todos os exames do acompanhamento, a gestante receberá:</p>

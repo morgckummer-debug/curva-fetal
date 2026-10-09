@@ -3037,7 +3037,7 @@ function _adesaoProporcao(mod, igHoje) {
     if (igHoje <= fim) { rest += w; faltam.push(k); } else perdidos.push(k);
   });
   const total = _ADESAO_PRECO[mod].total;
-  return { total, sugerido: perdidos.length ? Math.min(total, Math.round(total * rest / tot / 10) * 10) : total, faltam, perdidos };
+  return { total, sugerido: perdidos.length ? Math.min(total, Math.round(total * rest / tot / 100) * 100) : total, faltam, perdidos };
 }
 function _adesaoNomeEx(k) {
   const d = ACOMP_EX[k];

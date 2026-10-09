@@ -493,6 +493,30 @@ header::after{display:none;}
 .rv-item-c{font-size:12.5px;margin-top:4px;}
 .rv-item-n{font-size:12px;color:var(--text-muted);margin-top:3px;}
 .rv-vazio{font-size:13px;color:var(--text-muted);padding:10px 0;}
+.ac-head{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin-bottom:8px;font-size:13px;}
+.ac-plano{font-weight:700;color:var(--sage-deep);}
+.ac-tab{width:100%;border-collapse:collapse;font-size:13px;}
+.ac-tab th{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);text-align:left;padding:4px 8px;border-bottom:1.5px solid var(--border);}
+.ac-tab td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top;}
+.ac-sub{display:block;font-size:11.5px;color:var(--text-muted);}
+.ac-st{font-weight:700;white-space:nowrap;}
+.ac-st--feito{color:var(--sage-deep);}
+.ac-st--atrasado{color:var(--danger);}
+.ac-st--prox{color:var(--text);background:var(--peach,#f6e3d3);border-radius:6px;padding:1px 7px;}
+.ac-st--falta{color:var(--text-muted);}
+.ac-nota{font-size:12px;color:var(--text-muted);margin-top:8px;}
+#recepcao-screen{display:none;position:fixed;inset:0;z-index:9000;overflow:auto;background:var(--clay-bg,#e3dbe6);}
+.rc-wrap{max-width:860px;margin:0 auto;padding:18px 16px 40px;}
+.rc-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.rc-top h1{font-family:var(--font-serif);font-size:22px;margin:0;color:var(--text);}
+.rc-btn{padding:8px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:13px;cursor:pointer;}
+.rc-busca{width:100%;padding:11px 14px;border-radius:12px;border:1.5px solid var(--border);font:inherit;margin-bottom:12px;background:var(--surface);color:var(--text);}
+.rc-card{background:var(--surface);border-radius:14px;border:1px solid var(--border);margin-bottom:10px;}
+.rc-card summary{cursor:pointer;padding:12px 14px;display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;list-style:none;}
+.rc-card summary::-webkit-details-marker{display:none;}
+.rc-nome{font-weight:700;color:var(--text);}
+.rc-res{font-size:12.5px;color:var(--text-muted);}
+.rc-corpo{padding:0 14px 14px;}
 .rv-tab-wrap{overflow-x:auto;}
 .rv-tab{border-collapse:collapse;width:100%;font-size:12.5px;}
 .rv-tab th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-light);padding:6px 10px;border-bottom:1.5px solid rgba(61,35,82,0.14);white-space:nowrap;}
@@ -1103,6 +1127,21 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 
 <!-- Tela de login — cobre a página inteira enquanto não há sessão válida no Supabase.
      Fica por cima de tudo (z-index alto) e não deixa nada por baixo ser clicado. -->
+<div id="recepcao-screen">
+  <div class="rc-wrap">
+    <div class="rc-top">
+      <h1>Recepção — acompanhamentos</h1>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="rc-btn" onclick="recepcaoAtualizar()">Atualizar</button>
+        <button type="button" class="rc-btn" onclick="doLogout()">Sair</button>
+      </div>
+    </div>
+    <input type="search" id="rc-busca" class="rc-busca" placeholder="Buscar paciente pelo nome" oninput="recepcaoFiltrar()" autocomplete="off">
+    <div id="rc-lista"></div>
+    <p class="ac-nota">Esta tela mostra só o nome da paciente, a modalidade contratada e as datas dos exames realizados. As datas são calculadas pela IG; confirme a agenda na Feegow.</p>
+  </div>
+</div>
+
 <div id="login-screen" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--clay-bg,#e3dbe6);padding:20px;">
   <form id="login-form" onsubmit="event.preventDefault();doLogin();" style="width:100%;max-width:360px;padding:34px 30px;background:var(--clay-raised,#f5f0f7);border-radius:22px;box-shadow:0 12px 48px rgba(46,33,56,0.22);">
     <h1 style="font-family:var(--font-serif);font-size:22px;margin:0 0 6px;color:var(--text);">Curva Fetal</h1>
@@ -1530,6 +1569,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <!-- Exame externo — laudo de outro serviço. Marcar libera o campo de peso
            informado e a conclusão do laudo; serviço/conclusão são da visita, não
            do feto (mesma regra de colo/uterinas). -->
+      <div class="me-externo-box">
+        <label class="me-externo-check" title="Marque quando esta visita for usada como um dos ultrassons extras do acompanhamento (não ocupa nenhuma data do calendário).">
+          <input type="checkbox" id="e-extra">
+          Ultrassom extra do acompanhamento <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">livre ou urgência</span>
+        </label>
+      </div>
       <div class="me-externo-box">
         <label class="me-externo-check">
           <input type="checkbox" id="e-externo" onchange="meToggleExterno()">
@@ -2218,6 +2263,18 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 
       <div class="form-row form-row-1">
         <div class="form-group">
+          <label>Acompanhamento contratado <span class="optional-tag">opcional</span></label>
+          <select id="g-acompanhamento" style="width:100%;padding:9px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--surface);">
+            <option value="">Nenhum (exames avulsos)</option>
+            <option value="essencial">Essencial</option>
+            <option value="premium">Premium</option>
+            <option value="gemelar_dc">Gemelar dicoriônica</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row form-row-1">
+        <div class="form-group">
           <label>Observações <span class="optional-tag">opcional</span></label>
           <input type="text" id="g-observacoes" placeholder="Anotações livres sobre esta gestação">
         </div>
@@ -2315,7 +2372,7 @@ function _showResetPasswordForm() {
 async function initAuth() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) { _hideLoginScreen(); _bootstrapFromSupabase(); } else _showLoginForm();
+    if (session) { _hideLoginScreen(); _aposLogin(); } else _showLoginForm();
   } catch (err) {
     // Se não der pra confirmar a sessão, assume deslogado (mais seguro que mostrar o app à toa).
     console.error('[CurvaFetal] initAuth:', err);
@@ -2338,8 +2395,10 @@ async function initAuth() {
       // cadastro que ainda não tinha terminado de gravar — por isso só o login e o
       // carregamento inicial da página disparam a busca completa.
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
-      _bootstrapFromSupabase();
+      _aposLogin();
     } else {
+      _fecharRecepcao();
+      _recepcaoDados = [];
       _showLoginForm();
       // Limpa o que estava em memória — nunca deixar dado da sessão anterior visível.
       _memoryDB = _emptyDB();
@@ -2436,10 +2495,190 @@ async function doLogout() {
   // Sempre volta pra tela de login e limpa a memória, mesmo que o signOut remoto falhe.
   _memoryDB = _emptyDB();
   DB = loadDB();
+  _fecharRecepcao();
+  _recepcaoDados = [];
   _showLoginScreen();
 }
 
 initAuth();
+
+// ═══════════════════════════════════════════════════════════
+// ACOMPANHAMENTO GESTACIONAL — o que a paciente contratou, o que já foi feito, o que falta
+// ═══════════════════════════════════════════════════════════
+// Mesmas janelas do CalcMK (aba IG → "Períodos para exames"). Mudou lá, mude aqui.
+// O app não guarda o tipo do exame, só a IG da visita: cada visita ocupa a primeira janela
+// livre do plano que contém a IG dela. Visita marcada como "extra" não ocupa janela; visita
+// fora de qualquer janela e sem a marca aparece à parte, para a recepção conferir.
+const ACOMP_EX = {
+  m1:   { n: 'Morfológico de 1º trimestre', sub: '',                     ini: 12*7, fim: 13*7+5 },
+  colo: { n: 'Obstétrico com colo',         sub: '',                     ini: 16*7, fim: 18*7 },
+  m2:   { n: 'Morfológico de 2º trimestre', sub: 'com colo e Doppler',   ini: 22*7, fim: 24*7 },
+  d28:  { n: 'Doppler + PBF',               sub: '',                     ini: 28*7, fim: 28*7+6 },
+  d32:  { n: 'Doppler + PBF',               sub: '',                     ini: 32*7, fim: 32*7+6 },
+  d36:  { n: 'Doppler + PBF',               sub: '',                     ini: 36*7, fim: 36*7+6 },
+  m3:   { n: 'Morfológico de 3º trimestre', sub: 'com Doppler',          ini: 36*7, fim: 36*7+6 },
+  d38:  { n: 'Doppler + PBF',               sub: '',                     ini: 38*7, fim: 38*7+6 },
+};
+const ACOMP_PLANOS = {
+  essencial:  { nome: 'Essencial',            extras: 1, ex: ['m1','colo','m2','d28','d32','d36'] },
+  premium:    { nome: 'Premium',              extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
+  gemelar_dc: { nome: 'Gemelar dicoriônica',  extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
+};
+
+// Uma entrada por data (numa gemelar há um registro por feto na mesma visita).
+function _acompVisitas(exams) {
+  const por = new Map();
+  (exams || []).forEach(e => {
+    if (!e || !e.data_exame || e.excluido_em) return;
+    const v = por.get(e.data_exame) || { data_exame: e.data_exame, ig_dias_manual: null, extra: false, externo: false };
+    if (e.ig_dias_manual != null && v.ig_dias_manual == null) v.ig_dias_manual = e.ig_dias_manual;
+    if (e.extra) v.extra = true;
+    if (e.externo) v.externo = true;
+    por.set(e.data_exame, v);
+  });
+  return [...por.values()].sort((a, b) => a.data_exame.localeCompare(b.data_exame));
+}
+
+function _acompIgParaData(g, ig) {
+  if (g.ig_base_data && g.ig_base_valor) return _rvAddDias(g.ig_base_data, ig - g.ig_base_valor);
+  if (g.dum) return _rvAddDias(g.dum, ig);
+  return null;
+}
+
+function _acompSituacao(g, exams) {
+  const plano = ACOMP_PLANOS[g && g.acompanhamento];
+  if (!plano) return null;
+  const hoje = _hojeISO();
+  const igHoje = calcIgDays(g, hoje);
+  // Exame de outro serviço não é do acompanhamento: não ocupa janela nem conta como extra.
+  const visitas = _acompVisitas(exams).filter(v => !v.externo)
+    .map(v => ({ v, ig: v.ig_dias_manual ?? calcIgDays(g, v.data_exame) }));
+  const extras = visitas.filter(x => x.v.extra);
+  const normais = visitas.filter(x => !x.v.extra);
+  const usados = new Set();
+  const slots = plano.ex.map(k => {
+    const def = ACOMP_EX[k];
+    const hit = normais.find(x => !usados.has(x) && x.ig != null && x.ig >= def.ini && x.ig <= def.fim);
+    if (hit) usados.add(hit);
+    const status = hit ? 'feito' : (igHoje != null && igHoje > def.fim) ? 'atrasado' : 'falta';
+    return { def, hit, status, de: _acompIgParaData(g, def.ini), ate: _acompIgParaData(g, def.fim) };
+  });
+  // Próximo a fazer: primeiro pendente ainda dentro do prazo (ou o mais antigo atrasado, se não houver).
+  const prox = slots.find(s => s.status === 'falta') || null;
+  return {
+    plano, igHoje, slots, prox, extras,
+    fora: normais.filter(x => !usados.has(x)),
+    feitos: slots.filter(s => s.hit).length,
+  };
+}
+
+function _acompSemDia(d) { const w = Math.floor(d / 7), r = d % 7; return r ? `${w}s${r}d` : `${w}s`; }
+function _acompDataCurta(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) : ''; }
+
+function _acompResumoTxt(sit) {
+  if (!sit) return '';
+  const falta = sit.slots.length - sit.feitos;
+  const extrasUsados = sit.extras.length;
+  return `${sit.feitos} de ${sit.slots.length} exames feitos` + (falta ? ` · faltam ${falta}` : ' · calendário completo')
+    + ` · extras ${Math.min(extrasUsados, sit.plano.extras)}/${sit.plano.extras}`;
+}
+
+function _acompQuadroHtml(sit) {
+  const linhas = sit.slots.map(s => {
+    const janela = s.de && s.ate ? `${_acompDataCurta(s.de)} a ${_acompDataCurta(s.ate)}` : '';
+    const ig = `${_acompSemDia(s.def.ini)} a ${_acompSemDia(s.def.fim)}`;
+    let st;
+    if (s.status === 'feito') st = `<span class="ac-st ac-st--feito">✓ Feito ${formatDateBR(s.hit.v.data_exame)}</span>`;
+    else if (s.status === 'atrasado') st = `<span class="ac-st ac-st--atrasado">Janela passou${s.ate ? ' em ' + _acompDataCurta(s.ate) : ''}</span>`;
+    else if (s === sit.prox) st = '<span class="ac-st ac-st--prox">Próximo</span>';
+    else st = '<span class="ac-st ac-st--falta">Falta</span>';
+    return `<tr><td>${escapeHtml(s.def.n)}${s.def.sub ? `<span class="ac-sub">${escapeHtml(s.def.sub)}</span>` : ''}</td>
+      <td>${ig}${janela ? `<span class="ac-sub">${janela}</span>` : ''}</td><td>${st}</td></tr>`;
+  }).join('');
+  const extras = sit.extras.length
+    ? `<div class="ac-nota">Extras usados (${sit.extras.length} de ${sit.plano.extras}): ${sit.extras.map(x => formatDateBR(x.v.data_exame)).join(', ')}${sit.extras.length > sit.plano.extras ? ' — acima do incluído, cobrar à parte' : ''}.</div>`
+    : `<div class="ac-nota">Extras usados: 0 de ${sit.plano.extras}.</div>`;
+  const fora = sit.fora.length
+    ? `<div class="ac-nota">Exames fora das datas do calendário e sem marca de extra: ${sit.fora.map(x => formatDateBR(x.v.data_exame) + (x.ig != null ? ' (' + _acompSemDia(x.ig) + ')' : '')).join(', ')}.</div>`
+    : '';
+  return `<div class="ac-head"><span class="ac-plano">${escapeHtml(sit.plano.nome)}</span>
+      <span>${sit.igHoje != null ? 'IG hoje: ' + _acompSemDia(sit.igHoje) : 'IG hoje: sem data de referência'}</span>
+      <span>${escapeHtml(_acompResumoTxt(sit))}</span></div>
+    <table class="ac-tab"><thead><tr><th>Exame</th><th>Semanas</th><th>Situação</th></tr></thead><tbody>${linhas}</tbody></table>${extras}${fora}`;
+}
+
+// Bloco da aba Revisão (médica): vazio se a gestação não tem acompanhamento.
+function _acompRevisaoHtml(gestacao, allExams) {
+  const sit = _acompSituacao(gestacao, allExams);
+  if (!sit) return '';
+  return `<div class="rv-sec"><div class="rv-sec-t">Acompanhamento contratado</div>${_acompQuadroHtml(sit)}
+    <div class="ac-nota">Conta sozinho pelas datas e IG dos exames salvos. Para um ultrassom extra, marque "Ultrassom extra do acompanhamento" no exame.</div></div>`;
+}
+
+// ── Recepção: login restrito (só nome, modalidade e datas) ───────────────
+// A secretária é um usuário à parte (tabela recepcao_acessos, migração 015). Pelas policies
+// ela não lê patients/gestacoes/exams; o único caminho é a função painel_recepcao().
+let _recepcaoDados = [];
+
+async function _aposLogin() {
+  let recepcao = false;
+  try {
+    const { data, error } = await supabaseClient.rpc('eh_recepcao');
+    recepcao = !error && data === true;
+  } catch (err) { console.error('[CurvaFetal] eh_recepcao:', err); }
+  if (recepcao) { _abrirRecepcao(); return; }
+  _fecharRecepcao();
+  _bootstrapFromSupabase();
+}
+
+function _fecharRecepcao() {
+  const el = document.getElementById('recepcao-screen');
+  if (el) el.style.display = 'none';
+}
+
+async function _abrirRecepcao() {
+  const el = document.getElementById('recepcao-screen');
+  if (!el) return;
+  el.style.display = 'block';
+  await recepcaoAtualizar();
+}
+
+async function recepcaoAtualizar() {
+  const lista = document.getElementById('rc-lista');
+  if (lista) lista.innerHTML = '<p class="rv-vazio">Carregando…</p>';
+  try {
+    const { data, error } = await supabaseClient.rpc('painel_recepcao');
+    if (error) throw error;
+    _recepcaoDados = Array.isArray(data) ? data : [];
+    recepcaoFiltrar();
+  } catch (err) {
+    console.error('[CurvaFetal] painel_recepcao:', err);
+    if (lista) lista.innerHTML = '<p class="rv-vazio">Não consegui carregar a lista: ' + escapeHtml(err.message || String(err)) + '</p>';
+  }
+}
+
+function _rcNorm(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+
+function recepcaoFiltrar() {
+  const lista = document.getElementById('rc-lista');
+  if (!lista) return;
+  const q = _rcNorm((document.getElementById('rc-busca') || {}).value);
+  const itens = _recepcaoDados.filter(r => !q || _rcNorm(r.nome).includes(q));
+  if (!itens.length) {
+    lista.innerHTML = '<p class="rv-vazio">' + (_recepcaoDados.length ? 'Nenhuma paciente com esse nome.' : 'Nenhuma paciente com acompanhamento cadastrado.') + '</p>';
+    return;
+  }
+  lista.innerHTML = itens.map(r => {
+    const sit = _acompSituacao(r, r.exames || []);
+    if (!sit) return '';
+    const prox = sit.prox ? `Próximo: ${escapeHtml(sit.prox.def.n)}${sit.prox.de ? ' (' + _acompDataCurta(sit.prox.de) + ' a ' + _acompDataCurta(sit.prox.ate) + ')' : ''}` : '';
+    const atras = sit.slots.some(s => s.status === 'atrasado') ? ' · <span style="color:var(--danger);font-weight:700;">há exame com janela vencida</span>' : '';
+    return `<details class="rc-card"><summary><span class="rc-nome">${escapeHtml(r.nome)}</span>
+      <span class="rc-res">${escapeHtml(sit.plano.nome)}${sit.igHoje != null ? ' · IG ' + _acompSemDia(sit.igHoje) : ''} · ${escapeHtml(_acompResumoTxt(sit))}</span>
+      <span class="rc-res">${prox}${atras}</span></summary>
+      <div class="rc-corpo">${_acompQuadroHtml(sit)}</div></details>`;
+  }).join('');
+}
 
 // ── Classe CSS para coloração de percentil ──────────────────
 function pctClass(p, prefix) {
@@ -4186,8 +4425,8 @@ function _proximoIdLocal(linhas) {
 // que o resto do app espera — se um dia uma coluna nova entrar no banco, não muda
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
-const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,progesterona_vaginal_em_uso,cerclagem_realizada,cerclagem_ig_semanas,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,excluido_em';
-const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,risco_parto_prematuro,risco_diabetes_gestacional,efw,externo,servico_externo,impressao_externa,feto,excluido_em';
+const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,progesterona_vaginal_em_uso,cerclagem_realizada,cerclagem_ig_semanas,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,acompanhamento,excluido_em';
+const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,risco_parto_prematuro,risco_diabetes_gestacional,efw,externo,servico_externo,impressao_externa,extra,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
 // memória. Chamado uma vez ao entrar (ver onAuthStateChange, mais abaixo).
@@ -8065,7 +8304,7 @@ function renderRevisao(gestacao, allExams) {
     ${chips.length ? '<div>' + chips.map(c => `<span class="rv-chip">${escapeHtml(c)}</span>`).join('') + '</div>' : ''}${antecedentes}`;
 
   if (!allExams.length) {
-    el.innerHTML = `<div class="rv-sec"><div class="rv-sec-t">Situação</div>${hojeHtml}</div>
+    el.innerHTML = `<div class="rv-sec"><div class="rv-sec-t">Situação</div>${hojeHtml}</div>${_acompRevisaoHtml(gestacao, allExams)}
       <p class="rv-vazio">Nenhum exame registrado para esta gestação. Use "+ Exame externo" para lançar laudos que a paciente trouxer.</p>`;
     return;
   }
@@ -8077,7 +8316,7 @@ function renderRevisao(gestacao, allExams) {
     : '<p class="rv-vazio">O app não identificou pontos de atenção nos exames registrados. Isso vale só para o que foi cadastrado — não substitui reler os laudos.</p>';
 
   el.innerHTML = `
-    <div class="rv-sec"><div class="rv-sec-t">Situação</div>${hojeHtml}</div>
+    <div class="rv-sec"><div class="rv-sec-t">Situação</div>${hojeHtml}</div>${_acompRevisaoHtml(gestacao, allExams)}
     <div class="rv-sec"><div class="rv-sec-t">O que merece atenção</div>${atencaoHtml}${disc ? `<div style="margin-top:12px;">${disc}</div>` : ''}</div>
     <div class="rv-sec"><div class="rv-sec-t">Todos os exames — do mais recente ao mais antigo</div>${_rvTimelineHtml(gestacao, allExams)}
       <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Valores em laranja/vermelho: fora da faixa (percentil &lt; 10 ou &gt; 90, colo &lt; 25 mm, BCF fora de ${_BCF_ALERTA_MIN}–${_BCF_ALERTA_MAX}). Curvas completas na aba Gráficos.</div></div>`;
@@ -8143,6 +8382,7 @@ function _openGestacaoModal(gid, extraHtml) {
   setVal('g-abortos',      g && g.abortos != null ? g.abortos : '');
   setVal('g-antecedentes', g ? (g.antecedentes_obstetricos || '') : '');
   setVal('g-observacoes',  g ? (g.observacoes || '') : '');
+  setVal('g-acompanhamento', g ? (g.acompanhamento || '') : '');
   const pptEl = document.getElementById('g-ppt-previo');
   if (pptEl) pptEl.checked = !!(g && g.ppt_espontaneo_previo);
   const progEl = document.getElementById('g-progesterona-uso');
@@ -8416,6 +8656,7 @@ function saveGestacao() {
     ig_base_tipo:  igTipo,
     tipo_gestacao: tipoGestacao,
     corionicidade,
+    acompanhamento: getVal('g-acompanhamento') || null,
   };
 
   if (_currentGestacaoEditingId) {
@@ -8549,6 +8790,7 @@ function _meLoadExterno(exams) {
   const first = k => { const f = exams.find(e => e[k]); return f ? f[k] : ''; };
   const chk = document.getElementById('e-externo');
   if (chk) chk.checked = exams.some(e => e.externo);
+  const ex = document.getElementById('e-extra'); if (ex) ex.checked = exams.some(e => e.extra);
   const sv = document.getElementById('e-servico-externo'); if (sv) sv.value = first('servico_externo');
   const im = document.getElementById('e-impressao-externa'); if (im) im.value = first('impressao_externa');
   _meApplyExternoUI();
@@ -9446,6 +9688,7 @@ function _meBuildExamData(feto, draft, data, igManual) {
     // o peso volta a ser calculado por Hadlock — nunca sobra um peso digitado
     // "escondido" num exame da casa.
     externo: _meExterno(),
+    extra: !!(document.getElementById('e-extra') && document.getElementById('e-extra').checked),
     efw: _meExterno() ? num('e-efw') : null,
     servico_externo: _meExterno() ? sharedStr('e-servico-externo') : null,
     impressao_externa: _meExterno() ? sharedStr('e-impressao-externa') : null,
@@ -13500,6 +13743,7 @@ function validateImportedDB(raw) {
       ig_base_data:  DATE_RE.test(g.ig_base_data) ? g.ig_base_data : null,
       ig_base_valor: numOrNull(g.ig_base_valor),
       ig_base_tipo:  (g.ig_base_tipo === 'DUM' || g.ig_base_tipo === 'US') ? g.ig_base_tipo : null,
+      acompanhamento: ['essencial','premium','gemelar_dc'].includes(g.acompanhamento) ? g.acompanhamento : null,
     });
   });
 
@@ -13530,6 +13774,7 @@ function validateImportedDB(raw) {
       risco_diabetes_gestacional: sanitizeString(e.risco_diabetes_gestacional, 40) || null,
       efw: numOrNull(e.efw),
       externo: !!e.externo,
+      extra: !!e.extra,
       servico_externo: sanitizeString(e.servico_externo, 80) || null,
       impressao_externa: sanitizeString(e.impressao_externa, 500) || null,
     });

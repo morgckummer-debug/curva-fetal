@@ -2268,7 +2268,8 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <option value="">Nenhum (exames avulsos)</option>
             <option value="essencial">Essencial</option>
             <option value="premium">Premium</option>
-            <option value="gemelar_dc">Gemelar (qualquer corionicidade)</option>
+            <option value="gemelar_essencial">Gemelar Essencial</option>
+            <option value="gemelar_dc">Gemelar Premium</option>
           </select>
         </div>
       </div>
@@ -2522,7 +2523,8 @@ const ACOMP_EX = {
 const ACOMP_PLANOS = {
   essencial:  { nome: 'Essencial',            extras: 1, ex: ['m1','colo','m2','d28','d32','d36'] },
   premium:    { nome: 'Premium',              extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
-  gemelar_dc: { nome: 'Gemelar',  extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
+  gemelar_essencial: { nome: 'Gemelar Essencial', extras: 1, ex: ['m1','colo','m2','d28','d32','d36'] },
+  gemelar_dc: { nome: 'Gemelar Premium',  extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
 };
 
 // Uma entrada por data (numa gemelar há um registro por feto na mesma visita).
@@ -13743,7 +13745,7 @@ function validateImportedDB(raw) {
       ig_base_data:  DATE_RE.test(g.ig_base_data) ? g.ig_base_data : null,
       ig_base_valor: numOrNull(g.ig_base_valor),
       ig_base_tipo:  (g.ig_base_tipo === 'DUM' || g.ig_base_tipo === 'US') ? g.ig_base_tipo : null,
-      acompanhamento: ['essencial','premium','gemelar_dc'].includes(g.acompanhamento) ? g.acompanhamento : null,
+      acompanhamento: ['essencial','premium','gemelar_dc','gemelar_essencial'].includes(g.acompanhamento) ? g.acompanhamento : null,
     });
   });
 

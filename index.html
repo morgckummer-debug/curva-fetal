@@ -1145,9 +1145,9 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 <div id="login-screen" style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--clay-bg,#e3dbe6);padding:20px;">
   <form id="login-form" onsubmit="event.preventDefault();doLogin();" style="width:100%;max-width:360px;padding:34px 30px;background:var(--clay-raised,#f5f0f7);border-radius:22px;box-shadow:0 12px 48px rgba(46,33,56,0.22);">
     <h1 style="font-family:var(--font-serif);font-size:22px;margin:0 0 6px;color:var(--text);">Curva Fetal</h1>
-    <p style="font-size:13px;color:var(--text-muted);margin:0 0 22px;">Acesso restrito — entre com seu e-mail e senha.</p>
-    <label for="login-email" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;">E-mail</label>
-    <input type="email" id="login-email" autocomplete="username" required style="width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:14px;font-family:inherit;font-size:14px;">
+    <p style="font-size:13px;color:var(--text-muted);margin:0 0 22px;">Acesso restrito — entre com seu usuário (ou e-mail) e senha.</p>
+    <label for="login-email" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Usuário ou e-mail</label>
+    <input type="text" id="login-email" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required style="width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:14px;font-family:inherit;font-size:14px;">
     <label for="login-senha" style="display:block;font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:4px;">Senha</label>
     <input type="password" id="login-senha" autocomplete="current-password" required style="width:100%;padding:10px 14px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:8px;font-family:inherit;font-size:14px;">
     <div id="login-error" role="alert" style="color:var(--danger);font-size:12.5px;min-height:18px;margin-bottom:10px;"></div>
@@ -2460,7 +2460,10 @@ async function doLogin() {
   const errMsg  = document.getElementById('login-error');
   const btn     = document.getElementById('login-btn');
 
-  const email = emailEl ? emailEl.value.trim() : '';
+  // Login da recepção pode ser só um nome de usuário (sem @): vira usuario@recepcao.curvafetal.app,
+  // um e-mail de fachada criado no Supabase com a conta já confirmada.
+  let email = emailEl ? emailEl.value.trim() : '';
+  if (email && !email.includes('@')) email = email.toLowerCase() + '@recepcao.curvafetal.app';
   const senha = senhaEl ? senhaEl.value : '';
   if (errMsg) { errMsg.style.color = 'var(--danger)'; errMsg.textContent = ''; }
   if (btn) { btn.disabled = true; btn.textContent = 'Entrando…'; }

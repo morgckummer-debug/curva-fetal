@@ -1798,3 +1798,27 @@ PFE adequada não nomeia nada; fica só como critério em `_critItemsDiagnostico
 uma linha por achado — "Peso fetal no percentil 82." e "Circunferência abdominal acima
 do percentil 90." — mais uma linha para cada outro critério, em vez de emendar tudo no
 rótulo. Só gestação única; usa `impressao.caAcimaP90Isolada`.
+
+## Recepção: tela premium, pagamento, nova adesão e contrato (2026-10-09)
+
+Tela `#recepcao-screen` (secretárias entram nela direto; a médica abre em "Mais opções →
+Painel da recepção"). Tudo passa por RPCs `security definer` — as secretárias não leem
+patients/gestacoes/exams.
+
+- **Migração 017** — `pagamentos_acompanhamento` (tabela à parte de `gestacoes` de propósito:
+  o saveDB da médica reescreve `gestacoes` inteira e sobrescreveria uma coluna editada pela
+  recepção). É só **conferência manual** (pago / em parte / pendente, forma, parcelas,
+  contrato assinado, quem e quando); o financeiro de verdade é a Feegow. `painel_recepcao()`
+  agora devolve CPF e pagamento e também serve à médica (sem registro em `recepcao_acessos`,
+  o dono é `auth.uid()`). Escrita: `recepcao_pagamento()`.
+- **Migração 018** — `recepcao_nova_adesao(nome, cpf, modalidade, dum)`: cria paciente (CPF
+  canônico, reaproveita se já existe) e gestação com `acompanhamento`, sem id explícito
+  (identity ≥ 1.000.000). Recusa trocar a modalidade de uma gestação que já tem outra.
+- **Contrato** (`_contratoHtml`): texto do contrato de 2026-10-09 (cópia em
+  `/mnt/project-files/contratos/`) com clínica = Kummer Serviços Médicos Ltda - ME, CNPJ
+  20.251.640/0001-81. Telefone, e-mail, nascimento e obstetra vão só para o papel, não são
+  gravados. **Mudou o contrato ou os preços (`_ADESAO_PRECO`, Anexos)? Mude nos dois lugares**
+  (o .docx e esta função) — não há geração compartilhada. Texto ainda sem revisão de advogado.
+- **Risco conhecido:** se a médica estiver com o app aberto e a paciente já estiver carregada
+  na memória dela, um saveDB pode devolver `acompanhamento` a nulo (a RPC mexeu no servidor,
+  a memória dela não sabe). Paciente nova não tem esse problema.

@@ -593,6 +593,15 @@ header::after{display:none;}
 .rc-pag-msg{font-size:12.5px;margin-top:10px;color:var(--text-muted);}
 .rc-aviso{font-size:12px;color:var(--text-muted);margin-top:18px;}
 @media(max-width:1000px){.rc-grade{grid-template-columns:1fr;}.rc-kpis{grid-template-columns:1fr 1fr;}.rc-lista{max-height:340px;}.rc-form{grid-template-columns:1fr 1fr;}.rc-main{padding:16px;}.rc-bar{padding:14px 16px;}}
+#rc-adesao{display:none;position:fixed;inset:0;z-index:9100;background:rgba(46,33,56,.55);align-items:center;justify-content:center;padding:20px;}
+.rc-modal{background:var(--surface,#fff);border-radius:20px;box-shadow:0 20px 60px rgba(46,33,56,.4);width:100%;max-width:680px;max-height:92vh;overflow:auto;padding:26px 30px 24px;}
+.rc-modal h3{font-family:var(--font-serif);font-size:23px;margin:0 0 4px;color:var(--text);}
+.rc-modal p.rc-sub{margin:0 0 16px;font-size:13px;color:var(--text-muted);}
+.rc-modal .rc-form{grid-template-columns:1fr 1fr;}
+.rc-modal .rc-form .rc-full{grid-column:1/-1;}
+.rc-modal-acoes{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
+.rc-btn-claro{padding:9px 16px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.rc-form input[type=date],.rc-form input[type=email]{width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;background:#fff;color:var(--text);box-sizing:border-box;}
 .rv-tab-wrap{overflow-x:auto;}
 .rv-tab{border-collapse:collapse;width:100%;font-size:12.5px;}
 .rv-tab th{text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-light);padding:6px 10px;border-bottom:1.5px solid rgba(61,35,82,0.14);white-space:nowrap;}
@@ -1217,11 +1226,34 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="rc-busca-row">
       <input type="search" id="rc-busca" class="rc-busca" placeholder="Buscar por nome ou CPF" oninput="recepcaoFiltrar()" autocomplete="off">
       <div class="rc-chips" id="rc-chips"></div>
+      <button type="button" class="rc-btn-dark" style="margin-left:auto;padding:12px 20px;font-size:14px;" onclick="recepcaoAdesaoAbrir(null)">+ Nova adesão</button>
     </div>
     <div class="rc-grade">
       <div class="rc-lista" id="rc-lista"></div>
       <div class="rc-det" id="rc-det"></div>
     </div>
+<div id="rc-adesao" onclick="if(event.target===this)recepcaoAdesaoFechar()">
+  <div class="rc-modal">
+    <h3 id="rc-ad-titulo">Nova adesão</h3>
+    <p class="rc-sub">Cria o cadastro no Curva e abre o contrato preenchido para imprimir ou salvar em PDF. Telefone, e-mail e nascimento entram só no contrato, não ficam gravados.</p>
+    <div class="rc-form">
+      <div class="rc-full"><label for="rc-ad-nome">Nome completo da gestante</label><input type="text" id="rc-ad-nome" autocomplete="off"></div>
+      <div><label for="rc-ad-cpf">CPF</label><input type="text" id="rc-ad-cpf" inputmode="numeric" maxlength="14" oninput="_rcMascaraCpf(this)" autocomplete="off"></div>
+      <div><label for="rc-ad-nasc">Data de nascimento</label><input type="date" id="rc-ad-nasc"></div>
+      <div><label for="rc-ad-tel">Telefone</label><input type="text" id="rc-ad-tel" autocomplete="off"></div>
+      <div><label for="rc-ad-email">E-mail</label><input type="email" id="rc-ad-email" autocomplete="off"></div>
+      <div class="rc-full"><label for="rc-ad-obst">Médico(a) obstetra assistente (se souber)</label><input type="text" id="rc-ad-obst" autocomplete="off"></div>
+      <div><label for="rc-ad-mod">Modalidade</label><select id="rc-ad-mod"><option value="">Selecione</option><option value="essencial">Essencial — R$ 3.400</option><option value="premium">Premium — R$ 4.200</option><option value="gemelar_essencial">Gemelar Essencial — R$ 6.800</option><option value="gemelar_dc">Gemelar Premium — R$ 8.400</option></select></div>
+      <div><label for="rc-ad-parc">Parcelas no cartão</label><select id="rc-ad-parc"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option selected>6</option></select></div>
+      <div class="rc-full"><label for="rc-ad-dum">DUM (opcional — com ela as datas dos exames já aparecem)</label><input type="date" id="rc-ad-dum"></div>
+    </div>
+    <div class="rc-modal-acoes">
+      <button type="button" class="rc-btn-dark" id="rc-ad-ok" onclick="recepcaoAdesaoConfirmar()">Cadastrar e abrir contrato</button>
+      <button type="button" class="rc-btn-claro" onclick="recepcaoAdesaoFechar()">Cancelar</button>
+      <span class="rc-pag-msg" id="rc-ad-msg"></span>
+    </div>
+  </div>
+</div>
     <p class="rc-aviso">As datas são calculadas pela IG de cada paciente; a agenda oficial continua na Feegow. A conferência de pagamento é um registro desta tela, não substitui o financeiro.</p>
   </div>
 </div>
@@ -2914,7 +2946,7 @@ function _rcDetalheHtml(i) {
     : 'Nenhuma conferência registrada ainda.';
   const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
   const pagHtml = `<div class="rc-pag">
-    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Pagamento do acompanhamento</div><span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span></div>
+    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Pagamento do acompanhamento</div><button type="button" class="rc-btn-claro" onclick="recepcaoAdesaoAbrir(_recepcaoDados.find(x => x.gestacao_id === _rcSel))">Gerar contrato</button><span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span></div>
     <div class="rc-seg" id="rc-pg-seg">
       <button type="button" data-v="quitado" class="${st === 'quitado' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('quitado')">Pago por completo</button>
       <button type="button" data-v="parcial" class="${st === 'parcial' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('parcial')">Pago em parte</button>
@@ -2942,6 +2974,192 @@ function _rcDetalheHtml(i) {
     <div class="rc-sec-t">Exames do plano</div>
     <table class="rc-tl"><tbody>${linhas}</tbody></table>${extras}${fora}
     ${pagHtml}`;
+}
+
+// ── Nova adesão e contrato preenchido ─────────────────────────────────────
+// A recepção cria o cadastro (paciente + gestação com a modalidade) antes do primeiro exame
+// e abre o contrato com os dados já preenchidos. O cadastro é a função recepcao_nova_adesao()
+// (migração 018); telefone, e-mail, nascimento e obstetra só vão para o contrato, não são gravados.
+const _ADESAO_PRECO = {
+  essencial:         { nome: 'Essencial',         total: 3400, extenso: 'três mil e quatrocentos reais' },
+  premium:           { nome: 'Premium',           total: 4200, extenso: 'quatro mil e duzentos reais' },
+  gemelar_essencial: { nome: 'Gemelar Essencial', total: 6800, extenso: 'seis mil e oitocentos reais' },
+  gemelar_dc:        { nome: 'Gemelar Premium',   total: 8400, extenso: 'oito mil e quatrocentos reais' },
+};
+const _ADESAO_MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+let _rcAdesaoGid = null; // preenchido quando o contrato é de uma paciente que já tem cadastro
+
+function _rcMascaraCpf(el) {
+  const d = el.value.replace(/\D/g, '').slice(0, 11);
+  el.value = d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2');
+}
+
+function recepcaoAdesaoAbrir(r) {
+  _rcAdesaoGid = r ? r.gestacao_id : null;
+  const set = (id, v) => { document.getElementById(id).value = v || ''; };
+  let dum = '';
+  if (r) {
+    dum = r.dum || '';
+    if (!dum) { const ig = calcIgDays(r, _hojeISO()); if (ig != null) dum = _rvAddDias(_hojeISO(), -ig); }
+  }
+  set('rc-ad-nome', r && r.nome); set('rc-ad-cpf', r && r.cpf); set('rc-ad-nasc', '');
+  set('rc-ad-tel', ''); set('rc-ad-email', ''); set('rc-ad-obst', '');
+  set('rc-ad-mod', r && r.acompanhamento); set('rc-ad-dum', dum); set('rc-ad-parc', '6');
+  document.getElementById('rc-ad-msg').textContent = '';
+  document.getElementById('rc-ad-ok').textContent = r ? 'Abrir contrato' : 'Cadastrar e abrir contrato';
+  document.getElementById('rc-ad-titulo').textContent = r ? 'Contrato de ' + r.nome : 'Nova adesão';
+  document.getElementById('rc-ad-nome').readOnly = !!r;
+  document.getElementById('rc-ad-cpf').readOnly = !!r;
+  document.getElementById('rc-ad-mod').disabled = !!r;
+  document.getElementById('rc-adesao').style.display = 'flex';
+  document.getElementById(r ? 'rc-ad-tel' : 'rc-ad-nome').focus();
+}
+function recepcaoAdesaoFechar() { document.getElementById('rc-adesao').style.display = 'none'; }
+
+async function recepcaoAdesaoConfirmar() {
+  const v = id => document.getElementById(id).value.trim();
+  const msg = document.getElementById('rc-ad-msg');
+  const btn = document.getElementById('rc-ad-ok');
+  const erro = t => { msg.style.color = 'var(--danger)'; msg.textContent = t; };
+  const d = {
+    nome: v('rc-ad-nome'), cpf: v('rc-ad-cpf'), nasc: v('rc-ad-nasc'), tel: v('rc-ad-tel'),
+    email: v('rc-ad-email'), obst: v('rc-ad-obst'), mod: document.getElementById('rc-ad-mod').value,
+    dum: v('rc-ad-dum'), parcelas: parseInt(v('rc-ad-parc'), 10) || 1,
+  };
+  if (!d.nome) return erro('Informe o nome da gestante.');
+  if (d.cpf.replace(/\D/g, '').length !== 11) return erro('O CPF precisa ter 11 dígitos.');
+  if (!_ADESAO_PRECO[d.mod]) return erro('Escolha a modalidade.');
+  // window.open síncrono (antes de qualquer await) para o navegador não bloquear a aba.
+  const w = window.open('about:blank', '_blank');
+  if (!w) return erro('O navegador bloqueou a nova aba. Permita pop-ups para este site e tente de novo.');
+  btn.disabled = true; msg.style.color = ''; msg.textContent = 'Salvando…';
+  try {
+    if (!_rcAdesaoGid) {
+      const { error } = await supabaseClient.rpc('recepcao_nova_adesao', {
+        p_nome: d.nome, p_cpf: d.cpf, p_modalidade: d.mod, p_dum: d.dum || null,
+      });
+      if (error) throw error;
+    }
+    const blob = new Blob([_contratoHtml(d)], { type: 'text/html;charset=utf-8' });
+    w.location.href = URL.createObjectURL(blob);
+    recepcaoAdesaoFechar();
+    await recepcaoAtualizar();
+  } catch (err) {
+    console.error('[CurvaFetal] nova adesão:', err);
+    try { w.close(); } catch (_) {}
+    erro('Não consegui cadastrar: ' + (err.message || err));
+  } finally { btn.disabled = false; }
+}
+
+function _contratoDataBR(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+
+function _contratoHtml(d) {
+  const E = escapeHtml;
+  const p = _ADESAO_PRECO[d.mod];
+  const hoje = _hojeISO();
+  const [ay, am, ad] = hoje.split('-');
+  const dataExt = `${parseInt(ad, 10)} de ${_ADESAO_MESES[parseInt(am, 10) - 1]} de ${ay}`;
+  const fmt = n => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let igTxt = '____ semanas e ____ dias', dppTxt = '___/___/______';
+  if (d.dum) {
+    const ig = Math.floor((new Date(hoje + 'T12:00:00Z') - new Date(d.dum + 'T12:00:00Z')) / 864e5);
+    if (ig >= 0 && ig < 330) { igTxt = `${Math.floor(ig / 7)} semanas e ${ig % 7} dias`; dppTxt = _contratoDataBR(_rvAddDias(d.dum, 280)); }
+  }
+  const campo = (v, ph) => v ? `<b>${E(v)}</b>` : ph;
+  const mod = k => `( ${d.mod === k ? '<b>X</b>' : '&nbsp;'} ) ${_ADESAO_PRECO[k].nome}`;
+  const colOk = k => d.mod === k ? ' class="sel"' : '';
+  const L = [
+    ['12–14 sem.', 'Morfológico de 1º trimestre', [1,1,1,1]],
+    ['16–18 sem.', 'Obstétrico com medida do colo', [1,1,1,1]],
+    ['22–24 sem.', 'Morfológico de 2º trimestre + colo + Doppler', [1,1,1,1]],
+    ['28 sem.', 'Doppler + perfil biofísico fetal', [1,1,1,1]],
+    ['32 sem.', 'Doppler + perfil biofísico fetal', [1,1,1,1]],
+    ['36 sem.', 'Doppler + perfil biofísico fetal', [1,0,1,0]],
+    ['36 sem.', 'Morfológico de 3º trimestre + Doppler', [0,1,0,1]],
+    ['38 sem.', 'Doppler + perfil biofísico fetal', [0,1,0,1]],
+  ];
+  const ks = ['essencial', 'premium', 'gemelar_essencial', 'gemelar_dc'];
+  const linhasAx = L.map(([j, ex, m]) => `<tr><td>${j}</td><td>${ex}</td>${m.map((x, i) => `<td${colOk(ks[i])}>${x ? '✓' : '—'}</td>`).join('')}</tr>`).join('')
+    + `<tr><td>Até o parto</td><td>Ultrassons extras</td><td${colOk('essencial')}>1</td><td${colOk('premium')}>2</td><td${colOk('gemelar_essencial')}>1</td><td${colOk('gemelar_dc')}>2</td></tr>`
+    + `<tr><td>Até o parto</td><td>Canal direto pelo Telegram</td><td${colOk('essencial')}>—</td><td${colOk('premium')}>✓</td><td${colOk('gemelar_essencial')}>—</td><td${colOk('gemelar_dc')}>✓</td></tr>`
+    + `<tr><td>Valor</td><td>Valor da modalidade (cartão de crédito, em até 6x)</td><td${colOk('essencial')}>R$ 3.400,00</td><td${colOk('premium')}>R$ 4.200,00 (6x de R$ 700,00)</td><td${colOk('gemelar_essencial')}>R$ 6.800,00 (6x de R$ 1.133,33)</td><td${colOk('gemelar_dc')}>R$ 8.400,00 (6x de R$ 1.400,00)</td></tr>`;
+  const avulsos = [['Morfológico de 1º trimestre','500,00'],['Obstétrico com medida do colo','250,00'],['Morfológico de 2º trimestre + colo + Doppler','500,00'],['Doppler + perfil biofísico fetal','295,00'],['Morfológico de 3º trimestre + Doppler','500,00'],['Obstétrico com Doppler','270,00'],['Ultrassom extra (obstétrico simples)','230,00']]
+    .map(([e, v]) => `<tr><td>${e}</td><td>R$ ${v}</td></tr>`).join('');
+  const telCanal = (d.mod === 'premium' || d.mod === 'gemelar_dc');
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none';">
+<title>Contrato — ${E(d.nome)}</title>
+<style>
+@page{size:A4;margin:18mm 18mm 20mm;}
+body{font-family:Georgia,'Times New Roman',serif;font-size:10.8pt;line-height:1.42;color:#1d1626;margin:0;}
+h1{font-size:17pt;text-align:center;margin:0;letter-spacing:.5px;color:#3d2352;}
+.sub{text-align:center;color:#6b5a78;font-size:10pt;margin:2px 0 14px;}
+h2{font-size:11.5pt;margin:14px 0 4px;color:#3d2352;border-bottom:1px solid #d9cce3;padding-bottom:2px;page-break-after:avoid;}
+p{margin:4px 0;text-align:justify;} ul{margin:3px 0 3px 18px;padding:0;} li{margin:2px 0;}
+table{border-collapse:collapse;width:100%;font-size:9.4pt;margin:6px 0;} th,td{border:1px solid #bfb0cb;padding:4px 6px;text-align:left;vertical-align:top;}
+th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
+.ass{display:flex;gap:40px;margin-top:46px;page-break-inside:avoid;} .ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt;}
+.novapag{page-break-before:always;}
+</style></head><body onload="window.print()">
+<h1>CONTRATO DE ADESÃO</h1>
+<div class="sub">Acompanhamento Fetal MK · Acompanhamento ultrassonográfico da gestação · Dra. Morgana Kummer</div>
+<h2>1) Partes</h2>
+<p><b>CLÍNICA:</b> Kummer Serviços Médicos Ltda - ME (nome fantasia Clínica de Ultrassom Dra. Morgana Kummer), CNPJ 20.251.640/0001-81, com sede à Rua Cândido Azeredo, 41A, Sete Lagoas/MG, tendo como responsável técnica a Dra. Morgana Kummer, CRM-MG 45.304, RQE 39.156.</p>
+<p><b>GESTANTE:</b> ${campo(d.nome, '____________________________')}, CPF ${campo(d.cpf, '__________________')}, data de nascimento ${campo(d.nasc ? _contratoDataBR(d.nasc) : '', '___/___/______')}, telefone ${campo(d.tel, '__________________')}, e-mail ${campo(d.email, '______________________________')}.</p>
+<p>Médico(a) obstetra assistente: ${campo(d.obst, '_____________________________________________')}.</p>
+<h2>2) Objeto e modalidade</h2>
+<p>Este contrato tem por objeto o Acompanhamento Fetal MK: um acompanhamento ultrassonográfico planejado ao longo da gestação, com exames realizados nas janelas gestacionais recomendadas pelos protocolos da Fetal Medicine Foundation (FMF) e da ISUOG, conforme a modalidade escolhida abaixo e detalhada no Anexo I.</p>
+<p><b>Modalidade escolhida:</b> ${mod('essencial')} &nbsp; ${mod('premium')} &nbsp; ${mod('gemelar_essencial')} &nbsp; ${mod('gemelar_dc')}</p>
+<p>Idade gestacional na adesão: <b>${igTxt}</b>. DPP: <b>${dppTxt}</b>.</p>
+<p>Gestação de alto risco ou com necessidade de vigilância mais frequente é atendida na modalidade Premium. Exames além dos previstos na modalidade, quando indicados clinicamente, são cobrados pelo valor avulso vigente.</p>
+<h2>3) Valor e pagamento</h2>
+<p>Valor da modalidade: <b>R$ ${fmt(p.total)}</b> (${p.extenso}), pago em <b>${d.parcelas}</b> parcela(s) de <b>R$ ${fmt(p.total / d.parcelas)}</b> no cartão de crédito, em até 6 (seis) vezes. Não são aceitos boleto ou PIX parcelado.</p>
+<p>O valor corresponde ao acompanhamento como um todo (organização, reserva de agenda em todas as janelas, exames, relatórios e materiais descritos neste contrato), e não à soma de exames avulsos.</p>
+<h2>4) O que está incluído</h2>
+<p>Em todos os exames do acompanhamento, a gestante receberá:</p>
+<ul><li>Laudo médico;</li><li>Imagens em PDF;</li><li>Vídeo do exame;</li><li>3D/5D sempre que possível, conforme condições técnicas e posicionamento fetal;</li><li>Relatório evolutivo com a curva de crescimento fetal, atualizado ao longo da gestação;</li><li>Material de orientação antes de cada exame (o que será avaliado e como se preparar).</li></ul>
+<p><b>Ultrassons extras.</b> A modalidade inclui o número de ultrassons extras indicado no Anexo I (exame obstétrico de cerca de 30 minutos), que podem ser usados livremente, mediante agendamento, ou em caso de intercorrência, mediante pedido médico (ver item 6). Os extras valem até o parto e não são convertidos em dinheiro.</p>
+<p><b>Canal direto (somente modalidades Premium e Gemelar Premium).</b> A gestante terá um canal de mensagens com a Dra. Morgana Kummer pelo Telegram, para dúvidas sobre os exames do acompanhamento, respondido em dias úteis e horário comercial, até o parto. Esse canal não é de urgência e não substitui consulta com o obstetra assistente nem atendimento na maternidade.${telCanal ? '' : ' <i>(Não incluído na modalidade escolhida.)</i>'}</p>
+<h2>5) Agendamento</h2>
+<p>No ato da adesão, a clínica organiza e agenda todos os ultrassons da modalidade, respeitando as janelas gestacionais. A adesão garante a reserva antecipada de agenda em todas essas janelas. Ajustes de data podem ocorrer por organização de agenda ou por correção da idade gestacional (por exemplo, datação pelo CCN), sempre dentro das janelas indicadas.</p>
+<p>A gestante pode remarcar um exame sem custo, dentro da mesma janela, avisando com pelo menos 48 horas de antecedência.</p>
+<p><b>Recesso e ausências.</b> Há um recesso anual programado de até 15 dias em dezembro/janeiro, além de eventuais ausências curtas da Dra. Morgana Kummer. Se alguma janela coincidir com esses períodos, o exame será antecipado ou remarcado dentro do período ideal. Se isso não for possível, a gestante escolhe entre realizar o exame com outro médico da equipe ou converter o valor do exame em crédito.</p>
+<p><b>Entrada após o 1º trimestre.</b> Quando a adesão ocorre com 16–18 semanas ou no morfológico de 2º trimestre, os exames cujas janelas já passaram não são realizados nem creditados; o valor é o da proposta apresentada na adesão.</p>
+<h2>6) Limitações</h2>
+<ul><li>O Acompanhamento Fetal MK não substitui o pré-natal, que deve ser realizado regularmente com o médico obstetra assistente.</li>
+<li>O Acompanhamento Fetal MK não é consulta obstétrica: não inclui avaliação clínica da gestante, prescrição de medicamentos, solicitação ou interpretação de exames laboratoriais, definição de tratamentos ou decisões sobre a via de parto.</li>
+<li>O acompanhamento tem caráter complementar, restrito ao âmbito da ultrassonografia.</li>
+<li><b>Limitação do método.</b> Mesmo realizada com equipamento adequado e seguindo protocolos internacionais, a ultrassonografia não detecta todas as malformações fetais nem alterações genéticas. A qualidade da avaliação depende da idade gestacional, da posição fetal, da quantidade de líquido amniótico e das características maternas, e algumas alterações só se manifestam mais tarde na gestação ou após o nascimento.</li>
+<li>Ecocardiograma fetal não está incluído e não é realizado na clínica. Quando indicado, deve ser feito com especialista em ecocardiografia fetal, de preferência entre 24 e 30 semanas.</li>
+<li>Todo ultrassom em situação de urgência exige pedido médico, inclusive quando for usado um ultrassom extra da modalidade. Os que excederem os extras são cobrados à parte pelo valor avulso. Em todos os casos, o exame tem prioridade de agenda conforme disponibilidade e pode ser realizado por outro médico da equipe.</li></ul>
+<h2>7) Desistência</h2>
+<p>Em caso de desistência do acompanhamento, aplicam-se as regras abaixo.</p>
+<p><b>a) Até 7 dias.</b> Se a desistência ocorrer em até 7 (sete) dias corridos da adesão e antes do primeiro ultrassom do acompanhamento, o valor será devolvido por estorno no cartão de crédito utilizado, descontadas as taxas cobradas pela operadora do cartão.</p>
+<p><b>b) Depois de 7 dias ou após o primeiro ultrassom.</b> Calcula-se o saldo: o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II. A gestante escolhe entre:</p>
+<ul><li>crédito integral do saldo na clínica; ou</li><li>devolução do saldo, com retenção de 20% (vinte por cento) a título de multa pela reserva de agenda e organização do acompanhamento, descontadas também as taxas cobradas pela operadora do cartão.</li></ul>
+<p><b>c) Validade do crédito.</b> O crédito é pessoal e intransferível: pode ser usado somente pela própria gestante, em qualquer serviço da clínica, em até 12 (doze) meses. Após esse prazo, expira.</p>
+<p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
+<h2>8) Perda gestacional e parto antes do fim do cronograma</h2>
+<p>Em caso de perda gestacional, a clínica entrará em contato com cuidado e sem pressa. O saldo (calculado como no item 7b) poderá, à escolha da família, ser convertido em crédito válido por 12 (doze) meses, que pode ser usado numa futura gestação, ou devolvido sem multa, descontadas as taxas cobradas pela operadora do cartão.</p>
+<p>Se o parto ocorrer antes da realização de todos os exames previstos, o valor avulso dos exames não realizados e dos extras não utilizados é convertido em crédito, válido por 12 (doze) meses, nas mesmas condições do item 7c.</p>
+<h2>9) Gestação gemelar identificada após a adesão</h2>
+<p>Se a gestação gemelar for identificada após a adesão, a gestante poderá migrar para a modalidade gemelar correspondente, pagando a diferença de valor vigente.</p>
+<h2>10) Dados pessoais e imagens</h2>
+<p>Os dados pessoais, laudos, imagens e vídeos são tratados conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018), com a finalidade de prestar o acompanhamento, guardar o prontuário pelo prazo legal e enviar os documentos à gestante. Eles não são compartilhados com terceiros sem autorização, exceto com o obstetra assistente quando a gestante solicitar ou por obrigação legal.</p>
+<p>Uso de imagens e vídeos do exame, sem identificação da gestante, nas redes sociais e materiais da clínica: &nbsp; ( ) Autorizo &nbsp; ( ) Não autorizo &nbsp;&nbsp; Rubrica: ________________</p>
+<h2>11) Foro</h2>
+<p>Fica eleito o foro da Comarca de Sete Lagoas/MG para dirimir questões deste contrato.</p>
+<p>A gestante declara que leu este contrato e o Anexo I, teve suas dúvidas esclarecidas e concorda com os termos.</p>
+<p style="margin-top:12px;">Sete Lagoas, ${dataExt}.</p>
+<div class="ass"><div>Gestante<br>${E(d.nome)}</div><div>Dra. Morgana Kummer — pela Clínica</div></div>
+<div class="novapag"></div>
+<h2>Anexo I — Exames de cada modalidade</h2>
+<table><thead><tr><th>Janela</th><th>Exame</th><th${colOk('essencial')}>Essencial</th><th${colOk('premium')}>Premium</th><th${colOk('gemelar_essencial')}>Gemelar Essencial</th><th${colOk('gemelar_dc')}>Gemelar Premium</th></tr></thead><tbody>${linhasAx}</tbody></table>
+<p>Na gestação gemelar, cada exame avalia os dois fetos.</p>
+<h2>Anexo II — Valores avulsos de referência (para cálculo de saldo)</h2>
+<p>Tabela vigente na data da adesão. Na gestação gemelar, os valores avulsos são em dobro.</p>
+<table><thead><tr><th>Exame</th><th>Valor avulso</th></tr></thead><tbody>${avulsos}</tbody></table>
+</body></html>`;
 }
 
 // Segmento "pago / em parte / não pago": guarda a escolha no próprio botão até salvar.

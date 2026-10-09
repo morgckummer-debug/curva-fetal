@@ -3052,6 +3052,8 @@ function _rcValorSugerir(forcar) {
   const pr = _adesaoProporcao(mod, ig.igHoje);
   const total = _ADESAO_PRECO[mod].total;
   if (!_rcValorManual) inp.value = pr ? pr.sugerido : total;
+  if (ig.igHoje != null && ig.igHoje > ACOMP_EX.m2.fim) { dica.style.color = 'var(--danger)'; dica.textContent = 'Passou do morfológico de 2º trimestre (' + Math.floor(ACOMP_EX.m2.fim / 7) + ' semanas): não dá para aderir ao acompanhamento.'; return; }
+  dica.style.color = '';
   dica.textContent = pr && pr.perdidos.length
     ? `Valor cheio R$ ${total.toLocaleString('pt-BR')}. Já passaram: ${pr.perdidos.map(_adesaoNomeEx).join('; ')}. Sugestão proporcional aos ${pr.faltam.length} exames que faltam; ajuste se combinou outro valor.`
     : `Valor cheio da modalidade (nenhuma janela passou).`;
@@ -3120,6 +3122,7 @@ async function recepcaoAdesaoConfirmar() {
   Object.assign(d, ig);
   d.valor = parseInt(v('rc-ad-valor'), 10);
   if (!(d.valor > 0)) return erro('Informe o valor do acompanhamento.');
+  if (d.igHoje != null && d.igHoje > ACOMP_EX.m2.fim) return erro('Passou do morfológico de 2º trimestre (' + Math.floor(ACOMP_EX.m2.fim / 7) + ' semanas): a adesão ao acompanhamento não é feita depois disso. Fale com a Dra. Morgana.');
   if (!d.nome) return erro('Informe o nome da gestante.');
   if (d.cpf.replace(/\D/g, '').length !== 11) return erro('O CPF precisa ter 11 dígitos.');
   if (!_ADESAO_PRECO[d.mod]) return erro('Escolha a modalidade.');

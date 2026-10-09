@@ -1820,6 +1820,7 @@ patients/gestacoes/exams.
   gravados. **Mudou o contrato ou os preços (`_ADESAO_PRECO`, Anexos)? Mude nos dois lugares**
   (o .docx e esta função) — não há geração compartilhada. Texto ainda sem revisão de advogado.
 - **Idade gestacional (019):** DUM, 1º ultrassom (data + IG) ou IG de hoje; US/hoje gravam `ig_base_*` (tipo US), que o `calcIgDays` já prefere à DUM. Em gestação existente só preenche se não houver datação.
+- **Limite de entrada:** só até o fim da janela do morfológico de 2º trimestre (26 semanas, `ACOMP_EX.m2.fim`); depois disso a tela recusa a adesão. Decisão da médica.
 - **Entrada tardia:** o valor do contrato é editável (`#rc-ad-valor`) e vem sugerido proporcional aos exames cuja janela ainda não passou, pesados pelo avulso (`_ADESAO_PESO`, `_adesaoProporcao`); o contrato lista os exames que ficaram de fora. A regra é sugestão, não decisão da médica — confirmar.
 - **Risco conhecido:** se a médica estiver com o app aberto e a paciente já estiver carregada
   na memória dela, um saveDB pode devolver `acompanhamento` a nulo (a RPC mexeu no servidor,

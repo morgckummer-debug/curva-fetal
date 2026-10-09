@@ -2268,7 +2268,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <option value="">Nenhum (exames avulsos)</option>
             <option value="essencial">Essencial</option>
             <option value="premium">Premium</option>
-            <option value="gemelar_dc">Gemelar dicoriônica</option>
+            <option value="gemelar_dc">Gemelar (qualquer corionicidade)</option>
           </select>
         </div>
       </div>
@@ -2522,7 +2522,7 @@ const ACOMP_EX = {
 const ACOMP_PLANOS = {
   essencial:  { nome: 'Essencial',            extras: 1, ex: ['m1','colo','m2','d28','d32','d36'] },
   premium:    { nome: 'Premium',              extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
-  gemelar_dc: { nome: 'Gemelar dicoriônica',  extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
+  gemelar_dc: { nome: 'Gemelar',  extras: 2, ex: ['m1','colo','m2','d28','d32','m3','d38'] },
 };
 
 // Uma entrada por data (numa gemelar há um registro por feto na mesma visita).

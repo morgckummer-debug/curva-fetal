@@ -3215,9 +3215,9 @@ function _contratoHtml(d) {
     ['38 sem.', 'Doppler + perfil biofísico fetal', [0,1,0,1]],
   ];
   const ks = ['essencial', 'premium', 'gemelar_essencial', 'gemelar_dc'];
-  const linhasAx = L.map(([j, ex, m]) => `<tr><td>${j}</td><td>${ex}</td>${m.map((x, i) => `<td${colOk(ks[i])}>${x ? '✓' : '—'}</td>`).join('')}</tr>`).join('')
+  const linhasAx = L.map(([j, ex, m]) => `<tr><td>${j}</td><td>${ex}</td>${m.map((x, i) => `<td${colOk(ks[i])}>${x ? '<span class="ck">✓</span>' : '—'}</td>`).join('')}</tr>`).join('')
     + `<tr><td>Até o parto</td><td>Ultrassons extras</td><td${colOk('essencial')}>1</td><td${colOk('premium')}>2</td><td${colOk('gemelar_essencial')}>1</td><td${colOk('gemelar_dc')}>2</td></tr>`
-    + `<tr><td>Até o parto</td><td>Canal direto pelo Telegram</td><td${colOk('essencial')}>—</td><td${colOk('premium')}>✓</td><td${colOk('gemelar_essencial')}>—</td><td${colOk('gemelar_dc')}>✓</td></tr>`
+    + `<tr><td>Até o parto</td><td>Canal direto pelo Telegram</td><td${colOk('essencial')}>—</td><td${colOk('premium')}><span class="ck">✓</span></td><td${colOk('gemelar_essencial')}>—</td><td${colOk('gemelar_dc')}><span class="ck">✓</span></td></tr>`
     + (parcial ? `<tr><td>Valor desta adesão</td><td>Proporcional aos exames restantes (${pr.faltam.length} de ${pr.faltam.length + pr.perdidos.length})</td><td colspan="4" class="sel">R$ ${fmt(valor)} (${d.parcelas}x de R$ ${fmt(valor / d.parcelas)})</td></tr>` : '')
     + `<tr><td>Valor</td><td>Valor da modalidade (cartão de crédito, em até 6x)</td><td${colOk('essencial')}>R$ 3.400,00</td><td${colOk('premium')}>R$ 4.200,00 (6x de R$ 700,00)</td><td${colOk('gemelar_essencial')}>R$ 6.800,00 (6x de R$ 1.133,33)</td><td${colOk('gemelar_dc')}>R$ 8.400,00 (6x de R$ 1.400,00)</td></tr>`;
   const avulsos = [['Morfológico de 1º trimestre','500,00'],['Obstétrico com medida do colo','250,00'],['Morfológico de 2º trimestre + colo + Doppler','500,00'],['Doppler + perfil biofísico fetal','295,00'],['Morfológico de 3º trimestre + Doppler','500,00'],['Obstétrico com Doppler','270,00'],['Ultrassom extra (obstétrico simples)','230,00']]
@@ -3234,6 +3234,7 @@ h1{font-size:17pt;text-align:center;margin:0;letter-spacing:.5px;color:#3d2352;}
 h2{font-size:11.5pt;margin:14px 0 4px;color:#3d2352;border-bottom:1px solid #d9cce3;padding-bottom:2px;page-break-after:avoid;}
 p{margin:4px 0;text-align:justify;} ul{margin:3px 0 3px 18px;padding:0;} li{margin:2px 0;}
 table{border-collapse:collapse;width:100%;font-size:9.4pt;margin:6px 0;} th,td{border:1px solid #bfb0cb;padding:4px 6px;text-align:left;vertical-align:top;}
+table.mod th,table.mod td{text-align:center;vertical-align:middle;} .ck{color:#1f8a3b;font-weight:bold;}
 th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
 .ass{display:flex;gap:40px;margin-top:46px;page-break-inside:avoid;} .ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt;}
 .novapag{page-break-before:always;}
@@ -3292,7 +3293,7 @@ ${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesã
 <div class="ass"><div>Gestante<br>${E(d.nome)}</div><div>Dra. Morgana Kummer — pela Clínica</div></div>
 <div class="novapag"></div>
 <h2>Anexo I — Exames de cada modalidade</h2>
-<table><thead><tr><th>Janela</th><th>Exame</th><th${colOk('essencial')}>Essencial</th><th${colOk('premium')}>Premium</th><th${colOk('gemelar_essencial')}>Gemelar Essencial</th><th${colOk('gemelar_dc')}>Gemelar Premium</th></tr></thead><tbody>${linhasAx}</tbody></table>
+<table class="mod"><thead><tr><th>Janela</th><th>Exame</th><th${colOk('essencial')}>Essencial</th><th${colOk('premium')}>Premium</th><th${colOk('gemelar_essencial')}>Gemelar Essencial</th><th${colOk('gemelar_dc')}>Gemelar Premium</th></tr></thead><tbody>${linhasAx}</tbody></table>
 <p>Na gestação gemelar, cada exame avalia os dois fetos.</p>
 <h2>Anexo II — Valores avulsos de referência (para cálculo de saldo)</h2>
 <p>Tabela vigente na data da adesão. Na gestação gemelar, os valores avulsos são em dobro.</p>

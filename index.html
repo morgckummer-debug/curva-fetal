@@ -367,7 +367,7 @@ header::after{display:none;}
 .patient-chip-meta{font-size:12px;color:var(--text-muted);font-family:var(--font-mono);margin-top:1px;}
 .patient-chip--enc{filter:grayscale(1);opacity:.62;}
 .patient-chip--enc:hover{opacity:.85;}
-.chip-enc-tag{display:inline-block;background:#fdecec;color:#8e1f14;border:1px solid #c0392b;border-radius:99px;padding:1px 9px;font-size:11px;font-weight:700;font-family:var(--font-body,inherit);margin-top:2px;}
+.chip-enc-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#f6d9d9;color:#8a2323;margin-top:3px;}
 .patient-chip-exams{font-size:12.5px;color:var(--text-muted);white-space:nowrap;}
 .patient-chip-actions{display:flex;gap:7px;flex-shrink:0;margin-left:8px;}
 
@@ -5832,8 +5832,9 @@ function resumoObstetrico(g) {
 // Card de paciente com acompanhamento encerrado: cinza + etiqueta vermelha com o motivo.
 function _chipEncerrado(g) {
   if (!g || !g.status || g.status === 'ativa') return { cls: '', tag: '' };
-  const m = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Cancelado · desistência' };
-  return { cls: ' patient-chip--enc', tag: `<span class="chip-enc-tag">🔴 ${escapeHtml(m[g.status] || labelStatus(g.status))}</span>` };
+  // mesmo texto e mesma etiqueta da tela da recepção (.rc-pill--alerta)
+  const m = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência' };
+  return { cls: ' patient-chip--enc', tag: `<span class="chip-enc-tag">Encerrado · ${escapeHtml(m[g.status] || labelStatus(g.status))}</span>` };
 }
 
 function labelStatus(status) {

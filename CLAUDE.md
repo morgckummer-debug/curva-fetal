@@ -1826,3 +1826,4 @@ patients/gestacoes/exams.
 - **Risco conhecido:** se a médica estiver com o app aberto e a paciente já estiver carregada
   na memória dela, um saveDB pode devolver `acompanhamento` a nulo (a RPC mexeu no servidor,
   a memória dela não sabe). Paciente nova não tem esse problema.
+- **Ficha da recepção (2026-10-10):** IG de hoje em destaque (40px) e etiqueta do plano grande, uma cor por plano (`.rc-plano--{chave}`: Essencial azul, Premium dourado com letra roxa, Gemelar Essencial rosa, Gemelar Premium roxo escuro com letra dourada); a lista usa a mesma etiqueta menor. Cabeçalho tem marca "v2" para conferir se o celular pegou a versão nova. Layout de celular abaixo de 640px em `.rc-*`.

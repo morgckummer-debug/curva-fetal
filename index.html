@@ -3021,8 +3021,8 @@ function recepcaoAdesaoAbrir(r) {
   document.getElementById('rc-adesao').style.display = 'flex';
   document.getElementById(r ? 'rc-ad-tel' : 'rc-ad-nome').focus();
 }
-// Entrada com o calendário já andado: o valor é proporcional aos exames cujas janelas ainda não
-// passaram, pesados pelo valor avulso (Anexo II). É sugestão — a recepção pode ajustar o valor combinado.
+// Entrada com o calendário já andado: valor cheio menos o avulso (Anexo II) dos exames cujas
+// janelas já passaram. É sugestão — a recepção pode ajustar o valor combinado.
 const _ADESAO_PESO = { m1: 500, colo: 250, m2: 500, d28: 295, d32: 295, d36: 295, m3: 500, d38: 295 };
 let _rcValorManual = false;
 function _adesaoProporcao(mod, igHoje) {
@@ -3037,7 +3037,10 @@ function _adesaoProporcao(mod, igHoje) {
     if (igHoje <= fim) { rest += w; faltam.push(k); } else perdidos.push(k);
   });
   const total = _ADESAO_PRECO[mod].total;
-  return { total, sugerido: perdidos.length ? Math.min(total, Math.round(total * rest / tot / 100) * 100) : total, faltam, perdidos };
+  // Valor cheio menos o avulso (tabela) dos exames cujas janelas passaram; gemelar tem avulso em dobro.
+  const mult = mod.startsWith('gemelar') ? 2 : 1;
+  const perdido = perdidos.reduce((a, k) => a + _ADESAO_PESO[k] * mult, 0);
+  return { total, sugerido: Math.max(0, total - perdido), faltam, perdidos };
 }
 function _adesaoNomeEx(k) {
   const d = ACOMP_EX[k];
@@ -3057,7 +3060,7 @@ function _rcValorSugerir(forcar) {
   if (ig.igHoje != null && ig.igHoje > ACOMP_EX.m2.fim) { dica.style.color = 'var(--danger)'; dica.textContent = 'Passou do morfológico de 2º trimestre (' + Math.floor(ACOMP_EX.m2.fim / 7) + ' semanas): não dá para aderir ao acompanhamento.'; return; }
   dica.style.color = '';
   dica.textContent = pr && pr.perdidos.length
-    ? `Valor cheio R$ ${total.toLocaleString('pt-BR')}. Já passaram: ${pr.perdidos.map(_adesaoNomeEx).join('; ')}. Sugestão proporcional aos ${pr.faltam.length} exames que faltam; ajuste se combinou outro valor.`
+    ? `Valor cheio R$ ${total.toLocaleString('pt-BR')}. Já passaram: ${pr.perdidos.map(_adesaoNomeEx).join('; ')}. Sugestão: valor cheio menos o avulso desses exames; ajuste se combinou outro valor.`
     : `Valor cheio da modalidade (nenhuma janela passou).`;
 }
 function _extensoReais(n) {

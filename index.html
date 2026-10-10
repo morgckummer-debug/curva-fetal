@@ -365,8 +365,8 @@ header::after{display:none;}
 .patient-chip-info{flex:1;min-width:0;}
 .patient-chip-name{font-weight:700;font-size:14.5px;color:var(--text);}
 .patient-chip-meta{font-size:12px;color:var(--text-muted);font-family:var(--font-mono);margin-top:1px;}
-.patient-chip--enc{filter:grayscale(1);opacity:.62;}
-.patient-chip--enc:hover{opacity:.85;}
+.patient-chip--enc{background:#eeeded;}
+.patient-chip--enc .patient-chip-avatar,.patient-chip--enc .patient-chip-name,.patient-chip--enc .patient-chip-meta,.patient-chip--enc .patient-chip-exams,.patient-chip--enc .patient-chip-actions{filter:grayscale(1);opacity:.6;}
 .chip-enc-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap;background:#f6d9d9;color:#8a2323;margin-top:3px;}
 .patient-chip-exams{font-size:12.5px;color:var(--text-muted);white-space:nowrap;}
 .patient-chip-actions{display:flex;gap:7px;flex-shrink:0;margin-left:8px;}
@@ -6010,7 +6010,7 @@ function _showNameSuggestions(q) {
   }
   const matches = _matchPatients(q).slice(0,8);
   if (!matches.length) { box.style.display='none'; return; }
-  box.innerHTML = matches.map(p => { const gs = getGestacoesByPatient(p.id); const enc = _chipEncerrado(gs.find(g => g.status === 'ativa') || gs[gs.length - 1]); return `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="${enc.cls ? 'filter:grayscale(1);opacity:.7;' : ''}padding:10px 16px;cursor:pointer;font-size:13px;color:#3d2352;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome || 'Sem nome')}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span>${enc.tag ? '<br>' + enc.tag : ''}</div>`; }).join('');
+  box.innerHTML = matches.map(p => { const gs = getGestacoesByPatient(p.id); const enc = _chipEncerrado(gs.find(g => g.status === 'ativa') || gs[gs.length - 1]); return `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="padding:10px 16px;cursor:pointer;font-size:13px;color:#3d2352;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome || 'Sem nome')}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span>${enc.tag ? '<br>' + enc.tag : ''}</div>`; }).join('');
   box.style.display = 'block';
 }
 

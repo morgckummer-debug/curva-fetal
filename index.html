@@ -3056,9 +3056,9 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao) {
     out.estorno = Math.max(0, saldo - out.retencao);
     out.credito = Math.max(0, saldo * (1 - taxa)); out.taxaVal = saldo * taxa;
   } else if (motivo === 'perda' || motivo === 'obito') {
-    // Perda/óbito: o extra (incluído no plano) não desconta; só os exames do calendário já feitos.
+    // Perda/óbito: devolve pago − exames do calendário já feitos (avulso); o extra não desconta.
     const saldoPerda = Math.max(0, pago - vFeitosPlano);
-    const base = Math.min(saldoPerda, vNaoFeitos);
+    const base = saldoPerda;
     out.vFeitos = vFeitosPlano;
     out.estorno = Math.max(0, base * (1 - taxa)); out.taxaVal = base * taxa; out.base = base;
   } else {
@@ -3460,7 +3460,7 @@ ${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesã
 <p><b>c) Validade do crédito.</b> O crédito é pessoal e intransferível: pode ser usado somente pela própria gestante, em qualquer serviço da clínica, em até 12 (doze) meses. Após esse prazo, expira.</p>
 <p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
 <h2>8) Imprevistos na gestação</h2>
-<p><b>a) Perda gestacional.</b> A clínica entrará em contato com cuidado e sem pressa. Será devolvido o valor dos exames não realizados, calculado pelo valor avulso da tabela do Anexo II e limitado ao valor pago, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado. O ultrassom extra já utilizado não é descontado dessa devolução.</p>
+<p><b>a) Perda gestacional.</b> A clínica entrará em contato com cuidado e sem pressa. Será devolvido o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado. O ultrassom extra já utilizado não é descontado dessa devolução.</p>
 <p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, o valor avulso dos exames não realizados é convertido em crédito válido por 12 (doze) meses, que pode ser usado pela mãe e pelo recém-nascido. Os ultrassons extras não utilizados não geram crédito.</p>
 <p><b>c) Perda de um dos fetos em gestação gemelar.</b> O plano é reajustado para a modalidade de feto único correspondente (Essencial ou Premium). A diferença de valor, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, fica como crédito nas regras do item 7c ou pode ser convertida em ultrassons extras, pelo valor avulso do ultrassom extra do Anexo II.</p>
 <h2>9) Gestação gemelar identificada após a adesão</h2>

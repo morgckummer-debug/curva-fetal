@@ -568,6 +568,9 @@ header::after{display:none;}
 .rc-prox{background:linear-gradient(120deg,rgba(201,167,92,.18),rgba(139,107,168,.14));border-radius:14px;padding:14px 18px;margin-bottom:20px;display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;}
 .rc-prox small{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-muted);}
 .rc-prox b{font-size:16px;color:var(--text);}
+.rc-prox-per{margin-top:8px;font-size:15px;color:var(--text);}
+.rc-prox-per b{font-size:17px;color:var(--sage-deep);}
+.rc-prox-per span{font-size:13px;color:var(--text-muted);}
 .rc-prox span{font-size:13px;color:var(--text-muted);}
 .rc-btn-dark{padding:9px 16px;border-radius:10px;border:none;background:var(--sage-deep);color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 .rc-btn-dark:hover{background:#2e1d3c;}
@@ -2941,12 +2944,16 @@ function recepcaoCopiarAgenda(btn) {
   else window.prompt('Copie o texto:', txt);
 }
 
+// 22.10.26 (dia.mês.ano com 2 dígitos), formato que a recepção lê na agenda.
+function _rcDataPonto(iso) { return iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(2, 4) : ''; }
+
 function _rcDetalheHtml(i) {
   const r = i.r, sit = i.sit, pg = r.pagamento || {};
   const p = sit.prox;
   const prox = p
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
-        <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}${p.de ? ' · entre ' + _acompDataCurta(p.de) + ' e ' + _acompDataCurta(p.ate) : ''}${p.ateTol ? ' · tolerância até ' + _acompDataCurta(p.ateTol) : ''}</span></div>
+        <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}</span>
+        ${p.de ? `<div class="rc-prox-per">Período para agendar: <b>${_rcDataPonto(p.de)} a ${_rcDataPonto(p.ate)}</b>${p.ateTol ? ` <span>· tolerância até ${_rcDataPonto(p.ateTol)}</span>` : ''}</div>` : ''}</div>
         <button type="button" class="rc-btn-dark" onclick="recepcaoCopiarAgenda(this)" title="Copia o texto para colar no agendamento da Feegow">Copiar para a agenda</button></div>`
     : `<div class="rc-prox"><div><small>Calendário</small><b>${sit.feitos === sit.slots.length ? 'Todos os exames do plano foram feitos' : 'Sem exame pendente dentro do prazo'}</b></div></div>`;
 

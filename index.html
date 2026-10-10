@@ -1263,12 +1263,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 <div id="rc-adesao" onclick="if(event.target===this)recepcaoAdesaoFechar()">
   <div class="rc-modal">
     <h3 id="rc-ad-titulo">Nova adesão</h3>
-    <p class="rc-sub">Cria o cadastro no Curva e abre o contrato preenchido para imprimir ou salvar em PDF. Telefone, e-mail e nascimento entram só no contrato, não ficam gravados.</p>
+    <p class="rc-sub">Cria o cadastro no Curva e abre o contrato preenchido para imprimir ou salvar em PDF. O celular fica gravado na ficha (usado no aviso de encerramento); e-mail e nascimento entram só no contrato.</p>
     <div class="rc-form">
       <div class="rc-full"><label for="rc-ad-nome">Nome completo da gestante</label><input type="text" id="rc-ad-nome" autocomplete="off"></div>
       <div><label for="rc-ad-cpf">CPF</label><input type="text" id="rc-ad-cpf" inputmode="numeric" maxlength="14" oninput="_rcMascaraCpf(this)" autocomplete="off"></div>
       <div><label for="rc-ad-nasc">Data de nascimento</label><input type="date" id="rc-ad-nasc"></div>
-      <div><label for="rc-ad-tel">Telefone</label><input type="text" id="rc-ad-tel" autocomplete="off"></div>
+      <div><label for="rc-ad-tel">Celular</label><input type="text" id="rc-ad-tel" autocomplete="off"></div>
       <div><label for="rc-ad-email">E-mail</label><input type="email" id="rc-ad-email" autocomplete="off"></div>
       <div class="rc-full"><label for="rc-ad-obst">Médico(a) obstetra assistente (se souber)</label><input type="text" id="rc-ad-obst" autocomplete="off"></div>
       <div><label for="rc-ad-mod">Modalidade</label><select id="rc-ad-mod" onchange="_rcValorSugerir(true)"><option value="">Selecione</option><option value="essencial">Essencial — R$ 3.400</option><option value="premium">Premium — R$ 4.200</option><option value="gemelar_essencial">Gemelar Essencial — R$ 6.800</option><option value="gemelar_dc">Gemelar Premium — R$ 8.400</option></select></div>
@@ -3005,6 +3005,8 @@ function _rcDetalheHtml(i) {
         ${opt('', 'Selecione', pg.forma || '')}${opt('cartao', 'Cartão de crédito', pg.forma)}${opt('pix', 'Pix', pg.forma)}${opt('dinheiro', 'Dinheiro', pg.forma)}${opt('outro', 'Outra', pg.forma)}</select></div>
       <div id="rc-pg-parc-w"><label for="rc-pg-parc">Parcelas</label><select id="rc-pg-parc">
         ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${(pg.parcelas || 1) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></div>
+      <div><label for="rc-pg-celular">Celular da paciente</label><input type="tel" id="rc-pg-celular" value="${escapeHtml(pg.celular || '')}" placeholder="(31) 9 9999-9999"></div>
+      <div><label for="rc-pg-pago">Valor pago até agora (R$)</label><input type="number" id="rc-pg-pago" step="0.01" min="0" value="${pg.valor_pago != null ? pg.valor_pago : (st === 'quitado' ? ((_ADESAO_PRECO[r.acompanhamento] || {}).total || '') : '')}" placeholder="Ex.: 3400"></div>
       <label class="rc-chk"><input type="checkbox" id="rc-pg-contrato" ${pg.contrato_assinado ? 'checked' : ''}> Contrato assinado</label>
       <div class="rc-col2" style="grid-column:1/-1;"><label for="rc-pg-obs">Observação (opcional)</label><input type="text" id="rc-pg-obs" maxlength="500" value="${escapeHtml(pg.observacao || '')}" placeholder="Ex.: entrada no Pix, restante em 5x no cartão"></div>
     </div>
@@ -3110,7 +3112,7 @@ function recepcaoEncerrarAbrir(gid) {
   _encGid = gid; _encTxtManual = false;
   const pg = r.pagamento || {};
   const total = (_ADESAO_PRECO[r.acompanhamento] || {}).total || 0;
-  const pagoIni = pg.status === 'quitado' ? total : (pg.status === 'parcial' ? 0 : 0);
+  const pagoIni = pg.valor_pago != null ? pg.valor_pago : (pg.status === 'quitado' ? total : 0);
   let el = document.getElementById('rc-enc-modal');
   if (el) el.remove();
   el = document.createElement('div');
@@ -3125,10 +3127,10 @@ function recepcaoEncerrarAbrir(gid) {
       <div><label style="font-size:12px;">Pagou no cartão?</label><select id="rc-enc-cartao" style="${inp}" onchange="_encRefazer()"><option value="1" ${pg.forma === 'cartao' || !pg.forma ? 'selected' : ''}>Sim</option><option value="0" ${pg.forma && pg.forma !== 'cartao' ? 'selected' : ''}>Não</option></select></div>
       <div><label style="font-size:12px;">Taxa maquininha (%)</label><input id="rc-enc-taxa" type="number" step="0.1" min="0" value="${_TAXA_MAQUININHA_PCT}" style="${inp}" oninput="_encRefazer()"></div>
     </div>
-    <div style="margin-bottom:10px;"><label style="font-size:12px;">Celular da paciente (com DDD)</label><input id="rc-enc-tel" type="tel" placeholder="(31) 9 9999-9999" style="${inp}"></div>
+    <div style="margin-bottom:10px;"><label style="font-size:12px;">Celular da paciente (com DDD)</label><input id="rc-enc-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml(pg.celular || '')}" style="${inp}"></div>
     <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
     <textarea id="rc-enc-txt" rows="14" style="${inp}font-size:13px;" oninput="_encTxtManual=true"></textarea>
-    <div id="rc-enc-aviso" style="font-size:12px;color:var(--text-muted);margin:8px 0;">Confira o valor pago: o app não sabe quanto foi realmente pago. Pacientes que entraram com o calendário em andamento têm valor menor que o do plano.</div>
+    <div id="rc-enc-aviso" style="font-size:12px;color:var(--text-muted);margin:8px 0;">Confira o valor pago e o celular (vêm da ficha; se estiverem vazios ou errados, corrija aqui ou na conferência de pagamento). Quem entrou com o calendário em andamento paga menos que o plano.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-enc-modal').remove()">Cancelar</button>
       <button type="button" class="rc-btn-claro" onclick="_encWhats()">Abrir no WhatsApp</button>
@@ -3210,7 +3212,7 @@ function recepcaoAdesaoAbrir(r) {
     if (ig != null && ig >= 0) { modo = 'hoje'; igSem = Math.floor(ig / 7); igDias = ig % 7; }
   }
   set('rc-ad-nome', r && r.nome); set('rc-ad-cpf', r && r.cpf); set('rc-ad-nasc', '');
-  set('rc-ad-tel', ''); set('rc-ad-email', ''); set('rc-ad-obst', '');
+  set('rc-ad-tel', r && r.pagamento && r.pagamento.celular); set('rc-ad-email', ''); set('rc-ad-obst', '');
   set('rc-ad-mod', r && r.acompanhamento); set('rc-ad-dum', dum); set('rc-ad-usdata', ''); set('rc-ad-igsem', igSem); set('rc-ad-igdias', igDias);
   set('rc-ad-igmodo', modo); _rcIgModo(); set('rc-ad-parc', '6'); _rcValorSugerir(true);
   document.getElementById('rc-ad-msg').textContent = '';
@@ -3338,11 +3340,17 @@ async function recepcaoAdesaoConfirmar() {
   btn.disabled = true; msg.style.color = ''; msg.textContent = 'Salvando…';
   try {
     if (!_rcAdesaoGid) {
-      const { error } = await supabaseClient.rpc('recepcao_nova_adesao', {
+      const { data: novoGid, error } = await supabaseClient.rpc('recepcao_nova_adesao', {
         p_nome: d.nome, p_cpf: d.cpf, p_modalidade: d.mod, p_dum: d.dum || null,
         p_ig_base_data: d.igBaseData || null, p_ig_base_dias: d.igBaseDias || null,
       });
       if (error) throw error;
+      _rcAdesaoGid = novoGid;
+    }
+    if (d.tel && _rcAdesaoGid) {
+      // O cadastro já existe; falha aqui não deve impedir o contrato (o celular se digita na ficha).
+      const { error: eTel } = await supabaseClient.rpc('recepcao_contato', { p_gestacao_id: _rcAdesaoGid, p_celular: d.tel });
+      if (eTel) console.error('[CurvaFetal] recepcao_contato:', eTel);
     }
     const blob = new Blob([_contratoHtml(d)], { type: 'text/html;charset=utf-8' });
     w.location.href = URL.createObjectURL(blob);
@@ -3497,6 +3505,8 @@ async function recepcaoSalvarPagamento(gid) {
       p_gestacao_id: gid, p_status: status, p_forma: forma, p_parcelas: parcelas,
       p_contrato: document.getElementById('rc-pg-contrato').checked,
       p_obs: document.getElementById('rc-pg-obs').value.trim(),
+      p_celular: document.getElementById('rc-pg-celular').value.trim() || null,
+      p_valor_pago: document.getElementById('rc-pg-pago').value === '' ? null : parseFloat(document.getElementById('rc-pg-pago').value),
     });
     if (error) throw error;
     await recepcaoAtualizar();

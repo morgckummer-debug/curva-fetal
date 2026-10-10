@@ -2407,6 +2407,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <option value="aborto">Aborto</option>
             <option value="ectopica">Ectópica</option>
             <option value="obito_fetal">Óbito fetal</option>
+            <option value="desistencia">Desistência do acompanhamento</option>
           </select>
         </div>
       </div>
@@ -3021,7 +3022,26 @@ function _rcDetalheHtml(i) {
     <div class="rc-sec-t">Exames do plano</div>
     <table class="rc-tl"><tbody>${linhas}${linhasExtra}</tbody></table>${extras}${fora}
     ${pagHtml}
+    <div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
+      <select id="rc-enc-motivo" style="padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:13px;background:#fff;">
+        <option value="">Encerrar acompanhamento…</option><option value="parto">Parto realizado</option><option value="perda">Perda gestacional</option><option value="obito">Óbito fetal</option><option value="desistencia">Desistência da paciente</option></select>
+      <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrar(${r.gestacao_id})">Encerrar</button></div>
     ${(sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
+}
+
+async function recepcaoEncerrar(gid) {
+  const sel = document.getElementById('rc-enc-motivo');
+  const motivo = sel ? sel.value : '';
+  if (!motivo) { alert('Escolha o motivo do encerramento.'); return; }
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const txt = sel.options[sel.selectedIndex].text;
+  if (!confirm('Encerrar o acompanhamento de ' + (r ? r.nome : 'esta paciente') + ' (' + txt + ')?\n\nEla sai da lista da recepção. A Dra. Morgana pode reabrir pela ficha.')) return;
+  try {
+    const { error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: gid, p_motivo: motivo });
+    if (error) throw error;
+    _rcSel = null;
+    await recepcaoAtualizar();
+  } catch (err) { console.error(err); alert('Não consegui encerrar: ' + (err.message || err)); }
 }
 
 async function recepcaoExcluir(gid) {
@@ -5523,6 +5543,7 @@ function labelStatus(status) {
     aborto:      'Aborto',
     ectopica:    'Ectópica',
     obito_fetal: 'Óbito fetal',
+    desistencia: 'Desistência',
   };
   return map[status] || status;
 }
@@ -14402,7 +14423,7 @@ function validateImportedDB(raw) {
     db.patients.push({ id, cpf, nome: sanitizeString(p.nome, 200) });
   });
 
-  const STATUS_VALIDOS = new Set(['ativa', 'finalizada', 'aborto', 'ectopica', 'obito_fetal']);
+  const STATUS_VALIDOS = new Set(['ativa', 'finalizada', 'aborto', 'ectopica', 'obito_fetal', 'desistencia']);
   const gestacaoIds = new Set();
   (Array.isArray(raw.gestacoes) ? raw.gestacoes : []).forEach(g => {
     const id = Number(g && g.id);

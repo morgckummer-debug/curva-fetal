@@ -79,7 +79,7 @@ create table if not exists public.gestacoes (
   abortos                   integer,
   antecedentes_obstetricos  text not null default '',
   status                    text not null default 'ativa'
-                              check (status in ('ativa','finalizada','aborto','ectopica','obito_fetal')),
+                              check (status in ('ativa','finalizada','aborto','ectopica','obito_fetal','desistencia')),
   observacoes               text not null default '',
   ig_base_data              date,
   ig_base_valor             integer,

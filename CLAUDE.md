@@ -1827,3 +1827,4 @@ patients/gestacoes/exams.
   na memória dela, um saveDB pode devolver `acompanhamento` a nulo (a RPC mexeu no servidor,
   a memória dela não sabe). Paciente nova não tem esse problema.
 - **Ficha da recepção (2026-10-10):** IG de hoje em destaque (40px) e etiqueta do plano grande, uma cor por plano (`.rc-plano--{chave}`: Essencial azul, Premium dourado com letra roxa, Gemelar Essencial rosa, Gemelar Premium roxo escuro com letra dourada); a lista usa a mesma etiqueta menor. Cabeçalho tem marca "v2" para conferir se o celular pegou a versão nova. Layout de celular abaixo de 640px em `.rc-*`.
+- **Excluir cadastro (2026-10-10, migração 020):** botão no fim da ficha da recepção, só aparece sem nenhum exame. `recepcao_excluir_cadastro()` é exclusão lógica (`excluido_em`) da gestação e, se não restar outra, da paciente; recusa se já houver exame. **A 020 precisa estar aplicada no Supabase**, senão o botão dá erro.

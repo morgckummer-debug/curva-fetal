@@ -3009,7 +3009,22 @@ function _rcDetalheHtml(i) {
     ${prox}
     <div class="rc-sec-t">Exames do plano</div>
     <table class="rc-tl"><tbody>${linhas}</tbody></table>${extras}${fora}
-    ${pagHtml}`;
+    ${pagHtml}
+    ${(sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
+}
+
+async function recepcaoExcluir(gid) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  if (!confirm('Excluir o cadastro de ' + (r ? r.nome : 'esta paciente') + '?\n\nSó funciona para quem ainda não tem nenhum exame.')) return;
+  try {
+    const { error } = await supabaseClient.rpc('recepcao_excluir_cadastro', { p_gestacao_id: gid });
+    if (error) throw error;
+    _rcSel = null;
+    await recepcaoAtualizar();
+  } catch (err) {
+    console.error('[CurvaFetal] recepcao_excluir_cadastro:', err);
+    alert('Não consegui excluir: ' + (err.message || err));
+  }
 }
 
 // ── Nova adesão e contrato preenchido ─────────────────────────────────────

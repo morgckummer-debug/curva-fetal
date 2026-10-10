@@ -594,6 +594,7 @@ header::after{display:none;}
 .rc-aviso{font-size:12px;color:var(--text-muted);margin-top:18px;}
 @media(max-width:1000px){.rc-grade{grid-template-columns:1fr;}.rc-kpis{grid-template-columns:1fr 1fr;}.rc-lista{max-height:340px;}.rc-form{grid-template-columns:1fr 1fr;}.rc-main{padding:16px;}.rc-bar{padding:14px 16px;}}
 #recepcao-screen{overflow-x:hidden;}
+.rc-bar{flex-wrap:wrap;}.rc-main{box-sizing:border-box;width:100%;}
 .rc-grade>*,.rc-kpis>*,.rc-form>*,.rc-det{min-width:0;}
 .rc-det{overflow-x:auto;}
 @media(max-width:640px){
@@ -1228,7 +1229,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
      Fica por cima de tudo (z-index alto) e não deixa nada por baixo ser clicado. -->
 <div id="recepcao-screen">
   <div class="rc-bar">
-    <div class="rc-marca"><img src="hero-logo.png" alt="MK Medicina Fetal" width="52" height="52"><h1><small>Recepção — acompanhamentos</small>Acompanhamento Fetal MK</h1></div>
+    <div class="rc-marca"><img src="hero-logo.png" alt="MK Medicina Fetal" width="52" height="52"><h1><small>Recepção — acompanhamentos · v2</small>Acompanhamento Fetal MK</h1></div>
     <div class="rc-bar-acoes">
       <span class="rc-bar-user" id="rc-user"></span>
       <button type="button" class="rc-btn" onclick="recepcaoAtualizar()">Atualizar</button>

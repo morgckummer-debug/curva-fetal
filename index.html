@@ -2964,9 +2964,10 @@ function _rcDetalheHtml(i) {
       <td></td><td class="rc-ex-dt"><b class="rc-feito-t">Feito em ${formatDateBR(x.v.data_exame)}</b></td></tr>`;
   const linhas = sit.slots.map(s => {
     // extras feitos antes deste exame (pela data de realização) entram na frente dele;
-    // exame ainda por fazer fica depois de todos os extras já feitos
+    // exame não feito: o extra entra antes dele se a data cai até o fim da janela dele,
+    // senão fica depois (ex.: extra de outubro depois do morfológico de 1º tri que venceu em setembro)
     let antes = '';
-    while (extrasOrd.length && (s.status !== 'feito' || extrasOrd[0].v.data_exame < s.hit.v.data_exame)) antes += trExtra(extrasOrd.shift());
+    while (extrasOrd.length && (s.status === 'feito' ? extrasOrd[0].v.data_exame < s.hit.v.data_exame : (!s.ate || extrasOrd[0].v.data_exame <= s.ate))) antes += trExtra(extrasOrd.shift());
     let ic, st;
     if (s.status === 'feito') { ic = '<span class="rc-dot rc-dot--feito">✓</span>'; st = `<b class="rc-feito-t">Feito em ${formatDateBR(s.hit.v.data_exame)}</b>`; }
     else if (s.status === 'atrasado') { ic = '<span class="rc-dot rc-dot--atrasado">!</span>'; st = `<b class="rc-atras-t">Janela vencida${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</b>`; }

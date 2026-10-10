@@ -6010,7 +6010,7 @@ function _showNameSuggestions(q) {
   }
   const matches = _matchPatients(q).slice(0,8);
   if (!matches.length) { box.style.display='none'; return; }
-  box.innerHTML = matches.map(p => `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="padding:10px 16px;cursor:pointer;font-size:13px;color:#3d2352;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome || 'Sem nome')}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span></div>`).join('');
+  box.innerHTML = matches.map(p => { const gs = getGestacoesByPatient(p.id); const enc = _chipEncerrado(gs.find(g => g.status === 'ativa') || gs[gs.length - 1]); return `<div onclick="openPatient(${safeId(p.id)});_hideNameSuggestions()" style="${enc.cls ? 'filter:grayscale(1);opacity:.7;' : ''}padding:10px 16px;cursor:pointer;font-size:13px;color:#3d2352;border-bottom:1px solid #f0eaff;transition:background .15s" onmouseover="this.style.background='#f5f0ff'" onmouseout="this.style.background=''"><strong>${escapeHtml(p.nome || 'Sem nome')}</strong><br><span style="font-size:11px;color:#9a7858;">${escapeHtml(p.cpf)}</span>${enc.tag ? '<br>' + enc.tag : ''}</div>`; }).join('');
   box.style.display = 'block';
 }
 

@@ -3047,8 +3047,6 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao) {
   const naoFeitos = sit.slots.map((s, i) => ({ s, i })).filter(x => !x.s.hit);
   const vFeitos = feitos.reduce((a, x) => a + peso(x.i), 0) + sit.extras.length * _EXTRA_AVULSO * mult;
   const vNaoFeitos = naoFeitos.reduce((a, x) => a + peso(x.i), 0);
-  const extrasRest = Math.max(0, sit.plano.extras - sit.extras.length);
-  const vExtrasRest = extrasRest * _EXTRA_AVULSO * mult;
   const saldo = Math.max(0, pago - vFeitos);
   const taxa = cartao ? taxaPct / 100 : 0;
   const out = { total, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0 };
@@ -3060,7 +3058,7 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao) {
     const base = Math.min(saldo, vNaoFeitos);
     out.estorno = Math.max(0, base * (1 - taxa)); out.taxaVal = base * taxa; out.base = base;
   } else {
-    out.credito = Math.min(saldo, vNaoFeitos + vExtrasRest); out.base = out.credito;
+    out.credito = Math.min(saldo, vNaoFeitos); out.base = out.credito;
   }
   return out;
 }
@@ -3094,7 +3092,7 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push(`Valor a devolver: ${_brl(c.estorno)}${c.taxaVal ? ` (exames não realizados, ${_brl(c.base)}, menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ' (exames não realizados)'}.`);
   } else {
     L.push('');
-    L.push(`Crédito: ${_brl(c.credito)} (exames não realizados e extras não utilizados), válido por 12 meses, para você e para o recém-nascido.`);
+    L.push(`Crédito: ${_brl(c.credito)} (exames não realizados), válido por 12 meses, para você e para o recém-nascido.`);
   }
   L.push('');
   L.push('Qualquer dúvida, estamos à disposição.');
@@ -3459,7 +3457,7 @@ ${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesã
 <p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
 <h2>8) Imprevistos na gestação</h2>
 <p><b>a) Perda gestacional.</b> A clínica entrará em contato com cuidado e sem pressa. Será devolvido o valor dos exames não realizados, calculado pelo valor avulso da tabela do Anexo II, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado.</p>
-<p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, o valor avulso dos exames não realizados e dos extras não utilizados é convertido em crédito válido por 12 (doze) meses, que pode ser usado pela mãe e pelo recém-nascido.</p>
+<p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, o valor avulso dos exames não realizados é convertido em crédito válido por 12 (doze) meses, que pode ser usado pela mãe e pelo recém-nascido.</p>
 <p><b>c) Perda de um dos fetos em gestação gemelar.</b> O plano é reajustado para a modalidade de feto único correspondente (Essencial ou Premium). A diferença de valor, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, fica como crédito nas regras do item 7c ou pode ser convertida em ultrassons extras, pelo valor avulso do ultrassom extra do Anexo II.</p>
 <h2>9) Gestação gemelar identificada após a adesão</h2>
 <p>Se a gestação gemelar for identificada após a adesão, a gestante poderá migrar para a modalidade gemelar correspondente, pagando a diferença de valor vigente.</p>

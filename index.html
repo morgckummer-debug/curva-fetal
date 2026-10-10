@@ -3025,20 +3025,145 @@ function _rcDetalheHtml(i) {
     <div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
       <select id="rc-enc-motivo" style="padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:13px;background:#fff;">
         <option value="">Encerrar acompanhamento…</option><option value="parto">Parto realizado</option><option value="perda">Perda gestacional</option><option value="obito">Óbito fetal</option><option value="desistencia">Desistência da paciente</option></select>
-      <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrar(${r.gestacao_id})">Encerrar</button></div>
+      <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrarAbrir(${r.gestacao_id})">Encerrar…</button></div>
     ${(sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
 }
 
-async function recepcaoEncerrar(gid) {
+// ── Encerramento com extrato (2026-10-10) ──
+// Taxa da maquininha fixa por enquanto (decisão da médica); ajustável no próprio extrato.
+const _TAXA_MAQUININHA_PCT = 10;
+const _EXTRA_AVULSO = 230;
+const _ENC_MOTIVO = { parto: 'Parto realizado', perda: 'Perda gestacional', obito: 'Óbito fetal', desistencia: 'Desistência da paciente' };
+let _encGid = null, _encTxtManual = false;
+const _brl = v => 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function _encCalc(r, sit, motivo, pago, taxaPct, cartao) {
+  const key = r.acompanhamento, mult = key.startsWith('gemelar') ? 2 : 1;
+  const total = (_ADESAO_PRECO[key] || {}).total || 0;
+  const peso = i => _ADESAO_PESO[sit.plano.ex[i]] * mult;
+  const feitos = sit.slots.map((s, i) => ({ s, i })).filter(x => x.s.hit);
+  const naoFeitos = sit.slots.map((s, i) => ({ s, i })).filter(x => !x.s.hit);
+  const vFeitos = feitos.reduce((a, x) => a + peso(x.i), 0) + sit.extras.length * _EXTRA_AVULSO * mult;
+  const vNaoFeitos = naoFeitos.reduce((a, x) => a + peso(x.i), 0);
+  const extrasRest = Math.max(0, sit.plano.extras - sit.extras.length);
+  const vExtrasRest = extrasRest * _EXTRA_AVULSO * mult;
+  const saldo = Math.max(0, pago - vFeitos);
+  const taxa = cartao ? taxaPct / 100 : 0;
+  const out = { total, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0 };
+  if (motivo === 'desistencia') {
+    out.retencao = total * 0.2;
+    out.estorno = Math.max(0, saldo - out.retencao);
+    out.credito = Math.max(0, saldo * (1 - taxa)); out.taxaVal = saldo * taxa;
+  } else if (motivo === 'perda' || motivo === 'obito') {
+    const base = Math.min(saldo, vNaoFeitos);
+    out.estorno = Math.max(0, base * (1 - taxa)); out.taxaVal = base * taxa; out.base = base;
+  } else {
+    out.credito = Math.min(saldo, vNaoFeitos + vExtrasRest); out.base = out.credito;
+  }
+  return out;
+}
+
+function _encTexto(r, sit, motivo, hoje, c) {
+  const nome = (r.nome || '').trim().split(/\s+/)[0] || '';
+  const L = [];
+  L.push(motivo === 'perda' || motivo === 'obito'
+    ? `Olá, ${nome}. Sentimos muito pelo que aconteceu e estamos com você. Segue, com todo o cuidado, o resumo do seu Acompanhamento Fetal MK.`
+    : `Olá, ${nome}! Segue o resumo do seu Acompanhamento Fetal MK com a Dra. Morgana Kummer.`);
+  L.push('');
+  L.push(`Plano: ${sit.plano.nome} (${_brl(c.total)})`);
+  L.push(`Encerramento: ${formatDateBR(hoje)}`);
+  L.push(`Motivo: ${_ENC_MOTIVO[motivo]}`);
+  L.push('');
+  L.push('Exames realizados:');
+  if (!c.feitos.length && !sit.extras.length) L.push('- nenhum');
+  c.feitos.forEach(x => L.push(`- ${x.s.def.n} em ${formatDateBR(x.s.hit.v.data_exame)}`));
+  sit.extras.forEach(x => L.push(`- Ultrassom extra em ${formatDateBR(x.v.data_exame)}`));
+  L.push('');
+  L.push(`Valor pago: ${_brl(c.saldo + c.vFeitos)}`);
+  L.push(`Exames realizados (valor avulso): ${_brl(c.vFeitos)}`);
+  if (motivo === 'desistencia') {
+    L.push(`Saldo: ${_brl(c.saldo)}`);
+    L.push('');
+    L.push('Você pode escolher:');
+    L.push(`1) Devolução em dinheiro: ${_brl(c.estorno)} (saldo menos 20% do valor total do plano, ${_brl(c.retencao)}).`);
+    L.push(`2) Crédito na clínica: ${_brl(c.credito)}${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}, válido por 12 meses, de uso pessoal.`);
+  } else if (motivo === 'perda' || motivo === 'obito') {
+    L.push('');
+    L.push(`Valor a devolver: ${_brl(c.estorno)}${c.taxaVal ? ` (exames não realizados, ${_brl(c.base)}, menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ' (exames não realizados)'}.`);
+  } else {
+    L.push('');
+    L.push(`Crédito: ${_brl(c.credito)} (exames não realizados e extras não utilizados), válido por 12 meses, para você e para o recém-nascido.`);
+  }
+  L.push('');
+  L.push('Qualquer dúvida, estamos à disposição.');
+  return L.join('\n');
+}
+
+function recepcaoEncerrarAbrir(gid) {
   const sel = document.getElementById('rc-enc-motivo');
   const motivo = sel ? sel.value : '';
   if (!motivo) { alert('Escolha o motivo do encerramento.'); return; }
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
-  const txt = sel.options[sel.selectedIndex].text;
-  if (!confirm('Encerrar o acompanhamento de ' + (r ? r.nome : 'esta paciente') + ' (' + txt + ')?\n\nEla sai da lista da recepção. A Dra. Morgana pode reabrir pela ficha.')) return;
+  if (!r) return;
+  const sit = _acompSituacao(r, r.exames || []);
+  if (!sit) { alert('Esta paciente não tem plano.'); return; }
+  _encGid = gid; _encTxtManual = false;
+  const pg = r.pagamento || {};
+  const total = (_ADESAO_PRECO[r.acompanhamento] || {}).total || 0;
+  const pagoIni = pg.status === 'quitado' ? total : (pg.status === 'parcial' ? 0 : 0);
+  let el = document.getElementById('rc-enc-modal');
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'rc-enc-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;';
+  const inp = 'padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box;';
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
+    <h3 style="margin:0 0 4px;">Encerrar acompanhamento</h3>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · ${escapeHtml(_ENC_MOTIVO[motivo])}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div><label style="font-size:12px;">Valor pago (R$)</label><input id="rc-enc-pago" type="number" step="0.01" min="0" value="${pagoIni}" style="${inp}" oninput="_encRefazer()"></div>
+      <div><label style="font-size:12px;">Pagou no cartão?</label><select id="rc-enc-cartao" style="${inp}" onchange="_encRefazer()"><option value="1" ${pg.forma === 'cartao' || !pg.forma ? 'selected' : ''}>Sim</option><option value="0" ${pg.forma && pg.forma !== 'cartao' ? 'selected' : ''}>Não</option></select></div>
+      <div><label style="font-size:12px;">Taxa maquininha (%)</label><input id="rc-enc-taxa" type="number" step="0.1" min="0" value="${_TAXA_MAQUININHA_PCT}" style="${inp}" oninput="_encRefazer()"></div>
+    </div>
+    <div style="margin-bottom:10px;"><label style="font-size:12px;">Celular da paciente (com DDD)</label><input id="rc-enc-tel" type="tel" placeholder="(31) 9 9999-9999" style="${inp}"></div>
+    <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
+    <textarea id="rc-enc-txt" rows="14" style="${inp}font-size:13px;" oninput="_encTxtManual=true"></textarea>
+    <div id="rc-enc-aviso" style="font-size:12px;color:var(--text-muted);margin:8px 0;">Confira o valor pago: o app não sabe quanto foi realmente pago. Pacientes que entraram com o calendário em andamento têm valor menor que o do plano.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-enc-modal').remove()">Cancelar</button>
+      <button type="button" class="rc-btn-claro" onclick="_encWhats()">Abrir no WhatsApp</button>
+      <button type="button" class="rc-btn-dark" onclick="_encConfirmar('${motivo}')">Encerrar acompanhamento</button></div></div>`;
+  document.body.appendChild(el);
+  el.dataset.motivo = motivo;
+  _encRefazer();
+}
+
+function _encRefazer() {
+  const el = document.getElementById('rc-enc-modal');
+  if (!el || _encTxtManual) return;
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _encGid);
+  const sit = _acompSituacao(r, r.exames || []);
+  const pago = parseFloat(document.getElementById('rc-enc-pago').value) || 0;
+  const taxa = parseFloat(document.getElementById('rc-enc-taxa').value) || 0;
+  const cartao = document.getElementById('rc-enc-cartao').value === '1';
+  const c = _encCalc(r, sit, el.dataset.motivo, pago, taxa, cartao);
+  document.getElementById('rc-enc-txt').value = _encTexto(r, sit, el.dataset.motivo, _hojeISO(), c);
+}
+
+function _encWhats() {
+  let d = (document.getElementById('rc-enc-tel').value || '').replace(/\D/g, '');
+  if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
+  if (!d.startsWith('55')) d = '55' + d;
+  window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(document.getElementById('rc-enc-txt').value), '_blank');
+}
+
+async function _encConfirmar(motivo) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _encGid);
+  if (!confirm('Encerrar o acompanhamento de ' + (r ? r.nome : 'esta paciente') + '?\n\nEla sai da lista da recepção. A Dra. Morgana pode reabrir pela ficha. Copie ou envie a mensagem antes, pois ela não fica guardada.')) return;
   try {
-    const { error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: gid, p_motivo: motivo });
+    const { error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: _encGid, p_motivo: motivo });
     if (error) throw error;
+    const m = document.getElementById('rc-enc-modal'); if (m) m.remove();
     _rcSel = null;
     await recepcaoAtualizar();
   } catch (err) { console.error(err); alert('Não consegui encerrar: ' + (err.message || err)); }

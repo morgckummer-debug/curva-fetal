@@ -3089,14 +3089,14 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push(`Saldo: ${_brl(c.saldo)}`);
     L.push('');
     L.push('Você pode escolher:');
-    L.push(`1) Devolução em dinheiro: ${_brl(c.estorno)} (saldo menos 20% do valor total do plano, ${_brl(c.retencao)}).`);
-    L.push(`2) Crédito na clínica: ${_brl(c.credito)}${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}, válido por 12 meses, de uso pessoal.`);
+    L.push(`1) Devolução em dinheiro: *${_brl(c.estorno)}* (saldo menos 20% do valor total do plano, ${_brl(c.retencao)}).`);
+    L.push(`2) Crédito na clínica: *${_brl(c.credito)}*${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}, válido por 12 meses, de uso pessoal.`);
   } else if (motivo === 'perda' || motivo === 'obito') {
     L.push('');
-    L.push(`Valor a devolver: ${_brl(c.estorno)}${c.taxaVal ? ` (exames não realizados, ${_brl(c.base)}, menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ' (exames não realizados)'}.`);
+    L.push(`Valor a devolver: *${_brl(c.estorno)}*${c.taxaVal ? ` (exames não realizados, ${_brl(c.base)}, menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ' (exames não realizados)'}.`);
   } else {
     L.push('');
-    L.push(`Crédito: ${_brl(c.credito)} (exames não realizados), válido por 12 meses, para você e para o recém-nascido.`);
+    L.push(`Crédito: *${_brl(c.credito)}* (exames não realizados), válido por 12 meses, para você e para o recém-nascido.`);
   }
   L.push('');
   L.push('Qualquer dúvida, estamos à disposição.');

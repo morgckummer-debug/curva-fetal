@@ -587,6 +587,7 @@ header::after{display:none;}
 .rc-tl .rc-ex-s{display:block;font-size:12px;color:var(--text-muted);font-weight:400;}
 .rc-tl td.rc-ex-dt{text-align:right;white-space:nowrap;color:var(--text-muted);}
 .rc-tl td.rc-ex-dt b{display:block;color:var(--text);}
+.rc-tag-extra{display:inline-block;margin-left:6px;padding:2px 9px;border-radius:999px;background:#f3e6c4;color:#6b4a00;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;}
 .rc-tl .rc-feito-t{color:#1f6b3a;font-weight:700;}
 .rc-tl .rc-atras-t{color:var(--danger);font-weight:700;}
 .rc-pag{margin-top:22px;border-radius:14px;border:1.5px solid rgba(61,35,82,.14);padding:18px 20px;background:#fbf9fc;}
@@ -2970,6 +2971,9 @@ function _rcDetalheHtml(i) {
       <td class="rc-ex-dt">${st}</td></tr>`;
   }).join('');
 
+  const linhasExtra = sit.extras.map(x => `<tr><td class="rc-ic"><span class="rc-dot rc-dot--feito">✓</span></td>
+      <td><span class="rc-ex-n">Ultrassom extra</span> <span class="rc-tag-extra">Extra</span></td>
+      <td></td><td class="rc-ex-dt"><b class="rc-feito-t">Feito em ${formatDateBR(x.v.data_exame)}</b></td></tr>`).join('');
   const usados = sit.extras.length, inclu = sit.plano.extras;
   const extras = `<p class="rc-det-meta" style="margin-top:8px;">Ultrassons extras: ${usados} de ${inclu} usados${usados ? ' (' + sit.extras.map(x => formatDateBR(x.v.data_exame)).join(', ') + ')' : ''}${usados > inclu ? ' — acima do incluído, cobrar à parte' : ''}.</p>`;
   const fora = sit.fora.length
@@ -3008,7 +3012,7 @@ function _rcDetalheHtml(i) {
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
     ${prox}
     <div class="rc-sec-t">Exames do plano</div>
-    <table class="rc-tl"><tbody>${linhas}</tbody></table>${extras}${fora}
+    <table class="rc-tl"><tbody>${linhas}${linhasExtra}</tbody></table>${extras}${fora}
     ${pagHtml}
     ${(sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
 }

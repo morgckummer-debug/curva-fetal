@@ -3071,8 +3071,8 @@ function _encTexto(r, sit, motivo, hoje, c) {
   const nome = (r.nome || '').trim().split(/\s+/)[0] || '';
   const L = [];
   L.push(motivo === 'perda' || motivo === 'obito'
-    ? `Olá, ${nome}. Sentimos muito pelo que aconteceu e estamos com você. Segue, com todo o cuidado, o resumo do seu Acompanhamento Fetal MK.`
-    : `Olá, ${nome}! Segue o resumo do seu Acompanhamento Fetal MK com a Dra. Morgana Kummer.`);
+    ? `Olá, ${nome}. Sentimos muito pelo que aconteceu e estamos com você... 🙏 Segue, com todo o carinho, o resumo do seu Acompanhamento Fetal MK.`
+    : `Olá, ${nome}! Foi um prazer ter você conosco durante esse tempo 💜 Segue o resumo do seu Acompanhamento Fetal MK.`);
   L.push('');
   L.push(`Plano: ${sit.plano.nome} (${_brl(c.total)})`);
   L.push(`Encerramento: ${formatDateBR(hoje)}`);

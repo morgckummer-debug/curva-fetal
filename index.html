@@ -557,6 +557,8 @@ header::after{display:none;}
 .rc-ig-hoje span{font-size:14px;color:var(--text-muted);}
 .rc-pill--plano{background:rgba(139,107,168,.16);color:var(--sage-deep);}
 .rc-pill--alerta{background:#f6d9d9;color:#8a2323;}
+.rc-item.rc-enc .rc-av,.rc-item.rc-enc .rc-it-nome,.rc-item.rc-enc .rc-it-sub,.rc-item.rc-enc .rc-prog{opacity:.5;filter:grayscale(1);}
+.rc-enc-faixa{background:#fdecec;border:1.5px solid #c0392b;color:#8e1f14;border-radius:10px;padding:9px 13px;margin-bottom:12px;font-weight:700;font-size:14px;}
 .rc-det{background:var(--surface,#fff);border-radius:18px;box-shadow:0 2px 16px rgba(61,35,82,.09);padding:26px 30px 28px;min-height:300px;}
 .rc-vazio{color:var(--text-muted);text-align:center;padding:48px 20px;font-size:14px;}
 .rc-det-top{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-bottom:18px;}
@@ -2804,8 +2806,9 @@ let _rcMedica = false;
 
 const _RC_FILTROS = [
   ['todas', 'Todas'], ['pendencia', 'Com pendência'], ['atrasadas', 'Janela vencida'],
-  ['pagamento', 'Pagamento a confirmar'], ['semana', 'Exame nos próximos 7 dias'],
+  ['pagamento', 'Pagamento a confirmar'], ['semana', 'Exame nos próximos 7 dias'], ['encerradas', 'Encerradas'],
 ];
+const _RC_ENC_ROTULO = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência' };
 const _RC_PAG = {
   quitado:  { rotulo: 'Pago',          cls: 'rc-pill--ok' },
   parcial:  { rotulo: 'Pago em parte', cls: 'rc-pill--parcial' },
@@ -2859,16 +2862,20 @@ function _rcInfo(r) {
   const atrasadas = sit.slots.filter(s => s.status === 'atrasado');
   const p = sit.prox;
   const limite = p ? (p.ateTol || p.ate) : null;
-  const semana = !!(p && p.de && limite && p.de <= em7 && limite >= hoje);
-  return { r, sit, pag, atrasadas, semana, pendencia: atrasadas.length > 0 || pag !== 'quitado' };
+  const enc = !!(r.status && r.status !== 'ativa'); // 'status' só vem depois da migração 024
+  const semana = !enc && !!(p && p.de && limite && p.de <= em7 && limite >= hoje);
+  return { r, sit, pag, atrasadas: enc ? [] : atrasadas, semana, enc,
+    motivoEnc: enc ? (_RC_ENC_ROTULO[r.status] || r.status) : '',
+    pendencia: !enc && (atrasadas.length > 0 || pag !== 'quitado') };
 }
 
 function _rcPassaFiltro(i) {
   switch (_rcFiltro) {
     case 'pendencia': return i.pendencia;
     case 'atrasadas': return i.atrasadas.length > 0;
-    case 'pagamento': return i.pag !== 'quitado';
+    case 'pagamento': return !i.enc && i.pag !== 'quitado';
     case 'semana':    return i.semana;
+    case 'encerradas': return i.enc;
     default:          return true;
   }
 }
@@ -2884,7 +2891,10 @@ function recepcaoAbrir(id) { _rcSel = id; recepcaoFiltrar(); }
 function recepcaoFiltrar() {
   const lista = document.getElementById('rc-lista');
   if (!lista) return;
-  const todos = _recepcaoDados.map(_rcInfo).filter(Boolean);
+  const todosComEnc = _recepcaoDados.map(_rcInfo).filter(Boolean)
+    .sort((a, b) => (a.enc - b.enc) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
+  const todos = todosComEnc.filter(i => !i.enc); // KPIs contam só os ativos
+  const nEnc = todosComEnc.length - todos.length;
 
   const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
   document.getElementById('rc-kpis').innerHTML =
@@ -2897,7 +2907,7 @@ function recepcaoFiltrar() {
 
   const q = _rcNorm((document.getElementById('rc-busca') || {}).value);
   const qDig = q.replace(/\D/g, '');
-  const itens = todos.filter(i => {
+  const itens = todosComEnc.filter(i => {
     if (!_rcPassaFiltro(i)) return false;
     if (!q) return true;
     if (_rcNorm(i.r.nome).includes(q)) return true;
@@ -2905,7 +2915,7 @@ function recepcaoFiltrar() {
   });
 
   if (!itens.length) {
-    lista.innerHTML = '<p class="rc-vazio">' + (todos.length
+    lista.innerHTML = '<p class="rc-vazio">' + (todosComEnc.length
       ? 'Nenhuma paciente encontrada com essa busca ou filtro.'
       : 'Nenhuma paciente com acompanhamento cadastrado.') + '</p>';
     document.getElementById('rc-det').innerHTML = '<p class="rc-vazio">Selecione uma paciente na lista.</p>';
@@ -2916,12 +2926,12 @@ function recepcaoFiltrar() {
   lista.innerHTML = itens.map(i => {
     const r = i.r, pg = _RC_PAG[i.pag];
     const pct = Math.round(100 * i.sit.feitos / i.sit.slots.length);
-    return `<div class="rc-item ${r.gestacao_id === _rcSel ? 'rc-sel' : ''}" onclick="recepcaoAbrir(${r.gestacao_id})">
+    return `<div class="rc-item ${r.gestacao_id === _rcSel ? 'rc-sel' : ''} ${i.enc ? 'rc-enc' : ''}" onclick="recepcaoAbrir(${r.gestacao_id})">
       <div class="rc-av">${escapeHtml(_rcIniciais(r.nome))}</div>
       <div class="rc-it-corpo"><div class="rc-it-nome">${escapeHtml(r.nome)}</div>
         <div class="rc-it-sub"><b class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}" style="font-size:11px;padding:2px 9px;">${escapeHtml(i.sit.plano.nome)}</b>${i.sit.igHoje != null ? ' · IG ' + _acompSemDia(i.sit.igHoje) : ''} · ${i.sit.feitos}/${i.sit.slots.length} exames</div>
         <div class="rc-prog"><i style="width:${pct}%"></i></div></div>
-      <div class="rc-it-lado"><span class="rc-pill ${pg.cls}">${pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
+      <div class="rc-it-lado">${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}<span class="rc-pill ${pg.cls}">${pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
     </div>`;
   }).join('');
   const sel = itens.find(i => i.r.gestacao_id === _rcSel);
@@ -3015,20 +3025,21 @@ function _rcDetalheHtml(i) {
       <span class="rc-pag-msg" id="rc-pg-msg">${quem}</span></div>
   </div>`;
 
-  return `<div class="rc-det-top"><div><h2>${escapeHtml(r.nome)}</h2>
+  const faixaEnc = i.enc ? `<div class="rc-enc-faixa">🔴 Acompanhamento encerrado — ${escapeHtml(i.motivoEnc)}</div>` : '';
+  return `${faixaEnc}<div class="rc-det-top"><div><h2>${escapeHtml(r.nome)}</h2>
       <div class="rc-det-meta"><span class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}">${escapeHtml(sit.plano.nome)}</span>
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
-      <div class="rc-ig-hoje"><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div></div>
+      <div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
     ${prox}
     <div class="rc-sec-t">Exames do plano</div>
     <table class="rc-tl"><tbody>${linhas}${linhasExtra}</tbody></table>${extras}${fora}
     ${pagHtml}
-    <div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
+    ${i.enc ? '' : `<div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
       <select id="rc-enc-motivo" style="padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:13px;background:#fff;">
         <option value="">Encerrar acompanhamento…</option><option value="parto">Parto realizado</option><option value="perda">Perda gestacional</option><option value="obito">Óbito fetal</option><option value="desistencia">Desistência da paciente</option></select>
-      <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrarAbrir(${r.gestacao_id})">Encerrar…</button></div>
-    ${(sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
+      <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrarAbrir(${r.gestacao_id})">Encerrar…</button></div>`}
+    ${(!i.enc && sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
 }
 
 // ── Encerramento com extrato (2026-10-10) ──
@@ -3163,7 +3174,7 @@ function _encWhats() {
 
 async function _encConfirmar(motivo) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === _encGid);
-  if (!confirm('Encerrar o acompanhamento de ' + (r ? r.nome : 'esta paciente') + '?\n\nEla sai da lista da recepção. A Dra. Morgana pode reabrir pela ficha. Copie ou envie a mensagem antes, pois ela não fica guardada.')) return;
+  if (!confirm('Encerrar o acompanhamento de ' + (r ? r.nome : 'esta paciente') + '?\n\nEla continua na lista, marcada como encerrada. A Dra. Morgana pode reabrir pela ficha. Copie ou envie a mensagem antes, pois ela não fica guardada.')) return;
   try {
     const { error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: _encGid, p_motivo: motivo });
     if (error) throw error;

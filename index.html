@@ -3610,7 +3610,11 @@ async function recepcaoComprovanteEnviar(gid, input) {
     const tipo = ehPdf ? 'application/pdf' : 'image/jpeg';
     const dono = await _compDonoId();
     const path = `${dono}/${gid}/${Date.now()}.${ehPdf ? 'pdf' : 'jpg'}`;
-    const up = await supabaseClient.storage.from('comprovantes').upload(path, blob, { contentType: tipo, upsert: false });
+    // sem timeout o "Enviando…" ficava eterno com sinal ruim no celular
+    const up = await Promise.race([
+      supabaseClient.storage.from('comprovantes').upload(path, blob, { contentType: tipo, upsert: false }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('o envio demorou demais — confira o sinal e tente de novo')), 60000)),
+    ]);
     if (up.error) throw up.error;
     const nome = ehPdf ? (file.name || 'comprovante.pdf') : 'Foto ' + new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
     const { error } = await supabaseClient.rpc('recepcao_comprovante_add', { p_gestacao_id: gid, p_path: path, p_nome: nome, p_tipo: tipo });
@@ -6232,13 +6236,22 @@ const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica
     gemelarBadge = `<span class="ph-gemelar-badge">👯 GEMELAR${corioTag}</span>`;
   }
 
+  // Acompanhamento encerrado (desistência, perda, óbito, parto): faixa vermelha no topo
+  // e IG apagada — a IG de hoje de uma gestação encerrada não significa mais nada.
+  const _encMotivo = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência da paciente' };
+  const encerradoBanner = (gestacao && gestacao.status && gestacao.status !== 'ativa')
+    ? `<div style="background:#fdecec;border:1.5px solid #c0392b;color:#8e1f14;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-weight:700;font-size:13px;">🔴 Acompanhamento encerrado — ${escapeHtml(_encMotivo[gestacao.status] || labelStatus(gestacao.status))}</div>`
+    : '';
+  const igEncerrada = encerradoBanner ? ' style="opacity:.35;text-decoration:line-through;"' : '';
+
   document.getElementById('patient-header-info').innerHTML = `
+    ${encerradoBanner}
     <div class="ph-row1">
       <span style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <span class="ph-name">${escapeHtml(patient.nome || 'Paciente')}</span>
         ${gemelarBadge}
       </span>
-      <span class="ph-ig">${igNowStr}</span>
+      <span class="ph-ig"${igEncerrada}>${igNowStr}</span>
     </div>
     <div class="ph-row2">
       ${metaLine}

@@ -14346,6 +14346,8 @@ function _buildLaudo1TriSheetHtml(patient, gestacao, allExams, opts) {
     <div class="risco-fmf-cards">${riscoCards}</div>
   </section>` : '';
 
+  const linhaTempoSecao = _linhaTempoAcompHtml(gestacao, allExams);
+
   const conclusaoHtml = opts.textareaMode
     ? `<textarea id="laudo1tri-texto-conclusao" class="rel-texto rel-texto--full" placeholder="Conclusão gerada automaticamente...">${escapeHtml(opts.textoConclusaoInicial || '')}</textarea>
       <div class="rel-texto-hint">⚠ Texto gerado automaticamente. Revise e ajuste conforme sua avaliação clínica antes de emitir.</div>`
@@ -14362,8 +14364,61 @@ function _buildLaudo1TriSheetHtml(patient, gestacao, allExams, opts) {
       <h2 class="rel-secao-t">Conclusão</h2>
       <div class="descricao">${conclusaoHtml}</div>
     </section>
+    ${linhaTempoSecao}
   </main>
   ${_relFooterHtml()}`;
+}
+
+// O que cada exame do acompanhamento avalia — uma frase informativa, sem conduta.
+const _ACOMP_O_QUE = {
+  m1:   'Avalia a anatomia fetal inicial, a translucência nucal e o risco combinado de cromossomopatias e de pré-eclâmpsia.',
+  colo: 'Avalia o crescimento fetal, a anatomia básica (inclusive a definição do sexo) e mede o colo do útero.',
+  m2:   'Avalia detalhadamente a anatomia do bebê, o crescimento, a placenta, o líquido amniótico, o colo do útero e o fluxo sanguíneo (Doppler).',
+  d28:  'Avalia o crescimento, o líquido amniótico, o bem-estar fetal (perfil biofísico) e o fluxo sanguíneo do bebê e da placenta.',
+  d32:  'Avalia o crescimento, o líquido amniótico, o bem-estar fetal (perfil biofísico) e o fluxo sanguíneo do bebê e da placenta.',
+  d36:  'Avalia o crescimento, o líquido amniótico, o bem-estar fetal (perfil biofísico) e o fluxo sanguíneo, na reta final da gestação.',
+  m3:   'Reavalia a anatomia, o crescimento, a placenta, o líquido amniótico e o fluxo sanguíneo (Doppler) no terceiro trimestre.',
+  d38:  'Avalia crescimento, líquido amniótico, bem-estar fetal (perfil biofísico) e fluxo sanguíneo próximo ao termo.',
+};
+
+// Página "Linha do tempo do acompanhamento": exames feitos e próximos, com janelas.
+// Só existe para gestação com plano de acompanhamento.
+function _linhaTempoAcompHtml(gestacao, allExams) {
+  const sit = _acompSituacao(gestacao, allExams);
+  if (!sit) return '';
+  const dataBR = iso => (iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : '');
+  const keys = sit.plano.ex;
+  const linhas = sit.slots.map((s, i) => {
+    const d = s.def;
+    const nome = escapeHtml(d.n + (d.sub ? ' ' + d.sub : ''));
+    const oque = escapeHtml(_ACOMP_O_QUE[keys[i]] || '');
+    let marca, quando;
+    if (s.hit) {
+      marca = '✓'; quando = 'Realizado em ' + dataBR(s.hit.v.data_exame);
+    } else if (s.status === 'atrasado') {
+      marca = '•'; quando = 'Período encerrado (' + _acompSemDia(d.ini) + ' a ' + _acompSemDia(d.fim) + ')';
+    } else {
+      marca = '○';
+      quando = (s.de && s.ate ? 'Entre ' + dataBR(s.de) + ' e ' + dataBR(s.ateTol || s.ate) + ' · ' : '') + _acompSemDia(d.ini) + ' a ' + _acompSemDia(d.fim) + ' de gestação';
+    }
+    const feito = !!s.hit;
+    return `<tr style="break-inside:avoid;">
+      <td style="width:22px;vertical-align:top;padding:7px 4px;font-weight:700;color:${feito ? 'var(--roxo,#4B2E83)' : 'var(--dourado,#B08D3F)'};">${marca}</td>
+      <td style="vertical-align:top;padding:7px 4px;border-bottom:1px solid #e6e0ef;">
+        <div style="font-weight:700;">${nome}</div>
+        <div style="font-size:11.5px;color:#555;">${escapeHtml(quando)}</div>
+        <div style="font-size:11.5px;margin-top:2px;">${oque}</div>
+      </td></tr>`;
+  }).join('');
+  const nExtras = sit.plano.extras || 0;
+  const extraTxt = nExtras
+    ? `<p style="font-size:11.5px;margin:8px 0 0;">Ultrassons extras incluídos no acompanhamento: ${sit.extras.length} de ${nExtras} utilizado${sit.extras.length === 1 ? '' : 's'}.</p>` : '';
+  return `<section class="rel-secao" style="break-before:page;">
+    <h2 class="rel-secao-t">Linha do tempo do acompanhamento — ${escapeHtml(sit.plano.nome)}</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">${linhas}</table>
+    ${extraTxt}
+    <p style="font-size:11px;color:#666;margin:8px 0 0;">As datas indicam o período ideal de cada exame; o agendamento é combinado com a nossa equipe.</p>
+  </section>`;
 }
 
 // Preview do relatório — abre o modal com o MESMO HTML que será exportado

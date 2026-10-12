@@ -2962,12 +2962,10 @@ function recepcaoCopiarAgenda(btn) {
 }
 
 // Mensagem de WhatsApp para a paciente escolher as datas dos próximos exames (a secretária confere e envia).
-// Entram os exames pendentes cuja janela começa nos próximos 60 dias (ou já está aberta); sempre pelo menos o próximo.
+// Entram todos os exames pendentes do plano, até o último.
 function _rcMsgDatas(i) {
-  const hoje = _hojeISO(), lim = _rvAddDias(hoje, 60);
-  const pend = i.sit.slots.filter(s => (s.status === 'falta' || s.status === 'tolerancia') && s.de);
-  let sel = pend.filter(s => s.de <= lim);
-  if (!sel.length && pend.length) sel = [pend[0]];
+  const hoje = _hojeISO();
+  const sel = i.sit.slots.filter(s => (s.status === 'falta' || s.status === 'tolerancia') && s.de);
   if (!sel.length) return '';
   const linhas = sel.map(s => {
     const n = s.def.n.charAt(0).toLowerCase() + s.def.n.slice(1);

@@ -2808,8 +2808,7 @@ let _rcFiltro = 'todas';
 let _rcMedica = false;
 
 const _RC_FILTROS = [
-  ['todas', 'Todas'], ['pendencia', 'Com pendência'], ['atrasadas', 'Janela vencida'],
-  ['pagamento', 'Pagamento a confirmar'], ['semana', 'Exame nos próximos 7 dias'], ['encerradas', 'Encerradas'], ['devolucao', 'Devolução a resolver'],
+  ['todas', 'Todas'], ['pagamento', 'Pagamento a confirmar'], ['devolucao', 'Devolução a resolver'], ['encerradas', 'Encerradas'],
 ];
 const _RC_ENC_ROTULO = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência' };
 const _RC_PAG = {
@@ -2907,9 +2906,8 @@ function recepcaoFiltrar() {
   const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
   document.getElementById('rc-kpis').innerHTML =
     kpi('todas', todos.length, 'Acompanhamentos ativos') +
-    kpi('semana', todos.filter(i => i.semana).length, 'Exame nos próximos 7 dias', 'rc-kpi--atencao') +
-    kpi('atrasadas', todos.filter(i => i.atrasadas.length).length, 'Janela vencida', 'rc-kpi--alerta') +
-    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta');
+    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta') +
+    kpi('devolucao', todosComEnc.filter(i => i.devAberta).length, 'Devolução a resolver', 'rc-kpi--alerta');
   document.getElementById('rc-chips').innerHTML = _RC_FILTROS.map(([f, t]) =>
     `<button type="button" class="rc-chip ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')">${t}</button>`).join('');
 

@@ -9027,6 +9027,12 @@ const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica
     : '';
   const igEncerrada = encerradoBanner ? ' style="opacity:.35;text-decoration:line-through;"' : '';
 
+  // Tipo de plano do acompanhamento, com as mesmas cores da Recepção
+  const planoInfo = gestacao && ACOMP_PLANOS[gestacao.acompanhamento];
+  const planoTag = planoInfo
+    ? `<b class="rc-plano rc-plano--${escapeHtml(gestacao.acompanhamento)}" style="font-size:12px;padding:3px 12px;">${escapeHtml(planoInfo.nome)}</b>`
+    : '';
+
   document.getElementById('patient-header-info').innerHTML = `
     ${encerradoBanner}
     <div class="ph-row1">
@@ -9034,7 +9040,7 @@ const CORIO_LABEL = { dicorionica_diamniotica: 'DCDA', monocorionica_diamniotica
         <span class="ph-name">${escapeHtml(patient.nome || 'Paciente')}</span>
         ${gemelarBadge}
       </span>
-      <span class="ph-ig"${igEncerrada}>${igNowStr}</span>
+      <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;"><span class="ph-ig"${igEncerrada}>${igNowStr}</span>${planoTag}</span>
     </div>
     <div class="ph-row2">
       ${metaLine}

@@ -1,15 +1,3 @@
--- 026 — Contrato arquivado/assinado e extrato do encerramento (com status da devolução).
---
--- Até aqui o contrato gerado não era guardado, "assinado" era só uma caixinha, e o extrato do
--- encerramento (valor devolvido/crédito) só existia na mensagem de WhatsApp. Agora:
---   pagamentos_acompanhamento.contratos     jsonb  lista de {path,nome,tipo,kind,por,em,valor}
---                                                  kind = 'gerado' (cópia do contrato) | 'assinado' (foto/PDF)
---   pagamentos_acompanhamento.encerramento  jsonb  extrato do encerramento + devolucao{status,...}
--- Os arquivos vão para o MESMO bucket privado `comprovantes` (023), em
--- {dono_id}/{gestacao_id}/contrato-...: as policies de lá já cobrem qualquer nome na pasta da médica.
---
--- Idempotente.
-
 alter table public.pagamentos_acompanhamento
   add column if not exists contratos jsonb not null default '[]'::jsonb,
   add column if not exists encerramento jsonb;
@@ -271,3 +259,15 @@ grant execute on function public.recepcao_contrato_remover(bigint, text) to auth
 grant execute on function public.recepcao_encerrar(bigint, text, jsonb) to authenticated;
 grant execute on function public.recepcao_extrato_salvar(bigint, jsonb) to authenticated;
 grant execute on function public.recepcao_devolucao(bigint, text, text, numeric, date, text, text) to authenticated;
+
+-- 026 — Contrato arquivado/assinado e extrato do encerramento (com status da devolução).
+--
+-- Até aqui o contrato gerado não era guardado, "assinado" era só uma caixinha, e o extrato do
+-- encerramento (valor devolvido/crédito) só existia na mensagem de WhatsApp. Agora:
+--   pagamentos_acompanhamento.contratos     jsonb  lista de {path,nome,tipo,kind,por,em,valor}
+--                                                  kind = 'gerado' (cópia do contrato) | 'assinado' (foto/PDF)
+--   pagamentos_acompanhamento.encerramento  jsonb  extrato do encerramento + devolucao{status,...}
+-- Os arquivos vão para o MESMO bucket privado `comprovantes` (023), em
+-- {dono_id}/{gestacao_id}/contrato-...: as policies de lá já cobrem qualquer nome na pasta da médica.
+--
+-- Idempotente.

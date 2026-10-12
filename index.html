@@ -17217,6 +17217,34 @@ function _mesclarSnapshot(atual, snapshot) {
   return db;
 }
 
+// Devolve os dados da recepção do snapshot. Mescla, não substitui: um registro só volta
+// se não existe hoje ou se o da cópia é mais novo (a recepção pode ter atualizado depois).
+// A gestação precisa já estar no servidor (chave estrangeira), então espera a fila do
+// saveDB esvaziar. Devolve o texto a acrescentar no aviso final ('' se nada a dizer).
+async function _restaurarPagamentos(linhas) {
+  if (!linhas.length) return '';
+  try {
+    for (let i = 0; i < 40 && _syncPending; i++) await new Promise(r => setTimeout(r, 500));
+    if (_syncPending) throw new Error('o salvamento das fichas ainda não terminou');
+    const { data: atuais, error: e1 } = await supabaseClient
+      .from('pagamentos_acompanhamento').select('gestacao_id,atualizado_em');
+    if (e1) throw e1;
+    const quando = new Map((atuais || []).map(r => [r.gestacao_id, Date.parse(r.atualizado_em) || 0]));
+    const gestIds = new Set((loadDB().gestacoes || []).map(g => g.id));
+    const volta = linhas.filter(r => r && gestIds.has(r.gestacao_id) &&
+      (!quando.has(r.gestacao_id) || (Date.parse(r.atualizado_em) || 0) > quando.get(r.gestacao_id)));
+    if (volta.length) {
+      const { error } = await supabaseClient.from('pagamentos_acompanhamento').upsert(volta);
+      if (error) throw error;
+    }
+    return `\n\nRecepção: ${volta.length} registro(s) restaurado(s).`;
+  } catch (err) {
+    console.error('[CurvaFetal] restaurar dados da recepção:', err);
+    return '\n\nAtenção: as fichas voltaram, mas não consegui restaurar os dados da recepção (' +
+           (err.message || err) + ').';
+  }
+}
+
 async function restaurarSnapshot(nome) {
   // O nome vem da nossa própria listagem, mas ele entra num caminho de Storage —
   // confere o formato em vez de confiar.
@@ -17232,7 +17260,10 @@ async function restaurarSnapshot(nome) {
 
     // Mesmo caminho de validação do arquivo importado à mão: um snapshot é dado
     // vindo de fora da memória, e ninguém confia direto num JSON.
-    const { db, stats } = validateImportedDB(JSON.parse(await data.text()));
+    const bruto = JSON.parse(await data.text());
+    const { db, stats } = validateImportedDB(bruto);
+    // Dados da recepção (celular, valor pago, contratos...) vêm numa chave à parte.
+    const pagamentosSnap = Array.isArray(bruto.recepcao_pagamentos) ? bruto.recepcao_pagamentos : [];
 
     const [a, m, d] = nome.slice(0, 10).split('-');
     const ok = confirm(
@@ -17240,7 +17271,9 @@ async function restaurarSnapshot(nome) {
       `Ela contém:\n` +
       `• ${stats.patients} paciente(s)\n` +
       `• ${stats.gestacoes} gestação(ões)\n` +
-      `• ${stats.exams} exame(s)\n\n` +
+      `• ${stats.exams} exame(s)\n` +
+      (pagamentosSnap.length ? `• ${pagamentosSnap.length} registro(s) da recepção (pagamento, celular, contratos)\n` : '') +
+      `\n` +
       `As fichas desta cópia voltam ao estado em que estavam naquele dia, por cima ` +
       `do que está lá hoje.\n\n` +
       `Restaurar NÃO apaga nada: pacientes ou exames cadastrados depois desta data ` +
@@ -17250,8 +17283,9 @@ async function restaurarSnapshot(nome) {
 
     saveDB(_mesclarSnapshot(loadDB(), db));
     DB = loadDB();
+    const avisoRecepcao = await _restaurarPagamentos(pagamentosSnap);
     closeModal('modal-snapshots');
-    alert(`Cópia de ${d}/${m}/${a} restaurada.`);
+    alert(`Cópia de ${d}/${m}/${a} restaurada.` + avisoRecepcao);
     _doShowSearchScreen();
   } catch (err) {
     console.error('[CurvaFetal] falha ao restaurar snapshot:', err);
@@ -17597,7 +17631,7 @@ function importData(input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     let raw;
     try {
       raw = JSON.parse(e.target.result);
@@ -17639,7 +17673,8 @@ function importData(input) {
 
       saveDB(db);
       DB = loadDB();
-      alert('Dados importados com sucesso!');
+      const avisoRecepcao = await _restaurarPagamentos(Array.isArray(raw.recepcao_pagamentos) ? raw.recepcao_pagamentos : []);
+      alert('Dados importados com sucesso!' + avisoRecepcao);
       _doShowSearchScreen();
     } catch (err) {
       alert('Erro ao importar: ' + err.message);

@@ -3020,8 +3020,7 @@ function _rcDetalheHtml(i) {
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
         <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}</span>
         ${p.de ? `<div class="rc-prox-per">Período para agendar: <b>${_rcDataPonto(p.de)} a ${_rcDataPonto(p.ate)}</b>${p.ateTol ? ` <span>· tolerância até ${_rcDataPonto(p.ateTol)}</span>` : ''}</div>` : ''}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="rc-btn-dark" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas">Combinar datas</button>
-        <button type="button" class="rc-btn-claro" onclick="recepcaoCopiarAgenda(this)" title="Copia o texto para colar no agendamento da Feegow">Copiar para a agenda</button></div></div>`
+        <button type="button" class="rc-btn-dark" onclick="recepcaoCopiarAgenda(this)" title="Copia o texto para colar no agendamento da Feegow">Copiar para a agenda</button></div>`
     : `<div class="rc-prox"><div><small>Calendário</small><b>${sit.feitos === sit.slots.length ? 'Todos os exames do plano foram feitos' : 'Sem exame pendente dentro do prazo'}</b></div></div>`;
 
   const extrasOrd = sit.extras.slice().sort((a, b) => a.v.data_exame.localeCompare(b.v.data_exame));
@@ -3084,7 +3083,8 @@ function _rcDetalheHtml(i) {
   return `${faixaEnc}<div class="rc-det-top"><div><h2>${escapeHtml(r.nome)}</h2>
       <div class="rc-det-meta"><span class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}">${escapeHtml(sit.plano.nome)}</span>
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
-      <div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div></div>
+      <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;"><div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div>
+        ${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">Combinar datas</button>` : ''}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
     ${_rcEncerramentoHtml(r, i)}
     ${prox}

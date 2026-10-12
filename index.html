@@ -2961,6 +2961,57 @@ function recepcaoCopiarAgenda(btn) {
   else window.prompt('Copie o texto:', txt);
 }
 
+// Mensagem de WhatsApp para a paciente escolher as datas dos próximos exames (a secretária confere e envia).
+// Entram os exames pendentes cuja janela começa nos próximos 60 dias (ou já está aberta); sempre pelo menos o próximo.
+function _rcMsgDatas(i) {
+  const hoje = _hojeISO(), lim = _rvAddDias(hoje, 60);
+  const pend = i.sit.slots.filter(s => (s.status === 'falta' || s.status === 'tolerancia') && s.de);
+  let sel = pend.filter(s => s.de <= lim);
+  if (!sel.length && pend.length) sel = [pend[0]];
+  if (!sel.length) return '';
+  const linhas = sel.map(s => {
+    const n = s.def.n.charAt(0).toLowerCase() + s.def.n.slice(1);
+    const rot = n + (s.def.sub ? ' (' + s.def.sub + ')' : '') + (s.def.tol ? ' (' + _acompSemDia(s.def.ini) + ')' : '');
+    const ini = s.de < hoje ? hoje : s.de, fim = s.ateTol || s.ate;
+    return `- ${rot}: entre ${_acompDataCurta(ini)} e ${_acompDataCurta(fim)}`;
+  });
+  const nome = String(i.r.nome || '').trim().split(/\s+/)[0];
+  return `Olá, ${nome}! Que alegria acompanhar a sua gestação 🥰\n\nSeus próximos ultrassons são:\n${linhas.join('\n')}\n\nAguardamos suas respostas com as datas que preferir, para deixar tudo agendado para a sua comodidade 🥰`;
+}
+
+function recepcaoCombinarDatas() {
+  const r = _recepcaoDados.find(x => x.gestacao_id === _rcSel);
+  const i = r && _rcInfo(r);
+  if (!i) return;
+  const txt = _rcMsgDatas(i);
+  if (!txt) { alert('Não há exame pendente para combinar.'); return; }
+  const old = document.getElementById('rc-dat-modal'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'rc-dat-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const inp = 'width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;border-radius:8px;';
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
+    <h3 style="margin:0 0 4px;">Combinar datas</h3>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)}</div>
+    <label style="font-size:12px;">Celular da paciente (com DDD)</label>
+    <input id="rc-dat-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml((r.pagamento && r.pagamento.celular) || '')}" style="${inp}margin-bottom:10px;">
+    <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
+    <textarea id="rc-dat-txt" rows="12" style="${inp}font-size:13px;"></textarea>
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 0;">A resposta chega no WhatsApp de quem enviar. Depois, marque na Feegow como de costume.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-dat-modal').remove()">Cancelar</button>
+      <button type="button" class="rc-btn-dark" onclick="_rcDatWhats()">Abrir no WhatsApp</button></div></div>`;
+  document.body.appendChild(el);
+  document.getElementById('rc-dat-txt').value = txt;
+}
+
+function _rcDatWhats() {
+  let d = (document.getElementById('rc-dat-tel').value || '').replace(/\D/g, '');
+  if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
+  if (!d.startsWith('55')) d = '55' + d;
+  window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(document.getElementById('rc-dat-txt').value), '_blank');
+}
+
 // 22.10.26 (dia.mês.ano com 2 dígitos), formato que a recepção lê na agenda.
 function _rcDataPonto(iso) { return iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(2, 4) : ''; }
 
@@ -2971,7 +3022,8 @@ function _rcDetalheHtml(i) {
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
         <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}</span>
         ${p.de ? `<div class="rc-prox-per">Período para agendar: <b>${_rcDataPonto(p.de)} a ${_rcDataPonto(p.ate)}</b>${p.ateTol ? ` <span>· tolerância até ${_rcDataPonto(p.ateTol)}</span>` : ''}</div>` : ''}</div>
-        <button type="button" class="rc-btn-dark" onclick="recepcaoCopiarAgenda(this)" title="Copia o texto para colar no agendamento da Feegow">Copiar para a agenda</button></div>`
+        <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="rc-btn-dark" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas">Combinar datas</button>
+        <button type="button" class="rc-btn-claro" onclick="recepcaoCopiarAgenda(this)" title="Copia o texto para colar no agendamento da Feegow">Copiar para a agenda</button></div></div>`
     : `<div class="rc-prox"><div><small>Calendário</small><b>${sit.feitos === sit.slots.length ? 'Todos os exames do plano foram feitos' : 'Sem exame pendente dentro do prazo'}</b></div></div>`;
 
   const extrasOrd = sit.extras.slice().sort((a, b) => a.v.data_exame.localeCompare(b.v.data_exame));

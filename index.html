@@ -3220,6 +3220,7 @@ async function recepcaoDevolucaoDefinir(gid, status, opcao, valor, data, forma, 
 }
 
 function recepcaoDevolucaoFeita(gid) {
+  _devArq = null;
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
   const e = r && r.pagamento && r.pagamento.encerramento;
   if (!e) return;
@@ -3235,11 +3236,22 @@ function recepcaoDevolucaoFeita(gid) {
       <div><label style="font-size:12px;">Valor devolvido (R$)</label><input id="rc-dev-valor" type="number" step="0.01" min="0" value="${d.valor || e.estorno || 0}" style="${inp}"></div>
       <div><label style="font-size:12px;">Forma</label><select id="rc-dev-forma" style="${inp}">${Object.entries(_DEV_FORMA).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div></div>
     <label style="font-size:12px;">Observação (opcional)</label><input id="rc-dev-obs" type="text" maxlength="500" style="${inp}margin-bottom:10px;">
-    <label style="font-size:12px;">Comprovante da devolução (foto ou PDF, opcional)</label><input id="rc-dev-arq" type="file" accept="image/*,application/pdf" style="${inp}margin-bottom:14px;">
+    <div style="font-size:12px;margin-bottom:6px;">Comprovante da devolução (opcional)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+      <label class="rc-btn-claro" style="display:inline-block;">📷 Tirar foto<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="_devArqEscolher(this)"></label>
+      <label class="rc-btn-claro" style="display:inline-block;">📎 Anexar arquivo<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="_devArqEscolher(this)"></label>
+      <span id="rc-dev-arq-nome" style="font-size:12.5px;color:var(--text-muted);">Nenhum arquivo escolhido</span></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-dev-modal').remove()">Cancelar</button>
       <button type="button" class="rc-btn-dark" onclick="_recepcaoDevolucaoSalvar(${gid})">Salvar</button></div></div>`;
   document.body.appendChild(el);
+}
+
+let _devArq = null;
+function _devArqEscolher(input) {
+  _devArq = (input.files && input.files[0]) || _devArq;
+  const n = document.getElementById('rc-dev-arq-nome');
+  if (n) n.textContent = _devArq ? '✓ ' + (_devArq.name || 'foto') : 'Nenhum arquivo escolhido';
 }
 
 async function _recepcaoDevolucaoSalvar(gid) {
@@ -3247,7 +3259,7 @@ async function _recepcaoDevolucaoSalvar(gid) {
   const data = v('rc-dev-data'), valor = parseFloat(v('rc-dev-valor'));
   if (!data) { alert('Informe a data da devolução.'); return; }
   if (!(valor >= 0)) { alert('Informe o valor devolvido.'); return; }
-  const arq = document.getElementById('rc-dev-arq').files[0];
+  const arq = _devArq;
   let comp = null;
   if (arq) {
     try { comp = await _arqSubir(gid, arq, 'devolucao-', 'Comprovante de devolução'); }

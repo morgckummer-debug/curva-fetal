@@ -1835,3 +1835,30 @@ patients/gestacoes/exams.
 ## Canal direto no Telegram (2026-10-10, migração 025)
 
 Premium e Gemelar Premium: o contrato impresso traz um QR (`t.me/MorganaKummerBot?start=<codigo>`), código único por gestação gerado pela RPC `telegram_codigo()` (chamada em `recepcaoAdesaoGerar`; falha vira aviso no contrato, não trava). A Edge Function `supabase/functions/telegram-bot` (webhook, `--no-verify-jwt`) vincula o primeiro chat que usar o código, espelha as conversas num tópico por paciente do grupo privado e guarda o histórico em `telegram_mensagens`. Perdeu a elegibilidade (gestação não `ativa`, ou plano que não é premium/gemelar_dc) → bloqueia e fecha o tópico, **na próxima atividade do bot** (não é instantâneo). Secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_GROUP_ID`, `TELEGRAM_WEBHOOK_SECRET`. A biblioteca de QR está inline no `index.html` (CSP sem script externo); fonte em `vendor/`. **A 025 precisa estar aplicada** antes de gerar contrato Premium com QR.
+
+## Contrato arquivado e extrato do encerramento guardados na ficha (2026-10-12, migração 026)
+
+Antes, "Gerar contrato" aparecia sempre, o contrato gerado não era guardado, "assinado" era só uma
+caixinha, e o extrato do encerramento (devolução/crédito) só existia na mensagem de WhatsApp.
+**Não se presume contrato assinado/pago pela adesão**: o cadastro nasce antes da assinatura e o
+pagamento pode ser parcial. O estado é explícito.
+
+- **Contrato (`_rcContratoHtml`)**: Sem contrato → "Gerar contrato"; gerado → "Aguardando assinatura" e
+  só "Gerar nova via…" (com confirmação); assinado → o botão de gerar some; encerrada → também some.
+  Cada geração arquiva uma cópia HTML (`_contratoArquivar`) e o assinado entra como foto/PDF
+  (`recepcaoContratoEnviar`, marca `contrato_assinado` sozinho). Anexar o assinado é incentivado, não
+  obrigatório (a caixinha manual continua). Arquivos no mesmo bucket `comprovantes`
+  (`{dono}/{gestacao}/contrato-…`), lista em `pagamentos_acompanhamento.contratos` (jsonb, `kind`
+  `gerado`|`assinado`). Falha ao arquivar não derruba o contrato já aberto; só avisa.
+- **Encerramento (`_encExtrato`, `_rcEncerramentoHtml`)**: ao encerrar, grava
+  `pagamentos_acompanhamento.encerramento` (jsonb: motivo, data, pago, exames feitos, retenção/taxa,
+  estorno/crédito, validade, mensagem enviada) e `devolucao.status`: `pendente` (a devolver) |
+  `escolha` (desistência, paciente ainda não escolheu entre dinheiro e crédito) | `devolvido`
+  (data, forma, valor) | `credito` (válido por 12 meses) | `nada`. Só registra; o app não faz o Pix e
+  não lembra a recepção (decisão padrão, pode virar lembrete se a médica pedir).
+- **Encerradas antes da 026 ficam "Sem registro"**: a ficha oferece "Registrar encerramento"
+  (`recepcaoEncerrarAbrir(gid, true)` → `recepcao_extrato_salvar`, não muda o status). O filtro
+  "Devolução a resolver" junta devolução pendente/sem escolha e encerramento sem extrato.
+- **Compatibilidade**: sem a 026, `recepcao_encerrar` com 3 parâmetros não existe; o app encerra pela
+  versão antiga e avisa que o extrato não ficou guardado. Contrato/devolução exigem a 026.
+- `_arqSubir`/`_arqAbrir` são o upload/abertura compartilhados por comprovante e contrato.

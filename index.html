@@ -2809,7 +2809,7 @@ let _rcMedica = false;
 
 const _RC_FILTROS = [
   ['todas', 'Todas'], ['pendencia', 'Com pendência'], ['atrasadas', 'Janela vencida'],
-  ['pagamento', 'Pagamento a confirmar'], ['semana', 'Exame nos próximos 7 dias'], ['encerradas', 'Encerradas'],
+  ['pagamento', 'Pagamento a confirmar'], ['semana', 'Exame nos próximos 7 dias'], ['encerradas', 'Encerradas'], ['devolucao', 'Devolução a resolver'],
 ];
 const _RC_ENC_ROTULO = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência' };
 const _RC_PAG = {
@@ -2867,7 +2867,11 @@ function _rcInfo(r) {
   const limite = p ? (p.ateTol || p.ate) : null;
   const enc = !!(r.status && r.status !== 'ativa'); // 'status' só vem depois da migração 024
   const semana = !enc && !!(p && p.de && limite && p.de <= em7 && limite >= hoje);
-  return { r, sit, pag, atrasadas: enc ? [] : atrasadas, semana, enc,
+  // Encerrada: devolução ainda por resolver, ou encerramento sem extrato registrado (026).
+  const extrato = r.pagamento && r.pagamento.encerramento;
+  const devSt = extrato && extrato.devolucao && extrato.devolucao.status;
+  const devAberta = enc && (!extrato || devSt === 'pendente' || devSt === 'escolha');
+  return { r, sit, pag, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, semExtrato: enc && !extrato,
     motivoEnc: enc ? (_RC_ENC_ROTULO[r.status] || r.status) : '',
     pendencia: !enc && (atrasadas.length > 0 || pag !== 'quitado') };
 }
@@ -2879,6 +2883,7 @@ function _rcPassaFiltro(i) {
     case 'pagamento': return !i.enc && i.pag !== 'quitado';
     case 'semana':    return i.semana;
     case 'encerradas': return i.enc;
+    case 'devolucao':  return i.devAberta;
     default:          return true;
   }
 }
@@ -2934,7 +2939,7 @@ function recepcaoFiltrar() {
       <div class="rc-it-corpo"><div class="rc-it-nome">${escapeHtml(r.nome)}</div>
         <div class="rc-it-sub"><b class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}" style="font-size:11px;padding:2px 9px;">${escapeHtml(i.sit.plano.nome)}</b>${i.sit.igHoje != null ? ' · IG ' + _acompSemDia(i.sit.igHoje) : ''} · ${i.sit.feitos}/${i.sit.slots.length} exames</div>
         <div class="rc-prog"><i style="width:${pct}%"></i></div></div>
-      <div class="rc-it-lado">${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}<span class="rc-pill ${pg.cls}">${pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
+      <div class="rc-it-lado">${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill rc-pill--parcial">${i.semExtrato ? 'Sem extrato' : 'Devolução pendente'}</span>` : ''}<span class="rc-pill ${pg.cls}">${pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
     </div>`;
   }).join('');
   const sel = itens.find(i => i.r.gestacao_id === _rcSel);
@@ -3007,7 +3012,7 @@ function _rcDetalheHtml(i) {
     : 'Nenhuma conferência registrada ainda.';
   const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
   const pagHtml = `<div class="rc-pag">
-    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Pagamento do acompanhamento</div><button type="button" class="rc-btn-claro" onclick="recepcaoAdesaoAbrir(_recepcaoDados.find(x => x.gestacao_id === _rcSel))">Gerar contrato</button><button type="button" class="rc-btn-claro" onclick="recepcaoComprovanteAbrir(${r.gestacao_id})">Comprovante${(pg.comprovantes || []).length ? ' (' + pg.comprovantes.length + ')' : ''}</button><span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span></div>
+    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Pagamento do acompanhamento</div><button type="button" class="rc-btn-claro" onclick="recepcaoComprovanteAbrir(${r.gestacao_id})">Comprovante${(pg.comprovantes || []).length ? ' (' + pg.comprovantes.length + ')' : ''}</button><span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span></div>
     <div class="rc-seg" id="rc-pg-seg">
       <button type="button" data-v="quitado" class="${st === 'quitado' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('quitado')">Pago por completo</button>
       <button type="button" data-v="parcial" class="${st === 'parcial' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('parcial')">Pago em parte</button>
@@ -3034,9 +3039,11 @@ function _rcDetalheHtml(i) {
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
       <div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
+    ${_rcEncerramentoHtml(r, i)}
     ${prox}
     <div class="rc-sec-t">Exames do plano</div>
     <table class="rc-tl"><tbody>${linhas}${linhasExtra}</tbody></table>${extras}${fora}
+    ${_rcContratoHtml(r, i.enc)}
     ${pagHtml}
     ${i.enc ? '' : `<div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
       <select id="rc-enc-motivo" style="padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:13px;background:#fff;">
@@ -3045,12 +3052,215 @@ function _rcDetalheHtml(i) {
     ${(!i.enc && sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
 }
 
+// ── Contrato na ficha: estado, cópia arquivada e assinado (migração 026) ──
+function _rcDataHora(iso) { return iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
+function _rcContratoEstado(pg) {
+  const lista = pg.contratos || [];
+  const gerados = lista.filter(c => c.kind === 'gerado'), assinados = lista.filter(c => c.kind === 'assinado');
+  return { lista, gerados, assinados, assinado: !!pg.contrato_assinado || assinados.length > 0 };
+}
+
+function _rcContratoHtml(r, enc) {
+  const pg = r.pagamento || {}, c = _rcContratoEstado(pg), gid = r.gestacao_id;
+  const ultimo = c.gerados[c.gerados.length - 1];
+  let pill, dica;
+  if (c.assinado) { pill = ['rc-pill--ok', 'Assinado ✓']; dica = c.assinados.length ? '' : 'Marcado como assinado, mas sem o arquivo anexado.'; }
+  else if (ultimo) { pill = ['rc-pill--parcial', 'Aguardando assinatura']; dica = `Gerado em ${_rcDataHora(ultimo.em)} por ${escapeHtml(ultimo.por || '—')}. Anexe a foto ou o PDF do contrato assinado.`; }
+  else { pill = ['rc-pill--pend', 'Sem contrato']; dica = enc ? 'Nenhum contrato foi gerado para esta paciente.' : 'Nenhum contrato gerado ainda.'; }
+  const arq = c.lista.map((x, i) => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;padding:7px 10px;background:#fff;">
+      <span style="flex:1;min-width:150px;font-size:13px;"><b>${x.kind === 'assinado' ? 'Contrato assinado' : 'Contrato gerado'}</b>${x.valor != null ? ' · ' + _brl(x.valor) : ''}<br><small style="color:var(--text-muted);">${escapeHtml(x.por || '')}${x.em ? ', ' + _rcDataHora(x.em) : ''}</small></span>
+      <button type="button" class="rc-btn-claro" onclick="recepcaoContratoVer(${gid}, ${i})">Ver</button>
+      <button type="button" class="rc-btn-claro" onclick="recepcaoContratoRemover(${gid}, ${i})">Remover</button></div>`).join('');
+  const lbl = 'display:inline-block;padding:9px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;';
+  const gerar = (!enc && !c.assinado)
+    ? `<button type="button" class="${ultimo ? 'rc-btn-claro' : 'rc-btn-dark'}" onclick="recepcaoContratoGerar(${gid})">${ultimo ? 'Gerar nova via…' : 'Gerar contrato'}</button>` : '';
+  return `<div class="rc-pag" style="margin-top:16px;">
+    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Contrato</div><span class="rc-pill ${pill[0]}">${pill[1]}</span></div>
+    ${dica ? `<p class="rc-det-meta" style="margin:0 0 10px;">${dica}</p>` : ''}
+    ${arq ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">${arq}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${gerar}
+      <label style="${lbl}">📷 Foto do assinado<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="recepcaoContratoEnviar(${gid}, this)"></label>
+      <label style="${lbl}">📎 Anexar assinado<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoContratoEnviar(${gid}, this)"></label>
+      <span id="rc-ctr-msg" style="font-size:12.5px;color:var(--text-muted);"></span></div>
+  </div>`;
+}
+
+function recepcaoContratoGerar(gid) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  if (!r) return;
+  const c = _rcContratoEstado(r.pagamento || {});
+  const u = c.gerados[c.gerados.length - 1];
+  if (c.assinado) { alert('Este contrato já está assinado. Remova a marca de assinado antes de gerar outro.'); return; }
+  if (u && !confirm(`Já existe um contrato gerado em ${_rcDataHora(u.em)} por ${u.por || '—'}, ainda sem assinatura anexada.\n\nGerar outra via?`)) return;
+  recepcaoAdesaoAbrir(r);
+}
+
+// Guarda a cópia do contrato gerado (HTML) no mesmo bucket privado dos comprovantes.
+async function _contratoArquivar(gid, html, valor) {
+  const dono = await _compDonoId();
+  const path = `${dono}/${gid}/contrato-${Date.now()}.html`;
+  const up = await supabaseClient.storage.from('comprovantes').upload(path, new Blob([html], { type: 'text/html' }), { contentType: 'text/html', upsert: false });
+  if (up.error) throw up.error;
+  const { error } = await supabaseClient.rpc('recepcao_contrato_add', {
+    p_gestacao_id: gid, p_path: path, p_nome: 'Contrato gerado', p_tipo: 'text/html', p_kind: 'gerado', p_valor: valor,
+  });
+  if (error) { await supabaseClient.storage.from('comprovantes').remove([path]); throw error; }
+}
+
+async function recepcaoContratoEnviar(gid, input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const msg = document.getElementById('rc-ctr-msg');
+  if (msg) msg.textContent = 'Enviando…';
+  try {
+    const a = await _arqSubir(gid, file, 'contrato-', 'Contrato assinado');
+    const { error } = await supabaseClient.rpc('recepcao_contrato_add', {
+      p_gestacao_id: gid, p_path: a.path, p_nome: a.nome, p_tipo: a.tipo, p_kind: 'assinado', p_valor: null,
+    });
+    if (error) { await supabaseClient.storage.from('comprovantes').remove([a.path]); throw error; }
+    await recepcaoAtualizar();
+  } catch (err) {
+    console.error('[CurvaFetal] contrato assinado:', err);
+    if (msg) msg.textContent = '';
+    alert('Não consegui anexar o contrato: ' + (err.message || err) + (/function|schema cache/i.test(err.message || '') ? '\n\nA migração 026 foi aplicada no Supabase?' : ''));
+  }
+}
+
+async function recepcaoContratoVer(gid, i) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const c = r && r.pagamento && (r.pagamento.contratos || [])[i];
+  if (c) await _arqAbrir(c);
+}
+
+async function recepcaoContratoRemover(gid, i) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const c = r && r.pagamento && (r.pagamento.contratos || [])[i];
+  if (!c || !confirm('Remover este ' + (c.kind === 'assinado' ? 'contrato assinado' : 'contrato gerado') + '?')) return;
+  try {
+    const { error } = await supabaseClient.rpc('recepcao_contrato_remover', { p_gestacao_id: gid, p_path: c.path });
+    if (error) throw error;
+    await supabaseClient.storage.from('comprovantes').remove([c.path]);
+    await recepcaoAtualizar();
+  } catch (err) { alert('Não consegui remover: ' + (err.message || err)); }
+}
+
+// ── Encerramento na ficha: extrato guardado e status da devolução (migração 026) ──
+const _DEV_ROT = {
+  pendente:  ['rc-pill--pend',    'Devolução pendente'],
+  escolha:   ['rc-pill--parcial', 'Aguardando escolha da paciente'],
+  devolvido: ['rc-pill--ok',      'Devolvido'],
+  credito:   ['rc-pill--ok',      'Crédito ativo'],
+  nada:      ['rc-pill--ok',      'Nada a devolver'],
+};
+const _DEV_FORMA = { pix: 'Pix', dinheiro: 'Dinheiro', cartao: 'Estorno no cartão', outro: 'Outra' };
+
+function _rcEncerramentoHtml(r, i) {
+  if (!i.enc) return '';
+  const gid = r.gestacao_id, e = (r.pagamento || {}).encerramento;
+  if (!e) {
+    return `<div class="rc-pag" style="margin-top:0;margin-bottom:14px;border-color:#c0392b;background:#fff7f7;">
+      <div class="rc-sec-t" style="margin:0 0 6px;">Encerramento sem registro</div>
+      <p class="rc-det-meta" style="margin:0 0 10px;">Não há extrato guardado (valor pago, valor devolvido ou crédito, status da devolução). Registre agora para a ficha ficar completa.</p>
+      <button type="button" class="rc-btn-dark" onclick="recepcaoEncerrarAbrir(${gid}, true)">Registrar encerramento</button></div>`;
+  }
+  const d = e.devolucao || { status: 'nada' }, rot = _DEV_ROT[d.status] || _DEV_ROT.nada;
+  const li = (t, v) => v == null || v === '' ? '' : `<tr><td style="padding:2px 14px 2px 0;color:var(--text-muted);">${t}</td><td><b>${v}</b></td></tr>`;
+  let sit;
+  if (d.status === 'devolvido') sit = `Devolvido em ${formatDateBR(d.data)} — ${_brl(d.valor || 0)}${d.forma ? ' (' + escapeHtml(_DEV_FORMA[d.forma] || d.forma) + ')' : ''}`;
+  else if (d.status === 'pendente') sit = `A devolver: ${_brl(d.valor || 0)} em dinheiro`;
+  else if (d.status === 'credito') sit = `Crédito de ${_brl(d.valor || 0)}${e.validade ? ', válido até ' + formatDateBR(e.validade) : ''}`;
+  else if (d.status === 'escolha') sit = `Devolução em dinheiro: ${_brl(e.estorno || 0)} · ou crédito: ${_brl(e.credito || 0)}`;
+  else sit = 'Nenhum valor a devolver';
+  const btn = (t, js, cls) => `<button type="button" class="${cls || 'rc-btn-claro'}" onclick="${js}">${t}</button>`;
+  let acoes = '';
+  if (d.status === 'escolha') {
+    acoes = (e.estorno > 0 ? btn(`Escolheu devolução (${_brl(e.estorno)})`, `recepcaoDevolucaoDefinir(${gid}, 'pendente', 'dinheiro', ${e.estorno})`, 'rc-btn-dark') : '')
+          + (e.credito > 0 ? btn(`Escolheu crédito (${_brl(e.credito)})`, `recepcaoDevolucaoDefinir(${gid}, 'credito', 'credito', ${e.credito})`) : '');
+  } else if (d.status === 'pendente') {
+    acoes = btn('Registrar devolução feita', `recepcaoDevolucaoFeita(${gid})`, 'rc-btn-dark');
+  } else if (d.status === 'devolvido') {
+    acoes = btn('Reabrir (voltar a pendente)', `recepcaoDevolucaoDefinir(${gid}, 'pendente', 'dinheiro', ${d.valor || 0})`);
+  }
+  if (e.mensagem) acoes += btn('Ver mensagem enviada', `recepcaoEncMsgVer(${gid})`);
+  acoes += btn('Refazer registro', `recepcaoEncerrarAbrir(${gid}, true)`);
+  return `<div class="rc-pag" style="margin-top:0;margin-bottom:14px;border-color:#c0392b;background:#fff7f7;">
+    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Encerramento e devolução</div><span class="rc-pill ${rot[0]}">${rot[1]}</span></div>
+    <table style="font-size:13.5px;border-collapse:collapse;margin-bottom:10px;"><tbody>
+      ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
+      ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}
+      ${li('Retenção (20%)', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}
+      ${li('Situação', sit)}
+      ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
+      ${li('Registrado por', escapeHtml(e.por || '') + (e.gravado_em ? ', ' + _rcDataHora(e.gravado_em) : ''))}</tbody></table>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${acoes}</div>
+    ${d.status === 'pendente' ? '<p class="rc-det-meta" style="margin:8px 0 0;">O comprovante da devolução pode ser anexado no botão Comprovante.</p>' : ''}
+  </div>`;
+}
+
+async function recepcaoDevolucaoDefinir(gid, status, opcao, valor, data, forma, obs) {
+  try {
+    const { error } = await supabaseClient.rpc('recepcao_devolucao', {
+      p_gestacao_id: gid, p_status: status, p_opcao: opcao || null, p_valor: valor == null ? null : valor,
+      p_data: data || null, p_forma: forma || null, p_obs: obs || '',
+    });
+    if (error) throw error;
+    const m = document.getElementById('rc-dev-modal'); if (m) m.remove();
+    await recepcaoAtualizar();
+  } catch (err) { alert('Não consegui salvar: ' + (err.message || err)); }
+}
+
+function recepcaoDevolucaoFeita(gid) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const e = r && r.pagamento && r.pagamento.encerramento;
+  if (!e) return;
+  const d = e.devolucao || {};
+  const el = document.createElement('div');
+  el.id = 'rc-dev-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;';
+  const inp = 'padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box;';
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:20px;">
+    <h3 style="margin:0 0 12px;">Registrar devolução feita</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div><label style="font-size:12px;">Data</label><input id="rc-dev-data" type="date" value="${_hojeISO()}" style="${inp}"></div>
+      <div><label style="font-size:12px;">Valor devolvido (R$)</label><input id="rc-dev-valor" type="number" step="0.01" min="0" value="${d.valor || e.estorno || 0}" style="${inp}"></div>
+      <div><label style="font-size:12px;">Forma</label><select id="rc-dev-forma" style="${inp}">${Object.entries(_DEV_FORMA).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div></div>
+    <label style="font-size:12px;">Observação (opcional)</label><input id="rc-dev-obs" type="text" maxlength="500" style="${inp}margin-bottom:14px;">
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-dev-modal').remove()">Cancelar</button>
+      <button type="button" class="rc-btn-dark" onclick="_recepcaoDevolucaoSalvar(${gid})">Salvar</button></div></div>`;
+  document.body.appendChild(el);
+}
+
+function _recepcaoDevolucaoSalvar(gid) {
+  const v = id => document.getElementById(id).value;
+  const data = v('rc-dev-data'), valor = parseFloat(v('rc-dev-valor'));
+  if (!data) { alert('Informe a data da devolução.'); return; }
+  if (!(valor >= 0)) { alert('Informe o valor devolvido.'); return; }
+  recepcaoDevolucaoDefinir(gid, 'devolvido', 'dinheiro', valor, data, v('rc-dev-forma'), v('rc-dev-obs').trim());
+}
+
+function recepcaoEncMsgVer(gid) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const e = r && r.pagamento && r.pagamento.encerramento;
+  if (!e || !e.mensagem) return;
+  const el = document.createElement('div');
+  el.id = 'rc-dev-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;';
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:20px;">
+    <h3 style="margin:0 0 10px;">Mensagem do encerramento</h3>
+    <pre style="white-space:pre-wrap;font:inherit;font-size:13px;background:#f6f3f8;border-radius:10px;padding:12px;margin:0 0 12px;">${escapeHtml(e.mensagem)}</pre>
+    <div style="text-align:right;"><button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-dev-modal').remove()">Fechar</button></div></div>`;
+  document.body.appendChild(el);
+}
+
 // ── Encerramento com extrato (2026-10-10) ──
 // Taxa da maquininha fixa por enquanto (decisão da médica); ajustável no próprio extrato.
 const _TAXA_MAQUININHA_PCT = 10;
 const _EXTRA_AVULSO = 230;
 const _ENC_MOTIVO = { parto: 'Parto realizado', perda: 'Perda gestacional', obito: 'Óbito fetal', desistencia: 'Desistência da paciente' };
-let _encGid = null, _encTxtManual = false;
+let _encGid = null, _encTxtManual = false, _encRetro = false;
+const _ENC_STATUS_MOTIVO = { finalizada: 'parto', aborto: 'perda', ectopica: 'perda', obito_fetal: 'obito', desistencia: 'desistencia' };
 const _brl = v => 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function _encCalc(r, sit, motivo, pago, taxaPct, cartao) {
@@ -3117,12 +3327,14 @@ function _encTexto(r, sit, motivo, hoje, c) {
   return L.join('\n');
 }
 
-function recepcaoEncerrarAbrir(gid) {
-  const sel = document.getElementById('rc-enc-motivo');
-  const motivo = sel ? sel.value : '';
-  if (!motivo) { alert('Escolha o motivo do encerramento.'); return; }
+// retro = true: a gestação já está encerrada e só falta registrar/refazer o extrato (não muda o status).
+function recepcaoEncerrarAbrir(gid, retro) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
   if (!r) return;
+  _encRetro = !!retro;
+  const sel = document.getElementById('rc-enc-motivo');
+  const motivo = retro ? _ENC_STATUS_MOTIVO[r.status] : (sel ? sel.value : '');
+  if (!motivo) { alert(retro ? 'Não reconheci o motivo do encerramento desta ficha.' : 'Escolha o motivo do encerramento.'); return; }
   const sit = _acompSituacao(r, r.exames || []);
   if (!sit) { alert('Esta paciente não tem plano.'); return; }
   _encGid = gid; _encTxtManual = false;
@@ -3136,7 +3348,7 @@ function recepcaoEncerrarAbrir(gid) {
   el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;';
   const inp = 'padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box;';
   el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
-    <h3 style="margin:0 0 4px;">Encerrar acompanhamento</h3>
+    <h3 style="margin:0 0 4px;">${_encRetro ? 'Registrar encerramento' : 'Encerrar acompanhamento'}</h3>
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · ${escapeHtml(_ENC_MOTIVO[motivo])}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
       <div><label style="font-size:12px;">Valor pago (R$)</label><input id="rc-enc-pago" type="number" step="0.01" min="0" value="${pagoIni}" style="${inp}" oninput="_encRefazer()"></div>
@@ -3150,7 +3362,7 @@ function recepcaoEncerrarAbrir(gid) {
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-enc-modal').remove()">Cancelar</button>
       <button type="button" class="rc-btn-claro" onclick="_encWhats()">Abrir no WhatsApp</button>
-      <button type="button" class="rc-btn-dark" onclick="_encConfirmar('${motivo}')">Encerrar acompanhamento</button></div></div>`;
+      <button type="button" class="rc-btn-dark" onclick="_encConfirmar('${motivo}')">${_encRetro ? 'Salvar registro' : 'Encerrar acompanhamento'}</button></div></div>`;
   document.body.appendChild(el);
   el.dataset.motivo = motivo;
   _encRefazer();
@@ -3175,16 +3387,61 @@ function _encWhats() {
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(document.getElementById('rc-enc-txt').value), '_blank');
 }
 
+// Foto do encerramento que fica na ficha (migração 026): valores, exames feitos, mensagem e o status da devolução.
+function _encExtrato(r, sit, motivo) {
+  const pago = parseFloat(document.getElementById('rc-enc-pago').value) || 0;
+  const taxa = parseFloat(document.getElementById('rc-enc-taxa').value) || 0;
+  const cartao = document.getElementById('rc-enc-cartao').value === '1';
+  const c = _encCalc(r, sit, motivo, pago, taxa, cartao);
+  const hoje = (_encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.em) || _hojeISO();
+  const v = new Date(hoje + 'T12:00:00Z'); v.setUTCMonth(v.getUTCMonth() + 12);
+  const ex = {
+    motivo, em: hoje, plano: sit.plano.nome, total: c.total, pago: c.pago, valor_feitos: c.vFeitos,
+    taxa_pct: c.taxaPct, cartao, celular: document.getElementById('rc-enc-tel').value.trim(),
+    mensagem: document.getElementById('rc-enc-txt').value,
+    exames: c.feitos.map(x => ({ n: x.s.def.n, data: x.s.hit.v.data_exame })).concat(sit.extras.map(x => ({ n: 'Ultrassom extra', data: x.v.data_exame }))),
+  };
+  if (motivo === 'desistencia') {
+    Object.assign(ex, { saldo: c.saldo, retencao: c.retencao, estorno: c.estorno, credito: c.credito, taxa_val: c.taxaVal, validade: v.toISOString().slice(0, 10) });
+    ex.devolucao = (c.estorno > 0 || c.credito > 0) ? { status: 'escolha' } : { status: 'nada' };
+  } else if (motivo === 'perda' || motivo === 'obito') {
+    Object.assign(ex, { estorno: c.estorno, taxa_val: c.taxaVal });
+    ex.devolucao = c.estorno > 0 ? { status: 'pendente', opcao: 'dinheiro', valor: c.estorno } : { status: 'nada' };
+  } else {
+    Object.assign(ex, { credito: c.credito, validade: v.toISOString().slice(0, 10) });
+    ex.devolucao = c.credito > 0 ? { status: 'credito', opcao: 'credito', valor: c.credito } : { status: 'nada' };
+  }
+  // Refazer o registro não pode apagar uma devolução já resolvida.
+  const antigo = _encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.devolucao;
+  if (antigo && antigo.status === 'devolvido') ex.devolucao = antigo;
+  return ex;
+}
+
 async function _encConfirmar(motivo) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === _encGid);
-  if (!confirm('Encerrar o acompanhamento de ' + (r ? r.nome : 'esta paciente') + '?\n\nEla continua na lista, marcada como encerrada. A Dra. Morgana pode reabrir pela ficha. Copie ou envie a mensagem antes, pois ela não fica guardada.')) return;
+  if (!r) return;
+  const sit = _acompSituacao(r, r.exames || []);
+  const extrato = _encExtrato(r, sit, motivo);
+  const nome = r.nome || 'esta paciente';
   try {
-    const { error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: _encGid, p_motivo: motivo });
-    if (error) throw error;
+    if (_encRetro) {
+      if (!confirm('Salvar o registro do encerramento de ' + nome + '?')) return;
+      const { error } = await supabaseClient.rpc('recepcao_extrato_salvar', { p_gestacao_id: _encGid, p_extrato: extrato });
+      if (error) throw error;
+    } else {
+      if (!confirm('Encerrar o acompanhamento de ' + nome + '?\n\nEla continua na lista, marcada como encerrada, com o extrato e o status da devolução guardados na ficha. A Dra. Morgana pode reabrir pela ficha.')) return;
+      let { error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: _encGid, p_motivo: motivo, p_extrato: extrato });
+      if (error && (error.code === 'PGRST202' || /Could not find the function|schema cache/i.test(error.message || ''))) {
+        // migração 026 ainda não aplicada: encerra como antes, mas avisa que o extrato não foi guardado
+        alert('Atenção: a migração 026 ainda não foi aplicada no Supabase. O acompanhamento será encerrado, mas o extrato NÃO fica guardado. Copie a mensagem agora.');
+        ({ error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: _encGid, p_motivo: motivo }));
+      }
+      if (error) throw error;
+    }
     const m = document.getElementById('rc-enc-modal'); if (m) m.remove();
-    _rcSel = null;
+    if (!_encRetro) _rcSel = null;
     await recepcaoAtualizar();
-  } catch (err) { console.error(err); alert('Não consegui encerrar: ' + (err.message || err)); }
+  } catch (err) { console.error(err); alert('Não consegui salvar: ' + (err.message || err)); }
 }
 
 async function recepcaoExcluir(gid) {
@@ -3373,8 +3630,16 @@ async function recepcaoAdesaoConfirmar() {
       if (eCod || !cod) { console.error('[CurvaFetal] telegram_codigo:', eCod); d.telegramErro = true; }
       else d.telegramCodigo = cod;
     }
-    const blob = new Blob([_contratoHtml(d)], { type: 'text/html;charset=utf-8' });
-    w.location.href = URL.createObjectURL(blob);
+    const html = _contratoHtml(d);
+    w.location.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    // A cópia fica arquivada na ficha (migração 026); falhar aqui não pode derrubar o contrato já aberto.
+    if (_rcAdesaoGid) {
+      try { await _contratoArquivar(_rcAdesaoGid, html, d.valor); }
+      catch (eArq) {
+        console.error('[CurvaFetal] arquivar contrato:', eArq);
+        alert('O contrato abriu, mas não consegui guardar a cópia na ficha: ' + (eArq.message || eArq) + '\n\nA migração 026 foi aplicada no Supabase?');
+      }
+    }
     recepcaoAdesaoFechar();
     await recepcaoAtualizar();
   } catch (err) {
@@ -5929,32 +6194,52 @@ function _compReduzir(file) {
   });
 }
 
+// Sobe foto (reduzida) ou PDF para o bucket `comprovantes`. Devolve { path, nome, tipo }.
+async function _arqSubir(gid, file, prefixo, rotuloFoto) {
+  const ehPdf = file.type === 'application/pdf';
+  if (!ehPdf && !file.type.startsWith('image/')) throw new Error('Envie uma foto ou um PDF.');
+  if (file.size > 20 * 1024 * 1024) throw new Error('Arquivo grande demais (máximo 20 MB).');
+  const blob = ehPdf ? file : await _compReduzir(file);
+  if (blob.size > 10 * 1024 * 1024) throw new Error('arquivo acima de 10 MB');
+  const tipo = ehPdf ? 'application/pdf' : 'image/jpeg';
+  const dono = await _compDonoId();
+  const path = `${dono}/${gid}/${prefixo}${Date.now()}.${ehPdf ? 'pdf' : 'jpg'}`;
+  // sem timeout o "Enviando…" ficava eterno com sinal ruim no celular
+  const up = await Promise.race([
+    supabaseClient.storage.from('comprovantes').upload(path, blob, { contentType: tipo, upsert: false }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error('o envio demorou demais — confira o sinal e tente de novo')), 60000)),
+  ]);
+  if (up.error) throw up.error;
+  const nome = ehPdf ? (file.name || rotuloFoto + '.pdf') : rotuloFoto + ' ' + new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  return { path, nome, tipo };
+}
+
+// Abre um arquivo do bucket em aba nova (download + Blob, porque o bucket é privado).
+async function _arqAbrir(c) {
+  const janela = window.open('', '_blank');
+  try {
+    const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
+    if (error) throw error;
+    const url = URL.createObjectURL(new Blob([data], { type: c.tipo || data.type }));
+    if (janela) janela.location.href = url; else window.open(url, '_blank');
+  } catch (err) {
+    if (janela) janela.close();
+    alert('Não consegui abrir o arquivo: ' + (err.message || err));
+  }
+}
+
 async function recepcaoComprovanteEnviar(gid, input) {
   const file = input.files && input.files[0];
   input.value = '';
   if (!file) return;
   const msg = document.getElementById('rc-comp-msg');
   const dizer = (t, erro) => { if (msg) { msg.style.color = erro ? 'var(--danger)' : ''; msg.textContent = t; } };
-  const ehPdf = file.type === 'application/pdf';
-  if (!ehPdf && !file.type.startsWith('image/')) { dizer('Envie uma foto ou um PDF.', true); return; }
-  if (file.size > 20 * 1024 * 1024) { dizer('Arquivo grande demais (máximo 20 MB).', true); return; }
   dizer('Enviando…');
   try {
-    const blob = ehPdf ? file : await _compReduzir(file);
-    if (blob.size > 10 * 1024 * 1024) throw new Error('arquivo acima de 10 MB');
-    const tipo = ehPdf ? 'application/pdf' : 'image/jpeg';
-    const dono = await _compDonoId();
-    const path = `${dono}/${gid}/${Date.now()}.${ehPdf ? 'pdf' : 'jpg'}`;
-    // sem timeout o "Enviando…" ficava eterno com sinal ruim no celular
-    const up = await Promise.race([
-      supabaseClient.storage.from('comprovantes').upload(path, blob, { contentType: tipo, upsert: false }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('o envio demorou demais — confira o sinal e tente de novo')), 60000)),
-    ]);
-    if (up.error) throw up.error;
-    const nome = ehPdf ? (file.name || 'comprovante.pdf') : 'Foto ' + new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-    const { error } = await supabaseClient.rpc('recepcao_comprovante_add', { p_gestacao_id: gid, p_path: path, p_nome: nome, p_tipo: tipo });
+    const a = await _arqSubir(gid, file, '', 'Foto');
+    const { error } = await supabaseClient.rpc('recepcao_comprovante_add', { p_gestacao_id: gid, p_path: a.path, p_nome: a.nome, p_tipo: a.tipo });
     if (error) {
-      await supabaseClient.storage.from('comprovantes').remove([path]);
+      await supabaseClient.storage.from('comprovantes').remove([a.path]);
       throw error;
     }
     await recepcaoAtualizar();
@@ -5970,17 +6255,7 @@ async function recepcaoComprovanteEnviar(gid, input) {
 async function recepcaoComprovanteVer(gid, i) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
   const c = r && r.pagamento && (r.pagamento.comprovantes || [])[i];
-  if (!c) return;
-  const janela = window.open('', '_blank');
-  try {
-    const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
-    if (error) throw error;
-    const url = URL.createObjectURL(new Blob([data], { type: c.tipo || data.type }));
-    if (janela) janela.location.href = url; else window.open(url, '_blank');
-  } catch (err) {
-    if (janela) janela.close();
-    alert('Não consegui abrir o comprovante: ' + (err.message || err));
-  }
+  if (c) await _arqAbrir(c);
 }
 
 async function recepcaoComprovanteRemover(gid, i) {

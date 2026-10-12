@@ -16976,6 +16976,22 @@ async function _snapshotUid() {
   }
 }
 
+// Dados da recepção (pagamento, contratos, comprovantes, encerramento) moram em
+// pagamentos_acompanhamento, fora do DB em memória. Sem isto, nem o snapshot nem o
+// arquivo baixado levavam nada deles. Falha aqui nunca derruba o backup do prontuário:
+// devolve null (tabela ainda não migrada, rede, etc.) e o backup segue sem essa parte.
+async function _lerPagamentosParaBackup() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('pagamentos_acompanhamento').select('*').order('gestacao_id');
+    if (error) throw error;
+    return data || [];
+  } catch (err) {
+    console.warn('[CurvaFetal] backup: não consegui ler os pagamentos da recepção:', err);
+    return null;
+  }
+}
+
 // Uma passada de envio. Devolve true se gravou de verdade. Toda saída registra
 // em _snapshotResultado o motivo, para a tela de cópias poder mostrá-lo.
 async function _enviarSnapshot() {
@@ -16995,10 +17011,13 @@ async function _enviarSnapshot() {
       return false;
     }
 
+    const pagamentos = await _lerPagamentosParaBackup();
     const conteudo = JSON.stringify({
       _formato:   'curva-fetal-snapshot-v1',
       _gerado_em: new Date().toISOString(),
       ...db,
+      // Só consulta: restaurarSnapshot() mescla pacientes/gestações/exames e ignora esta chave.
+      ...(pagamentos ? { recepcao_pagamentos: pagamentos } : {}),
     });
 
     const { error } = await supabaseClient.storage
@@ -17448,9 +17467,10 @@ function renderAvisoBackup() {
 // BACKUP / EXPORT
 // ═══════════════════════════════════════════════════════════
 
-function exportData() {
+async function exportData() {
   DB = loadDB();
-  const json = JSON.stringify(DB, null, 2);
+  const pagamentos = await _lerPagamentosParaBackup();
+  const json = JSON.stringify(pagamentos ? { ...DB, recepcao_pagamentos: pagamentos } : DB, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');

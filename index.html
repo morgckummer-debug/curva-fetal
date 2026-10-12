@@ -6066,14 +6066,14 @@ th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
 <h2>1) Partes</h2>
 <p><b>CLÍNICA:</b> Kummer Serviços Médicos Ltda - ME (nome fantasia Clínica de Ultrassom Dra. Morgana Kummer), CNPJ 20.251.640/0001-81, com sede à Rua Cândido Azeredo, 41A, Sete Lagoas/MG, tendo como responsável técnica a Dra. Morgana Kummer, CRM-MG 45.304, RQE 39.156.</p>
 <p><b>GESTANTE:</b> ${campo(d.nome, '____________________________')}, CPF ${campo(d.cpf, '__________________')}, data de nascimento ${campo(d.nasc ? _contratoDataBR(d.nasc) : '', '___/___/______')}, telefone ${campo(d.tel, '__________________')}, e-mail ${campo(d.email, '______________________________')}.</p>
-<p>Médico(a) obstetra assistente: ${campo(d.obst, '_____________________________________________')}.</p>
+<p style="text-align:left">Médico(a) obstetra assistente: ${campo(d.obst, '_____________________________________________')}.</p>
 <h2>2) Objeto e modalidade</h2>
 <p>Este contrato tem por objeto o Acompanhamento Fetal MK: um acompanhamento ultrassonográfico planejado ao longo da gestação, com exames realizados nas janelas gestacionais recomendadas pelos protocolos da Fetal Medicine Foundation (FMF) e da ISUOG, conforme a modalidade escolhida abaixo e detalhada no Anexo I.</p>
 <p><b>Modalidade escolhida:</b> ${mod('essencial')} &nbsp; ${mod('premium')} &nbsp; ${mod('gemelar_essencial')} &nbsp; ${mod('gemelar_dc')}</p>
 <p>Idade gestacional na adesão: <b>${igTxt}</b>. DPP: <b>${dppTxt}</b>.</p>
 <p>Gestação de alto risco ou com necessidade de vigilância mais frequente é atendida na modalidade Premium. Exames além dos previstos na modalidade, quando indicados clinicamente, são cobrados pelo valor avulso vigente.</p>
 <h2>3) Valor e pagamento</h2>
-<p>Valor da modalidade: <b>R$ ${fmt(p.total)}</b> (${p.extenso}), pago em <b>${d.parcelas}</b> parcela(s) de <b>R$ ${fmt(p.total / d.parcelas)}</b> no cartão de crédito, em até 6 (seis) vezes. Não são aceitos boleto ou PIX parcelado.</p>
+<p>Valor da modalidade: <b>R$ ${fmt(p.total)}</b> (${p.extenso}), pago em <b>${d.parcelas}</b> parcela(s) de <b>R$ ${fmt(p.total / d.parcelas)}</b> no cartão de crédito. Não são aceitos boleto ou PIX parcelado.</p>
 ${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesão, as janelas dos exames a seguir já haviam passado e eles não fazem parte deste acompanhamento, não sendo realizados nem creditados: ${pr.perdidos.map(_adesaoNomeEx).join('; ')}. O valor acima (modalidade cheia: R$ ${fmt(p0.total)}) é o proposto para os ${pr.faltam.length} exames restantes e os extras da modalidade.</p>` : ''}
 <p><u>O valor corresponde ao acompanhamento como um todo (organização, reserva de agenda em todas as janelas, exames, relatórios e materiais descritos neste contrato), e não à soma de exames avulsos.</u></p>
 <h2>4) O que está incluído</h2>

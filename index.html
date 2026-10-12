@@ -3003,6 +3003,71 @@ function recepcaoCombinarDatas() {
   document.getElementById('rc-dat-txt').value = txt;
 }
 
+// Confirmação do agendamento: a secretária digita data e hora de cada exame (a agenda está na Feegow) e o app monta a mensagem.
+const _RC_DIAS_SEM = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+let _confTxtManual = false;
+
+function recepcaoConfirmarAgenda() {
+  const r = _recepcaoDados.find(x => x.gestacao_id === _rcSel);
+  const i = r && _rcInfo(r);
+  if (!i) return;
+  const pend = i.sit.slots.filter(s => s.status === 'falta' || s.status === 'tolerancia');
+  if (!pend.length) { alert('Não há exame pendente para agendar.'); return; }
+  _confTxtManual = false;
+  const old = document.getElementById('rc-conf-modal'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'rc-conf-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const inp = 'width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;border-radius:8px;';
+  const linhas = pend.map((s, k) => {
+    const rot = s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : '') + (s.def.tol ? ' (' + _acompSemDia(s.def.ini) + ')' : '');
+    const per = s.de && s.ate ? `${_acompDataCurta(s.de)} a ${_acompDataCurta(s.ateTol || s.ate)}` : '';
+    return `<div style="margin-bottom:8px;"><div style="font-size:13px;"><b>${escapeHtml(rot)}</b> <span style="color:var(--text-muted);">${per ? '· período ' + per : ''}</span></div>
+      <div style="display:flex;gap:8px;margin-top:4px;"><input type="date" class="rc-conf-d" data-k="${k}" style="${inp}" oninput="_rcConfRefazer()"><input type="time" class="rc-conf-h" data-k="${k}" style="${inp}max-width:130px;" oninput="_rcConfRefazer()"></div></div>`;
+  }).join('');
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
+    <h3 style="margin:0 0 4px;">Confirmar agendamento</h3>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · preencha data e hora do que já foi marcado na Feegow</div>
+    ${linhas}
+    <label style="font-size:12px;">Celular da paciente (com DDD)</label>
+    <input id="rc-conf-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml((r.pagamento && r.pagamento.celular) || '')}" style="${inp}margin-bottom:10px;">
+    <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
+    <textarea id="rc-conf-txt" rows="14" style="${inp}font-size:13px;" oninput="_confTxtManual=true"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:10px;">
+      <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-conf-modal').remove()">Cancelar</button>
+      <button type="button" class="rc-btn-dark" onclick="_rcConfWhats()">Abrir no WhatsApp</button></div></div>`;
+  document.body.appendChild(el);
+  el._pend = pend; el._nome = String(r.nome || '').trim().split(/\s+/)[0];
+  _rcConfRefazer();
+}
+
+function _rcConfRefazer() {
+  const el = document.getElementById('rc-conf-modal');
+  if (!el || _confTxtManual) return;
+  const itens = [];
+  el._pend.forEach((s, k) => {
+    const d = el.querySelector(`.rc-conf-d[data-k="${k}"]`).value, h = el.querySelector(`.rc-conf-h[data-k="${k}"]`).value;
+    if (!d) return;
+    const rot = s.def.n.charAt(0).toLowerCase() + s.def.n.slice(1) + (s.def.sub ? ' (' + s.def.sub + ')' : '') + (s.def.tol ? ' (' + _acompSemDia(s.def.ini) + ')' : '');
+    const dia = _RC_DIAS_SEM[new Date(d + 'T12:00:00Z').getUTCDay()];
+    const hora = h ? ', às ' + h.slice(0, 2) + 'h' + (h.slice(3, 5) !== '00' ? h.slice(3, 5) : '') : '';
+    itens.push({ d, linha: `- ${rot}: ${dia}, ${_acompDataCurta(d)}${hora}` });
+  });
+  itens.sort((a, b) => a.d.localeCompare(b.d));
+  document.getElementById('rc-conf-txt').value = itens.length
+    ? `Olá, ${el._nome}! Seus próximos ultrassons estão agendados 🥰\n\n${itens.map(x => x.linha).join('\n')}\n\nLembretes importantes:\n- Você pode remarcar sem custo, dentro do período de cada exame, avisando com pelo menos 48 horas de antecedência.\n- Se faltar sem avisar com 48 horas e o período do exame passar, o valor do exame vira crédito, e seu acompanhamento segue normalmente para o próximo exame.\n\nQualquer dúvida, estamos à disposição 💜`
+    : '';
+}
+
+function _rcConfWhats() {
+  let d = (document.getElementById('rc-conf-tel').value || '').replace(/\D/g, '');
+  const txt = document.getElementById('rc-conf-txt').value;
+  if (!txt.trim()) { alert('Preencha a data de pelo menos um exame.'); return; }
+  if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
+  if (!d.startsWith('55')) d = '55' + d;
+  window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(txt), '_blank');
+}
+
 function _rcDatWhats() {
   let d = (document.getElementById('rc-dat-tel').value || '').replace(/\D/g, '');
   if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
@@ -3084,7 +3149,7 @@ function _rcDetalheHtml(i) {
       <div class="rc-det-meta"><span class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}">${escapeHtml(sit.plano.nome)}</span>
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;"><div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div>
-        ${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">Combinar datas</button>` : ''}</div></div>
+        ${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">Combinar datas</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">Confirmar agendamento</button>` : ''}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
     ${_rcEncerramentoHtml(r, i)}
     ${prox}

@@ -2936,7 +2936,7 @@ function recepcaoFiltrar() {
       <div class="rc-it-corpo"><div class="rc-it-nome">${escapeHtml(r.nome)}</div>
         <div class="rc-it-sub"><b class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}" style="font-size:11px;padding:2px 9px;">${escapeHtml(i.sit.plano.nome)}</b>${i.sit.igHoje != null ? ' · IG ' + _acompSemDia(i.sit.igHoje) : ''} · ${i.sit.feitos}/${i.sit.slots.length} exames</div>
         <div class="rc-prog"><i style="width:${pct}%"></i></div></div>
-      <div class="rc-it-lado">${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill rc-pill--parcial">${i.semExtrato ? 'Sem extrato' : 'Devolução pendente'}</span>` : ''}<span class="rc-pill ${pg.cls}">${pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
+      <div class="rc-it-lado">${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill rc-pill--parcial">${i.semExtrato ? 'Sem extrato' : 'Devolução pendente'}</span>` : ''}<span class="rc-pill ${pg.cls}">${i.enc ? 'Plano ' + pg.rotulo.charAt(0).toLowerCase() + pg.rotulo.slice(1) : pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
     </div>`;
   }).join('');
   const sel = itens.find(i => i.r.gestacao_id === _rcSel);

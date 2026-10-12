@@ -1862,3 +1862,8 @@ pagamento pode ser parcial. O estado é explícito.
 - **Compatibilidade**: sem a 026, `recepcao_encerrar` com 3 parâmetros não existe; o app encerra pela
   versão antiga e avisa que o extrato não ficou guardado. Contrato/devolução exigem a 026.
 - `_arqSubir`/`_arqAbrir` são o upload/abertura compartilhados por comprovante e contrato.
+- **Comprovante da devolução (2026-10-12, migração 027)**: o botão "Comprovante" da ficha é só do
+  PAGAMENTO (paciente → clínica). A devolução (clínica → paciente) tem anexo próprio: no modal "Registrar
+  devolução feita" ou depois, no bloco de encerramento. Arquivo em `{dono}/{gestacao}/devolucao-…` (mesmo
+  bucket), referência em `encerramento.devolucao.comprovante`. `recepcao_devolucao` ganhou
+  `p_comprovante` (opcional; omitido mantém o anterior).

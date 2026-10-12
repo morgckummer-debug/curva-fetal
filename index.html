@@ -3182,6 +3182,8 @@ function _rcEncerramentoHtml(r, i) {
   } else if (d.status === 'devolvido') {
     acoes = btn('Reabrir (voltar a pendente)', `recepcaoDevolucaoDefinir(${gid}, 'pendente', 'dinheiro', ${d.valor || 0})`);
   }
+  if (d.comprovante) acoes += btn('Ver comprovante da devolução', `recepcaoDevolucaoComprovanteVer(${gid})`);
+  if (d.status === 'devolvido') acoes += `<label class="rc-btn-claro" style="display:inline-block;">📎 ${d.comprovante ? 'Trocar' : 'Anexar'} comprovante da devolução<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoDevolucaoComprovanteEnviar(${gid}, this)"></label>`;
   if (e.mensagem) acoes += btn('Ver mensagem enviada', `recepcaoEncMsgVer(${gid})`);
   acoes += btn('Refazer registro', `recepcaoEncerrarAbrir(${gid}, true)`);
   return `<div class="rc-pag" style="margin-top:0;margin-bottom:14px;border-color:#c0392b;background:#fff7f7;">
@@ -3194,20 +3196,27 @@ function _rcEncerramentoHtml(r, i) {
       ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
       ${li('Registrado por', escapeHtml(e.por || '') + (e.gravado_em ? ', ' + _rcDataHora(e.gravado_em) : ''))}</tbody></table>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">${acoes}</div>
-    ${d.status === 'pendente' ? '<p class="rc-det-meta" style="margin:8px 0 0;">O comprovante da devolução pode ser anexado no botão Comprovante.</p>' : ''}
   </div>`;
 }
 
-async function recepcaoDevolucaoDefinir(gid, status, opcao, valor, data, forma, obs) {
+// comprovante = { path, nome, tipo } já enviado ao Storage (migração 027); omitido, o servidor mantém o anterior.
+async function recepcaoDevolucaoDefinir(gid, status, opcao, valor, data, forma, obs, comprovante) {
   try {
-    const { error } = await supabaseClient.rpc('recepcao_devolucao', {
+    const args = {
       p_gestacao_id: gid, p_status: status, p_opcao: opcao || null, p_valor: valor == null ? null : valor,
       p_data: data || null, p_forma: forma || null, p_obs: obs || '',
-    });
-    if (error) throw error;
+    };
+    if (comprovante) args.p_comprovante = comprovante;
+    const { error } = await supabaseClient.rpc('recepcao_devolucao', args);
+    if (error) {
+      if (comprovante) await supabaseClient.storage.from('comprovantes').remove([comprovante.path]);
+      throw error;
+    }
     const m = document.getElementById('rc-dev-modal'); if (m) m.remove();
     await recepcaoAtualizar();
-  } catch (err) { alert('Não consegui salvar: ' + (err.message || err)); }
+  } catch (err) {
+    alert('Não consegui salvar: ' + (err.message || err) + (comprovante && /function|schema cache/i.test(err.message || '') ? '\n\nA migração 027 foi aplicada no Supabase?' : ''));
+  }
 }
 
 function recepcaoDevolucaoFeita(gid) {
@@ -3225,19 +3234,46 @@ function recepcaoDevolucaoFeita(gid) {
       <div><label style="font-size:12px;">Data</label><input id="rc-dev-data" type="date" value="${_hojeISO()}" style="${inp}"></div>
       <div><label style="font-size:12px;">Valor devolvido (R$)</label><input id="rc-dev-valor" type="number" step="0.01" min="0" value="${d.valor || e.estorno || 0}" style="${inp}"></div>
       <div><label style="font-size:12px;">Forma</label><select id="rc-dev-forma" style="${inp}">${Object.entries(_DEV_FORMA).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div></div>
-    <label style="font-size:12px;">Observação (opcional)</label><input id="rc-dev-obs" type="text" maxlength="500" style="${inp}margin-bottom:14px;">
+    <label style="font-size:12px;">Observação (opcional)</label><input id="rc-dev-obs" type="text" maxlength="500" style="${inp}margin-bottom:10px;">
+    <label style="font-size:12px;">Comprovante da devolução (foto ou PDF, opcional)</label><input id="rc-dev-arq" type="file" accept="image/*,application/pdf" style="${inp}margin-bottom:14px;">
     <div style="display:flex;gap:8px;justify-content:flex-end;">
       <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-dev-modal').remove()">Cancelar</button>
       <button type="button" class="rc-btn-dark" onclick="_recepcaoDevolucaoSalvar(${gid})">Salvar</button></div></div>`;
   document.body.appendChild(el);
 }
 
-function _recepcaoDevolucaoSalvar(gid) {
+async function _recepcaoDevolucaoSalvar(gid) {
   const v = id => document.getElementById(id).value;
   const data = v('rc-dev-data'), valor = parseFloat(v('rc-dev-valor'));
   if (!data) { alert('Informe a data da devolução.'); return; }
   if (!(valor >= 0)) { alert('Informe o valor devolvido.'); return; }
-  recepcaoDevolucaoDefinir(gid, 'devolvido', 'dinheiro', valor, data, v('rc-dev-forma'), v('rc-dev-obs').trim());
+  const arq = document.getElementById('rc-dev-arq').files[0];
+  let comp = null;
+  if (arq) {
+    try { comp = await _arqSubir(gid, arq, 'devolucao-', 'Comprovante de devolução'); }
+    catch (err) { alert('Não consegui enviar o comprovante: ' + (err.message || err)); return; }
+  }
+  await recepcaoDevolucaoDefinir(gid, 'devolvido', 'dinheiro', valor, data, v('rc-dev-forma'), v('rc-dev-obs').trim(), comp);
+}
+
+async function recepcaoDevolucaoComprovanteVer(gid) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const c = r && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.devolucao && r.pagamento.encerramento.devolucao.comprovante;
+  if (c) await _arqAbrir(c);
+}
+
+// Anexa (ou troca) o comprovante de uma devolução já registrada, mantendo os demais dados.
+async function recepcaoDevolucaoComprovanteEnviar(gid, input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const d = r && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.devolucao;
+  if (!d) return;
+  try {
+    const comp = await _arqSubir(gid, file, 'devolucao-', 'Comprovante de devolução');
+    await recepcaoDevolucaoDefinir(gid, d.status, d.opcao, d.valor, d.data, d.forma, d.obs, comp);
+  } catch (err) { alert('Não consegui enviar o comprovante: ' + (err.message || err)); }
 }
 
 function recepcaoEncMsgVer(gid) {

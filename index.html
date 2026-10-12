@@ -2906,8 +2906,7 @@ function recepcaoFiltrar() {
   const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
   document.getElementById('rc-kpis').innerHTML =
     kpi('todas', todos.length, 'Acompanhamentos ativos') +
-    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta') +
-    kpi('devolucao', todosComEnc.filter(i => i.devAberta).length, 'Devolução a resolver', 'rc-kpi--alerta');
+    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta');
   document.getElementById('rc-chips').innerHTML = _RC_FILTROS.map(([f, t]) =>
     `<button type="button" class="rc-chip ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')">${t}</button>`).join('');
 

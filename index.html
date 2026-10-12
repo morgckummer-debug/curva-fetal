@@ -8180,7 +8180,7 @@ function _proximoIdLocal(linhas) {
 // nada aqui sem querer.
 const _PATIENT_COLUMNS  = 'id,cpf,nome,excluido_em';
 const _GESTACAO_COLUMNS = 'id,paciente_id,dum,dpp,data_inicio,gestas,partos,abortos,antecedentes_obstetricos,ppt_espontaneo_previo,progesterona_vaginal_em_uso,cerclagem_realizada,cerclagem_ig_semanas,status,observacoes,ig_base_data,ig_base_valor,ig_base_tipo,tipo_gestacao,corionicidade,acompanhamento,excluido_em';
-const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,risco_parto_prematuro,risco_diabetes_gestacional,efw,externo,servico_externo,impressao_externa,extra,feto,excluido_em';
+const _EXAM_COLUMNS     = 'id,gestacao_id,data_exame,ig_dias_manual,dbp,cc,ca,femur,dof,ccn,umero,radio,ulna,tibia,fibula,au_ip,au_fluxo,acm_ip,acm_psv,aut_e,aut_d,dv_ip,dv_onda,cpr,colo,ila,bolsao,nt,fc,risco_t21,risco_t18,risco_t13,risco_pre_eclampsia,risco_parto_prematuro,risco_diabetes_gestacional,efw,externo,servico_externo,impressao_externa,impressao_laudo,extra,feto,excluido_em';
 
 // Busca tudo do Supabase (o RLS já filtra pro usuário logado) e substitui o DB em
 // memória. Chamado uma vez ao entrar (ver onAuthStateChange, mais abaixo).
@@ -12041,8 +12041,13 @@ function _rvLinhaExame(gestacao, e, fetoCol) {
   if (fetoCol) tds.push(e.feto ? labelFeto(e.feto) : '—');
   tds.push(pfe, ca, liq, colo, bcf, au, acm, ut, dv);
   const linha = `<tr>${tds.map(t => `<td>${t}</td>`).join('')}</tr>`;
-  const nota = e.externo && e.impressao_externa
+  let nota = e.externo && e.impressao_externa
     ? `<tr class="rv-nota"><td colspan="${tds.length}">Conclusão do laudo externo: ${escapeHtml(e.impressao_externa)}</td></tr>` : '';
+  // Conclusão do laudo da clínica (editor de laudos): texto final, com as edições dela.
+  // Numa múltipla o mesmo texto vai em todos os fetos da visita; mostra só uma vez.
+  if (!e.externo && e.impressao_laudo && (!e.feto || e.feto === 'A')) {
+    nota += `<tr class="rv-nota"><td colspan="${tds.length}"><b>Conclusão do laudo:</b><br>${escapeHtml(e.impressao_laudo).replace(/\n/g, '<br>')}</td></tr>`;
+  }
   return linha + nota;
 }
 
@@ -17613,6 +17618,7 @@ function validateImportedDB(raw) {
       extra: !!e.extra,
       servico_externo: sanitizeString(e.servico_externo, 80) || null,
       impressao_externa: sanitizeString(e.impressao_externa, 500) || null,
+      impressao_laudo: sanitizeString(e.impressao_laudo, 3000) || null,
     });
   });
 

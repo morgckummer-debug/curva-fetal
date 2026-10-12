@@ -154,6 +154,7 @@ create table if not exists public.exams (
   servico_externo  text,
   efw              numeric,
   impressao_externa text,
+  impressao_laudo   text,
   feto             text check (feto in ('A','B','C')),
   excluido_em      timestamptz,
   created_at       timestamptz not null default now(),

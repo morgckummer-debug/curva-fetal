@@ -1867,3 +1867,11 @@ pagamento pode ser parcial. O estado é explícito.
   devolução feita" ou depois, no bloco de encerramento. Arquivo em `{dono}/{gestacao}/devolucao-…` (mesmo
   bucket), referência em `encerramento.devolucao.comprovante`. `recepcao_devolucao` ganhou
   `p_comprovante` (opcional; omitido mantém o anterior).
+
+## Conclusão do laudo guardada no exame (2026-10-12, migração 028)
+
+O editor de laudos agora grava a impressão diagnóstica final (com as edições dela) em `exams.impressao_laudo`
+(`impressaoLaudoTexto()` no `laudo-core.js`, uma linha por item, sem o "* "). O Curvas só **mostra** esse texto
+na aba Revisão ("Conclusão do laudo"); não substitui a conclusão calculada do relatório. Numa múltipla o mesmo
+texto vai em todos os fetos; a Revisão exibe uma vez (feto A). **A 028 precisa estar aplicada antes de publicar
+qualquer um dos dois lados**: `_EXAM_COLUMNS` pede a coluna e o insert do editor a envia.

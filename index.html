@@ -6176,7 +6176,11 @@ table.mod th,table.mod td{text-align:center;vertical-align:middle;} .ck{color:#1
 th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
 .ass{display:flex;gap:40px;margin-top:46px;page-break-inside:avoid;} .ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt;}
 .novapag{page-break-before:always;}
+.barra-imp{position:sticky;top:0;background:#3d2352;padding:10px;text-align:center;margin:0 0 10px;}
+.barra-imp button{font:inherit;font-size:15px;font-weight:700;padding:10px 22px;border:0;border-radius:10px;background:#f6ecd0;color:#3d2352;cursor:pointer;}
+@media print{.barra-imp{display:none;}}
 </style></head><body onload="window.print()">
+<div class="barra-imp"><button type="button" onclick="window.print()">🖨 Imprimir contrato</button></div>
 <h1>CONTRATO DE ADESÃO</h1>
 <div class="sub">Acompanhamento Fetal MK · Acompanhamento ultrassonográfico da gestação · Dra. Morgana Kummer</div>
 <h2>1) Partes</h2>
@@ -6381,7 +6385,7 @@ async function _arqAbrir(c) {
   try {
     const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
     if (error) throw error;
-    const url = URL.createObjectURL(new Blob([data], { type: c.tipo || data.type }));
+    const url = URL.createObjectURL(new Blob([data], { type: (c.tipo === 'text/html' ? 'text/html;charset=utf-8' : (c.tipo || data.type)) }));
     if (janela) janela.location.href = url; else window.open(url, '_blank');
   } catch (err) {
     if (janela) janela.close();

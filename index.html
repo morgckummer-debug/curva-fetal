@@ -14932,7 +14932,24 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
   // abdominal acima do percentil 90." — em vez de emendados no rótulo. Os
   // demais critérios (Doppler etc.) também viram uma linha cada.
   const linhas = [];
-  if (impressao.caAcimaP90Isolada && impressao.efwPercentil != null) {
+  // Conclusão escrita no editor de laudos (migração 028) para o exame mais recente:
+  // é a base do papel que vai ao obstetra. O app acrescenta só o que um exame
+  // sozinho não vê — trajetória, diagnóstico de crescimento quando há alteração,
+  // riscos, conduta e notas. Para feto adequado, o rótulo/percentil não se repete
+  // (o laudo já diz); com alteração, a linha do app entra para o obstetra ver o
+  // diagnóstico longitudinal e para a divergência com o laudo ficar visível.
+  const ultimo = exams && exams.length ? exams[exams.length - 1] : null;
+  const doEditor = ultimo && !ultimo.externo && ultimo.impressao_laudo ? ultimo.impressao_laudo : null;
+  if (doEditor) {
+    doEditor.split('\n').map(l => l.trim()).filter(Boolean).forEach(l => linhas.push(l));
+    if (impressao.diagnostico !== 'adequado') {
+      linhas.push(`${impressao.label}${pctTxt}${critTxt}.`);
+    } else if (trajetoriaOk) {
+      const cls = impressao.velocidade?.classe;
+      if (cls === 'esperada')  linhas.push('Velocidade de crescimento adequada ao longo do acompanhamento, com sinais de bom funcionamento placentário ao Doppler.');
+      else if (cls === 'acelerada') linhas.push('Evolução de crescimento um pouco mais acelerada ao longo do acompanhamento, com sinais de bom funcionamento placentário ao Doppler.');
+    }
+  } else if (impressao.caAcimaP90Isolada && impressao.efwPercentil != null) {
     linhas.push(`${labelTxt}.`);
     linhas.push(`Peso fetal no percentil ${impressao.efwPercentil}.`);
     linhas.push('Circunferência abdominal acima do percentil 90.');

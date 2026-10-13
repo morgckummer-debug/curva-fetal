@@ -1360,7 +1360,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         </div>
       </div>
       <div class="filtro-chips" id="filtro-chips">
-        <button class="filtro-chip" data-filtro="morfo1" onclick="toggleFiltroBusca('morfo1')" title="Tem exame entre 10 e 15 semanas (mesma janela do Laudo 1º Trimestre)">Morfológico 1º trimestre</button>
+        <button class="filtro-chip" data-filtro="morfo1" onclick="toggleFiltroBusca('morfo1')" title="Tem exame entre 10 e 14s0d (mesma janela do Laudo 1º Trimestre)">Morfológico 1º trimestre</button>
         <button class="filtro-chip" data-filtro="morfo2" onclick="toggleFiltroBusca('morfo2')" title="Tem exame entre 18 e 24 semanas">Morfológico 2º trimestre</button>
         <button class="filtro-chip" data-filtro="multipla" onclick="toggleFiltroBusca('multipla')" title="Gestação gemelar ou trigemelar">Gemelar/trigemelar</button>
       </div>
@@ -9646,7 +9646,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
 
   // Use 0.5-week steps + interpolateRef for smooth percentile curves (avoids table jitter)
   const refData = { p10: [], p50: [], p90: [] };
-  for (let w = 15; w <= 42; w += 0.5) {
+  for (let w = 14; w <= 42; w += 0.5) {
     const ref = interpolateRef(REF_TABLES[refKey], w * 7);
     if (!ref) continue;
     refData.p10.push({ x: w, y: ref[1] });
@@ -9658,7 +9658,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
   sorted.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
-    if (igDays < 105) return; // biometria apenas a partir de 15 semanas (REF_TABLES cobre desde a 14ª)
+    if (igDays < 99) return; // biometria apenas a partir de 14s1d (REF_TABLES cobre desde a 14ª)
     const val = e[bioKey];
     if (!val) return;
     const calc = calcBiometria(val, refKey, igDays);
@@ -9683,7 +9683,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
   let { yMin, yMax } = refYRange('efw', true);
 
   const refData = { p10: [], p50: [], p90: [] };
-  for (let w = 15; w <= 42; w += 0.5) {
+  for (let w = 14; w <= 42; w += 0.5) {
     const linha = _linhaPesoInterpolada(w);
     refData.p10.push({ x: w, y: linha.p10 });
     refData.p50.push({ x: w, y: linha.p50 });
@@ -9694,7 +9694,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
   sorted.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
-    if (igDays < 105) return; // EFW apenas a partir de 15 semanas — não é pra calcular peso por Hadlock antes disso
+    if (igDays < 99) return; // EFW apenas a partir de 14s1d — não é pra calcular peso por Hadlock antes disso
     const efw = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
     if (!efw) return;
     const calc = calcEFWPercentile(efw, igDays);
@@ -9737,7 +9737,7 @@ function updateEFWNote(gestacao, exams) {
   exams.forEach(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     // Antes de 15 semanas o gráfico não plota peso de propósito — não é omissão a explicar.
-    if (!igDays || igDays < 105) return;
+    if (!igDays || igDays < 99) return;
     if (e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur)) return;
     const faltam = _biometriaFaltante(e);
     // Exame sem biometria nenhuma (uma visita só de Doppler, por exemplo) não é
@@ -10267,7 +10267,7 @@ function _examesJanela1Tri(gestacao, allExams) {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return false;
     const w = igDays / 7;
-    return w >= 10 && w <= 15;
+    return w >= 10 && w <= 14;
   });
 }
 
@@ -10450,7 +10450,7 @@ function _pointsForFeto1Tri(gestacao, exams, extractor) {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
     const w = igDays / 7;
-    if (w < 10 || w > 15) return; // janela do 1º trimestre — mesma do editor
+    if (w < 10 || w > 14) return; // janela do 1º trimestre — mesma do editor
     const p = extractor(e, w);
     if (p) pts.push(p);
   });
@@ -10542,18 +10542,18 @@ function buildChart1TriDV(canvasId, gestacao, exams) {
   });
 }
 
-// Existe pelo menos um exame na janela do 1º trimestre (10-15 semanas) — é o
+// Existe pelo menos um exame na janela do 1º trimestre (10 a 14s0d) — é o
 // gatilho pra mostrar o bloco #charts-1tri.
 function _temExame1Tri(gestacao, allExams) {
   return allExams.some(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return false;
     const w = igDays / 7;
-    return w >= 10 && w <= 15;
+    return w >= 10 && w <= 14;
   });
 }
 
-// Existe pelo menos um exame a partir de 15 semanas — é o que decide se o
+// Existe pelo menos um exame a partir de 14s1d — é o que decide se o
 // grid padrão (biometria/EFW/Doppler ≥15 semanas) aparece. Antes disso ele
 // só mostraria curvas de referência vazias, sem nenhum ponto — o bug
 // relatado ("clico em Gráficos e vejo gráfico de peso de um feto de 13
@@ -10561,7 +10561,7 @@ function _temExame1Tri(gestacao, allExams) {
 function _temExameDesde15Sem(gestacao, allExams) {
   return allExams.some(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    return igDays != null && igDays >= 105;
+    return igDays != null && igDays >= 99;
   });
 }
 
@@ -14240,7 +14240,7 @@ function abrirPreviewLaudo1Tri() {
 
   const examesJanela = allExams.filter(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    return igDays && igDays / 7 >= 10 && igDays / 7 <= 15;
+    return igDays && igDays / 7 >= 10 && igDays / 7 <= 14;
   });
   const exame1Tri = examesJanela[examesJanela.length - 1] || allExams[allExams.length - 1];
   const textoConclusaoInicial = _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri);
@@ -14295,7 +14295,7 @@ ${sheetHtml}
 // essa leitura fica com os cartões de risco (números da FMF) e os gráficos,
 // quem decide "baixo"/"aumentado" é quem lê, não um texto gerado sozinho.
 // Botão único: gestação que ainda só tem exame de 1º trimestre sai como Laudo de 1º Trimestre;
-// com algum exame de 15 semanas em diante, sai o relatório evolutivo de sempre.
+// com algum exame a partir de 14s1d, sai o relatório evolutivo de sempre.
 function abrirRelatorioUnico() {
   const g = getGestacaoById(currentGestacaoId);
   const ex = g ? getExamsByGestacao(g.id) : [];
@@ -14306,7 +14306,7 @@ function abrirRelatorioUnico() {
 function _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri) {
   // Conclusão final escrita no editor de laudos (migração 028), quando existe, vale no lugar da gerada.
   const doEditor = allExams.filter(e => !e.externo && e.impressao_laudo && (!e.feto || e.feto === 'A'))
-    .filter(e => { const d = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame); return d && d / 7 >= 10 && d / 7 <= 15; }).pop();
+    .filter(e => { const d = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame); return d && d / 7 >= 10 && d / 7 <= 14; }).pop();
   if (doEditor) return doEditor.impressao_laudo;
   const linhas = [];
   const igDays = exame1Tri.ig_dias_manual ?? calcIgDays(gestacao, exame1Tri.data_exame);
@@ -14319,7 +14319,7 @@ function _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri) {
   linhas.push('Os marcadores ultrassonográficos avaliados (vide gráficos de referência) foram considerados no rastreamento combinado de aneuploidias do 1º trimestre — a ultrassonografia isolada não permite excluir cromossomopatias.');
 
   const pontosUta = _relPontosUterinasLado(gestacao, allExams, 'media');
-  const utaNaJanela = pontosUta.filter(p => p.w >= 10 && p.w <= 15);
+  const utaNaJanela = pontosUta.filter(p => p.w >= 10 && p.w <= 14);
   const utaUltimo = (utaNaJanela.length ? utaNaJanela : pontosUta).slice(-1)[0];
   if (utaUltimo && utaUltimo.pct != null) {
     linhas.push(`IP médio das artérias uterinas no percentil ${utaUltimo.pct} para a idade gestacional.`);
@@ -14358,7 +14358,7 @@ function _buildLaudo1TriSheetHtml(patient, gestacao, allExams, opts) {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return false;
     const w = igDays / 7;
-    return w >= 10 && w <= 15;
+    return w >= 10 && w <= 14;
   });
   const exame1Tri = examesJanela[examesJanela.length - 1] || allExams[allExams.length - 1];
 
@@ -14530,7 +14530,7 @@ function _relPatientPoints(paramKey, gestacao, exams) {
     const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!ig) return null;
     const w = ig / 7;
-    if (w < 15) return null; // mesmo corte de buildChart/buildEFWChart — 15 semanas, não mais 20
+    if (w < 99 / 7) return null; // mesmo corte de buildChart/buildEFWChart — 15 semanas, não mais 20
     let y;
     if (paramKey === 'efw') y = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
     else if (paramKey === 'uta') {
@@ -14591,7 +14591,7 @@ function _relLinearBandPath(topPts, bottomPts) {
 // célula some do grid em vez de mostrar um gráfico vazio.
 function _buildRelChartSvg(paramKey, gestacao, exams) {
   const weeks = [];
-  for (let w = 15; w <= 40; w++) weeks.push(w);
+  for (let w = 14; w <= 40; w++) weeks.push(w);
 
   const refData = weeks.map(w => { const r = _relRefRow(paramKey, w); return r ? { w, ...r } : null; }).filter(Boolean);
   if (!refData.length) return null;
@@ -14617,11 +14617,11 @@ function _buildRelChartSvg(paramKey, gestacao, exams) {
   // visitas abrem o eixo até cobrir todas, e o traçado entre elas continua lá.
   const JANELA_PAD = 3, JANELA_MIN = 6;
   const wsPac = patPts.map(p => p.w);
-  let xMin = Math.max(15, Math.floor(Math.min(...wsPac)) - JANELA_PAD);
+  let xMin = Math.max(14, Math.floor(Math.min(...wsPac)) - JANELA_PAD);
   let xMax = Math.min(40, Math.ceil(Math.max(...wsPac)) + JANELA_PAD);
   if (xMax - xMin < JANELA_MIN) {
     if (xMin === 15) xMax = Math.min(40, xMin + JANELA_MIN);
-    else xMin = Math.max(15, xMax - JANELA_MIN);
+    else xMin = Math.max(14, xMax - JANELA_MIN);
   }
 
   const ref = refData.filter(r => r.w >= xMin && r.w <= xMax).map(r => ({ x: r.w, p10: r.p10, p50: r.p50, p90: r.p90 }));
@@ -15203,7 +15203,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
   const chartW = VW - padL - padR, chartH = VH - padT - padB;
 
   const ref = [];
-  for (let w = 15; w <= 40; w++) {
+  for (let w = 14; w <= 40; w++) {
     const r = _relRefRow('efw', w);
     if (r) ref.push({ w, ...r });
   }
@@ -15213,7 +15213,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
     const ig = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!ig) return null;
     const semanas = ig / 7;
-    if (semanas < 15) return null; // EFW apenas a partir de 15 semanas — mesmo corte da tela
+    if (semanas < 99 / 7) return null; // EFW apenas a partir de 15 semanas — mesmo corte da tela
     const peso = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
     if (peso == null) return null;
     return { semanas, peso, pct: calcEFWPercentile(peso, ig)?.percentil };
@@ -15595,7 +15595,7 @@ function _rel1TriPontosFeto(gestacao, exams, extractor) {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
     const w = igDays / 7;
-    if (w < 10 || w > 15) return;
+    if (w < 10 || w > 14) return;
     const p = extractor(e, w);
     if (p) pts.push(p);
   });

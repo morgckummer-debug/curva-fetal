@@ -1383,7 +1383,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         <button class="tab" onclick="setTab('charts')">Gráficos</button>
         <button class="tab" onclick="setTab('summary')">Resumo</button>
       </div>
-      <button class="btn-pdf-report" id="btn-pdf-report" onclick="abrirPreviewRelatorio()" style="display:none;">⬇ Relatório PDF</button>
+      <button class="btn-pdf-report" id="btn-pdf-report" onclick="abrirRelatorioUnico()" style="display:none;">⬇ Relatório PDF</button>
       <button class="btn-pdf-report" id="btn-laudo-1tri" onclick="abrirPreviewLaudo1Tri()" style="display:none;" title="Laudo do morfológico de 1º trimestre — gerado uma vez, 11-14 semanas">📋 Laudo 1º Trimestre</button>
       <button class="btn-pdf-report" id="btn-relatorios-emitidos" onclick="abrirRelatoriosModal()" style="display:none;" title="Segunda via de relatórios já gerados para esta gestação">📄 Relatórios emitidos</button>
     </div>
@@ -14107,7 +14107,7 @@ function setTab(tab) {
   const laudo1TriBtn = document.getElementById('btn-laudo-1tri');
   if (laudo1TriBtn) {
     const g = tab === 'summary' ? getGestacaoById(currentGestacaoId) : null;
-    laudo1TriBtn.style.display = (g && _temExame1Tri(g, getExamsByGestacao(g.id))) ? '' : 'none';
+    laudo1TriBtn.style.display = 'none'; // unificado em "Relatório PDF" (abrirRelatorioUnico)
   }
 
   if (tab === 'revisao') {
@@ -14294,7 +14294,20 @@ ${sheetHtml}
 // linha afirma um "baixo risco" para cromossomopatias que o app não calcula:
 // essa leitura fica com os cartões de risco (números da FMF) e os gráficos,
 // quem decide "baixo"/"aumentado" é quem lê, não um texto gerado sozinho.
+// Botão único: gestação que ainda só tem exame de 1º trimestre sai como Laudo de 1º Trimestre;
+// com algum exame de 15 semanas em diante, sai o relatório evolutivo de sempre.
+function abrirRelatorioUnico() {
+  const g = getGestacaoById(currentGestacaoId);
+  const ex = g ? getExamsByGestacao(g.id) : [];
+  if (g && _temExame1Tri(g, ex) && !_temExameDesde15Sem(g, ex)) abrirPreviewLaudo1Tri();
+  else abrirPreviewRelatorio();
+}
+
 function _gerarConclusaoLaudo1TriInicial(gestacao, allExams, exame1Tri) {
+  // Conclusão final escrita no editor de laudos (migração 028), quando existe, vale no lugar da gerada.
+  const doEditor = allExams.filter(e => !e.externo && e.impressao_laudo && (!e.feto || e.feto === 'A'))
+    .filter(e => { const d = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame); return d && d / 7 >= 10 && d / 7 <= 15; }).pop();
+  if (doEditor) return doEditor.impressao_laudo;
   const linhas = [];
   const igDays = exame1Tri.ig_dias_manual ?? calcIgDays(gestacao, exame1Tri.data_exame);
   const nFetos = fetosDaGestacao(gestacao).length;

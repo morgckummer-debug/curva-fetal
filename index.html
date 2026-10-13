@@ -3150,7 +3150,7 @@ function _rcDetalheHtml(i) {
       <div class="rc-det-meta"><span class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}">${escapeHtml(sit.plano.nome)}</span>
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;"><div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div>
-        ${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">Combinar datas</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">Confirmar agendamento</button>` : ''}</div></div>
+        <button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="var e=document.getElementById('rc-contrato-card');if(e)e.scrollIntoView({behavior:'smooth',block:'center'})" title="Vai até o bloco Contrato, mais abaixo na ficha">📄 Contrato</button>${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">Combinar datas</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">Confirmar agendamento</button>` : ''}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
     ${_rcEncerramentoHtml(r, i)}
     ${prox}
@@ -3187,7 +3187,7 @@ function _rcContratoHtml(r, enc) {
   const lbl = 'display:inline-block;padding:9px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;';
   const gerar = (!enc && !c.assinado)
     ? `<button type="button" class="${ultimo ? 'rc-btn-claro' : 'rc-btn-dark'}" onclick="recepcaoContratoGerar(${gid})">${ultimo ? 'Gerar nova via…' : 'Gerar contrato'}</button>` : '';
-  return `<div class="rc-pag" style="margin-top:16px;">
+  return `<div class="rc-pag" id="rc-contrato-card" style="margin-top:16px;">
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Contrato</div><span class="rc-pill ${pill[0]}">${pill[1]}</span></div>
     ${dica ? `<p class="rc-det-meta" style="margin:0 0 10px;">${dica}</p>` : ''}
     ${arq ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">${arq}</div>` : ''}

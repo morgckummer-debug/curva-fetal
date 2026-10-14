@@ -2812,10 +2812,12 @@ function _fecharRecepcao() {
 // "Mais opções" e volta ao app; a secretária só tem esta tela e sair).
 let _rcSel = null;
 let _rcFiltro = 'todas';
+let _rcAgOk = false;
+const _RC_AG_PRAZO_H = 48; // sem resposta depois disso, a etiqueta fica vermelha
 let _rcMedica = false;
 
 const _RC_FILTROS = [
-  ['todas', 'Todas'], ['pagamento', 'Pagamento a confirmar'], ['devolucao', 'Devolução a resolver'], ['encerradas', 'Encerradas'],
+  ['todas', 'Todas'], ['aguardando', 'Aguardando resposta'], ['combinar', 'Datas a combinar'], ['pagamento', 'Pagamento a confirmar'], ['devolucao', 'Devolução a resolver'], ['encerradas', 'Encerradas'],
 ];
 const _RC_ENC_ROTULO = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência' };
 const _RC_PAG = {
@@ -2852,6 +2854,15 @@ async function recepcaoAtualizar() {
     const { data, error } = await supabaseClient.rpc('painel_recepcao');
     if (error) throw error;
     _recepcaoDados = Array.isArray(data) ? data : [];
+    // Etiqueta de agendamento (migração 030). Sem ela, o painel funciona como antes, sem etiquetas.
+    _rcAgOk = false;
+    try {
+      const ag = await supabaseClient.rpc('recepcao_agendamentos');
+      if (!ag.error && ag.data && typeof ag.data === 'object') {
+        _rcAgOk = true;
+        _recepcaoDados.forEach(r => { r.agendamento = ag.data[String(r.gestacao_id)] || null; });
+      }
+    } catch (e) { console.error('[CurvaFetal] recepcao_agendamentos:', e); }
     recepcaoFiltrar();
   } catch (err) {
     console.error('[CurvaFetal] painel_recepcao:', err);
@@ -2877,9 +2888,29 @@ function _rcInfo(r) {
   const extrato = r.pagamento && r.pagamento.encerramento;
   const devSt = extrato && extrato.devolucao && extrato.devolucao.status;
   const devAberta = enc && (!extrato || devSt === 'pendente' || devSt === 'escolha');
-  return { r, sit, pag, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, semExtrato: enc && !extrato,
+  // Agendamento: "sem contato" (nunca combinou datas), "aguardando" (mensagem enviada, sem confirmação) ou "agendado".
+  const pendKeys = sit.slots.map((s, k) => ({ s, k: sit.plano.ex[k] })).filter(x => x.s.status === 'falta' || x.s.status === 'tolerancia').map(x => x.k);
+  const ag = r.agendamento;
+  let agEstado = null, agHoras = null, agUrgente = false;
+  if (_rcAgOk && !enc && pendKeys.length) {
+    const vale = ag && Array.isArray(ag.slots) && pendKeys.every(k => ag.slots.includes(k));
+    agEstado = vale ? ag.estado : 'sem';
+    if (vale) agHoras = (Date.now() - new Date(ag.desde).getTime()) / 36e5;
+    const perto = !!(limite && limite <= em7); // janela do exame acaba em até 7 dias
+    agUrgente = agEstado === 'sem' ? perto : agEstado === 'aguardando' ? (agHoras > _RC_AG_PRAZO_H || perto) : false;
+  }
+  return { r, sit, pag, agEstado, agHoras, agUrgente, pendKeys, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, semExtrato: enc && !extrato,
     motivoEnc: enc ? (_RC_ENC_ROTULO[r.status] || r.status) : '',
     pendencia: !enc && (atrasadas.length > 0 || pag !== 'quitado') };
+}
+
+function _rcAgDias(h) { return h < 24 ? Math.max(1, Math.floor(h)) + 'h' : Math.floor(h / 24) + 'd'; }
+// Etiqueta de agendamento da lista e da ficha.
+function _rcAgPill(i) {
+  if (!i.agEstado) return '';
+  if (i.agEstado === 'agendado') return '<span class="rc-pill rc-pill--ok">Agendado ✓</span>';
+  if (i.agEstado === 'sem') return `<span class="rc-pill ${i.agUrgente ? 'rc-pill--pend' : 'rc-pill--parcial'}">${i.agUrgente ? 'Combinar datas · prazo perto' : 'Combinar datas'}</span>`;
+  return `<span class="rc-pill ${i.agUrgente ? 'rc-pill--pend' : 'rc-pill--parcial'}">${i.agUrgente && i.agHoras > _RC_AG_PRAZO_H ? 'Sem resposta há ' + _rcAgDias(i.agHoras) : i.agUrgente ? 'Aguardando · prazo perto' : 'Aguardando resposta · ' + _rcAgDias(i.agHoras)}</span>`;
 }
 
 function _rcPassaFiltro(i) {
@@ -2888,6 +2919,8 @@ function _rcPassaFiltro(i) {
     case 'atrasadas': return i.atrasadas.length > 0;
     case 'pagamento': return !i.enc && i.pag !== 'quitado';
     case 'semana':    return i.semana;
+    case 'aguardando': return i.agEstado === 'aguardando';
+    case 'combinar':   return i.agEstado === 'sem';
     case 'encerradas': return i.enc;
     case 'devolucao':  return i.devAberta;
     default:          return true;
@@ -2906,14 +2939,16 @@ function recepcaoFiltrar() {
   const lista = document.getElementById('rc-lista');
   if (!lista) return;
   const todosComEnc = _recepcaoDados.map(_rcInfo).filter(Boolean)
-    .sort((a, b) => (a.enc - b.enc) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
+    .sort((a, b) => (a.enc - b.enc) || (_rcFiltro === 'aguardando' ? (b.agHoras || 0) - (a.agHoras || 0) : 0) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
   const todos = todosComEnc.filter(i => !i.enc); // KPIs contam só os ativos
   const nEnc = todosComEnc.length - todos.length;
 
   const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
   document.getElementById('rc-kpis').innerHTML =
     kpi('todas', todos.length, 'Acompanhamentos ativos') +
-    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta');
+    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta') +
+    (_rcAgOk ? kpi('aguardando', todos.filter(i => i.agEstado === 'aguardando').length, 'Aguardando resposta' + (todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? ' · ' + todos.filter(i => i.agEstado === 'aguardando' && i.agUrgente).length + ' atrasada(s)' : ''), todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
+      kpi('combinar', todos.filter(i => i.agEstado === 'sem').length, 'Datas a combinar', 'rc-kpi--atencao') : '');
   document.getElementById('rc-chips').innerHTML = _RC_FILTROS.map(([f, t]) =>
     `<button type="button" class="rc-chip ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')">${t}</button>`).join('');
 
@@ -2943,7 +2978,7 @@ function recepcaoFiltrar() {
       <div class="rc-it-corpo"><div class="rc-it-nome">${escapeHtml(r.nome)}</div>
         <div class="rc-it-sub"><b class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}" style="font-size:11px;padding:2px 9px;">${escapeHtml(i.sit.plano.nome)}</b>${i.sit.igHoje != null ? ' · IG ' + _acompSemDia(i.sit.igHoje) : ''} · ${i.sit.feitos}/${i.sit.slots.length} exames</div>
         <div class="rc-prog"><i style="width:${pct}%"></i></div></div>
-      <div class="rc-it-lado">${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill rc-pill--parcial">${i.semExtrato ? 'Sem extrato' : 'Devolução pendente'}</span>` : ''}<span class="rc-pill ${pg.cls}">${i.enc ? 'Plano ' + pg.rotulo.charAt(0).toLowerCase() + pg.rotulo.slice(1) : pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
+      <div class="rc-it-lado">${_rcAgPill(i)}${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill rc-pill--parcial">${i.semExtrato ? 'Sem extrato' : 'Devolução pendente'}</span>` : ''}<span class="rc-pill ${pg.cls}">${i.enc ? 'Plano ' + pg.rotulo.charAt(0).toLowerCase() + pg.rotulo.slice(1) : pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
     </div>`;
   }).join('');
   const sel = itens.find(i => i.r.gestacao_id === _rcSel);
@@ -3073,6 +3108,21 @@ function _rcConfWhats() {
   if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
   if (!d.startsWith('55')) d = '55' + d;
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(txt), '_blank');
+  // só conta como agendado o exame que teve data digitada
+  const el = document.getElementById('rc-conf-modal'), rr = _recepcaoDados.find(x => x.gestacao_id === _rcSel), ii = rr && _rcInfo(rr);
+  const feitos = ii && el ? el._pend.filter((sl, k) => el.querySelector(`.rc-conf-d[data-k="${k}"]`).value).map(sl => ii.sit.plano.ex[ii.sit.slots.indexOf(sl)]) : null;
+  _rcAgRegistrar('agendado', feitos);
+}
+
+function _rcAgRegistrar(estado, keys) {
+  const r = _recepcaoDados.find(x => x.gestacao_id === _rcSel);
+  const i = r && _rcInfo(r);
+  if (!i || !_rcAgOk || !i.pendKeys.length) return;
+  const gid = r.gestacao_id;
+  // sem etapa extra para a recepção: o clique em "Abrir no WhatsApp" já marca a etiqueta
+  supabaseClient.rpc('recepcao_agendamento_set', { p_gestacao_id: gid, p_estado: estado, p_slots: keys || i.pendKeys })
+    .then(({ error }) => { if (error) throw error; return recepcaoAtualizar(); })
+    .catch(e => { console.error('[CurvaFetal] recepcao_agendamento_set:', e); alert('A mensagem abriu, mas não consegui marcar a etiqueta da ficha: ' + (e.message || e)); });
 }
 
 function _rcDatWhats() {
@@ -3080,6 +3130,7 @@ function _rcDatWhats() {
   if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
   if (!d.startsWith('55')) d = '55' + d;
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(document.getElementById('rc-dat-txt').value), '_blank');
+  _rcAgRegistrar('aguardando');
 }
 
 // 22.10.26 (dia.mês.ano com 2 dígitos), formato que a recepção lê na agenda.
@@ -3153,7 +3204,7 @@ function _rcDetalheHtml(i) {
 
   const faixaEnc = i.enc ? `<div class="rc-enc-faixa">🔴 Acompanhamento encerrado — ${escapeHtml(i.motivoEnc)}</div>` : '';
   return `${faixaEnc}<div class="rc-det-top"><div><h2>${escapeHtml(r.nome)}</h2>
-      <div class="rc-det-meta"><span class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}">${escapeHtml(sit.plano.nome)}</span>
+      <div class="rc-det-meta"><span class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}">${escapeHtml(sit.plano.nome)}</span>${_rcAgPill(i)}${i.agEstado === 'aguardando' && r.agendamento ? `<span style="font-size:12.5px;">mensagem enviada em ${_rcDataHora(r.agendamento.desde)}${r.agendamento.por ? ' por ' + escapeHtml(r.agendamento.por) : ''}</span>` : ''}
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;"><div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div>
         <button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="var e=document.getElementById('rc-contrato-card');if(e)e.scrollIntoView({behavior:'smooth',block:'center'})" title="Vai até o bloco Contrato, mais abaixo na ficha">📄 Contrato</button>${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">Combinar datas</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">Confirmar agendamento</button>` : ''}</div></div>

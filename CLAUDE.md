@@ -1893,3 +1893,9 @@ Botão "Trocar modalidade…" ao lado de "Encerrar…" (`recepcaoTrocarAbrir`, `
 - **Prazo (alterado em 2026-10-14)**: até 26 semanas (`ACOMP_EX.m2.fim`, mesmo limite da adesão), única ou gemelar, senão bloqueia. Só a perda de um feto (8c) não tem prazo e não retém 20%, a diferença vira crédito (menos taxa) ou extras a R$ 230.
 - A migração 029 troca `gestacoes.acompanhamento` pela RPC `recepcao_trocar_modalidade` e guarda o registro em `pagamentos_acompanhamento.trocas`. O termo aditivo é impresso e arquivado na ficha como "Termo aditivo" (junto aos contratos; para Premium traz o QR do Telegram). **A 029 precisa estar aplicada.** O valor pago não é alterado: a recepção ajusta na conferência de pagamento.
 - Os totais usados são os da tabela de preços, não o valor eventualmente reduzido de uma entrada tardia.
+
+## Etiqueta de agendamento na recepção: aguardando resposta (2026-10-14, migração 030)
+
+"Abrir no WhatsApp" em **Combinar datas** marca a ficha como *Aguardando resposta* (data, hora e quem enviou); em **Confirmar agendamento** passa a *Agendado ✓* — sem clique extra para a recepção. Estado em `pagamentos_acompanhamento.agendamento` (jsonb: estado, desde, slots, por), RPCs `recepcao_agendamento_set` e `recepcao_agendamentos` (o painel_recepcao não mudou; `recepcaoAtualizar` carrega o mapa à parte e, sem a 030, o painel funciona como antes, sem etiquetas).
+- `slots` guarda as chaves dos exames pendentes no momento; se surgir pendente fora dessa lista (ou o Confirmar cobrir só parte), a ficha volta a "Combinar datas". Quem nunca recebeu mensagem aparece como "Combinar datas".
+- Vermelho ("Sem resposta há Nd") depois de 48 h (`_RC_AG_PRAZO_H`) ou quando a janela do próximo exame acaba em até 7 dias. KPIs "Aguardando resposta" (com contagem de atrasadas) e "Datas a combinar", mais dois filtros; no filtro "Aguardando", as mais antigas primeiro.

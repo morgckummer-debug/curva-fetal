@@ -3066,7 +3066,7 @@ function _rcAgLinkAnexar(r, i) {
     const ta = document.getElementById('rc-dat-txt');
     if (!ta) return;
     const url = new URL('agendar.html?t=' + encodeURIComponent(data), location.href).href;
-    ta.value = ta.value.replace(/\n\n👉 Para agendarmos[\s\S]*$/, '') + `\n\n👉 Para agendarmos, escolha as datas que prefere neste link (leva 1 minuto):\n${url}\n\nSe preferir, pode também responder por aqui 🥰`;
+    ta.value = ta.value.replace(/\n\n👉 Para agendarmos[\s\S]*$/, '') + `\n\n👉 Para agendarmos, escolha o dia que prefere para cada exame neste link (leva 1 minuto):\n${url}\n\nSe preferir, pode também responder por aqui 🥰`;
   }).catch(e => console.error('[CurvaFetal] recepcao_agenda_link:', e));
 }
 

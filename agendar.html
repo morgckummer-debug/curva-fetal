@@ -82,11 +82,11 @@ small{color:#7a6a88}
     resp.prefs.forEach(function (p) {
       var d = el('div', 'res');
       d.appendChild(el('b', null, p.n));
-      p.datas.forEach(function (x) { d.appendChild(el('div', null, fmtLongo(x.d) + ' · ' + PER[x.p])); });
+      p.datas.slice(0, 1).forEach(function (x) { d.appendChild(el('div', null, fmtLongo(x.d) + ' · ' + PER[x.p])); });
       c.appendChild(d);
     });
     if (resp.obs) c.appendChild(el('p', 'res', 'Observação: ' + resp.obs));
-    var b = el('button', 'sec', 'Quero alterar minhas datas');
+    var b = el('button', 'sec', 'Quero alterar minha escolha');
     b.onclick = function () { form(); };
     c.appendChild(b);
     limpa(); app.appendChild(c);
@@ -96,7 +96,7 @@ small{color:#7a6a88}
     limpa();
     var head = el('div', 'card');
     head.appendChild(el('h1', null, 'Olá, ' + (dados.nome || '') + '!'));
-    head.appendChild(el('p', null, 'Escolha até 3 datas de sua preferência para cada ultrassom, dentro do período indicado. Vamos tentar encaixar a que for possível 🥰'));
+    head.appendChild(el('p', null, 'Escolha o dia de sua preferência para cada ultrassom, dentro do período indicado. Vamos confirmar com você pelo WhatsApp 🥰'));
     app.appendChild(head);
     var blocos = [];
     dados.exames.forEach(function (ex) {
@@ -104,7 +104,7 @@ small{color:#7a6a88}
       c.appendChild(el('h2', null, ex.n));
       c.appendChild(el('div', 'jan', 'Entre ' + fmt(ex.de) + ' e ' + fmt(ex.ate)));
       var linhas = [];
-      for (var k = 0; k < 3; k++) {
+      for (var k = 0; k < 1; k++) {
         var l = el('div', 'lin');
         var inp = document.createElement('input');
         inp.type = 'date'; inp.min = ex.de; inp.max = ex.ate;
@@ -140,7 +140,7 @@ small{color:#7a6a88}
           var v = l.inp.value;
           if (v && !vistos[v]) { vistos[v] = 1; datas.push({ d: v, p: l.sel.value }); }
         });
-        if (!datas.length) { er.textContent = 'Escolha pelo menos uma data para: ' + blocos[i].ex.n + '.'; return; }
+        if (!datas.length) { er.textContent = 'Escolha uma data para: ' + blocos[i].ex.n + '.'; return; }
         for (var j = 0; j < datas.length; j++) {
           if (datas[j].d < blocos[i].ex.de || datas[j].d > blocos[i].ex.ate) { er.textContent = 'Há uma data fora do período de ' + blocos[i].ex.n + '.'; return; }
         }

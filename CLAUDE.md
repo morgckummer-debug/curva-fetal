@@ -1951,3 +1951,5 @@ concluir marca a pré-adesão como `cadastrada`. Pagamento continua na maquininh
   WhatsApp). Muda os textos e não volta sozinho à capa; a pré-adesão chega como "preenchido em casa".
 - No iPad, a página volta à capa (e limpa o formulário) após 3 min parada, ou 40 s na tela de obrigado.
 - **A 033 precisa estar aplicada**; sem ela o bloco de pré-adesões só fica vazio e o botão de links avisa.
+- **Nascimento e IG na vitrine (2026-10-14, migração 034):** a paciente digita a data de nascimento (vai para `pre_adesoes.nascimento` e preenche a Nova adesão) e vê "Hoje: X semanas e Y dias" assim que informa a DUM ou o ultrassom. Sem a 034 a página reenvia sem o nascimento (fallback no PGRST202).
+- **Contrato sem aba nova (2026-10-14):** "Cadastrar e abrir contrato" e a troca de modalidade não abrem mais aba (no iPad em tela de início não havia como voltar): o documento é arquivado e a tela de assinatura abre direto. "Ver" de contrato/foto abre dentro do app (`_rcDocModal`, com "← Voltar"); só PDF vai para aba nova. Contrato e termo novos saem sem botão Imprimir e sem `onload="window.print()"`.

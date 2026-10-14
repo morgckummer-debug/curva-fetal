@@ -111,6 +111,9 @@ button{font:inherit;cursor:pointer}
 .opcoes button.on{border-color:var(--roxo);background:var(--lilas);color:var(--roxo);font-weight:600}
 .par{display:flex;align-items:center;gap:10px}
 .par input{width:110px}
+.ig-hoje{margin-top:12px;padding:12px 16px;border-radius:12px;background:#F4EEF8;color:var(--roxo);font-size:18px}
+.ig-hoje b{font-size:22px}
+.ig-hoje small{display:block;font-size:14px;color:var(--suave);margin-top:3px}
 .aceite{display:flex;gap:14px;align-items:flex-start;font-size:16px;color:var(--texto)}
 .aceite input{width:28px;height:28px;min-height:0;flex:none;margin-top:2px;accent-color:var(--roxo)}
 .erro{color:var(--erro);font-size:16px;min-height:24px}
@@ -217,8 +220,9 @@ button{font:inherit;cursor:pointer}
     <div class="full"><label for="f-plano">Plano</label><select id="f-plano"></select></div>
     <div class="full"><label for="f-nome">Nome completo</label><input id="f-nome" autocomplete="off" autocapitalize="words" spellcheck="false"><div class="dica">Exatamente como está no seu documento: é o nome que vai no contrato.</div></div>
     <div><label for="f-cpf">CPF</label><input id="f-cpf" inputmode="numeric" maxlength="14" autocomplete="off"></div>
+    <div><label for="f-nasc">Data de nascimento</label><input id="f-nasc" type="date"></div>
     <div><label for="f-tel">Celular (WhatsApp)</label><input id="f-tel" type="tel" inputmode="numeric" maxlength="16" placeholder="(31) 98829.6992" autocomplete="off"></div>
-    <div class="full"><label for="f-email">E-mail</label><input id="f-email" type="email" inputmode="email" autocapitalize="off" autocomplete="off" spellcheck="false"></div>
+    <div><label for="f-email">E-mail</label><input id="f-email" type="email" inputmode="email" autocapitalize="off" autocomplete="off" spellcheck="false"></div>
     <div class="full"><label>Idade gestacional</label>
       <div class="opcoes" id="f-igmodo">
         <button type="button" data-m="dum">Sei a data da última menstruação</button>
@@ -226,6 +230,7 @@ button{font:inherit;cursor:pointer}
         <button type="button" data-m="" class="on">Não sei agora</button>
       </div>
       <div id="f-ig-dum" style="display:none;margin-top:12px"><label for="f-dum">Data da última menstruação</label><input id="f-dum" type="date"></div>
+      <div class="ig-hoje" id="f-ig-hoje" style="display:none"></div>
       <div id="f-ig-us" style="display:none;margin-top:12px">
         <label for="f-usdata">Data do ultrassom</label><input id="f-usdata" type="date">
         <label for="f-igsem" style="margin-top:12px">Idade gestacional naquele ultrassom</label>
@@ -317,10 +322,33 @@ button{font:inherit;cursor:pointer}
     document.querySelectorAll('#f-igmodo button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === m); });
     $('f-ig-dum').style.display = m === 'dum' ? '' : 'none';
     $('f-ig-us').style.display = m === 'us' ? '' : 'none';
+    posicionarIg(); mostrarIg();
   }
+  // Idade gestacional de hoje, assim que ela informa a DUM ou o ultrassom.
+  function diasEntre(iso) { var p = iso.split('-'); var a = new Date(+p[0], p[1] - 1, +p[2]); var h = new Date(); h.setHours(0, 0, 0, 0); return Math.round((h - a) / 86400000); }
+  function igAtualDias() {
+    if (igModo === 'dum') { var d = $('f-dum').value; return d ? diasEntre(d) : null; }
+    if (igModo === 'us') {
+      var u = $('f-usdata').value, s = parseInt($('f-igsem').value, 10), dd = parseInt($('f-igdias').value, 10) || 0;
+      return (u && s >= 1 && s <= 42 && dd >= 0 && dd <= 6) ? diasEntre(u) + s * 7 + dd : null;
+    }
+    return null;
+  }
+  function mostrarIg() {
+    var box = $('f-ig-hoje'), t = igAtualDias();
+    if (t == null || t < 0 || t > 44 * 7) { box.style.display = 'none'; return; }
+    var sem = Math.floor(t / 7), dia = t % 7;
+    var txt = 'Hoje: <b>' + sem + (sem === 1 ? ' semana' : ' semanas') + (dia ? ' e ' + dia + (dia === 1 ? ' dia' : ' dias') : '') + '</b>';
+    if (t > 26 * 7) txt += '<small>A adesão ao acompanhamento vai até 26 semanas. A recepção confere com você.</small>';
+    else if (igModo === 'dum') txt += '<small>Pela data da última menstruação. O ultrassom pode ajustar essa data.</small>';
+    box.innerHTML = txt; box.style.display = '';
+  }
+  // A caixa fica embaixo dos campos do modo escolhido.
+  function posicionarIg() { var alvo = igModo === 'us' ? $('f-ig-us') : $('f-ig-dum'); alvo.appendChild($('f-ig-hoje')); }
+  ['f-dum', 'f-usdata', 'f-igsem', 'f-igdias'].forEach(function (id) { ['input', 'change'].forEach(function (ev) { $(id).addEventListener(ev, mostrarIg); }); });
   document.querySelectorAll('#f-igmodo button').forEach(function (b) { b.onclick = function () { setIgModo(b.getAttribute('data-m')); }; });
   function limparForm() {
-    ['f-nome', 'f-cpf', 'f-tel', 'f-email', 'f-dum', 'f-usdata', 'f-igsem', 'f-igdias'].forEach(function (id) { $(id).value = ''; });
+    ['f-nome', 'f-cpf', 'f-nasc', 'f-tel', 'f-email', 'f-dum', 'f-usdata', 'f-igsem', 'f-igdias'].forEach(function (id) { $(id).value = ''; });
     $('f-aceite').checked = false; $('f-erro').textContent = ''; setIgModo('');
   }
   function abrirForm(k) { limparForm(); $('f-plano').value = k; ir('form'); }
@@ -354,6 +382,10 @@ button{font:inherit;cursor:pointer}
     var cpf = $('f-cpf').value, tel = $('f-tel').value.trim(), email = $('f-email').value.trim();
     if (nome.split(' ').length < 2 || nome.length < 5) return erro('Escreva o nome completo, como está no documento.');
     if (!cpfValido(cpf)) return erro('Confira o CPF: os números não batem.');
+    var nasc = $('f-nasc').value;
+    if (!nasc) return erro('Informe a sua data de nascimento.');
+    var idade = (new Date() - new Date(nasc + 'T00:00:00')) / (365.25 * 86400000);
+    if (!(idade >= 10 && idade <= 60)) return erro('Confira a data de nascimento.');
     if (tel.replace(/\D/g, '').length < 10) return erro('Informe o celular com DDD.');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro('Confira o e-mail.');
     var hoje = hojeISO(), dum = null, usData = null, usIg = null;
@@ -370,12 +402,21 @@ button{font:inherit;cursor:pointer}
     if (!$('f-aceite').checked) return erro('Marque a caixa de confirmação para enviar.');
     erro('');
     var btn = this; btn.disabled = true; btn.textContent = 'Enviando…';
-    fetch(URL_ + '/rest/v1/rpc/vitrine_pre_adesao', {
-      method: 'POST',
-      headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ p_chave: chave, p_nome: nome, p_cpf: cpf, p_email: email, p_celular: tel, p_modalidade: $('f-plano').value,
-                             p_dum: dum, p_us_data: usData, p_us_ig_dias: usIg, p_origem: deCasa ? 'link' : 'ipad' })
-    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'erro'); return j; }); })
+    var dados = { p_chave: chave, p_nome: nome, p_cpf: cpf, p_email: email, p_celular: tel, p_modalidade: $('f-plano').value,
+                  p_dum: dum, p_us_data: usData, p_us_ig_dias: usIg, p_origem: deCasa ? 'link' : 'ipad', p_nascimento: nasc };
+    var enviar = function (corpo) {
+      return fetch(URL_ + '/rest/v1/rpc/vitrine_pre_adesao', {
+        method: 'POST',
+        headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo)
+      }).then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.message || 'erro'); e.code = j.code; throw e; } return j; }); });
+    };
+    // Sem a migração 034 o banco ainda não conhece p_nascimento: envia sem ela em vez de travar.
+    enviar(dados).catch(function (e) {
+      if (e.code !== 'PGRST202') throw e;
+      var semNasc = Object.assign({}, dados); delete semNasc.p_nascimento;
+      return enviar(semNasc);
+    })
       .then(function () {
         $('fim-titulo').textContent = 'Obrigada, ' + nome.split(' ')[0] + '!';
         ir('fim');

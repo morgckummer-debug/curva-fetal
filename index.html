@@ -3383,7 +3383,7 @@ function recepcaoContratoGerar(gid) {
 // Guarda a cópia do contrato gerado (HTML) no mesmo bucket privado dos comprovantes.
 // Índice do último contrato gerado (não termo aditivo) na ficha — o que se assina na tela.
 function _rcIdxContratoGerado(gid, termo) {
-  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const r = (_recepcaoDados || []).find(x => Number(x.gestacao_id) === Number(gid));
   const lista = (r && r.pagamento && r.pagamento.contratos) || [];
   let idx = null;
   lista.forEach((x, i) => { if (x.kind === 'gerado' && /^Termo aditivo/.test(x.nome || '') === !!termo) idx = i; });
@@ -3433,7 +3433,8 @@ async function recepcaoContratoVer(gid, i) {
 // entra na ficha como 'assinado' pelo mesmo recepcao_contrato_add — nada de papel nem foto.
 let _assGid = null, _assIdx = null, _assHtml = null, _assTem = false;
 async function recepcaoAssinarAbrir(gid, idx) {
-  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  gid = Number(gid);
+  const r = (_recepcaoDados || []).find(x => Number(x.gestacao_id) === gid);
   const doc = r && r.pagamento && (r.pagamento.contratos || [])[idx];
   if (!doc) return;
   _assGid = gid; _assIdx = idx; _assHtml = null; _assTem = false;
@@ -4419,8 +4420,14 @@ async function recepcaoAdesaoConfirmar() {
     }
     const gid = _rcAdesaoGid;
     recepcaoAdesaoFechar();
+    // A paciente nova abre selecionada, sem busca nem filtro escondendo-a da lista.
+    if (_rcAdesaoGid) {
+      _rcSel = Number(_rcAdesaoGid); _rcFiltro = 'todas';
+      const busca = document.getElementById('rc-busca'); if (busca) busca.value = '';
+    }
     await recepcaoAtualizar();
-    if (gid) recepcaoAbrir(gid);
+    const selEl = document.querySelector('#rc-lista .rc-sel');
+    if (selEl) selEl.scrollIntoView({ block: 'nearest' });
     const idx = arquivado ? _rcIdxContratoGerado(gid) : null;
     if (idx != null) recepcaoAssinarAbrir(gid, idx);
     else _rcDocModal('Contrato · ' + d.nome, html);
@@ -7063,6 +7070,10 @@ async function _arqSubir(gid, file, prefixo, rotuloFoto) {
 }
 
 // Abre um arquivo do bucket em aba nova (download + Blob, porque o bucket é privado).
+// Escreve o HTML direto na aba recém-aberta (about:blank, mesma origem) em vez de navegar para um blob:.
+// No iPhone o botão Imprimir de um contrato aberto como blob: não fazia nada (Morgana, 2026-10-14).
+function _escreverNaJanela(w, html) { w.document.open(); w.document.write(html); w.document.close(); }
+
 async function _arqAbrir(c) {
   // Documento HTML e foto abrem dentro do app (com "← Voltar"); só PDF vai para aba nova.
   if (c.tipo !== 'application/pdf' && !/\.pdf$/i.test(c.path || '')) {
@@ -7078,6 +7089,7 @@ async function _arqAbrir(c) {
   try {
     const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
     if (error) throw error;
+    if (janela && c.tipo === 'text/html') { _escreverNaJanela(janela, await data.text()); return; }
     const url = URL.createObjectURL(new Blob([data], { type: (c.tipo === 'text/html' ? 'text/html;charset=utf-8' : (c.tipo || data.type)) }));
     if (janela) janela.location.href = url; else window.open(url, '_blank');
   } catch (err) {

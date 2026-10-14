@@ -3086,15 +3086,23 @@ function recepcaoConfirmarAgenda() {
   el.id = 'rc-conf-modal';
   el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
   const inp = 'width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;border-radius:8px;';
+  const resp = r.agendamento && r.agendamento.estado === 'respondeu' && r.agendamento.resposta && r.agendamento.resposta.prefs || [];
+  const PER = { qualquer: 'qualquer horário', manha: 'manhã', tarde: 'tarde' };
+  let temResp = false;
   const linhas = pend.map((s, k) => {
+    const pf = resp.find(p => p.key === i.sit.plano.ex[i.sit.slots.indexOf(s)]);
+    const dp = pf && pf.datas && pf.datas[0];
+    if (dp && /^\d{4}-\d{2}-\d{2}$/.test(dp.d)) temResp = true;
+    const dv = dp && /^\d{4}-\d{2}-\d{2}$/.test(dp.d) ? dp.d : '';
+    const nota = dv ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Escolha da paciente: ${_acompDataCurta(dv)}${dp.p && PER[dp.p] ? ' · ' + PER[dp.p] : ''}${new Date(dv + 'T12:00:00Z').getUTCDay() === 6 ? ' · sábado só até 12h' : ''}</div>` : '';
     const rot = s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : '') + (s.def.tol ? ' (' + _acompSemDia(s.def.ini) + ')' : '');
     const per = s.de && s.ate ? `${_acompDataCurta(s.de)} a ${_acompDataCurta(s.ateTol || s.ate)}` : '';
     return `<div style="margin-bottom:8px;"><div style="font-size:13px;"><b>${escapeHtml(rot)}</b> <span style="color:var(--text-muted);">${per ? '· período ' + per : ''}</span></div>
-      <div style="display:flex;gap:8px;margin-top:4px;"><input type="date" class="rc-conf-d" data-k="${k}" style="${inp}" oninput="_rcConfRefazer()"><input type="time" class="rc-conf-h" data-k="${k}" style="${inp}max-width:130px;" oninput="_rcConfRefazer()"></div></div>`;
+      <div style="display:flex;gap:8px;margin-top:4px;"><input type="date" class="rc-conf-d" data-k="${k}" value="${dv}" style="${inp}" oninput="_rcConfRefazer()"><input type="time" class="rc-conf-h" data-k="${k}" style="${inp}max-width:130px;" oninput="_rcConfRefazer()"></div>${nota}</div>`;
   }).join('');
   el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
     <h3 style="margin:0 0 4px;">Confirmar agendamento</h3>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · preencha data e hora do que já foi marcado na Feegow</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · ${temResp ? 'a paciente já escolheu o dia: marque na Feegow e digite só o horário' : 'preencha data e hora do que já foi marcado na Feegow'}</div>
     ${linhas}
     <label style="font-size:12px;">Celular da paciente (com DDD)</label>
     <input id="rc-conf-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml((r.pagamento && r.pagamento.celular) || '')}" style="${inp}margin-bottom:10px;">
@@ -3131,6 +3139,8 @@ function _rcConfWhats() {
   const txt = document.getElementById('rc-conf-txt').value;
   if (!txt.trim()) { alert('Preencha a data de pelo menos um exame.'); return; }
   if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
+  const elc = document.getElementById('rc-conf-modal');
+  if (elc && [...elc.querySelectorAll('.rc-conf-d')].some(x => x.value && !elc.querySelector(`.rc-conf-h[data-k="${x.dataset.k}"]`).value) && !confirm('Algum exame está sem horário. Enviar assim mesmo?')) return;
   if (!d.startsWith('55')) d = '55' + d;
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(txt), '_blank');
   // só conta como agendado o exame que teve data digitada

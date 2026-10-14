@@ -1976,3 +1976,4 @@ traço). Volta sozinho à capa após 10 min parado nessas telas.
   nova via…" resolve.
 - `htmlAssinado`, o recorte e o SHA-256 em `vitrine.html` são **cópia** de `_assHtmlAssinado` etc. (o CSP
   só aceita script inline). Mudou lá, mude aqui.
+- **Via da gestante sem barra "Imprimir" (2026-10-14):** contratos gerados antes da mudança acima ainda trazem a `.barra-imp` no HTML arquivado, e ela ia junto na cópia enviada. `_semBarraImp(html)` tira a barra e o auto-print; roda em `_assHtmlAssinado` (cópia assinada nova) e em `recepcaoContratoCopia` (envio de qualquer via, inclusive antiga). As linhas de assinatura ficaram mais afastadas do texto (`.ass` margin-top 90px no contrato e no termo; o helper aplica o mesmo nos arquivos antigos).

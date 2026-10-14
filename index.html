@@ -3564,8 +3564,17 @@ async function _assSha256(txt) {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Tira do documento a barra "🖨 Imprimir" (contratos gerados antes de 2026-10-14 a trazem) e o auto-print:
+// a via que vai para a gestante não pode carregar controle da tela da clínica.
+function _semBarraImp(html) {
+  return String(html).replace(/<div class="barra-imp">[\s\S]*?<\/div>\s*/g, '').replace(/ onload="window\.print\(\)"/g, '')
+    // documentos antigos: mais espaço entre o texto e as linhas de assinatura (Morgana, 2026-10-14)
+    .replace(/\.ass\{display:flex;gap:40px;margin-top:(46|60)px/g, '.ass{display:flex;gap:40px;margin-top:90px');
+}
+
 // Põe a assinatura no lugar da linha "Gestante" e o registro de evidências logo abaixo.
 function _assHtmlAssinado(html, img, ev) {
+  html = _semBarraImp(html);
   const i = html.indexOf('<div class="ass"><div>');
   const reg = `<div style="margin-top:14px;padding:8px 10px;border:1px solid #c9b8d8;border-radius:6px;font-size:8.5pt;color:#4a3a58;page-break-inside:avoid;">
 <b>Assinatura eletrônica</b> — documento assinado pela gestante ${escapeHtml(ev.nome)}${ev.cpf ? ', CPF ' + escapeHtml(ev.cpf) : ''}, com assinatura manuscrita na tela, na recepção da clínica, em ${escapeHtml(ev.quando)}. Leitura e concordância declaradas pela gestante antes de assinar. Conferido por ${escapeHtml(ev.por)}. Código de integridade do documento original (SHA-256): <span style="word-break:break-all;">${ev.hash}</span>.</div>`;
@@ -3715,7 +3724,7 @@ async function recepcaoContratoCopia(gid, i, btn) {
       const ext = c.tipo === 'application/pdf' ? 'pdf' : c.tipo === 'image/jpeg' ? 'jpg' : 'html';
       const nomeArq = `${termo ? 'Termo aditivo' : 'Contrato'} Acompanhamento Fetal MK - ${(r.nome || 'gestante').trim()}.${ext}`;
       // na via da gestante o documento não abre o diálogo de impressão sozinho
-      const corpo = ext === 'html' ? (await data.text()).replace(' onload="window.print()"', '') : data;
+      const corpo = ext === 'html' ? _semBarraImp(await data.text()) : data;
       file = _copiaCache[c.path] = new File([corpo], nomeArq, { type: c.tipo || data.type });
       btn.disabled = false; btn.textContent = rotulo;
     }
@@ -4242,7 +4251,7 @@ function _trTermoHtml(r, c, d) {
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Termo aditivo — ${E(r.nome)}</title>
 <style>@page{size:A4;margin:18mm}body{font-family:Georgia,'Times New Roman',serif;font-size:11pt;line-height:1.45;color:#1d1626;margin:0}
 h1{font-size:16pt;text-align:center;color:#3d2352;margin:0}.sub{text-align:center;color:#6b5a78;font-size:10pt;margin:2px 0 14px}p{margin:6px 0;text-align:justify}
-.ass{display:flex;gap:40px;margin-top:60px}.ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt}
+.ass{display:flex;gap:40px;margin-top:90px}.ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt}
 .barra-imp{position:sticky;top:0;background:#3d2352;padding:10px;text-align:center;margin:0 0 10px}.barra-imp button{font:inherit;font-size:15px;font-weight:700;padding:10px 22px;border:0;border-radius:10px;background:#f6ecd0;color:#3d2352;cursor:pointer}@media print{.barra-imp{display:none}}</style></head><body>
 <h1>TERMO ADITIVO — TROCA DE MODALIDADE</h1><div class="sub">Acompanhamento Fetal MK · Dra. Morgana Kummer</div>
 <p><b>CLÍNICA:</b> Kummer Serviços Médicos Ltda - ME, CNPJ 20.251.640/0001-81, Rua Cândido Azeredo, 41A, Sete Lagoas/MG, responsável técnica Dra. Morgana Kummer, CRM-MG 45.304, RQE 39.156.</p>
@@ -6967,7 +6976,7 @@ p{margin:4px 0;text-align:justify;} ul{margin:3px 0 3px 18px;padding:0;} li{marg
 table{border-collapse:collapse;width:100%;font-size:9.4pt;margin:6px 0;} th,td{border:1px solid #bfb0cb;padding:4px 6px;text-align:left;vertical-align:top;}
 table.mod th,table.mod td{text-align:center;vertical-align:middle;} .ck{color:#1f8a3b;font-weight:bold;}
 th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
-.ass{display:flex;gap:40px;margin-top:46px;page-break-inside:avoid;} .ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt;}
+.ass{display:flex;gap:40px;margin-top:90px;page-break-inside:avoid;} .ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt;}
 .novapag{page-break-before:always;}
 .barra-imp{position:sticky;top:0;background:#3d2352;padding:10px;text-align:center;margin:0 0 10px;}
 .barra-imp button{font:inherit;font-size:15px;font-weight:700;padding:10px 22px;border:0;border-radius:10px;background:#f6ecd0;color:#3d2352;cursor:pointer;}

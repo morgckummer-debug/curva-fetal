@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://ulcqnqwxguydrpoaplcv.supabase.co; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Escolha as datas dos seus ultrassons</title>
+<link rel="icon" href="favicon-32.png">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4eef7;color:#2b2233;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.45}
+.w{max-width:560px;margin:0 auto;padding:20px 16px 40px}
+.top{text-align:center;padding:10px 0 18px}
+.top b{display:block;font-size:19px;color:#4b2a6b}
+.top span{font-size:13px;color:#7a6a88}
+.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(75,42,107,.08)}
+h1{font-size:21px;margin:0 0 6px;color:#4b2a6b}
+h2{font-size:17px;margin:0 0 2px;color:#4b2a6b}
+.jan{font-size:14px;color:#7a6a88;margin-bottom:10px}
+.lin{display:flex;gap:8px;margin-bottom:8px}
+.lin input,.lin select,textarea{font:inherit;padding:11px 10px;border:1px solid #cdbfd8;border-radius:10px;background:#fff;color:inherit;min-width:0}
+.lin input{flex:1.3}.lin select{flex:1}
+textarea{width:100%;resize:vertical}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px;width:100%;background:#4b2a6b;color:#fff;cursor:pointer}
+button:disabled{opacity:.5}
+.err{color:#b3261e;font-size:14px;margin:8px 0}
+.ok{text-align:center;padding:10px 0}
+.ok .t{font-size:40px}
+.res{font-size:15px;margin:6px 0}
+.sec{background:none;color:#4b2a6b;border:1px solid #4b2a6b;margin-top:10px}
+small{color:#7a6a88}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="top"><b>Acompanhamento Fetal MK</b><span>Dra. Morgana Kummer</span></div>
+  <div id="app"><div class="card">Carregando…</div></div>
+</div>
+<script>
+(function () {
+  var URL_ = 'https://ulcqnqwxguydrpoaplcv.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY3FucXd4Z3V5ZHJwb2FwbGN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Njk2NjcsImV4cCI6MjEwMTA0NTY2N30.hNrszyJvaBzP08Oild4wivMrTvXnDoGfgL6My1bbtVU';
+  var app = document.getElementById('app');
+  var tok = (new URLSearchParams(location.search).get('t') || '').trim();
+  var dados = null;
+
+  function rpc(fn, body) {
+    return fetch(URL_ + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'erro'); return j; }); });
+  }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function fmt(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
+  function fmtLongo(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4); }
+  var PER = { qualquer: 'qualquer horário', manha: 'manhã', tarde: 'tarde' };
+  function limpa() { while (app.firstChild) app.removeChild(app.firstChild); }
+
+  function invalido() {
+    limpa();
+    var c = el('div', 'card');
+    c.appendChild(el('h1', null, 'Link não encontrado'));
+    c.appendChild(el('p', null, 'Este link não é mais válido. Fale com a nossa equipe pelo WhatsApp e enviaremos um novo 💜'));
+    app.appendChild(c);
+  }
+
+  function resumo(resp) {
+    var c = el('div', 'card');
+    c.appendChild(el('h1', null, 'Recebemos suas datas 💜'));
+    c.appendChild(el('p', null, 'Nossa equipe vai conferir a agenda e confirmar com você pelo WhatsApp.'));
+    resp.prefs.forEach(function (p) {
+      var d = el('div', 'res');
+      d.appendChild(el('b', null, p.n));
+      p.datas.forEach(function (x) { d.appendChild(el('div', null, fmtLongo(x.d) + ' · ' + PER[x.p])); });
+      c.appendChild(d);
+    });
+    if (resp.obs) c.appendChild(el('p', 'res', 'Observação: ' + resp.obs));
+    var b = el('button', 'sec', 'Quero alterar minhas datas');
+    b.onclick = function () { form(); };
+    c.appendChild(b);
+    limpa(); app.appendChild(c);
+  }
+
+  function form() {
+    limpa();
+    var head = el('div', 'card');
+    head.appendChild(el('h1', null, 'Olá, ' + (dados.nome || '') + '!'));
+    head.appendChild(el('p', null, 'Escolha até 3 datas de sua preferência para cada ultrassom, dentro do período indicado. Vamos tentar encaixar a que for possível 🥰'));
+    app.appendChild(head);
+    var blocos = [];
+    dados.exames.forEach(function (ex) {
+      var c = el('div', 'card');
+      c.appendChild(el('h2', null, ex.n));
+      c.appendChild(el('div', 'jan', 'Entre ' + fmt(ex.de) + ' e ' + fmt(ex.ate)));
+      var linhas = [];
+      for (var k = 0; k < 3; k++) {
+        var l = el('div', 'lin');
+        var inp = document.createElement('input');
+        inp.type = 'date'; inp.min = ex.de; inp.max = ex.ate;
+        inp.setAttribute('aria-label', 'Data ' + (k + 1) + ' de ' + ex.n);
+        var sel = document.createElement('select');
+        [['qualquer', 'Qualquer horário'], ['manha', 'Manhã'], ['tarde', 'Tarde']].forEach(function (o) {
+          var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; sel.appendChild(op);
+        });
+        l.appendChild(inp); l.appendChild(sel); c.appendChild(l);
+        linhas.push({ inp: inp, sel: sel });
+      }
+      if (dados.resposta) {
+        var antes = dados.resposta.prefs.filter(function (p) { return p.key === ex.key; })[0];
+        if (antes) antes.datas.forEach(function (x, k) { if (linhas[k]) { linhas[k].inp.value = x.d; linhas[k].sel.value = x.p; } });
+      }
+      app.appendChild(c);
+      blocos.push({ ex: ex, linhas: linhas });
+    });
+    var co = el('div', 'card');
+    co.appendChild(el('small', null, 'Observação (opcional)'));
+    var ta = document.createElement('textarea'); ta.rows = 3; ta.maxLength = 300;
+    ta.placeholder = 'Ex.: só consigo à tarde, trabalho até as 17h…';
+    if (dados.resposta && dados.resposta.obs) ta.value = dados.resposta.obs;
+    co.appendChild(ta);
+    var er = el('div', 'err'); co.appendChild(er);
+    var bt = el('button', null, 'Enviar minhas datas');
+    bt.onclick = function () {
+      er.textContent = '';
+      var prefs = [];
+      for (var i = 0; i < blocos.length; i++) {
+        var datas = [], vistos = {};
+        blocos[i].linhas.forEach(function (l) {
+          var v = l.inp.value;
+          if (v && !vistos[v]) { vistos[v] = 1; datas.push({ d: v, p: l.sel.value }); }
+        });
+        if (!datas.length) { er.textContent = 'Escolha pelo menos uma data para: ' + blocos[i].ex.n + '.'; return; }
+        for (var j = 0; j < datas.length; j++) {
+          if (datas[j].d < blocos[i].ex.de || datas[j].d > blocos[i].ex.ate) { er.textContent = 'Há uma data fora do período de ' + blocos[i].ex.n + '.'; return; }
+        }
+        prefs.push({ key: blocos[i].ex.key, datas: datas });
+      }
+      bt.disabled = true; bt.textContent = 'Enviando…';
+      rpc('agenda_responder', { p_token: tok, p_prefs: prefs, p_obs: ta.value }).then(function (ok) {
+        if (!ok) return invalido();
+        return rpc('agenda_publica', { p_token: tok }).then(function (d) { dados = d; resumo(d.resposta); });
+      }).catch(function () {
+        bt.disabled = false; bt.textContent = 'Enviar minhas datas';
+        er.textContent = 'Não consegui enviar agora. Confira sua internet e tente de novo, ou responda pelo WhatsApp.';
+      });
+    };
+    co.appendChild(bt);
+    app.appendChild(co);
+  }
+
+  if (tok.length < 32) { invalido(); return; }
+  rpc('agenda_publica', { p_token: tok }).then(function (d) {
+    if (!d) return invalido();
+    dados = d;
+    if (d.agendado && !d.resposta) {
+      limpa(); var c = el('div', 'card');
+      c.appendChild(el('h1', null, 'Seus ultrassons já estão agendados 💜'));
+      c.appendChild(el('p', null, 'A nossa equipe enviou a confirmação pelo WhatsApp. Qualquer dúvida, é só responder lá.'));
+      app.appendChild(c); return;
+    }
+    if (d.resposta) resumo(d.resposta); else form();
+  }).catch(function () {
+    limpa(); var c = el('div', 'card');
+    c.appendChild(el('p', null, 'Não consegui carregar agora. Tente de novo em instantes.'));
+    app.appendChild(c);
+  });
+})();
+</script>
+</body>
+</html>

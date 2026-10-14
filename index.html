@@ -2813,11 +2813,12 @@ function _fecharRecepcao() {
 let _rcSel = null;
 let _rcFiltro = 'todas';
 let _rcAgOk = false;
-const _RC_AG_PRAZO_H = 48; // sem resposta depois disso, a etiqueta fica vermelha
+const _RC_AG_PRAZO_H = 48;
+const _RC_AG_RESP_H = 24; // paciente respondeu e ninguém marcou na agenda // sem resposta depois disso, a etiqueta fica vermelha
 let _rcMedica = false;
 
 const _RC_FILTROS = [
-  ['todas', 'Todas'], ['aguardando', 'Aguardando resposta'], ['combinar', 'Datas a combinar'], ['pagamento', 'Pagamento a confirmar'], ['devolucao', 'Devolução a resolver'], ['encerradas', 'Encerradas'],
+  ['todas', 'Todas'], ['respondeu', 'Respondeu · agendar'], ['aguardando', 'Aguardando resposta'], ['combinar', 'Datas a combinar'], ['pagamento', 'Pagamento a confirmar'], ['devolucao', 'Devolução a resolver'], ['encerradas', 'Encerradas'],
 ];
 const _RC_ENC_ROTULO = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência' };
 const _RC_PAG = {
@@ -2897,7 +2898,7 @@ function _rcInfo(r) {
     agEstado = vale ? ag.estado : 'sem';
     if (vale) agHoras = (Date.now() - new Date(ag.desde).getTime()) / 36e5;
     const perto = !!(limite && limite <= em7); // janela do exame acaba em até 7 dias
-    agUrgente = agEstado === 'sem' ? perto : agEstado === 'aguardando' ? (agHoras > _RC_AG_PRAZO_H || perto) : false;
+    agUrgente = agEstado === 'sem' ? perto : agEstado === 'aguardando' ? (agHoras > _RC_AG_PRAZO_H || perto) : agEstado === 'respondeu' ? (agHoras > _RC_AG_RESP_H || perto) : false;
   }
   return { r, sit, pag, agEstado, agHoras, agUrgente, pendKeys, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, semExtrato: enc && !extrato,
     motivoEnc: enc ? (_RC_ENC_ROTULO[r.status] || r.status) : '',
@@ -2909,6 +2910,7 @@ function _rcAgDias(h) { return h < 24 ? Math.max(1, Math.floor(h)) + 'h' : Math.
 function _rcAgPill(i) {
   if (!i.agEstado) return '';
   if (i.agEstado === 'agendado') return '<span class="rc-pill rc-pill--ok">Agendado ✓</span>';
+  if (i.agEstado === 'respondeu') return `<span class="rc-pill rc-pill--pend">Respondeu · agendar${i.agHoras >= 24 ? ' (há ' + _rcAgDias(i.agHoras) + ')' : ''}</span>`;
   if (i.agEstado === 'sem') return `<span class="rc-pill ${i.agUrgente ? 'rc-pill--pend' : 'rc-pill--parcial'}">${i.agUrgente ? 'Combinar datas · prazo perto' : 'Combinar datas'}</span>`;
   return `<span class="rc-pill ${i.agUrgente ? 'rc-pill--pend' : 'rc-pill--parcial'}">${i.agUrgente && i.agHoras > _RC_AG_PRAZO_H ? 'Sem resposta há ' + _rcAgDias(i.agHoras) : i.agUrgente ? 'Aguardando · prazo perto' : 'Aguardando resposta · ' + _rcAgDias(i.agHoras)}</span>`;
 }
@@ -2919,6 +2921,7 @@ function _rcPassaFiltro(i) {
     case 'atrasadas': return i.atrasadas.length > 0;
     case 'pagamento': return !i.enc && i.pag !== 'quitado';
     case 'semana':    return i.semana;
+    case 'respondeu':  return i.agEstado === 'respondeu';
     case 'aguardando': return i.agEstado === 'aguardando';
     case 'combinar':   return i.agEstado === 'sem';
     case 'encerradas': return i.enc;
@@ -2939,7 +2942,7 @@ function recepcaoFiltrar() {
   const lista = document.getElementById('rc-lista');
   if (!lista) return;
   const todosComEnc = _recepcaoDados.map(_rcInfo).filter(Boolean)
-    .sort((a, b) => (a.enc - b.enc) || (_rcFiltro === 'aguardando' ? (b.agHoras || 0) - (a.agHoras || 0) : 0) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
+    .sort((a, b) => (a.enc - b.enc) || ((_rcFiltro === 'aguardando' || _rcFiltro === 'respondeu') ? (b.agHoras || 0) - (a.agHoras || 0) : 0) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
   const todos = todosComEnc.filter(i => !i.enc); // KPIs contam só os ativos
   const nEnc = todosComEnc.length - todos.length;
 
@@ -2947,7 +2950,8 @@ function recepcaoFiltrar() {
   document.getElementById('rc-kpis').innerHTML =
     kpi('todas', todos.length, 'Acompanhamentos ativos') +
     kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta') +
-    (_rcAgOk ? kpi('aguardando', todos.filter(i => i.agEstado === 'aguardando').length, 'Aguardando resposta' + (todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? ' · ' + todos.filter(i => i.agEstado === 'aguardando' && i.agUrgente).length + ' atrasada(s)' : ''), todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
+    (_rcAgOk ? kpi('respondeu', todos.filter(i => i.agEstado === 'respondeu').length, 'Respondeu · agendar', todos.some(i => i.agEstado === 'respondeu') ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
+      kpi('aguardando', todos.filter(i => i.agEstado === 'aguardando').length, 'Aguardando resposta' + (todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? ' · ' + todos.filter(i => i.agEstado === 'aguardando' && i.agUrgente).length + ' atrasada(s)' : ''), todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
       kpi('combinar', todos.filter(i => i.agEstado === 'sem').length, 'Datas a combinar', 'rc-kpi--atencao') : '');
   document.getElementById('rc-chips').innerHTML = _RC_FILTROS.map(([f, t]) =>
     `<button type="button" class="rc-chip ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')">${t}</button>`).join('');
@@ -3043,6 +3047,27 @@ function recepcaoCombinarDatas() {
       <button type="button" class="rc-btn-dark" onclick="_rcDatWhats()">Abrir no WhatsApp</button></div></div>`;
   document.body.appendChild(el);
   document.getElementById('rc-dat-txt').value = txt;
+  _rcAgLinkAnexar(r, i);
+}
+
+// Link pessoal para a paciente escolher as datas (migração 031). Sem ela, a mensagem segue como antes.
+function _rcAgLinkAnexar(r, i) {
+  const hoje = _hojeISO();
+  const exames = i.sit.slots.filter(s => (s.status === 'falta' || s.status === 'tolerancia') && s.de).map(s => ({
+    key: i.sit.plano.ex[i.sit.slots.indexOf(s)],
+    n: s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : ''),
+    de: s.de < hoje ? hoje : s.de,
+    ate: s.ateTol || s.ate
+  })).filter(x => x.de <= x.ate);
+  if (!exames.length) return;
+  const nome = String(r.nome || '').trim().split(/\s+/)[0];
+  supabaseClient.rpc('recepcao_agenda_link', { p_gestacao_id: r.gestacao_id, p_nome: nome, p_exames: exames }).then(({ data, error }) => {
+    if (error || !data) { console.error('[CurvaFetal] recepcao_agenda_link:', error); return; }
+    const ta = document.getElementById('rc-dat-txt');
+    if (!ta) return;
+    const url = new URL('agendar.html?t=' + encodeURIComponent(data), location.href).href;
+    ta.value = ta.value.replace(/\n\n👉 Para agendarmos[\s\S]*$/, '') + `\n\n👉 Para agendarmos, escolha as datas que prefere neste link (leva 1 minuto):\n${url}\n\nSe preferir, pode também responder por aqui 🥰`;
+  }).catch(e => console.error('[CurvaFetal] recepcao_agenda_link:', e));
 }
 
 // Confirmação do agendamento: a secretária digita data e hora de cada exame (a agenda está na Feegow) e o app monta a mensagem.
@@ -3206,6 +3231,7 @@ function _rcDetalheHtml(i) {
   return `${faixaEnc}<div class="rc-det-top"><div><h2>${escapeHtml(r.nome)}</h2>
       <div class="rc-det-meta"><span class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}">${escapeHtml(sit.plano.nome)}</span>${_rcAgPill(i)}${i.agEstado === 'aguardando' && r.agendamento ? `<span style="font-size:12.5px;">mensagem enviada em ${_rcDataHora(r.agendamento.desde)}${r.agendamento.por ? ' por ' + escapeHtml(r.agendamento.por) : ''}</span>` : ''}
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
+      ${_rcRespostaHtml(i)}
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;"><div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div>
         <button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="var e=document.getElementById('rc-contrato-card');if(e)e.scrollIntoView({behavior:'smooth',block:'center'})" title="Vai até o bloco Contrato, mais abaixo na ficha">📄 Contrato</button>${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">Combinar datas</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">Confirmar agendamento</button>` : ''}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
@@ -3224,6 +3250,18 @@ function _rcDetalheHtml(i) {
 }
 
 // ── Contrato na ficha: estado, cópia arquivada e assinado (migração 026) ──
+// Datas que a paciente escolheu pelo link pessoal (agendar.html); a agenda real continua na Feegow.
+function _rcRespostaHtml(i) {
+  const ag = i.r.agendamento, res = ag && ag.resposta;
+  if (i.agEstado !== 'respondeu' || !res || !Array.isArray(res.prefs)) return '';
+  const per = { qualquer: 'qualquer horário', manha: 'manhã', tarde: 'tarde' };
+  const dt = d => d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4);
+  return `<div style="background:#fff7e0;border:1px solid #e6c875;border-radius:12px;padding:10px 14px;margin:10px 0;font-size:14px;">
+    <b>A paciente escolheu estas datas</b> <span style="color:var(--text-muted);font-size:12.5px;">(pelo link, em ${_rcDataHora(ag.desde)})</span>
+    ${res.prefs.map(p => `<div style="margin-top:6px;"><b>${escapeHtml(p.n)}</b>: ${p.datas.map(x => dt(x.d) + ' (' + (per[x.p] || 'qualquer horário') + ')').join(' · ')}</div>`).join('')}
+    ${res.obs ? `<div style="margin-top:6px;">Observação: ${escapeHtml(res.obs)}</div>` : ''}
+    <div style="margin-top:6px;color:var(--text-muted);font-size:12.5px;">Marque na Feegow e use "Confirmar agendamento" para avisá-la.</div></div>`;
+}
 function _rcDataHora(iso) { return iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
 function _rcContratoEstado(pg) {
   const lista = pg.contratos || [];

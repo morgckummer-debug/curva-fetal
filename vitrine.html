@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Acompanhamento MK">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://ulcqnqwxguydrpoaplcv.supabase.co; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Acompanhamento Fetal MK</title>
+<link rel="icon" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!--
+  Vitrine do iPad da recepção (2026-10-14). Página sem login: mostra o acompanhamento, a jornada
+  e os planos, e a paciente pode tocar em "Quero contratar" e preencher os próprios dados.
+  Isso só cria uma PRÉ-ADESÃO (migração 033): a recepção confere o nome com o documento, passa a
+  maquininha e conclui pela "Nova adesão" do Curvas. O endereço leva a chave da clínica (?k=...),
+  gerada na Recepção em "📱 iPad da recepção". Preços: mesmos de _ADESAO_PRECO no index.html.
+-->
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--plum:#2E1F3B;--roxo:#3E2A4F;--tinta:#2E2338;--texto:#3A2F44;--suave:#6B5C76;--ouro:#A8843A;--ouro-c:#C9A55A;--linha:#D9C9A3;--fundo:#FBF8F4;--lilas:#F1EAF3;--erro:#B3261E}
+html,body{margin:0;background:var(--fundo);color:var(--tinta);font-family:'Jost',-apple-system,sans-serif;font-size:18px;line-height:1.5;-webkit-user-select:none;user-select:none}
+input,select{-webkit-user-select:text;user-select:text}
+.serif{font-family:'Cormorant Garamond',Georgia,serif}
+button{font:inherit;cursor:pointer}
+.vista{display:none;min-height:100vh;min-height:100dvh}
+.vista.on{display:block}
+
+/* Capa */
+#v-capa.on{display:flex;flex-direction:column;background:var(--plum);color:#F3EBDD}
+.capa-foto{flex:1 1 55%;min-height:300px;background:#1d1427 center 54%/cover no-repeat;position:relative}
+.capa-foto::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--ouro-c)}
+.capa-txt{padding:44px 32px 48px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px}
+.kicker{font-size:13px;letter-spacing:5px;text-transform:uppercase;color:var(--ouro-c)}
+.capa-txt h1{margin:0;font-family:'Cormorant Garamond',serif;font-weight:400;font-size:clamp(46px,7vw,76px);line-height:1;color:#F8F2E8}
+.assina{display:flex;align-items:center;gap:16px;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:30px;color:var(--ouro-c)}
+.assina i{display:block;width:44px;height:1px;background:var(--ouro-c)}
+.btn-ouro{border:0;background:var(--ouro-c);color:var(--plum);font-weight:600;font-size:19px;padding:18px 42px;border-radius:999px;margin-top:14px;min-height:56px}
+.capa-rod{font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:#D8CCDD;margin-top:8px}
+
+/* Navegação interna */
+.topo{position:sticky;top:0;z-index:5;background:rgba(251,248,244,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--linha);display:flex;align-items:center;gap:8px;padding:10px 20px;padding-top:max(10px,env(safe-area-inset-top))}
+.marca{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--roxo);margin-right:auto;background:none;border:0;padding:8px 0;min-height:44px}
+.aba{background:none;border:0;border-radius:999px;padding:10px 18px;font-size:16px;color:var(--suave);min-height:44px}
+.aba.on{background:var(--lilas);color:var(--roxo);font-weight:600}
+.pag{max-width:960px;margin:0 auto;padding:40px 28px 60px}
+.pag h2{margin:6px 0 12px;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(36px,5vw,50px);line-height:1.08;color:var(--roxo)}
+.lead{margin:0 0 30px;font-weight:300;font-size:19px;color:var(--texto);max-width:680px}
+.kicker-ouro{font-size:13px;letter-spacing:4px;text-transform:uppercase;color:var(--ouro)}
+
+/* Experiência */
+.grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px 40px}
+.item{border-top:1px solid var(--linha);padding-top:16px}
+.item h3{margin:0 0 6px;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:25px;color:var(--roxo);display:flex;gap:12px;align-items:baseline}
+.item h3 span{font-weight:400;font-size:26px;color:var(--ouro)}
+.item p{margin:0;font-weight:300;font-size:17px;color:var(--texto)}
+.citacao{margin-top:38px;background:var(--lilas);padding:28px 32px;text-align:center}
+.citacao p{margin:0 0 8px;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:26px;line-height:1.35;color:var(--roxo)}
+.citacao small{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--suave)}
+.seguir{display:flex;justify-content:flex-end;margin-top:34px}
+.btn-roxo{border:0;background:var(--roxo);color:#fff;font-weight:500;font-size:18px;padding:16px 30px;border-radius:999px;min-height:56px}
+.btn-linha{border:1px solid var(--roxo);background:transparent;color:var(--roxo);font-weight:500;font-size:17px;padding:14px 26px;border-radius:999px;min-height:52px}
+
+/* Jornada */
+.jorn{position:relative}
+.jorn::before{content:"";position:absolute;left:131px;top:24px;bottom:24px;width:1px;background:var(--linha)}
+.etapa{display:grid;grid-template-columns:104px 54px minmax(0,1fr);align-items:center;padding:12px 0}
+.etapa .sem{text-align:right;font-family:'Cormorant Garamond',serif;font-size:27px;color:var(--roxo);line-height:1.1}
+.etapa .sem small{font-family:'Jost',sans-serif;font-size:13px;color:var(--suave)}
+.etapa .pt{justify-self:center;width:13px;height:13px;border-radius:50%;background:var(--fundo);border:1.5px solid var(--roxo);position:relative;z-index:1}
+.etapa .pt.est{width:17px;height:17px;background:var(--ouro);border:3px solid var(--fundo);box-shadow:0 0 0 1px var(--ouro)}
+.etapa .pt.prem{border-style:dashed;border-color:#8E6F9E}
+.etapa h3{margin:0;font-family:'Cormorant Garamond',serif;font-weight:600;font-size:24px;line-height:1.15;color:var(--roxo)}
+.etapa p{margin:2px 0 0;font-weight:300;font-size:16px;color:var(--texto)}
+.selo{display:inline-block;margin-left:8px;font-family:'Jost',sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#7A5E24;background:#F4ECDB;padding:3px 8px;vertical-align:middle;font-weight:500}
+.selo.p{color:#5E4470;background:var(--lilas)}
+.legenda{border-top:1px solid var(--linha);margin-top:16px;padding-top:16px;font-size:15px;color:var(--texto)}
+
+/* Planos */
+.planos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.plano{background:#fff;border:1px solid #E7DCEB;border-radius:20px;padding:26px 24px 22px;display:flex;flex-direction:column;gap:10px}
+.plano.dest{border:2px solid var(--ouro-c)}
+.plano h3{margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:34px;line-height:1;color:var(--roxo)}
+.plano .para{font-size:15px;color:var(--suave);min-height:44px}
+.preco{font-family:'Cormorant Garamond',serif;font-size:40px;color:var(--roxo);line-height:1}
+.preco small{display:block;font-family:'Jost',sans-serif;font-size:15px;color:var(--suave);margin-top:6px}
+.plano ul{margin:6px 0 8px;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px;font-weight:300;font-size:16px}
+.plano li{display:flex;gap:10px}
+.plano li::before{content:"";flex:none;width:14px;height:1px;background:var(--ouro);margin-top:12px}
+.plano .btn-roxo{margin-top:auto;width:100%}
+.nota{margin-top:24px;background:var(--lilas);padding:20px 24px;font-size:16px;color:var(--texto)}
+.comp{width:100%;border-collapse:collapse;margin-top:30px;font-size:15px;background:#fff;border-radius:16px;overflow:hidden}
+.comp th,.comp td{padding:11px 12px;border-bottom:1px solid #EFE7F2;text-align:center}
+.comp th:first-child,.comp td:first-child{text-align:left;color:var(--texto)}
+.comp thead th{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:var(--roxo);background:#FAF6FB}
+.comp .sim{color:var(--ouro);font-weight:600}
+.comp .nao{color:#B9AEC2}
+
+/* Formulário */
+.form{background:#fff;border-radius:20px;padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:18px 20px;max-width:760px}
+.form .full{grid-column:1/-1}
+.form label{display:block;font-size:15px;font-weight:500;color:var(--roxo);margin-bottom:6px}
+.form input,.form select{width:100%;font:inherit;font-size:19px;padding:14px 14px;border:1px solid #CDBFD8;border-radius:12px;background:#fff;color:var(--tinta);min-height:54px}
+.form input:focus,.form select:focus{outline:2px solid var(--ouro-c);border-color:var(--ouro-c)}
+.dica{font-size:14px;color:var(--suave);margin-top:5px}
+.opcoes{display:flex;flex-wrap:wrap;gap:10px}
+.opcoes button{border:1px solid #CDBFD8;background:#fff;border-radius:999px;padding:12px 18px;font-size:16px;color:var(--texto);min-height:48px}
+.opcoes button.on{border-color:var(--roxo);background:var(--lilas);color:var(--roxo);font-weight:600}
+.par{display:flex;align-items:center;gap:10px}
+.par input{width:110px}
+.aceite{display:flex;gap:14px;align-items:flex-start;font-size:16px;color:var(--texto)}
+.aceite input{width:28px;height:28px;min-height:0;flex:none;margin-top:2px;accent-color:var(--roxo)}
+.erro{color:var(--erro);font-size:16px;min-height:24px}
+.acoes{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+/* Fim */
+#v-fim.on{display:flex;align-items:center;justify-content:center;text-align:center;padding:40px 24px;background:var(--plum);color:#F3EBDD}
+#v-fim h2{font-family:'Cormorant Garamond',serif;font-weight:400;font-size:clamp(40px,6vw,60px);margin:10px 0 14px;color:#F8F2E8}
+#v-fim p{font-size:20px;max-width:560px;margin:0 auto 10px;color:#E5DAE8}
+.aviso{padding:40px 24px;text-align:center}
+
+@media (max-width:700px){
+  .grade,.planos,.form{grid-template-columns:1fr}
+  .topo{flex-wrap:wrap}.marca{width:100%}
+  .jorn::before{left:91px}.etapa{grid-template-columns:70px 42px minmax(0,1fr)}
+  .comp{font-size:13px}.comp th,.comp td{padding:8px 6px}
+}
+</style>
+</head>
+<body>
+
+<!-- Capa -->
+<section class="vista on" id="v-capa">
+  <div class="capa-foto" role="img" aria-label="Gestante durante o ultrassom, com o marido segurando sua mão" id="capa-foto"></div>
+  <div class="capa-txt">
+    <div class="kicker">Segurança e tranquilidade em todo o seu pré-natal</div>
+    <h1>Acompanhamento Fetal MK</h1>
+    <div class="assina"><i></i>Dra. Morgana Kummer<i></i></div>
+    <button type="button" class="btn-ouro" data-ir="exp">Conheça o acompanhamento</button>
+    <div class="capa-rod">Protocolo FMF · ISUOG &nbsp;·&nbsp; Medicina Fetal &nbsp;·&nbsp; Sete Lagoas · MG</div>
+  </div>
+</section>
+
+<!-- Barra das páginas internas (aparece fora da capa) -->
+<nav class="topo" id="topo" style="display:none">
+  <button type="button" class="marca" data-ir="capa">Acompanhamento Fetal MK</button>
+  <button type="button" class="aba" data-ir="exp">A experiência</button>
+  <button type="button" class="aba" data-ir="jor">A jornada</button>
+  <button type="button" class="aba" data-ir="pla">Planos e valores</button>
+</nav>
+
+<!-- Experiência -->
+<section class="vista" id="v-exp"><div class="pag">
+  <div class="kicker-ouro">A experiência</div>
+  <h2>Uma gestação acompanhada, não exames avulsos.</h2>
+  <p class="lead">Cada exame conversa com o anterior. A mesma especialista vê o seu bebê crescer, semana após semana, e você vive cada encontro com calma, informação e beleza.</p>
+  <div class="grade">
+    <div class="item"><h3><span>01</span>Protocolo internacional</h3><p>Exames conduzidos pelas recomendações da Fetal Medicine Foundation (FMF) e da ISUOG.</p></div>
+    <div class="item"><h3><span>02</span>Agenda pronta</h3><p>Você sai do primeiro exame com todos os outros já marcados, nas semanas certas.</p></div>
+    <div class="item"><h3><span>03</span>Imagens 3D e vídeos</h3><p>Imagens em alta resolução (8K) sempre que o bebê colaborar, e os vídeos entregues a você via WhatsApp.</p></div>
+    <div class="item"><h3><span>04</span>A família na sala</h3><p>O exame é projetado na parede, para quem está com você acompanhar cada detalhe.</p></div>
+    <div class="item"><h3><span>05</span>Preparo antes de cada exame</h3><p>Um guia em PDF explica o que será avaliado em cada etapa e como se preparar.</p></div>
+    <div class="item"><h3><span>06</span>Laudo evolutivo</h3><p>Um relatório que reúne todos os exames e mostra a curva de crescimento do seu bebê.</p></div>
+  </div>
+  <div class="citacao"><p>“Em vez de marcar exame por exame, você vive a gestação inteira acompanhada por mim.”</p><small>Dra. Morgana Kummer</small></div>
+  <div class="seguir"><button type="button" class="btn-roxo" data-ir="jor">Ver a jornada →</button></div>
+</div></section>
+
+<!-- Jornada -->
+<section class="vista" id="v-jor"><div class="pag">
+  <div class="kicker-ouro">A jornada</div>
+  <h2>Semana a semana, até o nascimento.</h2>
+  <p class="lead">O acompanhamento começa no morfológico de 1º trimestre. Cada exame acontece na janela em que ele mais tem a dizer sobre o seu bebê.</p>
+  <div class="jorn">
+    <div class="etapa"><div class="sem">12–14<small> sem</small></div><div class="pt est"></div><div><h3>Morfológico de 1º trimestre<span class="selo">Sessão estendida</span></h3><p>Primeira avaliação detalhada e rastreamento combinado</p></div></div>
+    <div class="etapa"><div class="sem">16–18<small> sem</small></div><div class="pt"></div><div><h3>Obstétrico com colo uterino</h3><p>Crescimento, medida do colo e a descoberta do sexo</p></div></div>
+    <div class="etapa"><div class="sem">22–24<small> sem</small></div><div class="pt est"></div><div><h3>Morfológico de 2º trimestre<span class="selo">Sessão estendida</span></h3><p>Anatomia do bebê em detalhe, com medida do colo e Doppler</p></div></div>
+    <div class="etapa"><div class="sem">28<small> sem</small></div><div class="pt"></div><div><h3>Obstétrico com Doppler e perfil biofísico</h3><p>Crescimento, circulação e bem-estar do bebê</p></div></div>
+    <div class="etapa"><div class="sem">32<small> sem</small></div><div class="pt"></div><div><h3>Obstétrico com Doppler e perfil biofísico</h3><p>Crescimento e bem-estar no terceiro trimestre</p></div></div>
+    <div class="etapa"><div class="sem">36<small> sem</small></div><div class="pt"></div><div><h3>Obstétrico com Doppler e perfil biofísico<span class="selo p">Premium: morfo 3T</span></h3><p>No Premium, morfológico de 3º trimestre com Doppler</p></div></div>
+    <div class="etapa"><div class="sem" style="color:var(--suave)">38<small> sem</small></div><div class="pt prem"></div><div><h3 style="color:#5E4470">Obstétrico com Doppler e perfil biofísico<span class="selo p">Premium</span></h3><p>Avaliação final antes do nascimento</p></div></div>
+  </div>
+  <div class="legenda">E ainda: 1 ultrassom extra no Essencial e 2 no Premium, para usar quando você precisar.<br><span style="color:var(--suave)">Semanas aproximadas. O calendário de cada gestação é definido pela Dra. Morgana Kummer.</span></div>
+  <div class="seguir"><button type="button" class="btn-roxo" data-ir="pla">Ver planos e valores →</button></div>
+</div></section>
+
+<!-- Planos -->
+<section class="vista" id="v-pla"><div class="pag">
+  <div class="kicker-ouro">Planos e valores</div>
+  <h2>Um acompanhamento para o que a sua gestação precisa.</h2>
+  <div class="planos" id="planos"></div>
+  <table class="comp" aria-label="Comparação dos planos">
+    <thead><tr><th></th><th>Essencial</th><th>Premium</th></tr></thead>
+    <tbody>
+      <tr><td>Morfológicos de 1º e 2º trimestre</td><td class="sim">✓</td><td class="sim">✓</td></tr>
+      <tr><td>Obstétrico com colo (16–18 sem)</td><td class="sim">✓</td><td class="sim">✓</td></tr>
+      <tr><td>Doppler e perfil biofísico 28 e 32 sem</td><td class="sim">✓</td><td class="sim">✓</td></tr>
+      <tr><td>36 semanas</td><td>Doppler e perfil biofísico</td><td>Morfológico de 3º trimestre</td></tr>
+      <tr><td>Doppler e perfil biofísico 38 sem</td><td class="nao">—</td><td class="sim">✓</td></tr>
+      <tr><td>Ultrassons extras</td><td>1</td><td>2</td></tr>
+      <tr><td>Canal direto com a Dra. Morgana (Telegram)</td><td class="nao">—</td><td class="sim">✓</td></tr>
+      <tr><td>3D, vídeos, projeção e laudo evolutivo</td><td class="sim">✓</td><td class="sim">✓</td></tr>
+    </tbody>
+  </table>
+  <div class="nota">Valores para começar até 14 semanas, em até 6x no cartão de crédito. Começando depois, a recepção calcula o valor descontando os exames que já passaram. A adesão vai até 26 semanas.</div>
+</div></section>
+
+<!-- Formulário -->
+<section class="vista" id="v-form"><div class="pag">
+  <div class="kicker-ouro">Quero contratar</div>
+  <h2 id="f-titulo">Seus dados</h2>
+  <p class="lead" id="f-lead">Preencha aqui. A recepção confere com o seu documento, faz o pagamento e você assina o contrato neste mesmo iPad.</p>
+  <div class="form">
+    <div class="full"><label for="f-plano">Plano</label><select id="f-plano"></select></div>
+    <div class="full"><label for="f-nome">Nome completo</label><input id="f-nome" autocomplete="off" autocapitalize="words" spellcheck="false"><div class="dica">Exatamente como está no seu documento: é o nome que vai no contrato.</div></div>
+    <div><label for="f-cpf">CPF</label><input id="f-cpf" inputmode="numeric" maxlength="14" autocomplete="off"></div>
+    <div><label for="f-tel">Celular (WhatsApp)</label><input id="f-tel" type="tel" inputmode="numeric" maxlength="16" placeholder="(31) 98829.6992" autocomplete="off"></div>
+    <div class="full"><label for="f-email">E-mail</label><input id="f-email" type="email" inputmode="email" autocapitalize="off" autocomplete="off" spellcheck="false"></div>
+    <div class="full"><label>Idade gestacional</label>
+      <div class="opcoes" id="f-igmodo">
+        <button type="button" data-m="dum">Sei a data da última menstruação</button>
+        <button type="button" data-m="us">Já fiz um ultrassom</button>
+        <button type="button" data-m="" class="on">Não sei agora</button>
+      </div>
+      <div id="f-ig-dum" style="display:none;margin-top:12px"><label for="f-dum">Data da última menstruação</label><input id="f-dum" type="date"></div>
+      <div id="f-ig-us" style="display:none;margin-top:12px">
+        <label for="f-usdata">Data do ultrassom</label><input id="f-usdata" type="date">
+        <label for="f-igsem" style="margin-top:12px">Idade gestacional naquele ultrassom</label>
+        <div class="par"><input id="f-igsem" type="number" inputmode="numeric" min="1" max="42" placeholder="sem."><span>semanas e</span><input id="f-igdias" type="number" inputmode="numeric" min="0" max="6" placeholder="dias"><span>dias</span></div>
+      </div>
+    </div>
+    <label class="aceite full"><input type="checkbox" id="f-aceite"><span>Entendo que a contratação só é concluída na recepção, com o pagamento e a assinatura do contrato.</span></label>
+    <div class="erro full" id="f-erro" role="alert"></div>
+    <div class="acoes full"><button type="button" class="btn-roxo" id="f-enviar">Enviar para a recepção</button><button type="button" class="btn-linha" data-ir="pla">Voltar aos planos</button></div>
+  </div>
+</div></section>
+
+<!-- Fim -->
+<section class="vista" id="v-fim"><div>
+  <div class="kicker">Acompanhamento Fetal MK</div>
+  <h2 id="fim-titulo">Obrigada!</h2>
+  <p id="fim-txt">Seus dados chegaram à recepção. Agora é só chamar a nossa equipe para concluir o pagamento e assinar o contrato.</p>
+  <button type="button" class="btn-ouro" data-ir="capa" id="fim-btn">Concluir</button>
+</div></section>
+
+<section class="vista" id="v-erro"><div class="aviso">
+  <h2 class="serif" style="font-size:40px;color:var(--roxo);font-weight:500">iPad não configurado</h2>
+  <p>Abra esta página pelo link “📱 iPad da recepção”, na tela da Recepção do Curvas.</p>
+</div></section>
+
+<script>
+(function () {
+  var URL_ = 'https://ulcqnqwxguydrpoaplcv.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY3FucXd4Z3V5ZHJwb2FwbGN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Njk2NjcsImV4cCI6MjEwMTA0NTY2N30.hNrszyJvaBzP08Oild4wivMrTvXnDoGfgL6My1bbtVU';
+  var qs = new URLSearchParams(location.search);
+  var chave = (qs.get('k') || '').trim();
+  // De casa (link mandado no WhatsApp): mesmo formulário, outros textos e sem voltar sozinho à capa.
+  var deCasa = qs.get('de') === 'casa';
+  if (deCasa) {
+    document.getElementById('f-lead').textContent = 'Preencha com calma. No dia do seu exame, a recepção confere o seu documento, faz o pagamento no cartão e você assina o contrato no iPad: leva poucos minutos.';
+    document.getElementById('fim-txt').textContent = 'Seus dados chegaram à clínica. No dia do seu exame, traga um documento com foto: a recepção conclui o pagamento e você assina o contrato.';
+    document.getElementById('fim-btn').textContent = 'Voltar ao início';
+  }
+
+  // Mesmos valores de _ADESAO_PRECO (index.html). Mudou lá, mude aqui.
+  var PLANOS = [
+    { k: 'essencial', nome: 'Essencial', total: 3400, para: 'Gestação de baixo risco', itens: ['Os seis exames do protocolo, do 1º trimestre às 36 semanas', '1 ultrassom extra, para usar quando você precisar', 'Imagens 3D, vídeos, projeção na parede e guias de preparo', 'Laudo evolutivo com a curva de crescimento'] },
+    { k: 'premium', nome: 'Premium', total: 4200, dest: true, para: 'Uma experiência mais próxima. Indicado na gestação de alto risco ou para mamães de 1ª viagem.', itens: ['Tudo o que o Essencial oferece', 'Morfológico de 3º trimestre às 36 semanas, e mais um exame às 38', '2 ultrassons extras', 'Canal direto com a Dra. Morgana Kummer pelo Telegram'] },
+    { k: 'gemelar_essencial', nome: 'Gemelar Essencial', total: 6800, para: 'Gestação de gêmeos, no calendário do Essencial', itens: ['O calendário do Essencial, com cada bebê avaliado com calma', '1 ultrassom extra', 'Imagens, vídeos e laudo evolutivo de cada bebê'] },
+    { k: 'gemelar_dc', nome: 'Gemelar Premium', total: 8400, para: 'Gestação de gêmeos, no calendário do Premium', itens: ['O calendário completo do Premium, para dois bebês', '2 ultrassons extras', 'Canal direto com a Dra. Morgana Kummer pelo Telegram'] }
+  ];
+  function reais(n, cent) { return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: cent ? 2 : 0, maximumFractionDigits: cent ? 2 : 0 }); }
+  function $(id) { return document.getElementById(id); }
+
+  // Navegação entre as telas
+  var atual = 'capa';
+  function ir(v) {
+    if (v === 'capa') limparForm();
+    document.querySelectorAll('.vista').forEach(function (s) { s.classList.toggle('on', s.id === 'v-' + v); });
+    $('topo').style.display = (v === 'capa' || v === 'fim' || v === 'erro') ? 'none' : '';
+    document.querySelectorAll('.aba').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-ir') === v); });
+    atual = v; window.scrollTo(0, 0);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ir]');
+    if (b) ir(b.getAttribute('data-ir'));
+  });
+
+  // Foto da capa (CSS background: mantém a imagem fora do fluxo de seleção do iPad)
+  $('capa-foto').style.backgroundImage = 'url("vitrine-capa.jpg")';
+
+  // Cartões dos planos
+  var box = $('planos');
+  PLANOS.forEach(function (p) {
+    var c = document.createElement('div'); c.className = 'plano' + (p.dest ? ' dest' : '');
+    var h = document.createElement('h3'); h.textContent = p.nome; c.appendChild(h);
+    var pa = document.createElement('div'); pa.className = 'para'; pa.textContent = p.para; c.appendChild(pa);
+    var pr = document.createElement('div'); pr.className = 'preco'; pr.textContent = reais(p.total);
+    var sm = document.createElement('small'); sm.textContent = 'ou 6x de ' + reais(Math.round(p.total / 6 * 100) / 100, p.total % 6 !== 0) + ' no cartão'; pr.appendChild(sm); c.appendChild(pr);
+    var ul = document.createElement('ul');
+    p.itens.forEach(function (t) { var li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+    c.appendChild(ul);
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'btn-roxo'; b.textContent = 'Quero contratar';
+    b.onclick = function () { abrirForm(p.k); };
+    c.appendChild(b);
+    box.appendChild(c);
+    var o = document.createElement('option'); o.value = p.k; o.textContent = p.nome + ' · ' + reais(p.total); $('f-plano').appendChild(o);
+  });
+
+  // Formulário
+  var igModo = '';
+  function setIgModo(m) {
+    igModo = m;
+    document.querySelectorAll('#f-igmodo button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-m') === m); });
+    $('f-ig-dum').style.display = m === 'dum' ? '' : 'none';
+    $('f-ig-us').style.display = m === 'us' ? '' : 'none';
+  }
+  document.querySelectorAll('#f-igmodo button').forEach(function (b) { b.onclick = function () { setIgModo(b.getAttribute('data-m')); }; });
+  function limparForm() {
+    ['f-nome', 'f-cpf', 'f-tel', 'f-email', 'f-dum', 'f-usdata', 'f-igsem', 'f-igdias'].forEach(function (id) { $(id).value = ''; });
+    $('f-aceite').checked = false; $('f-erro').textContent = ''; setIgModo('');
+  }
+  function abrirForm(k) { limparForm(); $('f-plano').value = k; ir('form'); }
+
+  $('f-cpf').addEventListener('input', function () {
+    var d = this.value.replace(/\D/g, '').slice(0, 11);
+    this.value = d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2');
+  });
+  $('f-tel').addEventListener('input', function () {
+    var d = this.value.replace(/\D/g, '').slice(0, 11), s = '';
+    if (d.length) s = '(' + d.slice(0, 2);
+    if (d.length > 2) s += ') ' + d.slice(2, 7);
+    if (d.length > 7) s += '.' + d.slice(7);
+    this.value = s;
+  });
+  function cpfValido(cpf) {
+    var d = String(cpf).replace(/\D/g, '');
+    if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+    for (var t = 9; t <= 10; t++) {
+      var soma = 0;
+      for (var i = 0; i < t; i++) soma += parseInt(d[i], 10) * (t + 1 - i);
+      if (((soma * 10) % 11) % 10 !== parseInt(d[t], 10)) return false;
+    }
+    return true;
+  }
+  function hojeISO() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+
+  $('f-enviar').onclick = function () {
+    var erro = function (t) { $('f-erro').textContent = t; };
+    var nome = $('f-nome').value.trim().replace(/\s+/g, ' ');
+    var cpf = $('f-cpf').value, tel = $('f-tel').value.trim(), email = $('f-email').value.trim();
+    if (nome.split(' ').length < 2 || nome.length < 5) return erro('Escreva o nome completo, como está no documento.');
+    if (!cpfValido(cpf)) return erro('Confira o CPF: os números não batem.');
+    if (tel.replace(/\D/g, '').length < 10) return erro('Informe o celular com DDD.');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return erro('Confira o e-mail.');
+    var hoje = hojeISO(), dum = null, usData = null, usIg = null;
+    if (igModo === 'dum') {
+      dum = $('f-dum').value;
+      if (!dum || dum > hoje) return erro('Confira a data da última menstruação.');
+    } else if (igModo === 'us') {
+      usData = $('f-usdata').value;
+      var s = parseInt($('f-igsem').value, 10), d = parseInt($('f-igdias').value, 10) || 0;
+      if (!usData || usData > hoje) return erro('Confira a data do ultrassom.');
+      if (!(s >= 1 && s <= 42) || d < 0 || d > 6) return erro('Informe a idade gestacional do ultrassom em semanas e dias.');
+      usIg = s * 7 + d;
+    }
+    if (!$('f-aceite').checked) return erro('Marque a caixa de confirmação para enviar.');
+    erro('');
+    var btn = this; btn.disabled = true; btn.textContent = 'Enviando…';
+    fetch(URL_ + '/rest/v1/rpc/vitrine_pre_adesao', {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_chave: chave, p_nome: nome, p_cpf: cpf, p_email: email, p_celular: tel, p_modalidade: $('f-plano').value,
+                             p_dum: dum, p_us_data: usData, p_us_ig_dias: usIg, p_origem: deCasa ? 'link' : 'ipad' })
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'erro'); return j; }); })
+      .then(function () {
+        $('fim-titulo').textContent = 'Obrigada, ' + nome.split(' ')[0] + '!';
+        ir('fim');
+      })
+      .catch(function (e) { erro('Não consegui enviar (' + e.message + '). Chame a recepção, por favor.'); })
+      .then(function () { btn.disabled = false; btn.textContent = 'Enviar para a recepção'; });
+  };
+
+  // Volta sozinho para a capa depois de 3 minutos parado (e já limpa os dados digitados);
+  // na tela de agradecimento, depois de 40 segundos.
+  var ultimo = Date.now();
+  ['touchstart', 'click', 'keydown', 'scroll'].forEach(function (ev) { document.addEventListener(ev, function () { ultimo = Date.now(); }, { passive: true }); });
+  setInterval(function () {
+    if (deCasa || atual === 'capa' || atual === 'erro') return;
+    var parado = (Date.now() - ultimo) / 1000;
+    if (parado > (atual === 'fim' ? 40 : 180)) ir('capa');
+  }, 5000);
+
+  if (chave.length < 32) ir('erro');
+})();
+</script>
+</body>
+</html>

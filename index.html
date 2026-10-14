@@ -625,6 +625,15 @@ header::after{display:none;}
 .rc-tl td{padding:9px 6px;font-size:13px;}.rc-tl td.rc-ex-dt{white-space:normal;}
 .rc-modal{padding:20px 16px;}#rc-adesao{padding:10px;}
 }
+#rc-pre{margin-bottom:16px;}
+.rc-pre-tit{font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;}
+.rc-pre-card{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:#fff8e8;border:1px solid #f0d9a4;border-radius:14px;padding:12px 16px;margin-bottom:8px;}
+.rc-pre-card b{font-size:15px;}
+.rc-pre-sub{font-size:12.5px;color:var(--text-muted);}
+.rc-pre-acoes{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;}
+.rc-pre-aviso{background:#fff8e8;border:1px solid #f0d9a4;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px;}
+.rc-link-box{display:flex;flex-direction:column;gap:14px;}
+.rc-link-box input{width:100%;font-size:12px;}
 #rc-adesao{display:none;position:fixed;inset:0;z-index:9100;background:rgba(46,33,56,.55);align-items:center;justify-content:center;padding:20px;}
 .rc-modal{background:var(--surface,#fff);border-radius:20px;box-shadow:0 20px 60px rgba(46,33,56,.4);width:100%;max-width:680px;max-height:92vh;overflow:auto;padding:26px 30px 24px;}
 .rc-modal h3{font-family:var(--font-serif);font-size:23px;margin:0 0 4px;color:var(--text);}
@@ -1259,8 +1268,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="rc-busca-row">
       <input type="search" id="rc-busca" class="rc-busca" placeholder="Buscar por nome ou CPF" oninput="recepcaoFiltrar()" autocomplete="off">
       <div class="rc-chips" id="rc-chips"></div>
-      <button type="button" class="rc-btn-dark" style="margin-left:auto;padding:12px 20px;font-size:14px;" onclick="recepcaoAdesaoAbrir(null)">+ Nova adesão</button>
+      <button type="button" class="rc-btn-claro" style="margin-left:auto;padding:12px 16px;font-size:14px;" onclick="recepcaoVitrineLinks()">📱 iPad e link de adesão</button>
+      <button type="button" class="rc-btn-dark" style="padding:12px 20px;font-size:14px;" onclick="recepcaoAdesaoAbrir(null)">+ Nova adesão</button>
     </div>
+    <div id="rc-pre"></div>
     <div class="rc-grade">
       <div class="rc-lista" id="rc-lista"></div>
       <div class="rc-det" id="rc-det"></div>
@@ -1268,6 +1279,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 <div id="rc-adesao" onclick="if(event.target===this)recepcaoAdesaoFechar()">
   <div class="rc-modal">
     <h3 id="rc-ad-titulo">Nova adesão</h3>
+    <div class="rc-pre-aviso" id="rc-ad-pre" style="display:none">Preenchido pela paciente. <b>Confira o nome e o CPF com o documento com foto</b>: o nome do contrato não muda depois.</div>
     <p class="rc-sub">Cria o cadastro no Curva e abre o contrato preenchido para imprimir ou salvar em PDF. O celular fica gravado na ficha (usado no aviso de encerramento); e-mail e nascimento entram só no contrato.</p>
     <div class="rc-form">
       <div class="rc-full"><label for="rc-ad-nome">Nome completo da gestante</label><input type="text" id="rc-ad-nome" autocomplete="off"></div>
@@ -1290,6 +1302,13 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <button type="button" class="rc-btn-claro" onclick="recepcaoAdesaoFechar()">Cancelar</button>
       <span class="rc-pag-msg" id="rc-ad-msg"></span>
     </div>
+  </div>
+</div>
+<div id="rc-links" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(46,33,56,.55);align-items:center;justify-content:center;padding:20px;">
+  <div class="rc-modal" style="max-width:560px;width:100%;">
+    <h3>iPad e link de adesão</h3>
+    <div class="rc-link-box" id="rc-links-corpo">Carregando…</div>
+    <div class="rc-modal-acoes"><button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-links').style.display='none'">Fechar</button></div>
   </div>
 </div>
     <p class="rc-aviso">As datas são calculadas pela IG de cada paciente; a agenda oficial continua na Feegow. A conferência de pagamento é um registro desta tela, não substitui o financeiro.</p>
@@ -2864,6 +2883,13 @@ async function recepcaoAtualizar() {
         _recepcaoDados.forEach(r => { r.agendamento = ag.data[String(r.gestacao_id)] || null; });
       }
     } catch (e) { console.error('[CurvaFetal] recepcao_agendamentos:', e); }
+    // Pré-adesões vindas do iPad ou do link (migração 033). Sem ela, o bloco só fica vazio.
+    _rcPre = [];
+    try {
+      const pr = await supabaseClient.rpc('recepcao_pre_adesoes');
+      if (!pr.error && Array.isArray(pr.data)) _rcPre = pr.data;
+    } catch (e) { console.error('[CurvaFetal] recepcao_pre_adesoes:', e); }
+    _rcPreRender();
     recepcaoFiltrar();
   } catch (err) {
     console.error('[CurvaFetal] painel_recepcao:', err);
@@ -4192,6 +4218,8 @@ function _cpfValido(cpf) {
 
 function recepcaoAdesaoAbrir(r) {
   _rcAdesaoGid = r ? r.gestacao_id : null;
+  _rcPreId = null;
+  document.getElementById('rc-ad-pre').style.display = 'none';
   const set = (id, v) => { document.getElementById(id).value = v || ''; };
   let modo = '', dum = '', igSem = '', igDias = '';
   if (r) {
@@ -4355,6 +4383,11 @@ async function recepcaoAdesaoConfirmar() {
         alert('O contrato abriu, mas não consegui guardar a cópia na ficha: ' + (eArq.message || eArq) + '\n\nA migração 026 foi aplicada no Supabase?');
       }
     }
+    if (_rcPreId && _rcAdesaoGid) {
+      const { error: ePre } = await supabaseClient.rpc('recepcao_pre_adesao_resolver', { p_id: _rcPreId, p_status: 'cadastrada', p_gestacao_id: _rcAdesaoGid });
+      if (ePre) console.error('[CurvaFetal] recepcao_pre_adesao_resolver:', ePre);
+      _rcPreId = null;
+    }
     recepcaoAdesaoFechar();
     await recepcaoAtualizar();
   } catch (err) {
@@ -4362,6 +4395,60 @@ async function recepcaoAdesaoConfirmar() {
     try { w.close(); } catch (_) {}
     erro('Não consegui cadastrar: ' + (err.message || err));
   } finally { btn.disabled = false; }
+}
+
+// ── Pré-adesão (iPad da recepção ou link de casa, migração 033) ───────────
+// A paciente escolhe o plano e digita os próprios dados em vitrine.html. Nada é cadastrado até a
+// recepção conferir o documento: "Conferir e cadastrar" abre a Nova adesão de sempre, preenchida.
+let _rcPre = [];
+let _rcPreId = null;
+const _VITRINE_URL = 'https://morgckummer-debug.github.io/curva-fetal/vitrine.html';
+function _rcPreRender() {
+  const box = document.getElementById('rc-pre');
+  if (!box) return;
+  if (!_rcPre.length) { box.innerHTML = ''; return; }
+  const dt = iso => { const d = new Date(iso); return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+  box.innerHTML = `<p class="rc-pre-tit">Contratação pelo ${_rcPre.some(p => p.origem === 'link') ? 'iPad ou link' : 'iPad'} · conferir documento e pagamento (${_rcPre.length})</p>` +
+    _rcPre.map(p => `<div class="rc-pre-card">
+      <div><b>${escapeHtml(p.nome)}</b><div class="rc-pre-sub">${escapeHtml(p.cpf)} · ${escapeHtml((_ADESAO_PRECO[p.modalidade] || {}).nome || p.modalidade)} · ${p.origem === 'link' ? 'preenchido em casa' : 'pelo iPad'} · ${dt(p.criado_em)}</div></div>
+      <div class="rc-pre-acoes"><button type="button" class="rc-btn-dark" onclick="recepcaoPreUsar(${p.id})">Conferir e cadastrar</button><button type="button" class="rc-btn-claro" onclick="recepcaoPreDescartar(${p.id})">Descartar</button></div>
+    </div>`).join('');
+}
+function recepcaoPreUsar(id) {
+  const p = _rcPre.find(x => x.id === id);
+  if (!p) return;
+  recepcaoAdesaoAbrir(null);
+  _rcPreId = id;
+  const set = (k, v) => { document.getElementById(k).value = v == null ? '' : v; };
+  set('rc-ad-nome', p.nome); set('rc-ad-cpf', p.cpf); set('rc-ad-tel', p.celular); set('rc-ad-email', p.email);
+  set('rc-ad-mod', p.modalidade);
+  if (p.dum) { set('rc-ad-igmodo', 'dum'); set('rc-ad-dum', p.dum); }
+  else if (p.us_data && p.us_ig_dias) { set('rc-ad-igmodo', 'us'); set('rc-ad-usdata', p.us_data); set('rc-ad-igsem', Math.floor(p.us_ig_dias / 7)); set('rc-ad-igdias', p.us_ig_dias % 7); }
+  _rcIgModo(); _rcValorSugerir(true);
+  document.getElementById('rc-ad-pre').style.display = '';
+  document.getElementById('rc-ad-nome').focus();
+}
+async function recepcaoPreDescartar(id) {
+  const p = _rcPre.find(x => x.id === id);
+  if (!p || !confirm('Descartar a pré-adesão de ' + p.nome + '? Ela some desta lista; nada foi cadastrado.')) return;
+  const { error } = await supabaseClient.rpc('recepcao_pre_adesao_resolver', { p_id: id, p_status: 'descartada' });
+  if (error) { alert('Não consegui descartar: ' + error.message); return; }
+  await recepcaoAtualizar();
+}
+// Links da vitrine: o do iPad (fica aberto na recepção) e o de casa (vai pelo WhatsApp).
+async function recepcaoVitrineLinks() {
+  const m = document.getElementById('rc-links'), c = document.getElementById('rc-links-corpo');
+  m.style.display = 'flex'; c.textContent = 'Carregando…';
+  const { data: k, error } = await supabaseClient.rpc('recepcao_vitrine_chave');
+  if (error || !k) { c.textContent = 'Não consegui gerar o link: ' + ((error && error.message) || 'sem resposta') + '. A migração 033 foi aplicada no Supabase?'; return; }
+  const ipad = _VITRINE_URL + '?k=' + k, casa = ipad + '&de=casa';
+  const msgCasa = 'Olá! Aqui você conhece o Acompanhamento Fetal MK e já deixa seus dados preenchidos. No dia do exame, é só trazer um documento com foto: o pagamento e a assinatura do contrato levam poucos minutos na recepção 💜\n\n' + casa;
+  c.innerHTML = `<div><b>iPad da recepção</b><div class="rc-pre-sub">Abra este endereço no Safari do iPad, toque em Compartilhar → "Adicionar à Tela de Início" e use o Acesso Guiado para ele não sair da página.</div><input type="text" readonly value="${escapeHtml(ipad)}" onclick="this.select()"></div>
+    <div><b>Link para a paciente preencher em casa</b><div class="rc-pre-sub">Mesma página, sem voltar sozinha ao início. Os dados aparecem aqui como "preenchido em casa".</div><input type="text" readonly value="${escapeHtml(casa)}" onclick="this.select()">
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="rc-btn-claro" id="rc-links-copiar">Copiar mensagem</button><a class="rc-btn-dark" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msgCasa)}">Abrir no WhatsApp</a></div></div>`;
+  document.getElementById('rc-links-copiar').onclick = function () {
+    navigator.clipboard.writeText(msgCasa).then(() => { this.textContent = 'Copiada ✓'; }, () => alert(msgCasa));
+  };
 }
 
 function _contratoDataBR(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }

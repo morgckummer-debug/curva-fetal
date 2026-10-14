@@ -1936,3 +1936,18 @@ conferiu e o SHA-256 do HTML original (`_assHtmlAssinado`). Sobe como `kind: 'as
 mesmo `recepcao_contrato_add`, sem migração nova. "Anexar assinado em PDF" continua para quem assinar fora;
 o botão de foto saiu. A via da gestante sai por "📤 Enviar cópia à gestante" (`recepcaoContratoCopia`): Web Share API com o arquivo anexado (WhatsApp/e-mail no iPad), sem o auto-print; no computador baixa o arquivo e abre o wa.me. Validade jurídica (assinatura eletrônica simples, Lei 14.063/2020): pedir ao advogado
 que confirme quando revisar o contrato.
+
+## Vitrine do iPad e pré-adesão (2026-10-14, migração 033)
+
+Decisão da Morgana: a paciente escolhe o plano e digita os próprios dados; a recepção só confere e cobra.
+`vitrine.html` é página à parte, sem login (como `agendar.html`): capa, experiência, jornada, planos com
+preço (cópia de `_ADESAO_PRECO`: **mudou preço lá, mude aqui**) e "Quero contratar". O envio chama
+`vitrine_pre_adesao` com a chave da clínica (`?k=`, tabela `vitrine_chaves`) e cria só uma linha em
+`pre_adesoes` (nada em patients/gestacoes; uma por CPF em aberto; no máximo 30 por dia). Na Recepção as
+pré-adesões aparecem em amarelo acima da lista; "Conferir e cadastrar" abre a Nova adesão de sempre já
+preenchida, com aviso para conferir nome e CPF com o documento (o nome da adesão não muda depois), e ao
+concluir marca a pré-adesão como `cadastrada`. Pagamento continua na maquininha e a assinatura no iPad.
+- **De casa**: o mesmo link com `&de=casa` (botão "📱 iPad e link de adesão" gera os dois e a mensagem de
+  WhatsApp). Muda os textos e não volta sozinho à capa; a pré-adesão chega como "preenchido em casa".
+- No iPad, a página volta à capa (e limpa o formulário) após 3 min parada, ou 40 s na tela de obrigado.
+- **A 033 precisa estar aplicada**; sem ela o bloco de pré-adesões só fica vazio e o botão de links avisa.

@@ -3094,11 +3094,13 @@ function recepcaoConfirmarAgenda() {
     const dp = pf && pf.datas && pf.datas[0];
     if (dp && /^\d{4}-\d{2}-\d{2}$/.test(dp.d)) temResp = true;
     const dv = dp && /^\d{4}-\d{2}-\d{2}$/.test(dp.d) ? dp.d : '';
+    const ja = ((r.agendamento && r.agendamento.agendados) || []).find(x => x.key === i.sit.plano.ex[i.sit.slots.indexOf(s)]);
+    const dv2 = dv || (ja && /^\d{4}-\d{2}-\d{2}$/.test(ja.d) ? ja.d : ''), hv = !dv && ja && ja.h ? ja.h : '';
     const nota = dv ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Escolha da paciente: ${_acompDataCurta(dv)}${dp.p && PER[dp.p] ? ' · ' + PER[dp.p] : ''}${new Date(dv + 'T12:00:00Z').getUTCDay() === 6 ? ' · sábado só até 12h' : ''}</div>` : '';
     const rot = s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : '') + (s.def.tol ? ' (' + _acompSemDia(s.def.ini) + ')' : '');
     const per = s.de && s.ate ? `${_acompDataCurta(s.de)} a ${_acompDataCurta(s.ateTol || s.ate)}` : '';
     return `<div style="margin-bottom:8px;"><div style="font-size:13px;"><b>${escapeHtml(rot)}</b> <span style="color:var(--text-muted);">${per ? '· período ' + per : ''}</span></div>
-      <div style="display:flex;gap:8px;margin-top:4px;"><input type="date" class="rc-conf-d" data-k="${k}" value="${dv}" style="${inp}" oninput="_rcConfRefazer()"><input type="time" class="rc-conf-h" data-k="${k}" style="${inp}max-width:130px;" oninput="_rcConfRefazer()"></div>${nota}</div>`;
+      <div style="display:flex;gap:8px;margin-top:4px;"><input type="date" class="rc-conf-d" data-k="${k}" value="${dv2}" style="${inp}" oninput="_rcConfRefazer()"><input type="time" class="rc-conf-h" data-k="${k}" value="${hv}" style="${inp}max-width:130px;" oninput="_rcConfRefazer()"></div>${nota}</div>`;
   }).join('');
   el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
     <h3 style="margin:0 0 4px;">Confirmar agendamento</h3>
@@ -3217,6 +3219,11 @@ function _rcDetalheHtml(i) {
     else if (s.status === 'atrasado') { ic = '<span class="rc-dot rc-dot--atrasado">!</span>'; st = `<b class="rc-atras-t">Janela vencida${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</b>`; }
     else if (s === p) { ic = '<span class="rc-dot rc-dot--prox">→</span>'; st = '<b>Próximo</b>'; }
     else { ic = '<span class="rc-dot">·</span>'; st = '<b>A fazer</b>'; }
+    const ag = r.agendamento, ja = ag && ag.estado === 'agendado' && (ag.agendados || []).find(x => x.key === sit.plano.ex[sit.slots.indexOf(s)]);
+    if (s.status !== 'feito' && ja && /^\d{4}-\d{2}-\d{2}$/.test(ja.d)) {
+      const hh = ja.h ? ' às ' + ja.h.slice(0, 2) + 'h' + (ja.h.slice(3, 5) !== '00' ? ja.h.slice(3, 5) : '') : '';
+      st = `<b class="rc-feito-t">Agendado: ${_RC_DIAS_SEM[new Date(ja.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(ja.d)}${hh}</b><span class="rc-ex-s">${ag.confirmada ? 'paciente confirmou' : 'aguardando confirmação'}</span>`;
+    }
     const janela = s.de && s.ate ? `${_acompDataCurta(s.de)} a ${_acompDataCurta(s.ate)}` : '';
     return antes + `<tr><td class="rc-ic">${ic}</td>
       <td><span class="rc-ex-n">${escapeHtml(s.def.n)}</span>${s.def.sub ? `<span class="rc-ex-s">${escapeHtml(s.def.sub)}</span>` : ''}</td>

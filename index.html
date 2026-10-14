@@ -3614,8 +3614,8 @@ async function _encConfirmar(motivo) {
 
 // ── Troca de modalidade (contrato item 9; migração 029) ──────────────────
 // Upgrade: paga a diferença dos preços (Anexo I), até 3x no cartão. Downgrade: só se não fez exame
-// exclusivo da modalidade atual; a clínica retém 20% da diferença. Qualquer troca até o US de 32 semanas
-// (com a tolerância dele). Gemelar identificada depois (9a) e perda de um feto (8c) são casos à parte.
+// exclusivo da modalidade atual; a clínica retém 20% da diferença. Qualquer troca até 26 semanas
+// (fim da janela do morfológico de 2º trimestre), única ou gemelar; só a perda de um feto (8c) não tem prazo.
 let _trGid = null;
 function _trCalc(r, sit, nova, cartao, taxaPct, parcelas) {
   const atual = r.acompanhamento;
@@ -3627,10 +3627,10 @@ function _trCalc(r, sit, nova, cartao, taxaPct, parcelas) {
   const diff = pN.total - pA.total;
   const out = { atual, nova, totalAtual: pA.total, totalNovo: pN.total, diff, bloqueios: [], avisos: [] };
   out.tipo = (!gemA && gemN && premA === premN) ? 'gemelar_ident' : (gemA && !gemN && premA === premN) ? 'gemelar_perda' : 'modalidade';
-  const lim = ACOMP_EX.d32.fim + (ACOMP_EX.d32.tol || 0);
+  const lim = ACOMP_EX.m2.fim; // 26 semanas: fim da janela do morfológico de 2º trimestre (mesmo limite da adesão)
   out.limite = lim;
-  if (out.tipo === 'modalidade' && sit.igHoje != null && sit.igHoje > lim)
-    out.bloqueios.push(`Passou do ultrassom de 32 semanas (até ${_acompSemDia(lim)}): a troca não é mais possível. Os exames da outra modalidade saem pelo valor avulso.`);
+  if (out.tipo !== 'gemelar_perda' && sit.igHoje != null && sit.igHoje > lim)
+    out.bloqueios.push(`Passou do morfológico de 2º trimestre (${_acompSemDia(lim)}): a troca não é mais possível. Os exames da outra modalidade saem pelo valor avulso.`);
   const taxa = cartao ? taxaPct / 100 : 0;
   // Extras já usados contam dentro do total da nova modalidade; o que exceder é descontado pelo avulso.
   const exc = Math.max(0, sit.extras.length - planoN.extras);
@@ -6432,7 +6432,7 @@ ${telCanal ? (d.telegramCodigo
 <p><b>c) Perda de um dos fetos em gestação gemelar.</b> O plano é reajustado para a modalidade de feto único correspondente (Essencial ou Premium). A diferença de valor, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, fica como crédito nas regras do item 7c ou pode ser convertida em ultrassons extras, pelo valor avulso do ultrassom extra do Anexo II.</p>
 <h2>9) Gestação gemelar identificada e troca de modalidade</h2>
 <p><b>a) Gestação gemelar identificada após a adesão.</b> Se a gestação gemelar for identificada após a adesão, a gestante poderá migrar para a modalidade gemelar correspondente, pagando a diferença de valor vigente.</p>
-<p><b>b) Troca de modalidade.</b> A gestante pode trocar de modalidade durante o acompanhamento. Os exames já realizados continuam valendo e o valor da troca é a diferença entre os preços das modalidades (Anexo I). Para uma modalidade superior (por exemplo, de Essencial para Premium), a diferença é paga em até 3 (três) parcelas no cartão de crédito, e qualquer troca, para cima ou para baixo, só pode ser feita até o ultrassom de 32 semanas (inclusive o prazo de tolerância dele); depois disso, os exames desejados da outra modalidade são feitos pelo valor avulso do Anexo II. Para uma modalidade inferior, a troca só é possível se a gestante ainda não tiver realizado exame exclusivo da modalidade atual; da diferença, a clínica retém 20% (vinte por cento) e o restante é devolvido à gestante ou, se ela preferir, mantido como crédito nas regras do item 7c, em ambos os casos descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado. Os ultrassons extras já utilizados contam dentro do total da nova modalidade e, se excederem esse total, são descontados pelo valor avulso do Anexo II. O canal direto no Telegram começa ou termina na data da troca. A troca é registrada em termo aditivo assinado pelas duas partes.</p>
+<p><b>b) Troca de modalidade.</b> A gestante pode trocar de modalidade durante o acompanhamento. Os exames já realizados continuam valendo e o valor da troca é a diferença entre os preços das modalidades (Anexo I). Para uma modalidade superior (por exemplo, de Essencial para Premium), a diferença é paga em até 3 (três) parcelas no cartão de crédito, e qualquer troca, para cima ou para baixo, só pode ser feita até 26 semanas de idade gestacional (fim da janela do morfológico de 2º trimestre), em gestação única ou gemelar; depois disso, os exames desejados da outra modalidade são feitos pelo valor avulso do Anexo II. Para uma modalidade inferior, a troca só é possível se a gestante ainda não tiver realizado exame exclusivo da modalidade atual; da diferença, a clínica retém 20% (vinte por cento) e o restante é devolvido à gestante ou, se ela preferir, mantido como crédito nas regras do item 7c, em ambos os casos descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado. Os ultrassons extras já utilizados contam dentro do total da nova modalidade e, se excederem esse total, são descontados pelo valor avulso do Anexo II. O canal direto no Telegram começa ou termina na data da troca. A troca é registrada em termo aditivo assinado pelas duas partes.</p>
 <h2>10) Dados pessoais e imagens</h2>
 <p>Os dados pessoais, laudos, imagens e vídeos são tratados conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018), com a finalidade de prestar o acompanhamento, guardar o prontuário pelo prazo legal e enviar os documentos à gestante. Eles não são compartilhados com terceiros sem autorização, exceto com o obstetra assistente quando a gestante solicitar ou por obrigação legal.</p>
 <p>Uso de imagens e vídeos do exame, sem identificação da gestante, nas redes sociais e materiais da clínica: &nbsp; ( ) Autorizo &nbsp; ( ) Não autorizo &nbsp;&nbsp; Rubrica: ________________</p>

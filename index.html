@@ -2090,6 +2090,12 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
         </div>
       </details>
 
+      <!-- Conclusão do laudo (feito fora do editor) — some com "Exame externo" marcado -->
+      <div id="me-impressao-laudo-wrap" style="margin-top:8px;margin-bottom:8px;">
+        <div class="me-bio-label" style="margin-bottom:6px;">Conclusão do laudo <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">opcional — uma linha por item; entra no relatório antes da análise do app</span></div>
+        <textarea id="e-impressao-laudo" maxlength="3000" rows="4" placeholder="ex.: Gestação tópica, única, de 32 semanas e 1 dia." style="width:100%;padding:9px 12px;border:none;border-radius:var(--radius-sm);font-size:13px;font-family:var(--font-sans);color:var(--text);background:var(--clay-bg);box-shadow:var(--sh-in);outline:none;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
+
       <!-- Conclusão do laudo externo — só com "Exame externo" marcado -->
       <div id="me-impressao-externa-wrap" style="display:none;margin-top:8px;margin-bottom:8px;">
         <div class="me-bio-label" style="margin-bottom:6px;">Conclusão do laudo externo <span class="optional-tag" style="font-size:10px;text-transform:none;letter-spacing:0;">opcional — o que o colega concluiu</span></div>
@@ -12546,7 +12552,9 @@ function meToggleExterno() { _meApplyExternoUI(); meUpdate(); }
 function _meApplyExternoUI() {
   const on = _meExterno();
   [['me-externo-fields','block'],['me-efw-informado','block'],['me-impressao-externa-wrap','block']]
+    
     .forEach(([id, disp]) => { const el = document.getElementById(id); if (el) el.style.display = on ? disp : 'none'; });
+  const wl = document.getElementById('me-impressao-laudo-wrap'); if (wl) wl.style.display = on ? 'none' : 'block';
   const hint = document.getElementById('me-ccn-externo-hint'); if (hint) hint.style.display = on ? 'block' : 'none';
   const t = document.getElementById('modal-exam-title');
   if (t) t.textContent = t.textContent.replace(/ — Externo$/, '') + (on ? ' — Externo' : '');
@@ -12584,6 +12592,7 @@ function _meLoadExterno(exams) {
   const ex = document.getElementById('e-extra'); if (ex) ex.checked = exams.some(e => e.extra);
   const sv = document.getElementById('e-servico-externo'); if (sv) sv.value = first('servico_externo');
   const im = document.getElementById('e-impressao-externa'); if (im) im.value = first('impressao_externa');
+  const il = document.getElementById('e-impressao-laudo'); if (il) il.value = first('impressao_laudo');
   _meApplyExternoUI();
 }
 
@@ -13483,6 +13492,7 @@ function _meBuildExamData(feto, draft, data, igManual) {
     efw: _meExterno() ? num('e-efw') : null,
     servico_externo: _meExterno() ? sharedStr('e-servico-externo') : null,
     impressao_externa: _meExterno() ? sharedStr('e-impressao-externa') : null,
+    impressao_laudo: _meExterno() ? null : sharedStr('e-impressao-laudo'),
     feto,
   };
 }

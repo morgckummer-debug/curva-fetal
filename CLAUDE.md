@@ -1917,3 +1917,9 @@ Botão "Trocar modalidade…" ao lado de "Encerrar…" (`recepcaoTrocarAbrir`, `
 **Obstétrico com colo: tolerância até 20 semanas (2026-10-14).** Janela 16s0d–18s0d com `tol: 14` (até 20s0d), no mesmo mecanismo da tolerância do Doppler: um obstétrico feito com 19 semanas conta como esse exame. O CalcMK (`morgckummer-debug/CalcMK`) espelha as janelas e precisa do mesmo ajuste.
 
 **Próximo exame já agendado (2026-10-14):** no cartão "Próximo exame" da ficha, quando o exame tem horário em `agendamento.agendados` (estado `agendado`), o período para agendar e o botão "Copiar para a agenda" somem; fica o exame, o dia/hora marcados e "paciente confirmou / aguardando confirmação". Sem agendamento o cartão é o de sempre.
+
+## Pagamento: só "Pago" ou "Aguardando pagamento"; perda de um gêmeo pelo Encerrar (2026-10-14)
+
+- A Morgana tirou o "Pago em parte": o seletor da conferência tem só **Pago** (`quitado`) e **Aguardando pagamento** (`pendente`). Registro antigo com `parcial` é lido como aguardando (`_rcInfo`, `_RC_PAG.parcial`). Filtro/KPI renomeados para "Aguardando pagamento".
+- O quadro de pagamento não grava nada sozinho: qualquer mudança nele mostra "Alterações ainda não salvas: toque em Salvar conferência" (`_rcPagSujo`).
+- **Perda de um dos gêmeos** é opção do seletor "Encerrar…" (só em plano gemelar), mas **não encerra**: abre a troca de modalidade já travada no plano de feto único correspondente (`_TR_PERDA_GEMELAR`: Gemelar Essencial → Essencial, Gemelar Premium → Premium), tipo `gemelar_perda`, sem prazo e sem os 20%. Pelo item 8c a diferença vira crédito de 12 meses ou ultrassons extras, **não dinheiro**: o texto e o termo aditivo deixaram de oferecer devolução em Pix nesse caso.

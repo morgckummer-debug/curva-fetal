@@ -2818,13 +2818,13 @@ const _RC_AG_RESP_H = 24; // paciente respondeu e ninguém marcou na agenda // s
 let _rcMedica = false;
 
 const _RC_FILTROS = [
-  ['todas', 'Todas'], ['respondeu', 'Respondeu · agendar'], ['aguardando', 'Aguardando resposta'], ['combinar', 'Datas a combinar'], ['pagamento', 'Pagamento a confirmar'], ['devolucao', 'Devolução a resolver'], ['encerradas', 'Encerradas'],
+  ['todas', 'Todas'], ['respondeu', 'Respondeu · agendar'], ['aguardando', 'Aguardando resposta'], ['combinar', 'Datas a combinar'], ['pagamento', 'Aguardando pagamento'], ['devolucao', 'Devolução a resolver'], ['encerradas', 'Encerradas'],
 ];
 const _RC_ENC_ROTULO = { finalizada: 'Parto realizado', aborto: 'Perda gestacional', ectopica: 'Gestação ectópica', obito_fetal: 'Óbito fetal', desistencia: 'Desistência' };
 const _RC_PAG = {
-  quitado:  { rotulo: 'Pago',          cls: 'rc-pill--ok' },
-  parcial:  { rotulo: 'Pago em parte', cls: 'rc-pill--parcial' },
-  pendente: { rotulo: 'A confirmar',   cls: 'rc-pill--pend' },
+  quitado:  { rotulo: 'Pago',                 cls: 'rc-pill--ok' },
+  parcial:  { rotulo: 'Aguardando pagamento', cls: 'rc-pill--pend' }, // registros antigos
+  pendente: { rotulo: 'Aguardando pagamento', cls: 'rc-pill--pend' },
 };
 
 async function _abrirRecepcao() {
@@ -2879,7 +2879,8 @@ function _rcInfo(r) {
   if (!sit) return null;
   const hoje = _hojeISO();
   const em7 = _rvAddDias(hoje, 7);
-  const pag = (r.pagamento && r.pagamento.status) || 'pendente';
+  // Só existem "pago" e "aguardando pagamento" (Morgana, 2026-10-14); um 'parcial' antigo conta como aguardando.
+  const pag = (r.pagamento && r.pagamento.status) === 'quitado' ? 'quitado' : 'pendente';
   const atrasadas = sit.slots.filter(s => s.status === 'atrasado');
   const p = sit.prox;
   const limite = p ? (p.ateTol || p.ate) : null;
@@ -2949,7 +2950,7 @@ function recepcaoFiltrar() {
   const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
   document.getElementById('rc-kpis').innerHTML =
     kpi('todas', todos.length, 'Acompanhamentos ativos') +
-    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Pagamento a confirmar', 'rc-kpi--alerta') +
+    kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Aguardando pagamento', 'rc-kpi--alerta') +
     (_rcAgOk ? kpi('respondeu', todos.filter(i => i.agEstado === 'respondeu').length, 'Respondeu · agendar', todos.some(i => i.agEstado === 'respondeu') ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
       kpi('aguardando', todos.filter(i => i.agEstado === 'aguardando').length, 'Aguardando resposta' + (todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? ' · ' + todos.filter(i => i.agEstado === 'aguardando' && i.agUrgente).length + ' atrasada(s)' : ''), todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
       kpi('combinar', todos.filter(i => i.agEstado === 'sem').length, 'Datas a combinar', 'rc-kpi--atencao') : '');
@@ -3250,12 +3251,11 @@ function _rcDetalheHtml(i) {
     ? `Última conferência: ${escapeHtml(pg.atualizado_por || '—')}, ${quando}`
     : 'Nenhuma conferência registrada ainda.';
   const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
-  const pagHtml = `<div class="rc-pag">
+  const pagHtml = `<div class="rc-pag" oninput="_rcPagSujo()" onchange="_rcPagSujo()">
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Pagamento do acompanhamento</div><button type="button" class="rc-btn-claro" onclick="recepcaoComprovanteAbrir(${r.gestacao_id})">Comprovante${(pg.comprovantes || []).length ? ' (' + pg.comprovantes.length + ')' : ''}</button><span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span></div>
     <div class="rc-seg" id="rc-pg-seg">
-      <button type="button" data-v="quitado" class="${st === 'quitado' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('quitado')">Pago por completo</button>
-      <button type="button" data-v="parcial" class="${st === 'parcial' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('parcial')">Pago em parte</button>
-      <button type="button" data-v="pendente" class="${st === 'pendente' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('pendente')">Ainda não pago</button>
+      <button type="button" data-v="quitado" class="${st === 'quitado' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('quitado')">Pago</button>
+      <button type="button" data-v="pendente" class="${st === 'pendente' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('pendente')">Aguardando pagamento</button>
     </div>
     <div class="rc-form">
       <div><label for="rc-pg-forma">Forma de pagamento</label><select id="rc-pg-forma" onchange="_rcPagUi()">
@@ -3263,7 +3263,7 @@ function _rcDetalheHtml(i) {
       <div id="rc-pg-parc-w"><label for="rc-pg-parc">Parcelas</label><select id="rc-pg-parc">
         ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${(pg.parcelas || 1) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></div>
       <div><label for="rc-pg-celular">Celular da paciente</label><input type="tel" id="rc-pg-celular" value="${escapeHtml(pg.celular || '')}" placeholder="(31) 9 9999-9999"></div>
-      <div><label for="rc-pg-pago">Valor pago até agora (R$)</label><input type="number" id="rc-pg-pago" step="0.01" min="0" value="${pg.valor_pago != null ? pg.valor_pago : (st === 'quitado' ? ((_ADESAO_PRECO[r.acompanhamento] || {}).total || '') : '')}" placeholder="Ex.: 3400"></div>
+      <div><label for="rc-pg-pago">Valor pago (R$)</label><input type="number" id="rc-pg-pago" step="0.01" min="0" value="${pg.valor_pago != null ? pg.valor_pago : (st === 'quitado' ? ((_ADESAO_PRECO[r.acompanhamento] || {}).total || '') : '')}" placeholder="Ex.: 3400"></div>
       <label class="rc-chk"><input type="checkbox" id="rc-pg-contrato" ${pg.contrato_assinado ? 'checked' : ''}> Contrato assinado</label>
       <div class="rc-col2" style="grid-column:1/-1;"><label for="rc-pg-obs">Observação (opcional)</label><input type="text" id="rc-pg-obs" maxlength="500" value="${escapeHtml(pg.observacao || '')}" placeholder="Ex.: entrada no Pix, restante em 5x no cartão"></div>
     </div>
@@ -3288,7 +3288,7 @@ function _rcDetalheHtml(i) {
     ${pagHtml}
     ${i.enc ? '' : `<div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
       <select id="rc-enc-motivo" style="padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:13px;background:#fff;">
-        <option value="">Encerrar acompanhamento…</option><option value="parto">Parto realizado</option><option value="perda">Perda gestacional</option><option value="obito">Óbito fetal</option><option value="desistencia">Desistência da paciente</option></select>
+        <option value="">Encerrar acompanhamento…</option><option value="parto">Parto realizado</option><option value="perda">Perda gestacional</option><option value="obito">Óbito fetal</option><option value="desistencia">Desistência da paciente</option>${_TR_PERDA_GEMELAR[r.acompanhamento] ? '<option value="perda_gemelar">Perda de um dos gêmeos</option>' : ''}</select>
       <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrarAbrir(${r.gestacao_id})">Encerrar…</button>
       <button type="button" class="rc-btn-claro" onclick="recepcaoTrocarAbrir(${r.gestacao_id})">Trocar modalidade…</button></div>`}
     ${(!i.enc && sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
@@ -3636,6 +3636,8 @@ function recepcaoEncerrarAbrir(gid, retro) {
   _encRetro = !!retro;
   const sel = document.getElementById('rc-enc-motivo');
   const motivo = retro ? _ENC_STATUS_MOTIVO[r.status] : (sel ? sel.value : '');
+  // Perda de um dos gêmeos não encerra: o plano passa ao de feto único (item 8c), pela troca de modalidade.
+  if (motivo === 'perda_gemelar') { recepcaoTrocarAbrir(gid, _TR_PERDA_GEMELAR[r.acompanhamento]); return; }
   if (!motivo) { alert(retro ? 'Não reconheci o motivo do encerramento desta ficha.' : 'Escolha o motivo do encerramento.'); return; }
   const sit = _acompSituacao(r, r.exames || []);
   if (!sit) { alert('Esta paciente não tem plano.'); return; }
@@ -3751,6 +3753,7 @@ async function _encConfirmar(motivo) {
 // exclusivo da modalidade atual; a clínica retém 20% da diferença. Qualquer troca até 26 semanas
 // (fim da janela do morfológico de 2º trimestre), única ou gemelar; só a perda de um feto (8c) não tem prazo.
 let _trGid = null;
+const _TR_PERDA_GEMELAR = { gemelar_essencial: 'essencial', gemelar_dc: 'premium' };
 function _trCalc(r, sit, nova, cartao, taxaPct, parcelas) {
   const atual = r.acompanhamento;
   const pA = _ADESAO_PRECO[atual], pN = _ADESAO_PRECO[nova];
@@ -3813,7 +3816,7 @@ function _trTexto(r, c) {
     if (c.retencao) L.push(`Retenção da clínica (20%): ${_brl(c.retencao)}`);
     if (c.descontoExtras) L.push(`Desconto de ${c.extrasExcedentes} ultrassom(ns) extra(s) usado(s) além do novo total: ${_brl(c.descontoExtras)}`);
     if (c.taxaVal) L.push(`Taxa da operadora do cartão: ${_brl(c.taxaVal)}`);
-    L.push(`A devolver em dinheiro/Pix: ${_brl(c.valor)}`);
+    if (c.tipo !== 'gemelar_perda') L.push(`A devolver em dinheiro/Pix: ${_brl(c.valor)}`);
     if (c.tipo !== 'gemelar_perda') L.push(`Ou crédito de 12 meses na clínica (sem retenção de 20%${c.taxaCredito ? ', só a taxa do cartão de ' + _brl(c.taxaCredito) : ''}): ${_brl(c.credito)}`);
     if (c.tipo === 'gemelar_perda') L.push(`Crédito de 12 meses: ${_brl(c.valor)}` + (c.tipo === 'gemelar_perda' ? ` — ou até ${c.extrasEquiv} ultrassom(ns) extra(s) a ${_brl(_EXTRA_AVULSO)}` : ''));
   }
@@ -3821,7 +3824,8 @@ function _trTexto(r, c) {
   return L.join('\n');
 }
 
-function recepcaoTrocarAbrir(gid) {
+// fixa: modalidade de destino já decidida (perda de um dos gêmeos, vindo de "Encerrar…").
+function recepcaoTrocarAbrir(gid, fixa) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
   if (!r) return;
   const sit = _acompSituacao(r, r.exames || []);
@@ -3833,10 +3837,10 @@ function recepcaoTrocarAbrir(gid) {
   el.id = 'rc-tr-modal';
   el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;';
   const inp = 'padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box;';
-  const opts = Object.keys(_ADESAO_PRECO).filter(k => k !== r.acompanhamento)
+  const opts = Object.keys(_ADESAO_PRECO).filter(k => fixa ? k === fixa : k !== r.acompanhamento)
     .map(k => `<option value="${k}">${escapeHtml(_ADESAO_PRECO[k].nome)} — ${_brl(_ADESAO_PRECO[k].total)}</option>`).join('');
   el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
-    <h3 style="margin:0 0 4px;">Trocar modalidade</h3>
+    <h3 style="margin:0 0 4px;">${fixa ? 'Perda de um dos gêmeos' : 'Trocar modalidade'}</h3>${fixa ? '<div style="font-size:13px;margin-bottom:8px;">O acompanhamento continua, agora no plano de feto único. A diferença vira crédito de 12 meses ou ultrassons extras (contrato, item 8c).</div>' : ''}
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · hoje: ${escapeHtml(_ADESAO_PRECO[r.acompanhamento].nome)} (${_brl(_ADESAO_PRECO[r.acompanhamento].total)}) · IG ${sit.igHoje != null ? _acompSemDia(sit.igHoje) : '—'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="grid-column:1/-1;"><label style="font-size:12px;">Nova modalidade</label><select id="rc-tr-nova" style="${inp}" onchange="_trRefazer()">${opts}</select></div>
@@ -3876,7 +3880,7 @@ function _trTermoHtml(r, c, d) {
   const dataExt = `${hoje.getDate()} de ${_ADESAO_MESES[hoje.getMonth()]} de ${hoje.getFullYear()}`;
   const corpo = c.direcao === 'upgrade'
     ? `<p>A gestante passa a ter direito aos exames da modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. O valor da troca é a diferença entre os preços das modalidades (Anexo I do contrato), <b>${_brl(c.valor)}</b> (${_extensoReais(c.valor)}), a ser paga ${c.parcelas > 1 ? `em ${c.parcelas} parcelas de ${_brl(c.valorParcela)} no cartão de crédito` : 'à vista ou em 1 parcela no cartão de crédito'}.</p>`
-    : `<p>A gestante passa à modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. A diferença entre os preços das modalidades é de <b>${_brl(-c.diff)}</b>${c.retencao ? `; a clínica retém 20% (${_brl(c.retencao)})` : ''}${c.descontoExtras ? `; são descontados ${_brl(c.descontoExtras)} de ultrassom(ns) extra(s) já utilizado(s) além do total da nova modalidade, pelo valor avulso do Anexo II` : ''}${c.taxaVal ? `; são descontadas as taxas da operadora do cartão (${_brl(c.taxaVal)})` : ''}. ${c.tipo === 'gemelar_perda' ? `O saldo de <b>${_brl(c.valor)}</b> será devolvido à gestante ou, se ela preferir, mantido como crédito válido por 12 (doze) meses, nas regras do item 7c do contrato.` : `O saldo de <b>${_brl(c.valor)}</b> será devolvido à gestante em dinheiro ou Pix. Se ela preferir, a diferença é mantida como crédito para uso na clínica, válido por 12 (doze) meses (item 7c do contrato), sem a retenção de 20%${c.taxaCredito ? ` e descontada apenas a taxa da operadora do cartão (${_brl(c.taxaCredito)})` : ''}, no valor de <b>${_brl(c.credito)}</b>.`}</p>`;
+    : `<p>A gestante passa à modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. A diferença entre os preços das modalidades é de <b>${_brl(-c.diff)}</b>${c.retencao ? `; a clínica retém 20% (${_brl(c.retencao)})` : ''}${c.descontoExtras ? `; são descontados ${_brl(c.descontoExtras)} de ultrassom(ns) extra(s) já utilizado(s) além do total da nova modalidade, pelo valor avulso do Anexo II` : ''}${c.taxaVal ? `; são descontadas as taxas da operadora do cartão (${_brl(c.taxaVal)})` : ''}. ${c.tipo === 'gemelar_perda' ? `O saldo de <b>${_brl(c.valor)}</b> fica como crédito válido por 12 (doze) meses, nas regras do item 7c do contrato, ou é convertido em até ${c.extrasEquiv} ultrassom(ns) extra(s), pelo valor avulso do Anexo II.` : `O saldo de <b>${_brl(c.valor)}</b> será devolvido à gestante em dinheiro ou Pix. Se ela preferir, a diferença é mantida como crédito para uso na clínica, válido por 12 (doze) meses (item 7c do contrato), sem a retenção de 20%${c.taxaCredito ? ` e descontada apenas a taxa da operadora do cartão (${_brl(c.taxaCredito)})` : ''}, no valor de <b>${_brl(c.credito)}</b>.`}</p>`;
   const tg = (c.nova === 'premium' || c.nova === 'gemelar_dc') && c.atual !== 'premium' && c.atual !== 'gemelar_dc'
     ? (d.telegramCodigo ? `<p>A gestante passa a ter o canal direto no Telegram a partir da data deste termo. Leia o QR abaixo com a câmera do celular (uso individual).</p><div style="width:130px;height:130px">${_telegramQrSvg(d.telegramCodigo)}</div>` : '<p>A gestante passa a ter o canal direto no Telegram a partir da data deste termo; o QR de acesso será entregue pela clínica.</p>')
     : (c.avisos.some(a => /termina/.test(a)) ? '<p>O canal direto no Telegram termina na data deste termo.</p>' : '');
@@ -6591,9 +6595,18 @@ ${telCanal ? (d.telegramCodigo
 </body></html>`;
 }
 
-// Segmento "pago / em parte / não pago": guarda a escolha no próprio botão até salvar.
+// Segmento "pago / aguardando pagamento": guarda a escolha no próprio botão até salvar.
 function recepcaoPagSeg(v) {
   document.querySelectorAll('#rc-pg-seg button').forEach(b => b.classList.toggle('rc-on', b.dataset.v === v));
+  _rcPagSujo();
+}
+// Nada do quadro de pagamento é gravado sozinho: avisa que falta tocar em "Salvar conferência".
+function _rcPagSujo() {
+  const m = document.getElementById('rc-pg-msg');
+  if (!m || m.dataset.sujo) return;
+  m.dataset.sujo = '1';
+  m.style.color = 'var(--danger)';
+  m.textContent = 'Alterações ainda não salvas: toque em "Salvar conferência".';
 }
 function _rcPagUi() {
   const f = document.getElementById('rc-pg-forma');

@@ -28,8 +28,8 @@ h1{font-size:21px;margin:0 0 6px;color:#4b2a6b}
 h2{font-size:17px;margin:0 0 2px;color:#4b2a6b}
 .jan{font-size:14px;color:#7a6a88;margin-bottom:10px}
 .lin{display:flex;gap:8px;margin-bottom:8px}
-.lin input,.lin select,textarea{font:inherit;padding:11px 10px;border:1px solid #cdbfd8;border-radius:10px;background:#fff;color:inherit;min-width:0}
-.lin input{flex:1.3}.lin select{flex:1}
+.lin select,textarea{font:inherit;padding:11px 10px;border:1px solid #cdbfd8;border-radius:10px;background:#fff;color:inherit;min-width:0}
+.lin select{flex:1}.lin select:first-child{flex:1.6}
 textarea{width:100%;resize:vertical}
 button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px;width:100%;background:#4b2a6b;color:#fff;cursor:pointer}
 button:disabled{opacity:.5}
@@ -64,6 +64,13 @@ small{color:#7a6a88}
   function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
   function fmt(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   function fmtLongo(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4); }
+  var SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+  function fmtDia(iso) { var d = new Date(iso + 'T12:00:00Z'); return SEM[d.getUTCDay()] + ', ' + fmtLongo(iso); }
+  function diasEntre(de, ate) {
+    var out = [], d = new Date(de + 'T12:00:00Z'), fim = new Date(ate + 'T12:00:00Z');
+    while (d <= fim && out.length < 120) { out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
+    return out;
+  }
   var PER = { qualquer: 'qualquer horário', manha: 'manhã', tarde: 'tarde' };
   function limpa() { while (app.firstChild) app.removeChild(app.firstChild); }
 
@@ -102,13 +109,16 @@ small{color:#7a6a88}
     dados.exames.forEach(function (ex) {
       var c = el('div', 'card');
       c.appendChild(el('h2', null, ex.n));
-      c.appendChild(el('div', 'jan', 'Entre ' + fmt(ex.de) + ' e ' + fmt(ex.ate)));
+      c.appendChild(el('div', 'jan', 'Entre ' + fmtLongo(ex.de) + ' e ' + fmtLongo(ex.ate)));
       var linhas = [];
       for (var k = 0; k < 1; k++) {
         var l = el('div', 'lin');
-        var inp = document.createElement('input');
-        inp.type = 'date'; inp.min = ex.de; inp.max = ex.ate;
-        inp.setAttribute('aria-label', 'Data ' + (k + 1) + ' de ' + ex.n);
+        var inp = document.createElement('select');
+        inp.setAttribute('aria-label', 'Dia de ' + ex.n);
+        var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Escolha o dia'; inp.appendChild(o0);
+        diasEntre(ex.de, ex.ate).forEach(function (iso) {
+          var o = document.createElement('option'); o.value = iso; o.textContent = fmtDia(iso); inp.appendChild(o);
+        });
         var sel = document.createElement('select');
         [['qualquer', 'Qualquer horário'], ['manha', 'Manhã'], ['tarde', 'Tarde']].forEach(function (o) {
           var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; sel.appendChild(op);

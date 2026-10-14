@@ -1885,3 +1885,11 @@ Linguagem de obstetra, revisada caso a caso a partir de exemplos gerados pelo ap
 - **Condutas** só de ultrassom: RCIU "Seguimento semanal com Doppler para melhor decisão do momento do parto"; diástole zero "Doppler 2×/semana ambulatorial ou em ambiente hospitalar"; GIG/adequado "Reavaliação conforme protocolo de seguimento" (sem semanas). Saíram a confirmação de ACM/RCP em 24 h e a nota de neurodesenvolvimento pós-natal.
 - Pré-eclâmpsia no relatório: "Risco aumentado de pré-eclâmpsia (Priorizar vigilância)" fora da janela do AAS.
 - GIG só com peso (PFE) acima do P90; CA > P90 com peso normal não diagnostica.
+
+## Trocar modalidade: upgrade e downgrade na ficha da recepção (2026-10-14, migração 029)
+
+Botão "Trocar modalidade…" ao lado de "Encerrar…" (`recepcaoTrocarAbrir`, `_trCalc`, `_trConfirmar`), implementando o item 9b do contrato. Antes só existia o texto.
+- **Upgrade**: paga a diferença dos preços (`_ADESAO_PRECO`), até 3x no cartão. **Downgrade**: bloqueado se já fez exame exclusivo da modalidade atual; retém 20% da diferença, desconta taxa do cartão e ultrassom extra usado além do total da nova modalidade (avulso R$ 230, em dobro na gemelar); devolve ou vira crédito de 12 meses.
+- **Prazo**: até o US de 32 semanas com tolerância (`ACOMP_EX.d32`), senão bloqueia. Exceções: gemelar identificada depois (9a, mesmo nível, único→gemelar) não tem prazo; gemelar→único (8c) não retém 20%, a diferença vira crédito (menos taxa) ou extras a R$ 230.
+- A migração 029 troca `gestacoes.acompanhamento` pela RPC `recepcao_trocar_modalidade` e guarda o registro em `pagamentos_acompanhamento.trocas`. O termo aditivo é impresso e arquivado na ficha como "Termo aditivo" (junto aos contratos; para Premium traz o QR do Telegram). **A 029 precisa estar aplicada.** O valor pago não é alterado: a recepção ajusta na conferência de pagamento.
+- Os totais usados são os da tabela de preços, não o valor eventualmente reduzido de uma entrada tardia.

@@ -3167,7 +3167,8 @@ function _rcDetalheHtml(i) {
     ${i.enc ? '' : `<div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
       <select id="rc-enc-motivo" style="padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:13px;background:#fff;">
         <option value="">Encerrar acompanhamento…</option><option value="parto">Parto realizado</option><option value="perda">Perda gestacional</option><option value="obito">Óbito fetal</option><option value="desistencia">Desistência da paciente</option></select>
-      <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrarAbrir(${r.gestacao_id})">Encerrar…</button></div>`}
+      <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrarAbrir(${r.gestacao_id})">Encerrar…</button>
+      <button type="button" class="rc-btn-claro" onclick="recepcaoTrocarAbrir(${r.gestacao_id})">Trocar modalidade…</button></div>`}
     ${(!i.enc && sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
 }
 
@@ -3215,13 +3216,13 @@ function recepcaoContratoGerar(gid) {
 }
 
 // Guarda a cópia do contrato gerado (HTML) no mesmo bucket privado dos comprovantes.
-async function _contratoArquivar(gid, html, valor) {
+async function _contratoArquivar(gid, html, valor, nome) {
   const dono = await _compDonoId();
   const path = `${dono}/${gid}/contrato-${Date.now()}.html`;
   const up = await supabaseClient.storage.from('comprovantes').upload(path, new Blob([html], { type: 'text/html' }), { contentType: 'text/html', upsert: false });
   if (up.error) throw up.error;
   const { error } = await supabaseClient.rpc('recepcao_contrato_add', {
-    p_gestacao_id: gid, p_path: path, p_nome: 'Contrato gerado', p_tipo: 'text/html', p_kind: 'gerado', p_valor: valor,
+    p_gestacao_id: gid, p_path: path, p_nome: nome || 'Contrato gerado', p_tipo: 'text/html', p_kind: 'gerado', p_valor: valor,
   });
   if (error) { await supabaseClient.storage.from('comprovantes').remove([path]); throw error; }
 }
@@ -3609,6 +3610,179 @@ async function _encConfirmar(motivo) {
     if (!_encRetro) _rcSel = null;
     await recepcaoAtualizar();
   } catch (err) { console.error(err); alert('Não consegui salvar: ' + (err.message || err)); }
+}
+
+// ── Troca de modalidade (contrato item 9; migração 029) ──────────────────
+// Upgrade: paga a diferença dos preços (Anexo I), até 3x no cartão. Downgrade: só se não fez exame
+// exclusivo da modalidade atual; a clínica retém 20% da diferença. Qualquer troca até o US de 32 semanas
+// (com a tolerância dele). Gemelar identificada depois (9a) e perda de um feto (8c) são casos à parte.
+let _trGid = null;
+function _trCalc(r, sit, nova, cartao, taxaPct, parcelas) {
+  const atual = r.acompanhamento;
+  const pA = _ADESAO_PRECO[atual], pN = _ADESAO_PRECO[nova];
+  const planoN = ACOMP_PLANOS[nova];
+  const gemA = atual.startsWith('gemelar'), gemN = nova.startsWith('gemelar');
+  const premA = atual === 'premium' || atual === 'gemelar_dc', premN = nova === 'premium' || nova === 'gemelar_dc';
+  const mult = gemN ? 2 : 1;
+  const diff = pN.total - pA.total;
+  const out = { atual, nova, totalAtual: pA.total, totalNovo: pN.total, diff, bloqueios: [], avisos: [] };
+  out.tipo = (!gemA && gemN && premA === premN) ? 'gemelar_ident' : (gemA && !gemN && premA === premN) ? 'gemelar_perda' : 'modalidade';
+  const lim = ACOMP_EX.d32.fim + (ACOMP_EX.d32.tol || 0);
+  out.limite = lim;
+  if (out.tipo === 'modalidade' && sit.igHoje != null && sit.igHoje > lim)
+    out.bloqueios.push(`Passou do ultrassom de 32 semanas (até ${_acompSemDia(lim)}): a troca não é mais possível. Os exames da outra modalidade saem pelo valor avulso.`);
+  const taxa = cartao ? taxaPct / 100 : 0;
+  // Extras já usados contam dentro do total da nova modalidade; o que exceder é descontado pelo avulso.
+  const exc = Math.max(0, sit.extras.length - planoN.extras);
+  out.extrasExcedentes = exc;
+  out.descontoExtras = exc * _EXTRA_AVULSO * mult;
+  const subindo = diff > 0;
+  if (subindo) {
+    out.direcao = 'upgrade';
+    out.valor = diff;
+    out.parcelas = Math.min(3, Math.max(1, parcelas || 1));
+    out.valorParcela = diff / out.parcelas;
+  } else {
+    out.direcao = 'downgrade';
+    const abs = -diff;
+    if (out.tipo === 'gemelar_perda') {
+      // 8c: a diferença vira crédito (menos taxa do cartão) ou ultrassons extras, sem retenção de 20%.
+      out.retencao = 0;
+      out.base = abs;
+    } else {
+      out.retencao = abs * 0.2;
+      out.base = abs - out.retencao;
+      const feitosExcl = sit.slots.map((s, i) => ({ s, k: sit.plano.ex[i] })).filter(x => x.s.hit && !planoN.ex.includes(x.k));
+      out.exclusivos = feitosExcl.map(x => x.s.def.n);
+      if (feitosExcl.length) out.bloqueios.push('Já foi feito exame exclusivo da modalidade atual (' + out.exclusivos.join(', ') + '): não é possível trocar para uma inferior.');
+    }
+    out.base = Math.max(0, out.base - out.descontoExtras);
+    out.taxaVal = out.base * taxa;
+    out.valor = out.base - out.taxaVal;
+    out.extrasEquiv = Math.floor(out.base / (_EXTRA_AVULSO * mult));
+  }
+  if (premN !== premA) out.avisos.push(premN ? 'Passa a ter o canal direto no Telegram (QR no termo).' : 'O canal direto no Telegram termina na data da troca.');
+  return out;
+}
+
+function _trTexto(r, c) {
+  const rotulo = k => _ADESAO_PRECO[k].nome;
+  const L = [`${rotulo(c.atual)} (${_brl(c.totalAtual)}) → ${rotulo(c.nova)} (${_brl(c.totalNovo)})`];
+  if (c.direcao === 'upgrade') {
+    L.push(`Diferença a pagar: ${_brl(c.valor)}` + (c.parcelas > 1 ? ` em ${c.parcelas}x de ${_brl(c.valorParcela)} no cartão` : ' (à vista ou em 1x)'));
+  } else {
+    L.push(`Diferença: ${_brl(-(c.diff))}`);
+    if (c.retencao) L.push(`Retenção da clínica (20%): ${_brl(c.retencao)}`);
+    if (c.descontoExtras) L.push(`Desconto de ${c.extrasExcedentes} ultrassom(ns) extra(s) usado(s) além do novo total: ${_brl(c.descontoExtras)}`);
+    if (c.taxaVal) L.push(`Taxa da operadora do cartão: ${_brl(c.taxaVal)}`);
+    L.push(`A devolver (ou crédito de 12 meses): ${_brl(c.valor)}` + (c.tipo === 'gemelar_perda' ? ` — ou até ${c.extrasEquiv} ultrassom(ns) extra(s) a ${_brl(_EXTRA_AVULSO)}` : ''));
+  }
+  c.avisos.forEach(a => L.push(a));
+  return L.join('\n');
+}
+
+function recepcaoTrocarAbrir(gid) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  if (!r) return;
+  const sit = _acompSituacao(r, r.exames || []);
+  if (!sit) { alert('Esta paciente não tem plano.'); return; }
+  _trGid = gid;
+  const pg = r.pagamento || {};
+  let el = document.getElementById('rc-tr-modal'); if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'rc-tr-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px;';
+  const inp = 'padding:8px 10px;border:1px solid var(--border);border-radius:10px;font:inherit;font-size:14px;width:100%;box-sizing:border-box;';
+  const opts = Object.keys(_ADESAO_PRECO).filter(k => k !== r.acompanhamento)
+    .map(k => `<option value="${k}">${escapeHtml(_ADESAO_PRECO[k].nome)} — ${_brl(_ADESAO_PRECO[k].total)}</option>`).join('');
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
+    <h3 style="margin:0 0 4px;">Trocar modalidade</h3>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · hoje: ${escapeHtml(_ADESAO_PRECO[r.acompanhamento].nome)} (${_brl(_ADESAO_PRECO[r.acompanhamento].total)}) · IG ${sit.igHoje != null ? _acompSemDia(sit.igHoje) : '—'}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div style="grid-column:1/-1;"><label style="font-size:12px;">Nova modalidade</label><select id="rc-tr-nova" style="${inp}" onchange="_trRefazer()">${opts}</select></div>
+      <div><label style="font-size:12px;">Pagamento no cartão?</label><select id="rc-tr-cartao" style="${inp}" onchange="_trRefazer()"><option value="1" ${pg.forma === 'cartao' || !pg.forma ? 'selected' : ''}>Sim</option><option value="0" ${pg.forma && pg.forma !== 'cartao' ? 'selected' : ''}>Não</option></select></div>
+      <div><label style="font-size:12px;">Parcelas (upgrade, até 3)</label><select id="rc-tr-parc" style="${inp}" onchange="_trRefazer()"><option>1</option><option>2</option><option selected>3</option></select></div>
+      <div><label style="font-size:12px;">Taxa maquininha (%)</label><input id="rc-tr-taxa" type="number" step="0.1" min="0" value="${_TAXA_MAQUININHA_PCT}" style="${inp}" oninput="_trRefazer()"></div>
+    </div>
+    <pre id="rc-tr-res" style="white-space:pre-wrap;font:inherit;font-size:13.5px;background:#f6f1f9;border-radius:10px;padding:12px;margin:0 0 8px;"></pre>
+    <div id="rc-tr-bloq" style="font-size:13px;color:var(--danger);font-weight:700;margin-bottom:8px;"></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Ao confirmar, o plano da ficha muda na hora e abre o termo aditivo para imprimir e assinar (uma cópia fica arquivada na ficha). Depois, ajuste o valor pago na conferência de pagamento quando a diferença for paga ou devolvida.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-tr-modal').remove()">Cancelar</button>
+      <button type="button" class="rc-btn-dark" id="rc-tr-ok" onclick="_trConfirmar()">Confirmar troca e gerar termo</button></div></div>`;
+  document.body.appendChild(el);
+  _trRefazer();
+}
+
+function _trAtual() {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _trGid);
+  if (!r) return null;
+  const sit = _acompSituacao(r, r.exames || []);
+  const nova = document.getElementById('rc-tr-nova').value;
+  const c = _trCalc(r, sit, nova, document.getElementById('rc-tr-cartao').value === '1',
+    parseFloat(document.getElementById('rc-tr-taxa').value) || 0, parseInt(document.getElementById('rc-tr-parc').value, 10));
+  return { r, sit, c };
+}
+function _trRefazer() {
+  const a = _trAtual(); if (!a) return;
+  document.getElementById('rc-tr-res').textContent = _trTexto(a.r, a.c);
+  document.getElementById('rc-tr-bloq').textContent = a.c.bloqueios.join(' ');
+  document.getElementById('rc-tr-ok').disabled = a.c.bloqueios.length > 0;
+}
+
+function _trTermoHtml(r, c, d) {
+  const E = escapeHtml, N = k => _ADESAO_PRECO[k].nome;
+  const hoje = new Date();
+  const dataExt = `${hoje.getDate()} de ${_ADESAO_MESES[hoje.getMonth()]} de ${hoje.getFullYear()}`;
+  const corpo = c.direcao === 'upgrade'
+    ? `<p>A gestante passa a ter direito aos exames da modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. O valor da troca é a diferença entre os preços das modalidades (Anexo I do contrato), <b>${_brl(c.valor)}</b> (${_extensoReais(c.valor)}), a ser paga ${c.parcelas > 1 ? `em ${c.parcelas} parcelas de ${_brl(c.valorParcela)} no cartão de crédito` : 'à vista ou em 1 parcela no cartão de crédito'}.</p>`
+    : `<p>A gestante passa à modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. A diferença entre os preços das modalidades é de <b>${_brl(-c.diff)}</b>${c.retencao ? `; a clínica retém 20% (${_brl(c.retencao)})` : ''}${c.descontoExtras ? `; são descontados ${_brl(c.descontoExtras)} de ultrassom(ns) extra(s) já utilizado(s) além do total da nova modalidade, pelo valor avulso do Anexo II` : ''}${c.taxaVal ? `; são descontadas as taxas da operadora do cartão (${_brl(c.taxaVal)})` : ''}. O saldo de <b>${_brl(c.valor)}</b> será devolvido à gestante ou, se ela preferir, mantido como crédito válido por 12 (doze) meses, nas regras do item 7c do contrato.</p>`;
+  const tg = (c.nova === 'premium' || c.nova === 'gemelar_dc') && c.atual !== 'premium' && c.atual !== 'gemelar_dc'
+    ? (d.telegramCodigo ? `<p>A gestante passa a ter o canal direto no Telegram a partir da data deste termo. Leia o QR abaixo com a câmera do celular (uso individual).</p><div style="width:130px;height:130px">${_telegramQrSvg(d.telegramCodigo)}</div>` : '<p>A gestante passa a ter o canal direto no Telegram a partir da data deste termo; o QR de acesso será entregue pela clínica.</p>')
+    : (c.avisos.some(a => /termina/.test(a)) ? '<p>O canal direto no Telegram termina na data deste termo.</p>' : '');
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Termo aditivo — ${E(r.nome)}</title>
+<style>@page{size:A4;margin:18mm}body{font-family:Georgia,'Times New Roman',serif;font-size:11pt;line-height:1.45;color:#1d1626;margin:0}
+h1{font-size:16pt;text-align:center;color:#3d2352;margin:0}.sub{text-align:center;color:#6b5a78;font-size:10pt;margin:2px 0 14px}p{margin:6px 0;text-align:justify}
+.ass{display:flex;gap:40px;margin-top:60px}.ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt}
+.barra-imp{position:sticky;top:0;background:#3d2352;padding:10px;text-align:center;margin:0 0 10px}.barra-imp button{font:inherit;font-size:15px;font-weight:700;padding:10px 22px;border:0;border-radius:10px;background:#f6ecd0;color:#3d2352;cursor:pointer}@media print{.barra-imp{display:none}}</style></head><body onload="window.print()">
+<div class="barra-imp"><button type="button" onclick="window.print()">🖨 Imprimir termo</button></div>
+<h1>TERMO ADITIVO — TROCA DE MODALIDADE</h1><div class="sub">Acompanhamento Fetal MK · Dra. Morgana Kummer</div>
+<p><b>CLÍNICA:</b> Kummer Serviços Médicos Ltda - ME, CNPJ 20.251.640/0001-81, Rua Cândido Azeredo, 41A, Sete Lagoas/MG, responsável técnica Dra. Morgana Kummer, CRM-MG 45.304, RQE 39.156.</p>
+<p><b>GESTANTE:</b> ${E(r.nome)}${r.cpf ? `, CPF ${E(r.cpf)}` : ''}.</p>
+<p>As partes aditam o contrato de adesão ao Acompanhamento Fetal MK, conforme o item 9 do contrato, para trocar a modalidade <b>${E(N(c.atual))}</b> (${_brl(c.totalAtual)}) pela modalidade <b>${E(N(c.nova))}</b> (${_brl(c.totalNovo)}), em ${E(d.igTxt || '')}.</p>
+${corpo}${tg}
+<p>As demais cláusulas do contrato permanecem inalteradas.</p>
+<p>Sete Lagoas, ${dataExt}.</p>
+<div class="ass"><div>Gestante</div><div>Clínica — Dra. Morgana Kummer</div></div></body></html>`;
+}
+
+async function _trConfirmar() {
+  const a = _trAtual(); if (!a || a.c.bloqueios.length) return;
+  const { r, sit, c } = a;
+  if (!confirm(`Trocar ${r.nome} de ${_ADESAO_PRECO[c.atual].nome} para ${_ADESAO_PRECO[c.nova].nome}?\n\n${_trTexto(r, c)}`)) return;
+  const w = window.open('', '_blank'); // síncrono, antes de qualquer espera: senão o navegador bloqueia
+  const btn = document.getElementById('rc-tr-ok'); if (btn) btn.disabled = true;
+  try {
+    const registro = { de: c.atual, para: c.nova, tipo: c.tipo, direcao: c.direcao, diferenca: c.diff, valor: c.valor, parcelas: c.parcelas || null, retencao: c.retencao || 0, taxa: c.taxaVal || 0, desconto_extras: c.descontoExtras || 0, ig_dias: sit.igHoje };
+    const { error } = await supabaseClient.rpc('recepcao_trocar_modalidade', { p_gestacao_id: _trGid, p_nova: c.nova, p_registro: registro });
+    if (error) throw error;
+    const d = { igTxt: sit.igHoje != null ? _acompSemDia(sit.igHoje) + ' de idade gestacional' : '' };
+    if (c.nova === 'premium' || c.nova === 'gemelar_dc') {
+      const { data: cod, error: eCod } = await supabaseClient.rpc('telegram_codigo', { p_gestacao_id: _trGid });
+      if (!eCod && cod) d.telegramCodigo = cod;
+    }
+    const html = _trTermoHtml(r, c, d);
+    if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+    try { await _contratoArquivar(_trGid, html, null, 'Termo aditivo'); } catch (e) { console.error('[CurvaFetal] termo aditivo:', e); alert('A troca foi feita, mas não consegui arquivar a cópia do termo. Imprima agora.'); }
+    const m = document.getElementById('rc-tr-modal'); if (m) m.remove();
+    await recepcaoAtualizar();
+  } catch (err) {
+    if (w) w.close();
+    if (btn) btn.disabled = false;
+    console.error(err);
+    const faltaMig = err && (err.code === 'PGRST202' || /Could not find the function|schema cache/i.test(err.message || ''));
+    alert(faltaMig ? 'A migração 029 ainda não foi aplicada no Supabase.' : 'Não consegui trocar: ' + (err.message || err));
+  }
 }
 
 async function recepcaoExcluir(gid) {

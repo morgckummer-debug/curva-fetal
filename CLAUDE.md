@@ -1951,3 +1951,5 @@ concluir marca a pré-adesão como `cadastrada`. Pagamento continua na maquininh
   WhatsApp). Muda os textos e não volta sozinho à capa; a pré-adesão chega como "preenchido em casa".
 - No iPad, a página volta à capa (e limpa o formulário) após 3 min parada, ou 40 s na tela de obrigado.
 - **A 033 precisa estar aplicada**; sem ela o bloco de pré-adesões só fica vazio e o botão de links avisa.
+
+**Contrato abre por `document.write`, não por blob: (2026-10-14).** No iPhone, o "🖨 Imprimir contrato" de um contrato aberto como `blob:` não fazia nada. Contrato da adesão, termo aditivo e contrato arquivado (`_arqAbrir`, só HTML) passam por `_escreverNaJanela(w, html)` na aba aberta de forma síncrona. Depois da Nova adesão, a paciente nova abre selecionada na lista, sem busca nem filtro (antes ficava a ficha anterior aberta e parecia que ela não tinha entrado).

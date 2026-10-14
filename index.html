@@ -4149,7 +4149,7 @@ async function _trConfirmar() {
       if (!eCod && cod) d.telegramCodigo = cod;
     }
     const html = _trTermoHtml(r, c, d);
-    if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+    if (w) _escreverNaJanela(w, html);
     try { await _contratoArquivar(_trGid, html, null, c.direcao === 'upgrade' ? 'Termo aditivo · upgrade' : 'Termo aditivo · downgrade'); } catch (e) { console.error('[CurvaFetal] termo aditivo:', e); alert('A troca foi feita, mas não consegui arquivar a cópia do termo. Imprima agora.'); }
     const m = document.getElementById('rc-tr-modal'); if (m) m.remove();
     await recepcaoAtualizar();
@@ -4374,7 +4374,7 @@ async function recepcaoAdesaoConfirmar() {
       else d.telegramCodigo = cod;
     }
     const html = _contratoHtml(d);
-    w.location.href = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+    _escreverNaJanela(w, html);
     // A cópia fica arquivada na ficha (migração 026); falhar aqui não pode derrubar o contrato já aberto.
     if (_rcAdesaoGid) {
       try { await _contratoArquivar(_rcAdesaoGid, html, d.valor); }
@@ -4389,7 +4389,14 @@ async function recepcaoAdesaoConfirmar() {
       _rcPreId = null;
     }
     recepcaoAdesaoFechar();
+    // A paciente nova abre selecionada, sem busca nem filtro escondendo-a da lista.
+    if (_rcAdesaoGid) {
+      _rcSel = Number(_rcAdesaoGid); _rcFiltro = 'todas';
+      const busca = document.getElementById('rc-busca'); if (busca) busca.value = '';
+    }
     await recepcaoAtualizar();
+    const selEl = document.querySelector('#rc-lista .rc-sel');
+    if (selEl) selEl.scrollIntoView({ block: 'nearest' });
   } catch (err) {
     console.error('[CurvaFetal] nova adesão:', err);
     try { w.close(); } catch (_) {}
@@ -7030,11 +7037,16 @@ async function _arqSubir(gid, file, prefixo, rotuloFoto) {
 }
 
 // Abre um arquivo do bucket em aba nova (download + Blob, porque o bucket é privado).
+// Escreve o HTML direto na aba recém-aberta (about:blank, mesma origem) em vez de navegar para um blob:.
+// No iPhone o botão Imprimir de um contrato aberto como blob: não fazia nada (Morgana, 2026-10-14).
+function _escreverNaJanela(w, html) { w.document.open(); w.document.write(html); w.document.close(); }
+
 async function _arqAbrir(c) {
   const janela = window.open('', '_blank');
   try {
     const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
     if (error) throw error;
+    if (janela && c.tipo === 'text/html') { _escreverNaJanela(janela, await data.text()); return; }
     const url = URL.createObjectURL(new Blob([data], { type: (c.tipo === 'text/html' ? 'text/html;charset=utf-8' : (c.tipo || data.type)) }));
     if (janela) janela.location.href = url; else window.open(url, '_blank');
   } catch (err) {

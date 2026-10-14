@@ -1977,3 +1977,13 @@ traço). Volta sozinho à capa após 10 min parado nessas telas.
 - `htmlAssinado`, o recorte e o SHA-256 em `vitrine.html` são **cópia** de `_assHtmlAssinado` etc. (o CSP
   só aceita script inline). Mudou lá, mude aqui.
 - **Via da gestante sem barra "Imprimir" (2026-10-14):** contratos gerados antes da mudança acima ainda trazem a `.barra-imp` no HTML arquivado, e ela ia junto na cópia enviada. `_semBarraImp(html)` tira a barra e o auto-print; roda em `_assHtmlAssinado` (cópia assinada nova) e em `recepcaoContratoCopia` (envio de qualquer via, inclusive antiga). As linhas de assinatura ficaram mais afastadas do texto (`.ass` margin-top 90px no contrato e no termo; o helper aplica o mesmo nos arquivos antigos).
+
+## Ausências da médica na agenda da gestante (2026-10-14, migração 036)
+
+"🗓 Minhas ausências" (Mais opções, e na barra da Recepção só na visão da médica) cadastra períodos
+(início, fim, motivo opcional) em `ausencias` (RLS só da dona). `agenda_publica` devolve `bloqueados`
+([{de, ate}], só as datas, nunca o motivo) e `agendar.html` tira esses dias e os domingos da lista;
+`agenda_responder` recusa data em domingo ou ausência. A ausência bloqueia o dia inteiro. Período sem
+nenhum dia livre mostra "fale com a equipe pelo WhatsApp" e o exame fica fora do envio. **A 036 foi
+aplicada em 2026-10-14.** A secretária não vê as ausências (Confirmar agendamento não avisa) — se ela
+precisar, é uma policy de select pelo `recepcao_acessos.dono_id`.

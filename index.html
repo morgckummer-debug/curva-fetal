@@ -1261,6 +1261,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="rc-bar-acoes">
       <span class="rc-bar-user" id="rc-user"></span>
       <button type="button" class="rc-btn" id="rc-minha-ass" style="display:none" onclick="recepcaoMinhaAssinaturaAbrir()">✍ Minha assinatura</button>
+      <button type="button" class="rc-btn" id="rc-ausencias" style="display:none" onclick="recepcaoAusenciasAbrir()">🗓 Minhas ausências</button>
       <button type="button" class="rc-btn" onclick="recepcaoAtualizar()">Atualizar</button>
       <button type="button" class="rc-btn" id="rc-sair" onclick="recepcaoSair()">Sair</button>
     </div>
@@ -1372,6 +1373,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <button class="btn btn-secondary" onclick="toggleMoreMenu(event)" aria-haspopup="true" aria-expanded="false" id="more-menu-btn">⋯ Mais opções</button>
             <div class="more-menu-list" id="more-menu-list">
               <button onclick="abrirPainelRecepcao();closeMoreMenu()" title="Tela da recepção: exames feitos e a fazer, e conferência de pagamento">💳 Painel da recepção</button>
+              <button onclick="recepcaoAusenciasAbrir();closeMoreMenu()" title="Dias em que você não atende: somem da agenda das gestantes">🗓 Minhas ausências</button>
               <button onclick="openLixeiraModal();closeMoreMenu()" title="Pacientes e exames excluídos">🗑 Lixeira</button>
               <button onclick="exportData();closeMoreMenu()" title="Baixar uma cópia de segurança de todos os dados">⬇ Backup</button>
               <button onclick="document.getElementById('import-file-input').click();closeMoreMenu()" title="Restaurar a partir de um arquivo de backup">⬆ Importar</button>
@@ -2859,6 +2861,8 @@ async function _abrirRecepcao() {
   if (u) u.textContent = _rcMedica ? 'Visão da médica' : '';
   const ma = document.getElementById('rc-minha-ass');
   if (ma) ma.style.display = _rcMedica ? '' : 'none';
+  const au = document.getElementById('rc-ausencias');
+  if (au) au.style.display = _rcMedica ? '' : 'none';
   await recepcaoAtualizar();
   const b = document.getElementById('rc-busca');
   if (b) b.focus();
@@ -3662,6 +3666,69 @@ async function recepcaoMinhaAssinaturaSalvar() {
     msg.style.color = 'var(--danger)'; msg.textContent = 'Não consegui guardar: ' + (err.message || err);
     ok.disabled = false;
   }
+}
+
+// ── Minhas ausências (migração 036) ──────────────────────────────────────────
+// Recesso, congresso, folga: a página agendar.html tira esses dias da lista da
+// gestante (e agenda_responder recusa data dentro deles). Só a médica cadastra.
+function _ausFmt(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+async function recepcaoAusenciasAbrir() {
+  let el = document.getElementById('rc-aus-modal'); if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'rc-aus-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:10px;';
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow-y:auto;padding:14px 18px;">
+    <div style="display:flex;gap:10px;align-items:flex-start;"><button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-aus-modal').remove()">← Voltar</button>
+      <div style="flex:1;"><h3 style="margin:0;">Minhas ausências</h3>
+      <div style="font-size:13px;color:var(--text-muted);">Os dias cadastrados aqui somem da lista em que a gestante escolhe a data do ultrassom. O motivo fica só para você.</div></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">
+      <label style="font-size:12.5px;">De<input type="date" id="rc-aus-ini" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:10px;font:inherit;"></label>
+      <label style="font-size:12.5px;">Até<input type="date" id="rc-aus-fim" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:10px;font:inherit;"></label>
+    </div>
+    <label style="font-size:12.5px;display:block;margin-top:8px;">Motivo (opcional)<input type="text" id="rc-aus-mot" maxlength="80" placeholder="Ex.: recesso de fim de ano" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:10px;font:inherit;"></label>
+    <div id="rc-aus-msg" style="font-size:13px;min-height:18px;margin:6px 0;"></div>
+    <div style="display:flex;justify-content:flex-end;"><button type="button" class="rc-btn-dark" id="rc-aus-ok" onclick="recepcaoAusenciaSalvar()">Adicionar ausência</button></div>
+    <div style="font-size:13px;font-weight:700;margin:14px 0 6px;">Próximas ausências</div>
+    <div id="rc-aus-lista" style="font-size:13px;color:var(--text-muted);">Carregando…</div></div>`;
+  document.body.appendChild(el);
+  const ini = document.getElementById('rc-aus-ini'), fim = document.getElementById('rc-aus-fim');
+  ini.addEventListener('change', () => { if (ini.value && (!fim.value || fim.value < ini.value)) fim.value = ini.value; });
+  await _ausListar();
+}
+async function _ausListar() {
+  const box = document.getElementById('rc-aus-lista'); if (!box) return;
+  const { data, error } = await supabaseClient.from('ausencias').select('id,inicio,fim,motivo')
+    .gte('fim', _hojeISO()).order('inicio');
+  if (error) {
+    box.textContent = /ausencias|relation|schema cache/i.test(error.message || '')
+      ? 'Falta aplicar a migração 036 no Supabase.' : 'Não consegui carregar: ' + error.message;
+    return;
+  }
+  if (!data.length) { box.textContent = 'Nenhuma cadastrada.'; return; }
+  box.innerHTML = data.map(a => `<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border);color:var(--text);">
+      <div style="flex:1;"><b>${a.inicio === a.fim ? _ausFmt(a.inicio) : _ausFmt(a.inicio) + ' a ' + _ausFmt(a.fim)}</b>${a.motivo ? `<div style="color:var(--text-muted);">${escapeHtml(a.motivo)}</div>` : ''}</div>
+      <button type="button" class="rc-btn-claro" onclick="recepcaoAusenciaExcluir(${a.id})">Excluir</button></div>`).join('');
+}
+async function recepcaoAusenciaSalvar() {
+  const msg = document.getElementById('rc-aus-msg'), ok = document.getElementById('rc-aus-ok');
+  const ini = document.getElementById('rc-aus-ini').value, fim = document.getElementById('rc-aus-fim').value || ini;
+  const mot = document.getElementById('rc-aus-mot').value.trim();
+  msg.style.color = 'var(--danger, #b3261e)';
+  if (!ini) { msg.textContent = 'Escolha o primeiro dia.'; return; }
+  if (fim < ini) { msg.textContent = 'O último dia está antes do primeiro.'; return; }
+  ok.disabled = true; msg.style.color = ''; msg.textContent = 'Salvando…';
+  const { error } = await supabaseClient.from('ausencias').insert({ inicio: ini, fim, motivo: mot || null });
+  ok.disabled = false;
+  if (error) { msg.style.color = 'var(--danger, #b3261e)'; msg.textContent = 'Não salvou: ' + error.message; return; }
+  msg.textContent = '✓ Salvo. As gestantes já não veem esses dias.';
+  document.getElementById('rc-aus-ini').value = ''; document.getElementById('rc-aus-fim').value = ''; document.getElementById('rc-aus-mot').value = '';
+  await _ausListar();
+}
+async function recepcaoAusenciaExcluir(id) {
+  if (!confirm('Excluir esta ausência? Os dias voltam a aparecer para as gestantes.')) return;
+  const { error } = await supabaseClient.from('ausencias').delete().eq('id', id);
+  if (error) { alert('Não excluiu: ' + error.message); return; }
+  await _ausListar();
 }
 
 async function _assConfirmar() {

@@ -1987,3 +1987,4 @@ traço). Volta sozinho à capa após 10 min parado nessas telas.
 nenhum dia livre mostra "fale com a equipe pelo WhatsApp" e o exame fica fora do envio. **A 036 foi
 aplicada em 2026-10-14.** A secretária não vê as ausências (Confirmar agendamento não avisa) — se ela
 precisar, é uma policy de select pelo `recepcao_acessos.dono_id`.
+- **Remover o contrato assinado desmarca "assinado" (2026-10-14, migração 037):** a 026 só tirava o item da lista e `contrato_assinado` continuava true, então a ficha seguia "Assinado ✓" e "Gerar contrato" não voltava. `recepcao_contrato_remover` agora recalcula o flag quando o item removido era `assinado` (fica true só se sobrar outro assinado); remover um `gerado` não mexe no flag, que pode ter sido marcado à mão para contrato em papel. Para o flag manual sem arquivo, a ficha diz para desmarcar na conferência de pagamento. **A 037 já foi aplicada no Supabase** (por Claude, em 2026-10-14).

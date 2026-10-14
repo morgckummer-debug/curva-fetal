@@ -3336,7 +3336,7 @@ function _rcContratoHtml(r, enc) {
   const pg = r.pagamento || {}, c = _rcContratoEstado(pg), gid = r.gestacao_id;
   const ultimo = c.gerados[c.gerados.length - 1];
   let pill, dica;
-  if (c.assinado) { pill = ['rc-pill--ok', 'Assinado ✓']; dica = c.assinados.length ? '' : 'Marcado como assinado, mas sem o arquivo anexado.'; }
+  if (c.assinado) { pill = ['rc-pill--ok', 'Assinado ✓']; dica = c.assinados.length ? '' : 'Marcado como assinado, mas sem o arquivo anexado. Para gerar outro contrato, desmarque "Contrato assinado" na conferência de pagamento e salve.'; }
   else if (ultimo) { pill = ['rc-pill--parcial', 'Aguardando assinatura']; dica = `Gerado em ${_rcDataHora(ultimo.em)} por ${escapeHtml(ultimo.por || '—')}. Toque em "Assinar na tela" para a gestante ler e assinar no celular ou tablet.`; }
   else { pill = ['rc-pill--pend', 'Sem contrato']; dica = enc ? 'Nenhum contrato foi gerado para esta paciente.' : 'Nenhum contrato gerado ainda.'; }
   const arq = c.lista.map((x, i) => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;padding:7px 10px;background:#fff;">

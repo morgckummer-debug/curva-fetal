@@ -3395,6 +3395,20 @@ function _rcIdxContratoGerado(gid, termo) {
   return idx;
 }
 
+// Arquivo de contrato: no Storage, ou (assinado no iPad da vitrine, migração 035) guardado no banco
+// com path 'ipad:<id>'. O iPad não tem login e não grava no Storage.
+async function _arqBlob(c) {
+  const m = /^ipad:(\d+)$/.exec(c.path || '');
+  if (m) {
+    const { data, error } = await supabaseClient.rpc('recepcao_contrato_ipad_html', { p_id: Number(m[1]) });
+    if (error) throw error;
+    return new Blob([data], { type: 'text/html' });
+  }
+  const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
+  if (error) throw error;
+  return data;
+}
+
 async function _contratoArquivar(gid, html, valor, nome) {
   const dono = await _compDonoId();
   const path = `${dono}/${gid}/contrato-${Date.now()}.html`;
@@ -3404,6 +3418,16 @@ async function _contratoArquivar(gid, html, valor, nome) {
     p_gestacao_id: gid, p_path: path, p_nome: nome || 'Contrato gerado', p_tipo: 'text/html', p_kind: 'gerado', p_valor: valor,
   });
   if (error) { await supabaseClient.storage.from('comprovantes').remove([path]); throw error; }
+  // Disponível também para a gestante assinar no iPad da vitrine (migração 035). Falha aqui não
+  // derruba nada: o contrato já está na ficha e pode ser assinado na tela do computador.
+  try {
+    let clinicaImg = null;
+    try { clinicaImg = await _clinicaAssDataUrl(); } catch (_) {}
+    const r = await supabaseClient.rpc('recepcao_contrato_ipad', {
+      p_gestacao_id: gid, p_path: path, p_nome: nome || 'Contrato gerado', p_valor: valor == null ? null : valor, p_html: html, p_clinica_img: clinicaImg,
+    });
+    if (r.error) throw r.error;
+  } catch (e) { console.warn('[CurvaFetal] contrato para o iPad:', e); }
 }
 
 async function recepcaoContratoEnviar(gid, input) {
@@ -3450,7 +3474,8 @@ async function recepcaoAssinarAbrir(gid, idx) {
   const termo = /^Termo aditivo/.test(doc.nome || '');
   el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:820px;width:100%;display:flex;flex-direction:column;overflow:hidden;">
     <div style="padding:10px 18px 8px;display:flex;gap:10px;align-items:flex-start;"><button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-ass-modal').remove()">← Voltar</button><div style="flex:1;"><h3 style="margin:0;">${termo ? 'Assinatura do termo aditivo' : 'Assinatura do contrato'}</h3>
-      <div style="font-size:13px;color:var(--text-muted);">${escapeHtml(r.nome)}${r.cpf ? ' · CPF ' + escapeHtml(r.cpf) : ''} · leia até o fim antes de assinar</div></div></div>
+      <div style="font-size:13px;color:var(--text-muted);">${escapeHtml(r.nome)}${r.cpf ? ' · CPF ' + escapeHtml(r.cpf) : ''} · leia até o fim antes de assinar</div>
+      <div style="font-size:12.5px;color:var(--text-muted);">Se preferir, feche aqui: no iPad da vitrine, "Assinar contrato" acha esta paciente pelo nome ou CPF.</div></div></div>
     <div id="rc-ass-doc" style="flex:1;min-height:180px;overflow:auto;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:#faf8fc;padding:8px;">Carregando o documento…</div>
     <div style="padding:10px 18px 14px;">
       <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-bottom:8px;"><input type="checkbox" id="rc-ass-li" onchange="_assUi()" style="width:20px;height:20px;margin-top:1px;"> Li ${termo ? 'o termo' : 'o contrato'} e concordo com os seus termos.</label>
@@ -3703,8 +3728,7 @@ async function recepcaoContratoCopia(gid, i, btn) {
     let file = _copiaCache[c.path];
     if (!file) {
       btn.disabled = true; btn.textContent = 'Preparando…';
-      const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
-      if (error) throw error;
+      const data = await _arqBlob(c);
       const ext = c.tipo === 'application/pdf' ? 'pdf' : c.tipo === 'image/jpeg' ? 'jpg' : 'html';
       const nomeArq = `${termo ? 'Termo aditivo' : 'Contrato'} Acompanhamento Fetal MK - ${(r.nome || 'gestante').trim()}.${ext}`;
       // na via da gestante o documento não abre o diálogo de impressão sozinho
@@ -3742,7 +3766,7 @@ async function recepcaoContratoRemover(gid, i) {
   try {
     const { error } = await supabaseClient.rpc('recepcao_contrato_remover', { p_gestacao_id: gid, p_path: c.path });
     if (error) throw error;
-    await supabaseClient.storage.from('comprovantes').remove([c.path]);
+    if (!/^ipad:/.test(c.path || '')) await supabaseClient.storage.from('comprovantes').remove([c.path]);
     await recepcaoAtualizar();
   } catch (err) { alert('Não consegui remover: ' + (err.message || err)); }
 }
@@ -4582,9 +4606,13 @@ async function recepcaoVitrineLinks() {
   m.style.display = 'flex'; c.textContent = 'Carregando…';
   const { data: k, error } = await supabaseClient.rpc('recepcao_vitrine_chave');
   if (error || !k) { c.textContent = 'Não consegui gerar o link: ' + ((error && error.message) || 'sem resposta') + '. A migração 033 foi aplicada no Supabase?'; return; }
-  const ipad = _VITRINE_URL + '?k=' + k, casa = ipad + '&de=casa';
+  const casa = _VITRINE_URL + '?k=' + k + '&de=casa';
+  // O endereço do iPad leva também a chave de assinatura (migração 035), que NÃO vai no link de casa.
+  let ipad = _VITRINE_URL + '?k=' + k, semAss = false;
+  try { const a = await supabaseClient.rpc('recepcao_vitrine_assinatura_token'); if (a.error || !a.data) throw a.error; ipad += '&a=' + a.data; }
+  catch (e) { semAss = true; console.warn('[CurvaFetal] chave de assinatura do iPad:', e); }
   const msgCasa = 'Olá! Aqui você conhece o Acompanhamento Fetal MK e já deixa seus dados preenchidos. No dia do exame, é só trazer um documento com foto: o pagamento e a assinatura do contrato levam poucos minutos na recepção 💜\n\n' + casa;
-  c.innerHTML = `<div><b>iPad da recepção</b><div class="rc-pre-sub">Abra este endereço no Safari do iPad, toque em Compartilhar → "Adicionar à Tela de Início" e use o Acesso Guiado para ele não sair da página.</div><input type="text" readonly value="${escapeHtml(ipad)}" onclick="this.select()"></div>
+  c.innerHTML = `<div><b>iPad da recepção</b><div class="rc-pre-sub">Abra este endereço no Safari do iPad, toque em Compartilhar → "Adicionar à Tela de Início" e use o Acesso Guiado para ele não sair da página.${semAss ? '' : ' Com este endereço, o botão "Assinar contrato" da capa busca a paciente por nome ou CPF.'} Se o iPad já estava com o endereço antigo, abra este de novo.</div><input type="text" readonly value="${escapeHtml(ipad)}" onclick="this.select()"></div>
     <div><b>Link para a paciente preencher em casa</b><div class="rc-pre-sub">Mesma página, sem voltar sozinha ao início. Os dados aparecem aqui como "preenchido em casa".</div><input type="text" readonly value="${escapeHtml(casa)}" onclick="this.select()">
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="rc-btn-claro" id="rc-links-copiar">Copiar mensagem</button><a class="rc-btn-dark" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msgCasa)}">Abrir no WhatsApp</a></div></div>`;
   document.getElementById('rc-links-copiar').onclick = function () {
@@ -7178,8 +7206,7 @@ async function _arqAbrir(c) {
   // Documento HTML e foto abrem dentro do app (com "← Voltar"); só PDF vai para aba nova.
   if (c.tipo !== 'application/pdf' && !/\.pdf$/i.test(c.path || '')) {
     try {
-      const { data, error } = await supabaseClient.storage.from('comprovantes').download(c.path);
-      if (error) throw error;
+      const data = await _arqBlob(c);
       if (c.tipo === 'text/html' || /\.html$/i.test(c.path || '')) _rcDocModal(c.nome || 'Documento', await data.text());
       else _rcDocModal(c.nome || 'Arquivo', await new Promise((ok, falha) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = falha; fr.readAsDataURL(data); }), true);
     } catch (err) { alert('Não consegui abrir o arquivo: ' + (err.message || err)); }

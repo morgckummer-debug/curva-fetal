@@ -3022,23 +3022,6 @@ function recepcaoFiltrar() {
   _rcPagUi();
 }
 
-// Texto para colar no agendamento da Feegow.
-function _rcTextoAgenda(i) {
-  const p = i.sit.prox;
-  if (!p) return '';
-  const rot = p.def.n + (p.def.sub ? ' ' + p.def.sub : '');
-  return `Acompanhamento ${i.sit.plano.nome} – ${rot} (${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}) – ${i.r.nome}`;
-}
-
-function recepcaoCopiarAgenda(btn) {
-  const i = _rcInfo(_recepcaoDados.find(x => x.gestacao_id === _rcSel) || {});
-  if (!i) return;
-  const txt = _rcTextoAgenda(i);
-  const ok = () => { if (btn) { const t = btn.textContent; btn.textContent = 'Copiado ✓'; setTimeout(() => { btn.textContent = t; }, 1600); } };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, () => window.prompt('Copie o texto:', txt));
-  else window.prompt('Copie o texto:', txt);
-}
-
 // Mensagem de WhatsApp para a paciente escolher as datas dos próximos exames (a secretária confere e envia).
 // Entram todos os exames pendentes do plano, até o último.
 function _rcMsgDatas(i) {
@@ -3233,14 +3216,14 @@ function _rcDetalheHtml(i) {
   const jaOk = jaP && /^\d{4}-\d{2}-\d{2}$/.test(jaP.d);
   const hhP = jaOk && jaP.h ? ' às ' + jaP.h.slice(0, 2) + 'h' + (jaP.h.slice(3, 5) !== '00' ? jaP.h.slice(3, 5) : '') : '';
   const prox = jaOk
-    // já agendado: só o exame e a data marcada, sem período nem botão de copiar
+    // já agendado: só o exame e a data marcada, sem período
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
         <div class="rc-prox-per">Agendado: <b>${_RC_DIAS_SEM[new Date(jaP.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(jaP.d)}${hhP}</b> <span>· ${agP.confirmada ? 'paciente confirmou' : 'aguardando confirmação'}</span></div></div></div>`
     : p
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
         <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}</span>
         ${p.de ? `<div class="rc-prox-per">Período para agendar: <b>${_rcDataPonto(p.de)} a ${_rcDataPonto(p.ate)}</b>${p.ateTol ? ` <span>· tolerância até ${_rcDataPonto(p.ateTol)}</span>` : ''}</div>` : ''}</div>
-        <button type="button" class="rc-btn-dark" onclick="recepcaoCopiarAgenda(this)" title="Copia o texto para colar no agendamento da Feegow">Copiar para a agenda</button></div>`
+</div>`
     : `<div class="rc-prox"><div><small>Calendário</small><b>${sit.feitos === sit.slots.length ? 'Todos os exames do plano foram feitos' : 'Sem exame pendente dentro do prazo'}</b></div></div>`;
 
   const extrasOrd = sit.extras.slice().sort((a, b) => a.v.data_exame.localeCompare(b.v.data_exame));

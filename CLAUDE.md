@@ -1916,7 +1916,7 @@ Botão "Trocar modalidade…" ao lado de "Encerrar…" (`recepcaoTrocarAbrir`, `
 
 **Obstétrico com colo: tolerância até 20 semanas (2026-10-14).** Janela 16s0d–18s0d com `tol: 14` (até 20s0d), no mesmo mecanismo da tolerância do Doppler: um obstétrico feito com 19 semanas conta como esse exame. O CalcMK (`morgckummer-debug/CalcMK`) espelha as janelas e precisa do mesmo ajuste.
 
-**Próximo exame já agendado (2026-10-14):** no cartão "Próximo exame" da ficha, quando o exame tem horário em `agendamento.agendados` (estado `agendado`), o período para agendar e o botão "Copiar para a agenda" somem; fica o exame, o dia/hora marcados e "paciente confirmou / aguardando confirmação". Sem agendamento o cartão é o de sempre.
+**Próximo exame já agendado (2026-10-14):** no cartão "Próximo exame" da ficha, quando o exame tem horário em `agendamento.agendados` (estado `agendado`), o período para agendar e o botão "Copiar para a agenda" somem; fica o exame, o dia/hora marcados e "paciente confirmou / aguardando confirmação". Sem agendamento o cartão é o de sempre. **O botão "Copiar para a agenda" saiu de vez (2026-10-14, pedido da Morgana)**, junto com `recepcaoCopiarAgenda`/`_rcTextoAgenda`: não recolocar.
 
 ## Pagamento: só "Pago" ou "Aguardando pagamento"; perda de um gêmeo pelo Encerrar (2026-10-14)
 

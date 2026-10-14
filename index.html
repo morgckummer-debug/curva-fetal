@@ -1273,7 +1273,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <div class="rc-full"><label for="rc-ad-nome">Nome completo da gestante</label><input type="text" id="rc-ad-nome" autocomplete="off"></div>
       <div><label for="rc-ad-cpf">CPF</label><input type="text" id="rc-ad-cpf" inputmode="numeric" maxlength="14" oninput="_rcMascaraCpf(this)" autocomplete="off"></div>
       <div><label for="rc-ad-nasc">Data de nascimento</label><input type="date" id="rc-ad-nasc"></div>
-      <div><label for="rc-ad-tel">Celular</label><input type="text" id="rc-ad-tel" autocomplete="off"></div>
+      <div><label for="rc-ad-tel">Celular</label><input type="tel" id="rc-ad-tel" inputmode="numeric" maxlength="16" placeholder="(31) 98829.6992" oninput="_rcMascaraTel(this)" autocomplete="off"></div>
       <div><label for="rc-ad-email">E-mail</label><input type="email" id="rc-ad-email" autocomplete="off"></div>
       <div class="rc-full"><label for="rc-ad-obst">Médico(a) obstetra assistente (se souber)</label><input type="text" id="rc-ad-obst" autocomplete="off"></div>
       <div><label for="rc-ad-mod">Modalidade</label><select id="rc-ad-mod" onchange="_rcValorSugerir(true)"><option value="">Selecione</option><option value="essencial">Essencial — R$ 3.400</option><option value="premium">Premium — R$ 4.200</option><option value="gemelar_essencial">Gemelar Essencial — R$ 6.800</option><option value="gemelar_dc">Gemelar Premium — R$ 8.400</option></select></div>
@@ -3643,6 +3643,28 @@ function _rcMascaraCpf(el) {
   el.value = d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1-$2');
 }
 
+// Celular no formato (31) 98829.6992
+function _rcMascaraTel(el) {
+  const d = el.value.replace(/\D/g, '').slice(0, 11);
+  let s = '';
+  if (d.length) s = '(' + d.slice(0, 2);
+  if (d.length > 2) s += ') ' + d.slice(2, 7);
+  if (d.length > 7) s += '.' + d.slice(7);
+  el.value = s;
+}
+
+// Dígitos verificadores do CPF (rejeita também 111.111.111-11 etc.).
+function _cpfValido(cpf) {
+  const d = String(cpf).replace(/\D/g, '');
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  for (let t = 9; t <= 10; t++) {
+    let soma = 0;
+    for (let i = 0; i < t; i++) soma += parseInt(d[i], 10) * (t + 1 - i);
+    if (((soma * 10) % 11) % 10 !== parseInt(d[t], 10)) return false;
+  }
+  return true;
+}
+
 function recepcaoAdesaoAbrir(r) {
   _rcAdesaoGid = r ? r.gestacao_id : null;
   const set = (id, v) => { document.getElementById(id).value = v || ''; };
@@ -3773,6 +3795,7 @@ async function recepcaoAdesaoConfirmar() {
   if (d.igHoje != null && d.igHoje > ACOMP_EX.m2.fim) return erro('Passou do morfológico de 2º trimestre (' + Math.floor(ACOMP_EX.m2.fim / 7) + ' semanas): a adesão ao acompanhamento não é feita depois disso. Fale com a Dra. Morgana.');
   if (!d.nome) return erro('Informe o nome da gestante.');
   if (d.cpf.replace(/\D/g, '').length !== 11) return erro('O CPF precisa ter 11 dígitos.');
+  if (!_rcAdesaoGid && !_cpfValido(d.cpf)) return erro('CPF inválido: confira os números digitados.');
   if (!_ADESAO_PRECO[d.mod]) return erro('Escolha a modalidade.');
   // window.open síncrono (antes de qualquer await) para o navegador não bloquear a aba.
   const w = window.open('about:blank', '_blank');

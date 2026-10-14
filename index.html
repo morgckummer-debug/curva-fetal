@@ -7956,12 +7956,8 @@ function _condutaDiagnostico(dx) {
     return txt;
   }
 
-  const desejado = (gaW != null && gaW >= 36) ? 2 : 4;
-  const n = _intervaloAteOTermo(gaW, desejado);
-  if (n == null) {
-    return `Fim do termo (${igTxt}) — seguimento obstétrico até o parto; novo ultrassom apenas se houver indicação clínica.`;
-  }
-  return `Reavaliação em ${_txtSemanas(n)}${desejado === 2 ? ' até o parto' : ''}, conforme protocolo de seguimento gestacional.`;
+  // Exame normal: frase fixa, sem intervalo (definida pela médica em 2026-10-14).
+  return 'Reavaliação conforme protocolo de seguimento gestacional.';
 }
 
 // Risco de pré-eclâmpsia pelo Doppler de artérias uterinas — independente do

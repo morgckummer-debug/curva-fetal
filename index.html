@@ -3197,7 +3197,14 @@ function _rcDataPonto(iso) { return iso ? iso.slice(8, 10) + '.' + iso.slice(5, 
 function _rcDetalheHtml(i) {
   const r = i.r, sit = i.sit, pg = r.pagamento || {};
   const p = sit.prox;
-  const prox = p
+  const agP = r.agendamento, jaP = p && agP && agP.estado === 'agendado' && (agP.agendados || []).find(x => x.key === sit.plano.ex[sit.slots.indexOf(p)]);
+  const jaOk = jaP && /^\d{4}-\d{2}-\d{2}$/.test(jaP.d);
+  const hhP = jaOk && jaP.h ? ' às ' + jaP.h.slice(0, 2) + 'h' + (jaP.h.slice(3, 5) !== '00' ? jaP.h.slice(3, 5) : '') : '';
+  const prox = jaOk
+    // já agendado: só o exame e a data marcada, sem período nem botão de copiar
+    ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
+        <div class="rc-prox-per">Agendado: <b>${_RC_DIAS_SEM[new Date(jaP.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(jaP.d)}${hhP}</b> <span>· ${agP.confirmada ? 'paciente confirmou' : 'aguardando confirmação'}</span></div></div></div>`
+    : p
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
         <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}</span>
         ${p.de ? `<div class="rc-prox-per">Período para agendar: <b>${_rcDataPonto(p.de)} a ${_rcDataPonto(p.ate)}</b>${p.ateTol ? ` <span>· tolerância até ${_rcDataPonto(p.ateTol)}</span>` : ''}</div>` : ''}</div>

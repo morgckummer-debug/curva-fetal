@@ -1915,3 +1915,5 @@ Botão "Trocar modalidade…" ao lado de "Encerrar…" (`recepcaoTrocarAbrir`, `
 **Botões com agendamento fechado (2026-10-14):** os botões da ficha nunca somem enquanto houver exame pendente; com `agEstado === 'agendado'` o "Combinar datas" passa a se chamar "Reagendar" (pede novas datas à paciente) e o "Confirmar agendamento" vira "Alterar horários" (modal preenchido com o agendado).
 
 **Obstétrico com colo: tolerância até 20 semanas (2026-10-14).** Janela 16s0d–18s0d com `tol: 14` (até 20s0d), no mesmo mecanismo da tolerância do Doppler: um obstétrico feito com 19 semanas conta como esse exame. O CalcMK (`morgckummer-debug/CalcMK`) espelha as janelas e precisa do mesmo ajuste.
+
+**Próximo exame já agendado (2026-10-14):** no cartão "Próximo exame" da ficha, quando o exame tem horário em `agendamento.agendados` (estado `agendado`), o período para agendar e o botão "Copiar para a agenda" somem; fica o exame, o dia/hora marcados e "paciente confirmou / aguardando confirmação". Sem agendamento o cartão é o de sempre.

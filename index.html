@@ -2909,7 +2909,7 @@ function _rcAgDias(h) { return h < 24 ? Math.max(1, Math.floor(h)) + 'h' : Math.
 // Etiqueta de agendamento da lista e da ficha.
 function _rcAgPill(i) {
   if (!i.agEstado) return '';
-  if (i.agEstado === 'agendado') return '<span class="rc-pill rc-pill--ok">Agendado ✓</span>';
+  if (i.agEstado === 'agendado') return '<span class="rc-pill rc-pill--ok">Agendado ✓' + (i.r.agendamento && i.r.agendamento.confirmada ? ' · paciente confirmou' : (i.r.agendamento && i.r.agendamento.agendados ? ' · aguardando confirmação' : '')) + '</span>';
   if (i.agEstado === 'respondeu') return `<span class="rc-pill rc-pill--pend">Respondeu · agendar${i.agHoras >= 24 ? ' (há ' + _rcAgDias(i.agHoras) + ')' : ''}</span>`;
   if (i.agEstado === 'sem') return `<span class="rc-pill ${i.agUrgente ? 'rc-pill--pend' : 'rc-pill--parcial'}">${i.agUrgente ? 'Combinar datas · prazo perto' : 'Combinar datas'}</span>`;
   return `<span class="rc-pill ${i.agUrgente ? 'rc-pill--pend' : 'rc-pill--parcial'}">${i.agUrgente && i.agHoras > _RC_AG_PRAZO_H ? 'Sem resposta há ' + _rcAgDias(i.agHoras) : i.agUrgente ? 'Aguardando · prazo perto' : 'Aguardando resposta · ' + _rcAgDias(i.agHoras)}</span>`;
@@ -3114,6 +3114,21 @@ function recepcaoConfirmarAgenda() {
   document.body.appendChild(el);
   el._pend = pend; el._nome = String(r.nome || '').trim().split(/\s+/)[0];
   _rcConfRefazer();
+  _rcConfLink(r, i, el);
+}
+
+// Link pessoal para a paciente confirmar dia e hora (migração 032). Reaproveita o código já gerado em "Combinar datas".
+function _rcConfLink(r, i, el) {
+  const hoje = _hojeISO();
+  const exames = i.sit.slots.filter(s => (s.status === 'falta' || s.status === 'tolerancia') && s.de).map(s => ({
+    key: i.sit.plano.ex[i.sit.slots.indexOf(s)], n: s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : ''),
+    de: s.de < hoje ? hoje : s.de, ate: s.ateTol || s.ate })).filter(x => x.de <= x.ate);
+  if (!exames.length) return;
+  supabaseClient.rpc('recepcao_agenda_link', { p_gestacao_id: r.gestacao_id, p_nome: el._nome, p_exames: exames }).then(({ data, error }) => {
+    if (error || !data) return;
+    el._url = new URL('agendar.html?t=' + encodeURIComponent(data), location.href).href;
+    _rcConfRefazer();
+  }).catch(e => console.error('[CurvaFetal] recepcao_agenda_link:', e));
 }
 
 function _rcConfRefazer() {
@@ -3132,6 +3147,7 @@ function _rcConfRefazer() {
   document.getElementById('rc-conf-txt').value = itens.length
     ? `Olá, ${el._nome}! Seus próximos ultrassons estão agendados 🥰\n\n${itens.map(x => x.linha).join('\n')}\n\nLembretes importantes:\n- Você pode remarcar sem custo, dentro do período de cada exame, avisando com pelo menos 48 horas de antecedência.\n- Se faltar sem avisar com 48 horas e o período do exame passar, o valor do exame vira crédito, e seu acompanhamento segue normalmente para o próximo exame.\n\nQualquer dúvida, estamos à disposição 💜`
     : '';
+  if (el._url && itens.length) document.getElementById('rc-conf-txt').value += `\n\n👉 Confirme seus horários neste link:\n${el._url}`;
 }
 
 function _rcConfWhats() {
@@ -3146,17 +3162,22 @@ function _rcConfWhats() {
   // só conta como agendado o exame que teve data digitada
   const el = document.getElementById('rc-conf-modal'), rr = _recepcaoDados.find(x => x.gestacao_id === _rcSel), ii = rr && _rcInfo(rr);
   const feitos = ii && el ? el._pend.filter((sl, k) => el.querySelector(`.rc-conf-d[data-k="${k}"]`).value).map(sl => ii.sit.plano.ex[ii.sit.slots.indexOf(sl)]) : null;
-  _rcAgRegistrar('agendado', feitos);
+  const itens = ii && el ? el._pend.map((sl, k) => ({ sl, k, d: el.querySelector(`.rc-conf-d[data-k="${k}"]`).value, h: el.querySelector(`.rc-conf-h[data-k="${k}"]`).value })).filter(x => x.d).map(x => ({
+    key: ii.sit.plano.ex[ii.sit.slots.indexOf(x.sl)], n: x.sl.def.n + (x.sl.def.sub ? ' (' + x.sl.def.sub + ')' : ''), d: x.d, h: x.h || '' })) : [];
+  const nome = String(rr && rr.nome || '').trim().split(/\s+/)[0];
+  // guarda dia e hora para a paciente confirmar pelo link (migração 032); sem ela, segue só com "Agendado"
+  _rcAgRegistrar('agendado', feitos, () => itens.length ? supabaseClient.rpc('recepcao_agendamento_horarios', { p_gestacao_id: rr.gestacao_id, p_nome: nome, p_itens: itens }).then(({ error }) => { if (error) console.error('[CurvaFetal] recepcao_agendamento_horarios:', error); }) : null);
 }
 
-function _rcAgRegistrar(estado, keys) {
+function _rcAgRegistrar(estado, keys, depois) {
   const r = _recepcaoDados.find(x => x.gestacao_id === _rcSel);
   const i = r && _rcInfo(r);
   if (!i || !_rcAgOk || !i.pendKeys.length) return;
   const gid = r.gestacao_id;
   // sem etapa extra para a recepção: o clique em "Abrir no WhatsApp" já marca a etiqueta
   supabaseClient.rpc('recepcao_agendamento_set', { p_gestacao_id: gid, p_estado: estado, p_slots: keys || i.pendKeys })
-    .then(({ error }) => { if (error) throw error; return recepcaoAtualizar(); })
+    .then(({ error }) => { if (error) throw error; return depois ? depois() : null; })
+    .then(() => recepcaoAtualizar())
     .catch(e => { console.error('[CurvaFetal] recepcao_agendamento_set:', e); alert('A mensagem abriu, mas não consegui marcar a etiqueta da ficha: ' + (e.message || e)); });
 }
 

@@ -100,6 +100,34 @@ small{color:#7a6a88}
     limpa(); app.appendChild(c);
   }
 
+  function agendados(d) {
+    limpa(); var c = el('div', 'card');
+    var lista = d.agendados && d.agendados.length ? d.agendados : null;
+    c.appendChild(el('h1', null, lista ? (d.confirmada ? 'Presença confirmada 💜' : 'Confira seus horários') : 'Seus ultrassons já estão agendados 💜'));
+    if (!lista) { c.appendChild(el('p', null, 'A nossa equipe enviou a confirmação pelo WhatsApp. Qualquer dúvida, é só responder lá.')); app.appendChild(c); return; }
+    lista.forEach(function (x) {
+      var r = el('div', 'res');
+      r.appendChild(el('b', null, x.n));
+      r.appendChild(el('div', null, fmtDia(x.d) + (x.h ? ' · às ' + x.h.slice(0, 2) + 'h' + (x.h.slice(3, 5) !== '00' ? x.h.slice(3, 5) : '') : '')));
+      c.appendChild(r);
+    });
+    if (d.confirmada) {
+      c.appendChild(el('p', null, 'Obrigada! Anotamos a sua confirmação. Se precisar remarcar, avise com 48 horas de antecedência pelo WhatsApp.'));
+    } else {
+      var er = el('p', 'res', '');
+      var b = el('button', null, 'Confirmo');
+      b.onclick = function () {
+        b.disabled = true; b.textContent = 'Enviando…';
+        rpc('agenda_confirmar', { p_token: tok }).then(function (ok) {
+          if (!ok) throw new Error('x');
+          return rpc('agenda_publica', { p_token: tok }).then(function (n) { agendados(n); });
+        }).catch(function () { b.disabled = false; b.textContent = 'Confirmo'; er.textContent = 'Não consegui enviar agora. Tente de novo ou responda pelo WhatsApp.'; });
+      };
+      c.appendChild(b); c.appendChild(er);
+    }
+    app.appendChild(c);
+  }
+
   function form() {
     limpa();
     var head = el('div', 'card');
@@ -180,12 +208,7 @@ small{color:#7a6a88}
   rpc('agenda_publica', { p_token: tok }).then(function (d) {
     if (!d) return invalido();
     dados = d;
-    if (d.agendado && !d.resposta) {
-      limpa(); var c = el('div', 'card');
-      c.appendChild(el('h1', null, 'Seus ultrassons já estão agendados 💜'));
-      c.appendChild(el('p', null, 'A nossa equipe enviou a confirmação pelo WhatsApp. Qualquer dúvida, é só responder lá.'));
-      app.appendChild(c); return;
-    }
+    if (d.agendado && !d.resposta) { agendados(d); return; }
     if (d.resposta) resumo(d.resposta); else form();
   }).catch(function () {
     limpa(); var c = el('div', 'card');

@@ -65,10 +65,11 @@ small{color:#7a6a88}
   function fmt(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7); }
   function fmtLongo(iso) { return iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4); }
   var SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
-  function fmtDia(iso) { var d = new Date(iso + 'T12:00:00Z'); return SEM[d.getUTCDay()] + ', ' + fmtLongo(iso); }
+  function ehSabado(iso) { return new Date(iso + 'T12:00:00Z').getUTCDay() === 6; }
+  function fmtDia(iso) { var d = new Date(iso + 'T12:00:00Z'); return SEM[d.getUTCDay()] + ', ' + fmtLongo(iso) + (ehSabado(iso) ? ' (até 12h)' : ''); }
   function diasEntre(de, ate) {
     var out = [], d = new Date(de + 'T12:00:00Z'), fim = new Date(ate + 'T12:00:00Z');
-    while (d <= fim && out.length < 120) { out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); }
+    while (d <= fim && out.length < 120) { if (d.getUTCDay() !== 0) out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); } // a clínica não abre aos domingos
     return out;
   }
   var PER = { qualquer: 'qualquer horário', manha: 'manhã', tarde: 'tarde' };
@@ -123,12 +124,18 @@ small{color:#7a6a88}
         [['qualquer', 'Qualquer horário'], ['manha', 'Manhã'], ['tarde', 'Tarde']].forEach(function (o) {
           var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; sel.appendChild(op);
         });
+        // sábado a clínica funciona só até 12h: só manhã
+        inp.addEventListener('change', function () {
+          var sab = inp.value && ehSabado(inp.value);
+          if (sab) sel.value = 'manha';
+          Array.prototype.forEach.call(sel.options, function (o) { o.disabled = sab && o.value === 'tarde'; });
+        });
         l.appendChild(inp); l.appendChild(sel); c.appendChild(l);
         linhas.push({ inp: inp, sel: sel });
       }
       if (dados.resposta) {
         var antes = dados.resposta.prefs.filter(function (p) { return p.key === ex.key; })[0];
-        if (antes) antes.datas.forEach(function (x, k) { if (linhas[k]) { linhas[k].inp.value = x.d; linhas[k].sel.value = x.p; } });
+        if (antes) antes.datas.forEach(function (x, k) { if (linhas[k]) { linhas[k].inp.value = x.d; linhas[k].inp.dispatchEvent(new Event('change')); linhas[k].sel.value = x.p; } });
       }
       app.appendChild(c);
       blocos.push({ ex: ex, linhas: linhas });

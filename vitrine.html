@@ -125,6 +125,25 @@ button{font:inherit;cursor:pointer}
 #v-fim p{font-size:20px;max-width:560px;margin:0 auto 10px;color:#E5DAE8}
 .aviso{padding:40px 24px;text-align:center}
 
+/* Assinatura do contrato no iPad (migração 035) */
+.btn-ass{position:absolute;right:16px;bottom:14px;border:1px solid rgba(201,165,90,.55);background:transparent;color:#D8CCDD;font-size:14px;padding:10px 16px;border-radius:999px;min-height:44px}
+#v-capa{position:relative}
+.ass-pag{max-width:820px;margin:0 auto;padding:24px 20px 40px}
+.ass-topo{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.ass-topo h2{margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:34px;color:var(--roxo);flex:1}
+.ass-busca{display:flex;gap:10px}
+.ass-busca input{flex:1;font:inherit;font-size:20px;padding:14px;border:1px solid #CDBFD8;border-radius:12px;min-height:56px;-webkit-user-select:text;user-select:text}
+.ass-res{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.ass-item{background:#fff;border:1px solid #E7DCEB;border-radius:16px;padding:14px 18px;display:flex;align-items:center;gap:14px}
+.ass-item b{display:block;font-size:19px;color:var(--roxo)}
+.ass-item small{color:var(--suave);font-size:14px}
+.ass-item .btn-roxo{margin-left:auto;font-size:16px;padding:12px 20px;min-height:48px}
+.ass-doc{background:#faf8fc;border:1px solid #E7DCEB;border-radius:14px;max-height:52vh;overflow:auto;padding:6px;-webkit-user-select:text;user-select:text}
+.ass-campos{margin-top:14px;font-size:17px;color:var(--texto)}
+.ass-campos label{display:inline-flex;gap:8px;align-items:center;margin:4px 14px 4px 0}
+.ass-campos input[type=checkbox],.ass-campos input[type=radio]{width:24px;height:24px;accent-color:var(--roxo)}
+#ass-canvas{width:100%;height:190px;border:1.5px dashed #8a6fa3;border-radius:14px;background:#fff;touch-action:none;display:block;margin-top:6px}
+
 @media (max-width:700px){
   .grade,.planos,.form{grid-template-columns:1fr}
   .topo{flex-wrap:wrap}.marca{width:100%}
@@ -145,6 +164,7 @@ button{font:inherit;cursor:pointer}
     <button type="button" class="btn-ouro" data-ir="exp">Conheça o acompanhamento</button>
     <div class="capa-rod">Protocolo FMF · ISUOG &nbsp;·&nbsp; Medicina Fetal &nbsp;·&nbsp; Sete Lagoas · MG</div>
   </div>
+  <button type="button" class="btn-ass" id="btn-ass" style="display:none" data-ir="ass">✍ Assinar contrato</button>
 </section>
 
 <!-- Barra das páginas internas (aparece fora da capa) -->
@@ -251,6 +271,38 @@ button{font:inherit;cursor:pointer}
   <button type="button" class="btn-ouro" data-ir="capa" id="fim-btn">Concluir</button>
 </div></section>
 
+<!-- Assinatura do contrato: a secretária busca a paciente, a gestante lê e assina -->
+<section class="vista" id="v-ass"><div class="ass-pag">
+  <div class="ass-topo"><button type="button" class="btn-linha" data-ir="capa">← Voltar</button><h2>Assinar contrato</h2></div>
+  <p class="lead" style="margin-bottom:16px">Digite o nome ou o CPF da gestante. Aparecem os contratos gerados pela recepção que ainda esperam assinatura.</p>
+  <div class="ass-busca"><input id="ass-q" type="search" placeholder="Nome ou CPF" autocomplete="off" enterkeyhint="search"><button type="button" class="btn-roxo" id="ass-buscar">Buscar</button></div>
+  <div class="erro" id="ass-erro" role="alert" style="margin-top:10px"></div>
+  <div class="ass-res" id="ass-res"></div>
+</div></section>
+
+<section class="vista" id="v-assdoc"><div class="ass-pag">
+  <div class="ass-topo"><button type="button" class="btn-linha" data-ir="ass">← Voltar</button><h2 id="ass-tit">Contrato</h2></div>
+  <div style="font-size:16px;color:var(--suave);margin:-6px 0 10px" id="ass-sub"></div>
+  <div class="ass-doc" id="ass-doc">Carregando…</div>
+  <div class="ass-campos">
+    <label><input type="checkbox" id="ass-li"> <span id="ass-li-txt">Li o contrato e concordo com os seus termos.</span></label>
+    <div id="ass-img-wrap" style="margin-top:6px">Uso de imagens e vídeos do exame, sem identificação, nas redes sociais da clínica:
+      <label><input type="radio" name="ass-img" value="sim"> Autorizo</label>
+      <label><input type="radio" name="ass-img" value="nao"> Não autorizo</label></div>
+    <div style="margin-top:12px;font-size:15px;color:var(--suave)">Assine com o dedo no quadro abaixo</div>
+    <canvas id="ass-canvas"></canvas>
+    <div class="erro" id="ass-msg" role="alert" style="margin-top:6px"></div>
+    <div class="acoes" style="justify-content:flex-end"><button type="button" class="btn-linha" id="ass-limpar">Limpar assinatura</button><button type="button" class="btn-roxo" id="ass-ok" disabled>Confirmar assinatura</button></div>
+  </div>
+</div></section>
+
+<section class="vista" id="v-assfim"><div class="aviso" style="padding-top:18vh">
+  <div class="kicker-ouro">Acompanhamento Fetal MK</div>
+  <h2 class="serif" style="font-size:52px;color:var(--roxo);font-weight:400;margin:10px 0">Contrato assinado</h2>
+  <p style="font-size:20px;color:var(--texto);max-width:560px;margin:0 auto 22px">Obrigada! A recepção envia a sua via pelo WhatsApp. Pode devolver o iPad para a nossa equipe.</p>
+  <button type="button" class="btn-roxo" data-ir="capa">Concluir</button>
+</div></section>
+
 <section class="vista" id="v-erro"><div class="aviso">
   <h2 class="serif" style="font-size:40px;color:var(--roxo);font-weight:500">iPad não configurado</h2>
   <p>Abra esta página pelo link “📱 iPad da recepção”, na tela da Recepção do Curvas.</p>
@@ -285,7 +337,8 @@ button{font:inherit;cursor:pointer}
   function ir(v) {
     if (v === 'capa') limparForm();
     document.querySelectorAll('.vista').forEach(function (s) { s.classList.toggle('on', s.id === 'v-' + v); });
-    $('topo').style.display = (v === 'capa' || v === 'fim' || v === 'erro') ? 'none' : '';
+    $('topo').style.display = (v === 'capa' || v === 'fim' || v === 'erro' || /^ass/.test(v)) ? 'none' : '';
+    if (/^ass/.test(v) === false || v === 'ass') assSair(v);
     document.querySelectorAll('.aba').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-ir') === v); });
     atual = v; window.scrollTo(0, 0);
   }
@@ -432,8 +485,150 @@ button{font:inherit;cursor:pointer}
   setInterval(function () {
     if (deCasa || atual === 'capa' || atual === 'erro') return;
     var parado = (Date.now() - ultimo) / 1000;
-    if (parado > (atual === 'fim' ? 40 : 180)) ir('capa');
+    if (parado > (atual === 'fim' || atual === 'assfim' ? 40 : /^ass/.test(atual) ? 600 : 180)) ir('capa');
   }, 5000);
+
+  // ── Assinatura do contrato no iPad (migração 035) ─────────────────────────────
+  // Só no endereço do iPad, que traz a chave de assinatura (&a=). O link "de casa" não traz.
+  // _assHtmlAssinado, o recorte da assinatura e o SHA-256 são cópia do index.html (o CSP só aceita
+  // script inline, não há arquivo compartilhado): mudou lá, mude aqui.
+  var tokAss = (qs.get('a') || '').trim();
+  if (tokAss.length >= 32 && !deCasa) $('btn-ass').style.display = '';
+  function rpc(nome, corpo) {
+    return fetch(URL_ + '/rest/v1/rpc/' + nome, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo)
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) { var e = new Error(j.message || 'erro'); e.code = j.code; throw e; } return j; }); });
+  }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  var assDoc = null, assTem = false;
+  // Sair da tela de assinatura (para a capa ou para a busca) apaga o documento e o traço da memória.
+  function assSair(v) {
+    assDoc = null; assTem = false;
+    if (v === 'capa') { $('ass-q').value = ''; $('ass-res').innerHTML = ''; $('ass-erro').textContent = ''; }
+  }
+  function assBuscar() {
+    var q = $('ass-q').value.trim();
+    $('ass-erro').textContent = '';
+    if (q.length < 3) { $('ass-erro').textContent = 'Digite pelo menos 3 letras do nome ou 3 números do CPF.'; return; }
+    $('ass-res').innerHTML = '<p style="color:var(--suave)">Buscando…</p>';
+    rpc('vitrine_assinatura_buscar', { p_token: tokAss, p_busca: q }).then(function (lista) {
+      if (!lista || !lista.length) { $('ass-res').innerHTML = '<p style="color:var(--suave)">Nenhum contrato esperando assinatura para essa busca. Confira se a recepção já gerou o contrato (ou uma nova via) nos últimos 7 dias.</p>'; return; }
+      $('ass-res').innerHTML = lista.map(function (x) {
+        var d = new Date(x.criado_em);
+        return '<div class="ass-item"><div><b>' + esc(x.nome) + '</b><small>' + (x.cpf ? 'CPF ' + esc(x.cpf) + ' · ' : '') + esc(/^Termo aditivo/.test(x.documento) ? 'Termo aditivo' : 'Contrato') + ' gerado em ' + d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '</small></div>'
+          + '<button type="button" class="btn-roxo" data-ass="' + Number(x.id) + '">Assinar em tela</button></div>';
+      }).join('');
+    }).catch(function (e) { $('ass-res').innerHTML = ''; $('ass-erro').textContent = 'Não consegui buscar (' + e.message + ').'; });
+  }
+  $('ass-buscar').onclick = assBuscar;
+  $('ass-q').addEventListener('keydown', function (e) { if (e.key === 'Enter') assBuscar(); });
+  $('ass-res').addEventListener('click', function (e) { var b = e.target.closest('[data-ass]'); if (b) assAbrir(Number(b.getAttribute('data-ass'))); });
+
+  function docNoHost(host, html) {
+    var pd = new DOMParser().parseFromString(html, 'text/html');
+    pd.querySelectorAll('script,.barra-imp').forEach(function (n) { n.remove(); });
+    var css = Array.prototype.map.call(pd.querySelectorAll('style'), function (st) { return st.textContent.replace(/@page\{[^}]*\}/g, '').replace(/\bbody\{/g, '.corpo{'); }).join('\n');
+    host.textContent = '';
+    var sh = host.shadowRoot || host.attachShadow({ mode: 'open' });
+    sh.innerHTML = '<style>' + css + '\n.corpo{background:#fff;padding:18px;max-width:720px;margin:0 auto;}.novapag{display:none}</style><div class="corpo">' + pd.body.innerHTML + '</div>';
+  }
+  function assUi() {
+    var termo = assDoc && /^Termo aditivo/.test(assDoc.documento || '');
+    var img = termo || document.querySelector('input[name="ass-img"]:checked');
+    $('ass-ok').disabled = !(assDoc && assTem && img && $('ass-li').checked);
+  }
+  $('ass-li').onchange = assUi;
+  document.querySelectorAll('input[name="ass-img"]').forEach(function (r) { r.onchange = assUi; });
+  var cv = $('ass-canvas'), ctx = null;
+  function assCanvas() {
+    var dpr = window.devicePixelRatio || 1;
+    cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
+    ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1d1626'; ctx.fillStyle = '#1d1626';
+    var desenhando = false, ult = null;
+    function pt(e) { var b = cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; }
+    cv.onpointerdown = function (e) { desenhando = true; ult = pt(e); cv.setPointerCapture(e.pointerId); ctx.beginPath(); ctx.arc(ult.x, ult.y, 1.1, 0, Math.PI * 2); ctx.fill(); };
+    cv.onpointermove = function (e) {
+      if (!desenhando) return;
+      var p = pt(e); ctx.beginPath(); ctx.moveTo(ult.x, ult.y); ctx.lineTo(p.x, p.y); ctx.stroke(); ult = p;
+      if (!assTem) { assTem = true; assUi(); }
+    };
+    cv.onpointerup = cv.onpointercancel = function () { desenhando = false; };
+  }
+  $('ass-limpar').onclick = function () { ctx.clearRect(0, 0, cv.width, cv.height); assTem = false; assUi(); };
+  function assImagem() {
+    var w = cv.width, h = cv.height, px = cv.getContext('2d').getImageData(0, 0, w, h).data;
+    var x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (var y = 0; y < h; y++) for (var x = 0; x < w; x++) if (px[(y * w + x) * 4 + 3] > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    if (x1 < 0) return null;
+    var m = 8; x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(w - 1, x1 + m); y1 = Math.min(h - 1, y1 + m);
+    var out = document.createElement('canvas'); out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+    out.getContext('2d').drawImage(cv, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+    return out.toDataURL('image/png');
+  }
+  function sha256(txt) {
+    return crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt)).then(function (buf) {
+      return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    });
+  }
+  // Cópia de _assHtmlAssinado (index.html).
+  function htmlAssinado(html, img, ev) {
+    var i = html.indexOf('<div class="ass"><div>');
+    var reg = '<div style="margin-top:14px;padding:8px 10px;border:1px solid #c9b8d8;border-radius:6px;font-size:8.5pt;color:#4a3a58;page-break-inside:avoid;">'
+      + '<b>Assinatura eletrônica</b> — documento assinado pela gestante ' + esc(ev.nome) + (ev.cpf ? ', CPF ' + esc(ev.cpf) : '') + ', com assinatura manuscrita na tela, na recepção da clínica, em ' + esc(ev.quando) + '. Leitura e concordância declaradas pela gestante antes de assinar. Conferido por ' + esc(ev.por) + '. Código de integridade do documento original (SHA-256): <span style="word-break:break-all;">' + ev.hash + '</span>.</div>';
+    function imgTag(src, alt) { return '<img src="' + src + '" alt="' + alt + '" style="display:block;max-height:64px;max-width:90%;margin:0 auto 2px;">'; }
+    if (i < 0) return html.replace('</body>', reg + '</body>');
+    var ini = i + '<div class="ass"><div>'.length;
+    var fimCel = html.indexOf('</div>', ini);
+    var iniCli = fimCel + '</div><div>'.length;
+    var fimCli = html.indexOf('</div>', iniCli);
+    var fimAss = html.indexOf('</div></div>', fimCel) + '</div></div>'.length;
+    function cel(conteudo, src, alt) {
+      return '<div style="border-top:0;padding-top:0;"><div style="height:68px;display:flex;align-items:flex-end;justify-content:center;border-top:0;padding-top:0;">' + (src ? imgTag(src, alt) : '') + '</div>'
+        + '<div style="border-top:1px solid #1d1626;padding-top:4px;">' + conteudo + '</div></div>';
+    }
+    return html.slice(0, i) + '<div class="ass" style="align-items:flex-start;">'
+      + cel(html.slice(ini, fimCel), img, 'Assinatura da gestante')
+      + cel(html.slice(iniCli, fimCli), ev.clinicaImg, 'Assinatura da clínica')
+      + '</div>' + reg + html.slice(fimAss);
+  }
+  function assAbrir(id) {
+    assDoc = null; assTem = false;
+    $('ass-li').checked = false;
+    document.querySelectorAll('input[name="ass-img"]').forEach(function (r) { r.checked = false; });
+    $('ass-msg').textContent = ''; $('ass-doc').textContent = 'Carregando…'; $('ass-sub').textContent = '';
+    ir('assdoc');
+    assCanvas(); assUi();
+    rpc('vitrine_assinatura_doc', { p_token: tokAss, p_id: id }).then(function (d) {
+      assDoc = d;
+      var termo = /^Termo aditivo/.test(d.documento || '');
+      $('ass-tit').textContent = termo ? 'Termo aditivo' : 'Contrato';
+      $('ass-li-txt').textContent = termo ? 'Li o termo e concordo com os seus termos.' : 'Li o contrato e concordo com os seus termos.';
+      $('ass-img-wrap').style.display = termo ? 'none' : '';
+      $('ass-sub').textContent = d.nome + ' · leia até o fim antes de assinar';
+      docNoHost($('ass-doc'), d.html);
+      assUi();
+    }).catch(function (e) { $('ass-doc').textContent = 'Não consegui abrir o documento (' + e.message + ').'; });
+  }
+  $('ass-ok').onclick = function () {
+    var d = assDoc; if (!d) return;
+    var img = assImagem();
+    if (!img) { $('ass-msg').textContent = 'Falta a assinatura.'; return; }
+    var btn = $('ass-ok'); btn.disabled = true; btn.textContent = 'Salvando…'; $('ass-msg').textContent = '';
+    var quando = new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
+    sha256(d.html).then(function (hash) {
+      var html = htmlAssinado(d.html, img, { nome: d.nome || '', cpf: d.cpf || '', quando: quando, hash: hash, clinicaImg: d.clinica_img,
+        por: (d.gerado_por || 'recepção') + ' (contrato gerado na recepção; assinado no iPad da vitrine)' });
+      var esc2 = document.querySelector('input[name="ass-img"]:checked');
+      if (esc2) html = html.replace('( ) Autorizo &nbsp; ( ) Não autorizo &nbsp;&nbsp; Rubrica: ________________',
+        esc2.value === 'sim' ? '<b>(X) Autorizo</b> &nbsp; ( ) Não autorizo &nbsp;&nbsp; (marcado pela gestante na assinatura eletrônica)' : '( ) Autorizo &nbsp; <b>(X) Não autorizo</b> &nbsp;&nbsp; (marcado pela gestante na assinatura eletrônica)');
+      return rpc('vitrine_assinatura_salvar', { p_token: tokAss, p_id: d.id, p_html: html });
+    }).then(function () { ir('assfim'); })
+      .catch(function (e) { $('ass-msg').textContent = 'Não consegui salvar (' + e.message + '). Chame a recepção, por favor.'; btn.disabled = false; })
+      .then(function () { btn.textContent = 'Confirmar assinatura'; });
+  };
 
   if (chave.length < 32) ir('erro');
 })();

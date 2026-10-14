@@ -1958,3 +1958,21 @@ concluir marca a pré-adesão como `cadastrada`. Pagamento continua na maquininh
 - **Assinatura da clínica (2026-10-14):** botão "✍ Minha assinatura" na barra da Recepção, só na visão da médica (`_rcMedica`). Ela assina uma vez; o PNG fica em `comprovantes/{dono}/clinica/assinatura-{epoch}.png` (sem policy de update: cada troca é arquivo novo e os antigos são apagados; vale o mais recente). `_assConfirmar` busca essa imagem e `_assHtmlAssinado` a põe na linha "Dra. Morgana Kummer — pela Clínica". Sem assinatura guardada, a linha sai em branco como antes. Contratos já assinados não mudam.
 
 **IG na Nova adesão aparece na hora (2026-10-14).** `_rcLerIg` já calculava a IG pela DUM ou pelo 1º ultrassom, mas o resultado só era usado no preço e ao gravar; a secretária não via nada. `_rcIgMostrar` (chamada no começo de `_rcValorSugerir`, antes de exigir modalidade) mostra "Idade gestacional hoje" + DPP em `#rc-ad-ig-hoje`, em vermelho com aviso se passou de 26 semanas ou se os dados não fazem sentido. Os campos de data/IG ouvem `input` e `change` (o seletor de data do iOS só dispara `change`).
+
+## Assinatura do contrato no iPad da vitrine (2026-10-14, migração 035)
+
+A secretária gera o contrato no computador e a gestante assina no iPad da vitrine, sem login. O endereço
+do iPad (botão "📱 iPad e link de adesão") leva `&a=<token_assinatura>`, uma chave **diferente** da `?k=`:
+a `?k=` também vai no link "de casa" pelo WhatsApp, e quem tem esse link não pode buscar contratos. Com
+`&a=` (e sem `de=casa`) a capa mostra "✍ Assinar contrato": busca por nome ou CPF (≥ 3 caracteres; CPF
+devolvido mascarado), "Assinar em tela", mesmo fluxo da tela do computador (li e concordo, uso de imagem,
+traço). Volta sozinho à capa após 10 min parado nessas telas.
+- O iPad não lê nem grava o Storage. `_contratoArquivar` também chama `recepcao_contrato_ipad` (HTML +
+  assinatura da clínica já resolvida); falha ali só vai ao console. A via assinada fica em
+  `contratos_ipad.html_assinado` e entra na ficha com `path = 'ipad:<id>'`; `_arqBlob` sabe abrir esse
+  caminho ("Ver" e "Enviar cópia à gestante").
+- Aparecem só contratos de gestação ativa, gerados há até 7 dias, não substituídos por via mais nova e
+  sem assinatura posterior por outro caminho. Contrato gerado antes da 035 não aparece no iPad: "Gerar
+  nova via…" resolve.
+- `htmlAssinado`, o recorte e o SHA-256 em `vitrine.html` são **cópia** de `_assHtmlAssinado` etc. (o CSP
+  só aceita script inline). Mudou lá, mude aqui.

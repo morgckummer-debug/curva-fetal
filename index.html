@@ -1259,6 +1259,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="rc-marca"><img src="hero-logo.png" alt="MK Medicina Fetal" width="52" height="52"><h1><small>Recepção — acompanhamentos · v2</small>Acompanhamento Fetal MK</h1></div>
     <div class="rc-bar-acoes">
       <span class="rc-bar-user" id="rc-user"></span>
+      <button type="button" class="rc-btn" id="rc-minha-ass" style="display:none" onclick="recepcaoMinhaAssinaturaAbrir()">✍ Minha assinatura</button>
       <button type="button" class="rc-btn" onclick="recepcaoAtualizar()">Atualizar</button>
       <button type="button" class="rc-btn" id="rc-sair" onclick="recepcaoSair()">Sair</button>
     </div>
@@ -2854,6 +2855,8 @@ async function _abrirRecepcao() {
   if (sair) sair.textContent = _rcMedica ? 'Voltar ao app' : 'Sair';
   const u = document.getElementById('rc-user');
   if (u) u.textContent = _rcMedica ? 'Visão da médica' : '';
+  const ma = document.getElementById('rc-minha-ass');
+  if (ma) ma.style.display = _rcMedica ? '' : 'none';
   await recepcaoAtualizar();
   const b = document.getElementById('rc-busca');
   if (b) b.focus();
@@ -3502,8 +3505,9 @@ function _rcDocModal(titulo, conteudo, ehImagem) {
   else _rcDocNoHost(corpo, conteudo);
 }
 
-function _assCanvas() {
-  const cv = document.getElementById('rc-ass-canvas');
+function _assCanvas(cvId, aoTracar) {
+  const cv = document.getElementById(cvId || 'rc-ass-canvas');
+  aoTracar = aoTracar || (() => { if (!_assTem) { _assTem = true; _assUi(); } });
   const dpr = window.devicePixelRatio || 1;
   cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
   const ctx = cv.getContext('2d');
@@ -3515,7 +3519,7 @@ function _assCanvas() {
     if (!desenhando) return;
     const p = pt(e);
     ctx.beginPath(); ctx.moveTo(ult.x, ult.y); ctx.lineTo(p.x, p.y); ctx.stroke(); ult = p;
-    if (!_assTem) { _assTem = true; _assUi(); }
+    aoTracar();
   };
   cv.onpointerup = cv.onpointercancel = () => { desenhando = false; };
 }
@@ -3531,8 +3535,8 @@ function _assUi() {
 }
 
 // Recorta o espaço em branco em volta do traço, para a assinatura sair do tamanho certo no papel.
-function _assImagem() {
-  const cv = document.getElementById('rc-ass-canvas');
+function _assImagem(cvId) {
+  const cv = document.getElementById(cvId || 'rc-ass-canvas');
   const ctx = cv.getContext('2d'), { width: w, height: h } = cv;
   const px = ctx.getImageData(0, 0, w, h).data;
   let x0 = w, y0 = h, x1 = -1, y1 = -1;
@@ -3555,15 +3559,90 @@ function _assHtmlAssinado(html, img, ev) {
   const i = html.indexOf('<div class="ass"><div>');
   const reg = `<div style="margin-top:14px;padding:8px 10px;border:1px solid #c9b8d8;border-radius:6px;font-size:8.5pt;color:#4a3a58;page-break-inside:avoid;">
 <b>Assinatura eletrônica</b> — documento assinado pela gestante ${escapeHtml(ev.nome)}${ev.cpf ? ', CPF ' + escapeHtml(ev.cpf) : ''}, com assinatura manuscrita na tela, na recepção da clínica, em ${escapeHtml(ev.quando)}. Leitura e concordância declaradas pela gestante antes de assinar. Conferido por ${escapeHtml(ev.por)}. Código de integridade do documento original (SHA-256): <span style="word-break:break-all;">${ev.hash}</span>.</div>`;
-  const assImg = `<img src="${img}" alt="Assinatura da gestante" style="display:block;max-height:64px;max-width:90%;margin:0 auto 2px;">`;
+  const imgTag = (src, alt) => `<img src="${src}" alt="${alt}" style="display:block;max-height:64px;max-width:90%;margin:0 auto 2px;">`;
   if (i < 0) return html.replace('</body>', reg + '</body>');
   const ini = i + '<div class="ass"><div>'.length;
   const fimCel = html.indexOf('</div>', ini);              // fim da célula "Gestante"
+  const iniCli = fimCel + '</div><div>'.length;             // célula da clínica
+  const fimCli = html.indexOf('</div>', iniCli);
   const fimAss = html.indexOf('</div></div>', fimCel) + '</div></div>'.length; // fim do bloco .ass
-  // a borda superior da célula é a linha de assinatura: a imagem vai acima dela
-  return html.slice(0, i) + '<div class="ass" style="align-items:flex-end;"><div style="border-top:0;padding-top:0;">' + assImg
-    + '<div style="border-top:1px solid #1d1626;padding-top:4px;">' + html.slice(ini, fimCel) + '</div>'
-    + html.slice(fimCel, fimAss) + reg + html.slice(fimAss);
+  // A borda superior da célula é a linha de assinatura: a imagem vai acima dela. A da clínica é a
+  // assinatura que a Dra. Morgana deixou guardada (recepcaoMinhaAssinaturaAbrir); sem ela, a linha fica em branco.
+  // Área da imagem com altura fixa nas duas células: as duas linhas de assinatura ficam na mesma altura.
+  const cel = (conteudo, src, alt) => '<div style="border-top:0;padding-top:0;"><div style="height:68px;display:flex;align-items:flex-end;justify-content:center;border-top:0;padding-top:0;">' + (src ? imgTag(src, alt) : '') + '</div>'
+    + '<div style="border-top:1px solid #1d1626;padding-top:4px;">' + conteudo + '</div></div>';
+  return html.slice(0, i) + '<div class="ass" style="align-items:flex-start;">'
+    + cel(html.slice(ini, fimCel), img, 'Assinatura da gestante')
+    + cel(html.slice(iniCli, fimCli), ev.clinicaImg, 'Assinatura da clínica')
+    + '</div>' + reg + html.slice(fimAss);
+}
+
+// ── Assinatura da clínica (Dra. Morgana), guardada uma vez e aplicada em todo documento assinado ──
+// Arquivo em comprovantes/{dono}/clinica/assinatura-{epoch}.png (o bucket não tem policy de update,
+// então cada nova assinatura é um arquivo novo e as antigas são apagadas). Vale a mais recente.
+async function _clinicaAssPath() {
+  const dono = await _compDonoId();
+  const { data, error } = await supabaseClient.storage.from('comprovantes').list(dono + '/clinica', { limit: 100 });
+  if (error) throw error;
+  const nomes = (data || []).map(f => f.name).filter(n => /^assinatura-\d+\.png$/.test(n)).sort();
+  return { dono, nomes, atual: nomes.length ? dono + '/clinica/' + nomes[nomes.length - 1] : null };
+}
+async function _clinicaAssDataUrl() {
+  const { atual } = await _clinicaAssPath();
+  if (!atual) return null;
+  const { data, error } = await supabaseClient.storage.from('comprovantes').download(atual);
+  if (error) throw error;
+  return await new Promise((ok, falha) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = falha; fr.readAsDataURL(data); });
+}
+async function recepcaoMinhaAssinaturaAbrir() {
+  let el = document.getElementById('rc-mass-modal'); if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'rc-mass-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:10px;';
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:620px;width:100%;padding:14px 18px;">
+    <div style="display:flex;gap:10px;align-items:flex-start;"><button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-mass-modal').remove()">← Voltar</button>
+      <div style="flex:1;"><h3 style="margin:0;">Minha assinatura (pela clínica)</h3>
+      <div style="font-size:13px;color:var(--text-muted);">Entra sozinha na linha "Dra. Morgana Kummer — pela Clínica" de cada contrato e termo que a gestante assinar na tela daqui em diante.</div></div></div>
+    <div style="font-size:13px;margin:12px 0 4px;">Assinatura guardada agora:</div>
+    <div id="rc-mass-atual" style="min-height:60px;border:1px solid var(--border);border-radius:12px;padding:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text-muted);">Carregando…</div>
+    <div style="font-size:12.5px;color:var(--text-muted);margin:12px 0 4px;">Para trocar, assine com o dedo no quadro abaixo</div>
+    <canvas id="rc-mass-canvas" style="width:100%;height:170px;border:1.5px dashed #8a6fa3;border-radius:12px;background:#fff;touch-action:none;display:block;"></canvas>
+    <div id="rc-mass-msg" style="font-size:13px;min-height:18px;margin:6px 0;"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <button type="button" class="rc-btn-claro" onclick="const c=document.getElementById('rc-mass-canvas');c.getContext('2d').clearRect(0,0,c.width,c.height);document.getElementById('rc-mass-ok').disabled=true;">Limpar</button>
+      <button type="button" class="rc-btn-dark" id="rc-mass-ok" disabled onclick="recepcaoMinhaAssinaturaSalvar()">Salvar assinatura</button></div></div>`;
+  document.body.appendChild(el);
+  _assCanvas('rc-mass-canvas', () => { document.getElementById('rc-mass-ok').disabled = false; });
+  const box = document.getElementById('rc-mass-atual');
+  try {
+    const img = await _clinicaAssDataUrl();
+    if (img) box.innerHTML = `<img src="${img}" alt="Assinatura guardada" style="max-height:70px;max-width:100%;">`;
+    else box.textContent = 'Nenhuma ainda: a linha da clínica sai em branco.';
+  } catch (err) { box.textContent = 'Não consegui carregar: ' + (err.message || err); }
+}
+async function recepcaoMinhaAssinaturaSalvar() {
+  const msg = document.getElementById('rc-mass-msg'), ok = document.getElementById('rc-mass-ok');
+  const img = _assImagem('rc-mass-canvas');
+  if (!img) { msg.textContent = 'Falta a assinatura.'; return; }
+  ok.disabled = true; msg.style.color = ''; msg.textContent = 'Salvando…';
+  try {
+    const { dono, nomes } = await _clinicaAssPath();
+    // data: → Blob sem fetch (o CSP só libera o Supabase em connect-src).
+    const bin = atob(img.split(',')[1]), u8 = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+    const blob = new Blob([u8], { type: 'image/png' });
+    const path = `${dono}/clinica/assinatura-${Date.now()}.png`;
+    const up = await supabaseClient.storage.from('comprovantes').upload(path, blob, { contentType: 'image/png', upsert: false });
+    if (up.error) throw up.error;
+    if (nomes.length) await supabaseClient.storage.from('comprovantes').remove(nomes.map(n => dono + '/clinica/' + n));
+    msg.style.color = 'var(--success, #2e7d32)'; msg.textContent = 'Assinatura guardada ✓';
+    document.getElementById('rc-mass-atual').innerHTML = `<img src="${img}" alt="Assinatura guardada" style="max-height:70px;max-width:100%;">`;
+    const c = document.getElementById('rc-mass-canvas'); c.getContext('2d').clearRect(0, 0, c.width, c.height);
+  } catch (err) {
+    console.error('[CurvaFetal] assinatura da clínica:', err);
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Não consegui guardar: ' + (err.message || err);
+    ok.disabled = false;
+  }
 }
 
 async function _assConfirmar() {
@@ -3579,7 +3658,9 @@ async function _assConfirmar() {
     try { const { data } = await supabaseClient.auth.getUser(); por = (data && data.user && data.user.email) || por; } catch (_) {}
     const quando = new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
     const hash = await _assSha256(_assHtml);
-    let html = _assHtmlAssinado(_assHtml, img, { nome: r.nome || '', cpf: r.cpf || '', quando, por, hash });
+    let clinicaImg = null;
+    try { clinicaImg = await _clinicaAssDataUrl(); } catch (eCli) { console.error('[CurvaFetal] assinatura da clínica:', eCli); }
+    let html = _assHtmlAssinado(_assHtml, img, { nome: r.nome || '', cpf: r.cpf || '', quando, por, hash, clinicaImg });
     // A escolha sobre uso de imagem, que no papel era marcada à mão, vai marcada no documento assinado.
     const escImg = document.querySelector('input[name="rc-ass-img"]:checked');
     if (escImg) html = html.replace('( ) Autorizo &nbsp; ( ) Não autorizo &nbsp;&nbsp; Rubrica: ________________',

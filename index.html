@@ -643,6 +643,7 @@ header::after{display:none;}
 .rc-modal-acoes{display:flex;gap:12px;align-items:center;margin-top:18px;flex-wrap:wrap;}
 .rc-btn-claro{padding:9px 16px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 .rc-ig-par{display:flex;align-items:center;gap:8px;font-size:13.5px;}.rc-ig-par input{width:90px;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;box-sizing:border-box;}
+.rc-ig-hoje{font-size:15px;padding:10px 12px;border-radius:10px;background:#f3eef8;color:#3b2a52;}.rc-ig-hoje small{display:block;font-size:12.5px;margin-top:3px;}.rc-ig-hoje--alerta{background:#fdecec;color:#a12a2a;}
 .rc-form input[type=date],.rc-form input[type=email]{width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;background:#fff;color:var(--text);box-sizing:border-box;}
 .rv-tab-wrap{overflow-x:auto;}
 .rv-tab{border-collapse:collapse;width:100%;font-size:12.5px;}
@@ -1294,9 +1295,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <div class="rc-full" id="rc-ad-valor-w"><label for="rc-ad-valor">Valor do acompanhamento (R$)</label><input type="number" id="rc-ad-valor" min="1" step="1" oninput="_rcValorEditado()"><div id="rc-ad-valor-dica" style="font-size:12px;color:var(--text-muted);margin-top:3px"></div></div>
       <div class="rc-full"><label for="rc-ad-igmodo">Idade gestacional (com ela as datas dos exames já aparecem)</label>
         <select id="rc-ad-igmodo" onchange="_rcIgModo();_rcValorSugerir(true)"><option value="">Não informar agora</option><option value="dum">Pela DUM</option><option value="us">Pelo 1º ultrassom (data e IG do exame)</option><option value="hoje">IG de hoje (já calculada)</option></select></div>
-      <div id="rc-ad-ig-dum" class="rc-full rc-ig" style="display:none"><label for="rc-ad-dum">Data da última menstruação (DUM)</label><input type="date" id="rc-ad-dum" oninput="_rcValorSugerir(false)"></div>
-      <div id="rc-ad-ig-us" class="rc-full rc-ig" style="display:none"><label for="rc-ad-usdata">Data do ultrassom</label><input type="date" id="rc-ad-usdata" oninput="_rcValorSugerir(false)"></div>
-      <div id="rc-ad-ig-ig" class="rc-full rc-ig" style="display:none"><label id="rc-ad-iglab">IG</label><div class="rc-ig-par"><input type="number" id="rc-ad-igsem" oninput="_rcValorSugerir(false)" min="0" max="42" placeholder="semanas"> <span>semanas e</span> <input type="number" id="rc-ad-igdias" oninput="_rcValorSugerir(false)" min="0" max="6" placeholder="dias"> <span>dias</span></div></div>
+      <div id="rc-ad-ig-dum" class="rc-full rc-ig" style="display:none"><label for="rc-ad-dum">Data da última menstruação (DUM)</label><input type="date" id="rc-ad-dum" oninput="_rcValorSugerir(false)" onchange="_rcValorSugerir(false)"></div>
+      <div id="rc-ad-ig-us" class="rc-full rc-ig" style="display:none"><label for="rc-ad-usdata">Data do ultrassom</label><input type="date" id="rc-ad-usdata" oninput="_rcValorSugerir(false)" onchange="_rcValorSugerir(false)"></div>
+      <div id="rc-ad-ig-ig" class="rc-full rc-ig" style="display:none"><label id="rc-ad-iglab">IG</label><div class="rc-ig-par"><input type="number" id="rc-ad-igsem" oninput="_rcValorSugerir(false)" onchange="_rcValorSugerir(false)" min="0" max="42" placeholder="semanas"> <span>semanas e</span> <input type="number" id="rc-ad-igdias" oninput="_rcValorSugerir(false)" onchange="_rcValorSugerir(false)" min="0" max="6" placeholder="dias"> <span>dias</span></div></div>
+      <div id="rc-ad-ig-hoje" class="rc-full rc-ig-hoje" style="display:none"></div>
     </div>
     <div class="rc-modal-acoes">
       <button type="button" class="rc-btn-dark" id="rc-ad-ok" onclick="recepcaoAdesaoConfirmar()">Cadastrar e abrir contrato</button>
@@ -4383,6 +4385,7 @@ function _rcValorEditado() { _rcValorManual = true; }
 function _rcValorSugerir(forcar) {
   const v = id => document.getElementById(id).value.trim();
   const mod = v('rc-ad-mod'), inp = document.getElementById('rc-ad-valor'), dica = document.getElementById('rc-ad-valor-dica');
+  _rcIgMostrar(v);
   if (forcar) _rcValorManual = false;
   if (!_ADESAO_PRECO[mod]) { inp.value = ''; dica.textContent = ''; return; }
   const ig = _rcLerIg(v);
@@ -4411,6 +4414,22 @@ function _extensoReais(n) {
   if (mil) t = (mil === 1 ? 'mil' : ate999(mil) + ' mil');
   if (r) t += (t ? (r < 100 || r % 100 === 0 ? ' e ' : ' ') : '') + ate999(r);
   return (t || 'zero') + (n === 1 ? ' real' : ' reais');
+}
+// Mostra a IG de hoje (e a DPP) assim que a DUM ou o 1º ultrassom estão preenchidos.
+function _rcIgMostrar(v) {
+  const box = document.getElementById('rc-ad-ig-hoje');
+  if (!box) return;
+  const ig = _rcLerIg(v);
+  if (ig.erro && !/^Informe/.test(ig.erro)) {
+    box.textContent = ig.erro; box.classList.add('rc-ig-hoje--alerta'); box.style.display = ''; return;
+  }
+  if (ig.igHoje == null || ig.erro || ig.igHoje < 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const dpp = ig.dpp ? ' · DPP ' + ig.dpp.slice(8, 10) + '/' + ig.dpp.slice(5, 7) + '/' + ig.dpp.slice(0, 4) : '';
+  const passou = ig.igHoje > ACOMP_EX.m2.fim;
+  box.innerHTML = 'Idade gestacional hoje: <b>' + _acompSemDia(ig.igHoje) + '</b>' + dpp +
+    (passou ? '<small>Passou de ' + Math.floor(ACOMP_EX.m2.fim / 7) + ' semanas: a adesão não é feita depois disso.</small>' : '');
+  box.classList.toggle('rc-ig-hoje--alerta', passou);
+  box.style.display = '';
 }
 function _rcIgModo() {
   const m = document.getElementById('rc-ad-igmodo').value;

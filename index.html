@@ -3112,7 +3112,7 @@ function recepcaoConfirmarAgenda() {
       <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-conf-modal').remove()">Cancelar</button>
       <button type="button" class="rc-btn-dark" onclick="_rcConfWhats()">Abrir no WhatsApp</button></div></div>`;
   document.body.appendChild(el);
-  el._pend = pend; el._nome = String(r.nome || '').trim().split(/\s+/)[0];
+  el._pend = pend; el._keys = pend.map(sl => i.sit.plano.ex[i.sit.slots.indexOf(sl)]); el._nome = String(r.nome || '').trim().split(/\s+/)[0];
   _rcConfRefazer();
   _rcConfLink(r, i, el);
 }
@@ -3161,12 +3161,12 @@ function _rcConfWhats() {
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(txt), '_blank');
   // só conta como agendado o exame que teve data digitada
   const el = document.getElementById('rc-conf-modal'), rr = _recepcaoDados.find(x => x.gestacao_id === _rcSel), ii = rr && _rcInfo(rr);
-  const feitos = ii && el ? el._pend.filter((sl, k) => el.querySelector(`.rc-conf-d[data-k="${k}"]`).value).map(sl => ii.sit.plano.ex[ii.sit.slots.indexOf(sl)]) : null;
+  const feitos = ii && el ? el._keys.filter((key, k) => el.querySelector(`.rc-conf-d[data-k="${k}"]`).value) : null;
   const itens = ii && el ? el._pend.map((sl, k) => ({ sl, k, d: el.querySelector(`.rc-conf-d[data-k="${k}"]`).value, h: el.querySelector(`.rc-conf-h[data-k="${k}"]`).value })).filter(x => x.d).map(x => ({
-    key: ii.sit.plano.ex[ii.sit.slots.indexOf(x.sl)], n: x.sl.def.n + (x.sl.def.sub ? ' (' + x.sl.def.sub + ')' : ''), d: x.d, h: x.h || '' })) : [];
+    key: el._keys[x.k], n: x.sl.def.n + (x.sl.def.sub ? ' (' + x.sl.def.sub + ')' : ''), d: x.d, h: x.h || '' })) : [];
   const nome = String(rr && rr.nome || '').trim().split(/\s+/)[0];
   // guarda dia e hora para a paciente confirmar pelo link (migração 032); sem ela, segue só com "Agendado"
-  _rcAgRegistrar('agendado', feitos, () => itens.length ? supabaseClient.rpc('recepcao_agendamento_horarios', { p_gestacao_id: rr.gestacao_id, p_nome: nome, p_itens: itens }).then(({ error }) => { if (error) console.error('[CurvaFetal] recepcao_agendamento_horarios:', error); }) : null);
+  _rcAgRegistrar('agendado', feitos, () => itens.length ? supabaseClient.rpc('recepcao_agendamento_horarios', { p_gestacao_id: rr.gestacao_id, p_nome: nome, p_itens: itens }).then(({ error }) => { if (error) { console.error('[CurvaFetal] recepcao_agendamento_horarios:', error); alert('Os horários não foram guardados para a paciente confirmar pelo link: ' + (error.message || error)); } }) : null);
 }
 
 function _rcAgRegistrar(estado, keys, depois) {

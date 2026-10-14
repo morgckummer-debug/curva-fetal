@@ -1923,3 +1923,16 @@ Botão "Trocar modalidade…" ao lado de "Encerrar…" (`recepcaoTrocarAbrir`, `
 - A Morgana tirou o "Pago em parte": o seletor da conferência tem só **Pago** (`quitado`) e **Aguardando pagamento** (`pendente`). Registro antigo com `parcial` é lido como aguardando (`_rcInfo`, `_RC_PAG.parcial`). Filtro/KPI renomeados para "Aguardando pagamento".
 - O quadro de pagamento não grava nada sozinho: qualquer mudança nele mostra "Alterações ainda não salvas: toque em Salvar conferência" (`_rcPagSujo`).
 - **Perda de um dos gêmeos** é opção do seletor "Encerrar…" (só em plano gemelar), mas **não encerra**: abre a troca de modalidade já travada no plano de feto único correspondente (`_TR_PERDA_GEMELAR`: Gemelar Essencial → Essencial, Gemelar Premium → Premium), tipo `gemelar_perda`, sem prazo e sem os 20%. Pelo item 8c a diferença vira crédito de 12 meses ou ultrassons extras, **não dinheiro**: o texto e o termo aditivo deixaram de oferecer devolução em Pix nesse caso.
+
+## Contrato assinado na tela (2026-10-14)
+
+Decisão da Morgana: a gestante assina no celular/tablet da recepção, sem papel nem foto. No quadro do
+contrato, **✍ Assinar na tela** (`recepcaoAssinarAbrir`) abre o último contrato gerado (os termos aditivos
+têm o próprio "✍ Assinar" na linha). O documento é mostrado num shadow root (o CSP tem `frame-src 'none'`,
+então nada de iframe) e exige "Li e concordo", a escolha sobre uso de imagem (no papel era marcada à mão)
+e o traço no `<canvas>`. A cópia assinada é o HTML original com a assinatura (PNG recortado) acima da linha
+"Gestante", a escolha de imagem marcada e um quadro de evidências: nome, CPF, data/hora, e-mail de quem
+conferiu e o SHA-256 do HTML original (`_assHtmlAssinado`). Sobe como `kind: 'assinado'`, `text/html`, pelo
+mesmo `recepcao_contrato_add`, sem migração nova. "Anexar assinado em PDF" continua para quem assinar fora;
+o botão de foto saiu. Validade jurídica (assinatura eletrônica simples, Lei 14.063/2020): pedir ao advogado
+que confirme quando revisar o contrato.

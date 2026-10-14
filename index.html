@@ -3319,12 +3319,17 @@ function _rcContratoHtml(r, enc) {
   const ultimo = c.gerados[c.gerados.length - 1];
   let pill, dica;
   if (c.assinado) { pill = ['rc-pill--ok', 'Assinado ✓']; dica = c.assinados.length ? '' : 'Marcado como assinado, mas sem o arquivo anexado.'; }
-  else if (ultimo) { pill = ['rc-pill--parcial', 'Aguardando assinatura']; dica = `Gerado em ${_rcDataHora(ultimo.em)} por ${escapeHtml(ultimo.por || '—')}. Anexe a foto ou o PDF do contrato assinado.`; }
+  else if (ultimo) { pill = ['rc-pill--parcial', 'Aguardando assinatura']; dica = `Gerado em ${_rcDataHora(ultimo.em)} por ${escapeHtml(ultimo.por || '—')}. Toque em "Assinar na tela" para a gestante ler e assinar no celular ou tablet.`; }
   else { pill = ['rc-pill--pend', 'Sem contrato']; dica = enc ? 'Nenhum contrato foi gerado para esta paciente.' : 'Nenhum contrato gerado ainda.'; }
   const arq = c.lista.map((x, i) => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;padding:7px 10px;background:#fff;">
       <span style="flex:1;min-width:150px;font-size:13px;"><b>${x.kind === 'assinado' ? 'Contrato assinado' : 'Contrato gerado'}</b>${x.kind !== 'assinado' && /^Termo aditivo/.test(x.nome || '') ? ' (novo contrato por ' + (/downgrade/.test(x.nome) ? 'troca para plano inferior' : /upgrade/.test(x.nome) ? 'upgrade do plano' : 'troca de plano') + ')' : ''}${x.valor != null ? ' · ' + _brl(x.valor) : ''}<br><small style="color:var(--text-muted);">${escapeHtml(x.por || '')}${x.em ? ', ' + _rcDataHora(x.em) : ''}</small></span>
       <button type="button" class="rc-btn-claro" onclick="recepcaoContratoVer(${gid}, ${i})">Ver</button>
+      ${x.kind === 'gerado' && !enc && /^Termo aditivo/.test(x.nome || '') ? `<button type="button" class="rc-btn-claro" onclick="recepcaoAssinarAbrir(${gid}, ${i})">✍ Assinar</button>` : ''}
       <button type="button" class="rc-btn-claro" onclick="recepcaoContratoRemover(${gid}, ${i})">Remover</button></div>`).join('');
+  // O contrato a assinar é o último gerado que não é termo aditivo (os termos se assinam na própria linha).
+  const idxContrato = c.lista.map((x, i) => ({ x, i })).filter(o => o.x.kind === 'gerado' && !/^Termo aditivo/.test(o.x.nome || '')).map(o => o.i).pop();
+  const assinar = (!enc && !c.assinado && idxContrato != null)
+    ? `<button type="button" class="rc-btn-dark" onclick="recepcaoAssinarAbrir(${gid}, ${idxContrato})">✍ Assinar na tela</button>` : '';
   const lbl = 'display:inline-block;padding:9px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;';
   const gerar = (!enc && !c.assinado)
     ? `<button type="button" class="${ultimo ? 'rc-btn-claro' : 'rc-btn-dark'}" onclick="recepcaoContratoGerar(${gid})">${ultimo ? 'Gerar nova via…' : 'Gerar contrato'}</button>` : '';
@@ -3332,9 +3337,8 @@ function _rcContratoHtml(r, enc) {
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Contrato</div><span class="rc-pill ${pill[0]}">${pill[1]}</span></div>
     ${dica ? `<p class="rc-det-meta" style="margin:0 0 10px;">${dica}</p>` : ''}
     ${arq ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">${arq}</div>` : ''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${gerar}
-      <label style="${lbl}">📷 Foto do assinado<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="recepcaoContratoEnviar(${gid}, this)"></label>
-      <label style="${lbl}">📎 Anexar assinado<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoContratoEnviar(${gid}, this)"></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${assinar}${gerar}
+      <label style="${lbl}">📎 Anexar assinado em PDF<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoContratoEnviar(${gid}, this)"></label>
       <span id="rc-ctr-msg" style="font-size:12.5px;color:var(--text-muted);"></span></div>
   </div>`;
 }
@@ -3385,6 +3389,161 @@ async function recepcaoContratoVer(gid, i) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
   const c = r && r.pagamento && (r.pagamento.contratos || [])[i];
   if (c) await _arqAbrir(c);
+}
+
+// ── Assinatura na tela (2026-10-14, decisão da Morgana) ──────────────────
+// A gestante lê o contrato arquivado e assina com o dedo no celular/tablet da recepção. A cópia
+// assinada (HTML, com a assinatura, data/hora, quem conferiu e o SHA-256 do documento original)
+// entra na ficha como 'assinado' pelo mesmo recepcao_contrato_add — nada de papel nem foto.
+let _assGid = null, _assIdx = null, _assHtml = null, _assTem = false;
+async function recepcaoAssinarAbrir(gid, idx) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const doc = r && r.pagamento && (r.pagamento.contratos || [])[idx];
+  if (!doc) return;
+  _assGid = gid; _assIdx = idx; _assHtml = null; _assTem = false;
+  let el = document.getElementById('rc-ass-modal'); if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'rc-ass-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(40,20,60,.6);z-index:9999;display:flex;align-items:stretch;justify-content:center;padding:10px;';
+  const termo = /^Termo aditivo/.test(doc.nome || '');
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:820px;width:100%;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="padding:14px 18px 8px;"><h3 style="margin:0;">${termo ? 'Assinatura do termo aditivo' : 'Assinatura do contrato'}</h3>
+      <div style="font-size:13px;color:var(--text-muted);">${escapeHtml(r.nome)}${r.cpf ? ' · CPF ' + escapeHtml(r.cpf) : ''} · leia até o fim antes de assinar</div></div>
+    <div id="rc-ass-doc" style="flex:1;min-height:180px;overflow:auto;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:#faf8fc;padding:8px;">Carregando o documento…</div>
+    <div style="padding:10px 18px 14px;">
+      <label style="display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-bottom:8px;"><input type="checkbox" id="rc-ass-li" onchange="_assUi()" style="width:20px;height:20px;margin-top:1px;"> Li ${termo ? 'o termo' : 'o contrato'} e concordo com os seus termos.</label>
+      ${termo ? '' : `<div style="font-size:14px;margin-bottom:8px;">Uso de imagens e vídeos do exame, sem identificação, nas redes sociais da clínica:
+        <label style="margin-left:6px;"><input type="radio" name="rc-ass-img" value="sim" onchange="_assUi()"> Autorizo</label>
+        <label style="margin-left:10px;"><input type="radio" name="rc-ass-img" value="nao" onchange="_assUi()"> Não autorizo</label></div>`}
+      <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:4px;">Assine com o dedo no quadro abaixo</div>
+      <canvas id="rc-ass-canvas" style="width:100%;height:170px;border:1.5px dashed #8a6fa3;border-radius:12px;background:#fff;touch-action:none;display:block;"></canvas>
+      <div id="rc-ass-msg" style="font-size:13px;min-height:18px;margin:6px 0;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+        <button type="button" class="rc-btn-claro" onclick="_assLimpar()">Limpar assinatura</button>
+        <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-ass-modal').remove()">Cancelar</button>
+        <button type="button" class="rc-btn-dark" id="rc-ass-ok" disabled onclick="_assConfirmar()">Confirmar assinatura</button></div></div></div>`;
+  document.body.appendChild(el);
+  _assCanvas();
+  try {
+    const { data, error } = await supabaseClient.storage.from('comprovantes').download(doc.path);
+    if (error) throw error;
+    _assHtml = await data.text();
+    // Mostra o documento num shadow root (estilos isolados, sem scripts); o CSP da página proíbe iframe.
+    const pd = new DOMParser().parseFromString(_assHtml, 'text/html');
+    pd.querySelectorAll('script,.barra-imp').forEach(n => n.remove());
+    const css = [...pd.querySelectorAll('style')].map(st => st.textContent.replace(/@page\{[^}]*\}/g, '').replace(/\bbody\{/g, '.corpo{')).join('\n');
+    const host = document.getElementById('rc-ass-doc');
+    host.textContent = '';
+    const sh = host.attachShadow({ mode: 'open' });
+    sh.innerHTML = `<style>${css}\n.corpo{background:#fff;padding:18px;max-width:720px;margin:0 auto;}.novapag{display:none}</style><div class="corpo">${pd.body.innerHTML}</div>`;
+  } catch (err) {
+    console.error('[CurvaFetal] abrir contrato para assinar:', err);
+    document.getElementById('rc-ass-doc').textContent = 'Não consegui abrir o documento: ' + (err.message || err);
+  }
+  _assUi();
+}
+
+function _assCanvas() {
+  const cv = document.getElementById('rc-ass-canvas');
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = cv.clientWidth * dpr; cv.height = cv.clientHeight * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr); ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1d1626';
+  let desenhando = false, ult = null;
+  const pt = e => { const b = cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+  cv.onpointerdown = e => { desenhando = true; ult = pt(e); cv.setPointerCapture(e.pointerId); ctx.beginPath(); ctx.arc(ult.x, ult.y, 1.1, 0, Math.PI * 2); ctx.fillStyle = '#1d1626'; ctx.fill(); };
+  cv.onpointermove = e => {
+    if (!desenhando) return;
+    const p = pt(e);
+    ctx.beginPath(); ctx.moveTo(ult.x, ult.y); ctx.lineTo(p.x, p.y); ctx.stroke(); ult = p;
+    if (!_assTem) { _assTem = true; _assUi(); }
+  };
+  cv.onpointerup = cv.onpointercancel = () => { desenhando = false; };
+}
+function _assLimpar() {
+  const cv = document.getElementById('rc-ass-canvas');
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+  _assTem = false; _assUi();
+}
+function _assUi() {
+  const ok = document.getElementById('rc-ass-ok');
+  const temImg = !document.querySelector('input[name="rc-ass-img"]') || document.querySelector('input[name="rc-ass-img"]:checked');
+  if (ok) ok.disabled = !(_assHtml && _assTem && temImg && document.getElementById('rc-ass-li').checked);
+}
+
+// Recorta o espaço em branco em volta do traço, para a assinatura sair do tamanho certo no papel.
+function _assImagem() {
+  const cv = document.getElementById('rc-ass-canvas');
+  const ctx = cv.getContext('2d'), { width: w, height: h } = cv;
+  const px = ctx.getImageData(0, 0, w, h).data;
+  let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (px[(y * w + x) * 4 + 3] > 10) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  if (x1 < 0) return null;
+  const m = 8; x0 = Math.max(0, x0 - m); y0 = Math.max(0, y0 - m); x1 = Math.min(w - 1, x1 + m); y1 = Math.min(h - 1, y1 + m);
+  const out = document.createElement('canvas');
+  out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+  out.getContext('2d').drawImage(cv, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+  return out.toDataURL('image/png');
+}
+
+async function _assSha256(txt) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// Põe a assinatura no lugar da linha "Gestante" e o registro de evidências logo abaixo.
+function _assHtmlAssinado(html, img, ev) {
+  const i = html.indexOf('<div class="ass"><div>');
+  const reg = `<div style="margin-top:14px;padding:8px 10px;border:1px solid #c9b8d8;border-radius:6px;font-size:8.5pt;color:#4a3a58;page-break-inside:avoid;">
+<b>Assinatura eletrônica</b> — documento assinado pela gestante ${escapeHtml(ev.nome)}${ev.cpf ? ', CPF ' + escapeHtml(ev.cpf) : ''}, com assinatura manuscrita na tela, na recepção da clínica, em ${escapeHtml(ev.quando)}. Leitura e concordância declaradas pela gestante antes de assinar. Conferido por ${escapeHtml(ev.por)}. Código de integridade do documento original (SHA-256): <span style="word-break:break-all;">${ev.hash}</span>.</div>`;
+  const assImg = `<img src="${img}" alt="Assinatura da gestante" style="display:block;max-height:64px;max-width:90%;margin:0 auto 2px;">`;
+  if (i < 0) return html.replace('</body>', reg + '</body>');
+  const ini = i + '<div class="ass"><div>'.length;
+  const fimCel = html.indexOf('</div>', ini);              // fim da célula "Gestante"
+  const fimAss = html.indexOf('</div></div>', fimCel) + '</div></div>'.length; // fim do bloco .ass
+  // a borda superior da célula é a linha de assinatura: a imagem vai acima dela
+  return html.slice(0, i) + '<div class="ass" style="align-items:flex-end;"><div style="border-top:0;padding-top:0;">' + assImg
+    + '<div style="border-top:1px solid #1d1626;padding-top:4px;">' + html.slice(ini, fimCel) + '</div>'
+    + html.slice(fimCel, fimAss) + reg + html.slice(fimAss);
+}
+
+async function _assConfirmar() {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _assGid);
+  const doc = r && r.pagamento && (r.pagamento.contratos || [])[_assIdx];
+  const msg = document.getElementById('rc-ass-msg'), ok = document.getElementById('rc-ass-ok');
+  if (!doc || !_assHtml) return;
+  const img = _assImagem();
+  if (!img) { msg.textContent = 'Falta a assinatura.'; return; }
+  ok.disabled = true; msg.style.color = ''; msg.textContent = 'Salvando…';
+  try {
+    let por = '—';
+    try { const { data } = await supabaseClient.auth.getUser(); por = (data && data.user && data.user.email) || por; } catch (_) {}
+    const quando = new Date().toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' });
+    const hash = await _assSha256(_assHtml);
+    let html = _assHtmlAssinado(_assHtml, img, { nome: r.nome || '', cpf: r.cpf || '', quando, por, hash });
+    // A escolha sobre uso de imagem, que no papel era marcada à mão, vai marcada no documento assinado.
+    const escImg = document.querySelector('input[name="rc-ass-img"]:checked');
+    if (escImg) html = html.replace('( ) Autorizo &nbsp; ( ) Não autorizo &nbsp;&nbsp; Rubrica: ________________',
+      escImg.value === 'sim' ? '<b>(X) Autorizo</b> &nbsp; ( ) Não autorizo &nbsp;&nbsp; (marcado pela gestante na assinatura eletrônica)' : '( ) Autorizo &nbsp; <b>(X) Não autorizo</b> &nbsp;&nbsp; (marcado pela gestante na assinatura eletrônica)');
+    const dono = await _compDonoId();
+    const path = `${dono}/${_assGid}/contrato-assinado-${Date.now()}.html`;
+    const up = await supabaseClient.storage.from('comprovantes').upload(path, new Blob([html], { type: 'text/html' }), { contentType: 'text/html', upsert: false });
+    if (up.error) throw up.error;
+    const termo = /^Termo aditivo/.test(doc.nome || '');
+    const { error } = await supabaseClient.rpc('recepcao_contrato_add', {
+      p_gestacao_id: _assGid, p_path: path, p_nome: termo ? doc.nome.replace(/^Termo aditivo/, 'Termo aditivo assinado na tela') : 'Contrato assinado na tela',
+      p_tipo: 'text/html', p_kind: 'assinado', p_valor: doc.valor != null ? doc.valor : null,
+    });
+    if (error) { await supabaseClient.storage.from('comprovantes').remove([path]); throw error; }
+    document.getElementById('rc-ass-modal').remove();
+    await recepcaoAtualizar();
+    const m = document.getElementById('rc-ctr-msg');
+    if (m) { m.style.color = '#1f6b3a'; m.textContent = '✓ Assinado. Para a via da gestante, toque em "Ver" no documento assinado.'; }
+  } catch (err) {
+    console.error('[CurvaFetal] assinatura na tela:', err);
+    msg.style.color = 'var(--danger)'; msg.textContent = 'Não consegui salvar: ' + (err.message || err);
+    ok.disabled = false;
+  }
 }
 
 async function recepcaoContratoRemover(gid, i) {

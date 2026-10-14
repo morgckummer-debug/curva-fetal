@@ -2894,7 +2894,7 @@ function _rcInfo(r) {
   const ag = r.agendamento;
   let agEstado = null, agHoras = null, agUrgente = false;
   if (_rcAgOk && !enc && pendKeys.length) {
-    const vale = ag && Array.isArray(ag.slots) && pendKeys.every(k => ag.slots.includes(k));
+    const vale = ag && Array.isArray(ag.slots) && (ag.estado === 'respondeu' ? pendKeys.some(k => ag.slots.includes(k)) : pendKeys.every(k => ag.slots.includes(k)));
     agEstado = vale ? ag.estado : 'sem';
     if (vale) agHoras = (Date.now() - new Date(ag.desde).getTime()) / 36e5;
     const perto = !!(limite && limite <= em7); // janela do exame acaba em até 7 dias

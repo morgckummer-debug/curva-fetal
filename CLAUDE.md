@@ -1875,3 +1875,13 @@ O editor de laudos agora grava a impressão diagnóstica final (com as edições
 na aba Revisão ("Conclusão do laudo"); não substitui a conclusão calculada do relatório. Numa múltipla o mesmo
 texto vai em todos os fetos; a Revisão exibe uma vez (feto A). **A 028 precisa estar aplicada antes de publicar
 qualquer um dos dois lados**: `_EXAM_COLUMNS` pede a coluna e o insert do editor a envia.
+
+## Frases conclusivas reescritas pela médica (2026-10-14)
+
+Linguagem de obstetra, revisada caso a caso a partir de exemplos gerados pelo app. Gestação única:
+- **Critério vem primeiro, rótulo no fim, sem percentil**, para RCIU e GIG: "Abdome fetal abaixo do P3 + Cruzamento ≥ 2 quartis na trajetória da CA - RCIU Tardio estágio I." (`_gerarConclusaoUnicaInicial`). Sem "Delphi", sem "CA e/ou PFE": `_critItemsDiagnostico` diz qual medida (peso fetal, abdome fetal, ou as duas).
+- **"Estágio" voltou só na Conclusão**, por pedido dela (o estadiamento tinha saído em 2026-09-25): sem diástole zero = I, diástole zero = II, diástole reversa ou DV com IP > P95 = III, DV tardio = IV (escala de Barcelona/FIGO, derivada de `deterioracaoDoppler`).
+- **"Diástole ZERO"** no lugar de "diástole ausente" em achados e condutas. Com diástole zero/reversa, o IP da umbilical > P95 não é listado (redundante).
+- **Condutas** só de ultrassom: RCIU "Seguimento semanal com Doppler para melhor decisão do momento do parto"; diástole zero "Doppler 2×/semana ambulatorial ou em ambiente hospitalar"; GIG/adequado "Reavaliação conforme protocolo de seguimento" (sem semanas). Saíram a confirmação de ACM/RCP em 24 h e a nota de neurodesenvolvimento pós-natal.
+- Pré-eclâmpsia no relatório: "Risco aumentado de pré-eclâmpsia (Priorizar vigilância)" fora da janela do AAS.
+- GIG só com peso (PFE) acima do P90; CA > P90 com peso normal não diagnostica.

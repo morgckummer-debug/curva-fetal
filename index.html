@@ -7551,7 +7551,7 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
 const _DETERIORACAO_CFG = {
   leve:      { label: 'Doppler alterado — fluxo diastólico presente na artéria umbilical',                     cor: '#b87a20' },
   dv_precoce:{ label: 'Ducto venoso com IP > P95 e onda A presente — alteração precoce do DV',                 cor: '#c05a14' },
-  aedf:      { label: 'Diástole ausente em artéria umbilical',                                                 cor: '#b84010' },
+  aedf:      { label: 'Diástole ZERO em artéria umbilical',                                                   cor: '#b84010' },
   redf:      { label: 'Diástole reversa em artéria umbilical',                                                 cor: '#8a1010' },
   dv_tardio: { label: 'Ducto venoso — onda A ausente, na linha de base ou reversa (alteração tardia)',         cor: '#6a0010' },
 };
@@ -7786,17 +7786,21 @@ function _critItemsDiagnostico(dx) {
   const items = [];
   const c = dx?.criterios;
   if (!c) return items;
-  if (c.caBelowP3 || c.efwBelowP3)        items.push('CA e/ou PFE abaixo do P3 (critério Delphi primário)');
+  // Redação em linguagem de obstetra (médica, 2026-10-14): "Peso fetal / abdome fetal",
+  // sem "Delphi" nem sigla; diz qual das duas medidas está abaixo.
+  const _qual = (ca, efw) => (ca && efw) ? 'Peso fetal e abdome fetal' : efw ? 'Peso fetal' : 'Abdome fetal';
+  if (c.caBelowP3 || c.efwBelowP3)        items.push(`${_qual(c.caBelowP3, c.efwBelowP3)} abaixo do P3`);
   else if (c.caIsoladaP10)                items.push('CA abaixo do P10, com PFE adequada');
-  else if (c.caBelowP10 || c.efwBelowP10) items.push('CA e/ou PFE abaixo do P10');
-  if (c.efwAboveP90)                      items.push(c.caAboveP90 ? 'CA e PFE acima do P90' : 'PFE acima do P90');
+  else if (c.caBelowP10 || c.efwBelowP10) items.push(`${_qual(c.caBelowP10, c.efwBelowP10)} abaixo do P10`);
+  if (c.efwAboveP90)                      items.push('Peso fetal acima do percentil 90');
   else if (c.caAboveP90)                  items.push(c.caIsoladaP90 ? 'CA acima do P90, com PFE adequada' : 'CA acima do P90');
-  if (c.auAboveP95)                        items.push('IP artéria umbilical acima do P95');
+  // Com diástole zero/reversa/intermitente o IP da umbilical é redundante (o achado já diz tudo).
+  if (c.auAboveP95 && !c.auFluxo)          items.push('IP artéria umbilical acima do P95');
   if (c.utAboveP95)                        items.push('IP médio artérias uterinas acima do P95');
   if (c.cprBelowP5)                        items.push('CPR abaixo do P5 — redistribuição cerebro-placentária');
   if (c.acmBelowP5)                        items.push('IP da artéria cerebral média abaixo do P5 — centralização fetal');
   if (c.cruzamentoQuartis)                 items.push('Cruzamento ≥ 2 quartis na trajetória da CA');
-  if (c.auFluxo === 'ausente')             items.push('Diástole ausente na artéria umbilical');
+  if (c.auFluxo === 'ausente')             items.push('Diástole ZERO na artéria umbilical');
   if (c.auFluxo === 'reversa')             items.push('Diástole reversa na artéria umbilical');
   if (c.dvIpAboveP95)                      items.push('IP do ducto venoso acima do P95 — alteração precoce (ISUOG 2020)');
   if (c.dvOnda === 'reversa')              items.push('Onda A reversa no ducto venoso — alteração tardia (ISUOG 2020)');
@@ -7866,7 +7870,7 @@ function _notasDiagnostico(dx) {
   // Fica como "a critério do médico assistente" porque quem indica a
   // amniocentese é quem conduz o pré-natal, não este resumo.
   if (d === 'rciu_precoce') {
-    notas.push('RCIU de início precoce — considerar investigação genética (cariótipo/microarray por amniocentese) e rastreio de infecção congênita (CMV, toxoplasmose), a critério do médico assistente: até 20% dos casos antes de 32 semanas têm causa cromossômica ou genética, e não placentária.');
+    notas.push('Considerar investigação genética (cariótipo/microarray por amniocentese) e rastreio de infecção congênita (CMV, toxoplasmose), a critério do médico assistente: até 20% dos casos antes de 32 semanas têm causa cromossômica ou genética, e não placentária.');
   }
 
   // CA < P10 com PFE ≥ P10 não é PIG (decisão da médica, 2026-10-03), mas também
@@ -7910,7 +7914,7 @@ function _condutaDiagnostico(dx) {
 
   if (diagnostico === 'rciu_precoce' || diagnostico === 'rciu_tardio') {
     if (!det) {
-      return 'Completar avaliação com Doppler (AU e ducto venoso). Seguimento semanal com Doppler até o parto.';
+      return 'Seguimento semanal com Doppler para melhor decisão do momento do parto.';
     }
     const crit = dx?.criterios || {};
     if (det === 'dv_tardio') {
@@ -7920,7 +7924,7 @@ function _condutaDiagnostico(dx) {
       return 'Diástole reversa em artéria umbilical — Doppler 2×/dia.';
     }
     if (det === 'aedf') {
-      return 'Diástole ausente em artéria umbilical — Doppler 2×/semana.'
+      return 'Diástole ZERO em artéria umbilical — Doppler 2×/semana ambulatorial ou em ambiente hospitalar.'
         + (crit.dvIpAboveP95 ? ' Ducto venoso com IP > P95 associado: Doppler diário ou 3×/semana.' : '');
     }
     if (det === 'dv_precoce') {
@@ -7929,8 +7933,7 @@ function _condutaDiagnostico(dx) {
     // 'leve': fluxo diastólico presente. ACM/RCP alterados se confirmam em nova
     // medida em até 24 h (ISUOG 2020): a medida do IP da ACM tem
     // variabilidade interobservador e o falso-positivo pesa na conduta.
-    return 'Doppler semanal.'
-      + ((crit.cprBelowP5 || crit.acmBelowP5) ? ' Confirmar a alteração de ACM/RCP em nova medida em até 24 h.' : '');
+    return 'Doppler semanal para melhor decisão do momento do parto.';
   }
 
   if (diagnostico === 'pig') {
@@ -7947,7 +7950,7 @@ function _condutaDiagnostico(dx) {
     if (n == null) {
       return `Fim do termo (${igTxt}) — não cabe outro controle de crescimento antes do parto. Avaliar via de parto e risco de macrossomia com o obstetra.`;
     }
-    let txt = `Reavaliação em ${_txtSemanas(n)}. Avaliar fatores de risco para macrossomia (DMG, obesidade) e monitorizar crescimento.`;
+    let txt = 'Reavaliação conforme protocolo de seguimento. Avaliar fatores de risco para macrossomia (DMG, obesidade) e monitorizar crescimento.';
     if (aTermo) txt += ` Gestação a termo (${igTxt}) — discutir via de parto com o obstetra.`;
     return txt;
   }
@@ -7971,6 +7974,7 @@ function avaliarRiscoPreEclampsia(dx) {
     icon: '⚠',
     subtitulo: 'IP médio das artérias uterinas acima do P95 — independente do diagnóstico de crescimento fetal',
     conduta,
+    ...(dx.gaW != null && dx.gaW < 16 ? {} : { condutaRelatorio: 'Priorizar vigilância' }),
   };
 }
 
@@ -14940,7 +14944,18 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
     linhas.push('Circunferência abdominal acima do percentil 90.');
     impressao.critItems.filter(i => !/^CA acima do P90/.test(i)).forEach(i => linhas.push(`${i}.`));
   } else {
-    linhas.push(`${labelTxt}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`);
+    const critJoin = (impressao.critItems || []).join(' + ');
+    const ehRciu = impressao.diagnostico === 'rciu_precoce' || impressao.diagnostico === 'rciu_tardio';
+    if ((ehRciu || impressao.diagnostico === 'gig') && critJoin) {
+      // Formato da médica (2026-10-14): critérios primeiro, rótulo no fim, sem percentil.
+      // "Estágio" por achado Doppler, escala de Barcelona/FIGO: sem diástole zero = I,
+      // diástole zero = II, diástole reversa ou DV com IP > P95 = III, DV alterado tardio = IV.
+      const EST = { aedf: 'II', redf: 'III', dv_precoce: 'III', dv_tardio: 'IV' };
+      const rotulo = ehRciu ? `${labelTxt} estágio ${EST[impressao.deterioracaoDoppler] || 'I'}` : 'GIG';
+      linhas.push(`${critJoin} - ${rotulo}.`);
+    } else {
+      linhas.push(`${labelTxt}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`);
+    }
   }
   if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));

@@ -1934,5 +1934,5 @@ e o traço no `<canvas>`. A cópia assinada é o HTML original com a assinatura 
 "Gestante", a escolha de imagem marcada e um quadro de evidências: nome, CPF, data/hora, e-mail de quem
 conferiu e o SHA-256 do HTML original (`_assHtmlAssinado`). Sobe como `kind: 'assinado'`, `text/html`, pelo
 mesmo `recepcao_contrato_add`, sem migração nova. "Anexar assinado em PDF" continua para quem assinar fora;
-o botão de foto saiu. Validade jurídica (assinatura eletrônica simples, Lei 14.063/2020): pedir ao advogado
+o botão de foto saiu. A via da gestante sai por "📤 Enviar cópia à gestante" (`recepcaoContratoCopia`): Web Share API com o arquivo anexado (WhatsApp/e-mail no iPad), sem o auto-print; no computador baixa o arquivo e abre o wa.me. Validade jurídica (assinatura eletrônica simples, Lei 14.063/2020): pedir ao advogado
 que confirme quando revisar o contrato.

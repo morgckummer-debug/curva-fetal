@@ -4017,7 +4017,9 @@ function _rcEncerramentoHtml(r, i) {
   let sit;
   if (d.status === 'devolvido') sit = `Devolvido em ${formatDateBR(d.data)} — ${_brl(d.valor || 0)}${d.forma ? ' (' + escapeHtml(_DEV_FORMA[d.forma] || d.forma) + ')' : ''}`;
   else if (d.status === 'pendente') sit = `A devolver: ${_brl(d.valor || 0)} em dinheiro`;
-  else if (d.status === 'credito') sit = `Crédito de ${_brl(d.valor || 0)}${e.validade ? ', válido até ' + formatDateBR(e.validade) : ''}`;
+  else if (d.status === 'credito') sit = e.credito_nova_gestacao
+    ? `Crédito de ${_brl(d.valor || 0)} para nova gestação${e.validade ? ' (tabela do contrato até ' + formatDateBR(e.validade) + '; depois, paga a diferença)' : ''}`
+    : `Crédito de ${_brl(d.valor || 0)}${e.validade ? ', válido até ' + formatDateBR(e.validade) : ''}`;
   else if (d.status === 'escolha') sit = `Devolução em dinheiro: ${_brl(e.estorno || 0)} · ou crédito: ${_brl(e.credito || 0)}`;
   else sit = 'Nenhum valor a devolver';
   const btn = (t, js, cls) => `<button type="button" class="${cls || 'rc-btn-claro'}" onclick="${js}">${t}</button>`;
@@ -4039,7 +4041,7 @@ function _rcEncerramentoHtml(r, i) {
     <table style="font-size:13.5px;border-collapse:collapse;margin-bottom:10px;"><tbody>
       ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
       ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}
-      ${li('Retenção (20%)', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}
+      ${li(e.credito_nova_gestacao ? 'Retenção (15%, só na devolução)' : 'Retenção (20%)', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}${li('Imposto da nota (só na devolução)', e.imposto_val ? _brl(e.imposto_val) : '')}
       ${li('Situação', sit)}
       ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
       ${li('Registrado por', escapeHtml(e.por || '') + (e.gravado_em ? ', ' + _rcDataHora(e.gravado_em) : ''))}</tbody></table>
@@ -4153,13 +4155,20 @@ function recepcaoEncMsgVer(gid) {
 // ── Encerramento com extrato (2026-10-10) ──
 // Taxa da maquininha fixa por enquanto (decisão da médica); ajustável no próprio extrato.
 const _TAXA_MAQUININHA_PCT = 10;
+// Imposto sobre a nota fiscal, descontado da devolução em dinheiro quando a nota foi emitida (5% "por enquanto", Morgana 2026-10-15).
+const _IMPOSTO_NF_PCT = 5;
+// Desistência com devolução em dinheiro: retenção de 15% do valor total do plano (Morgana 2026-10-15; antes 20%).
+const _RETENCAO_DESISTENCIA = 0.15;
 const _EXTRA_AVULSO = 230;
 const _ENC_MOTIVO = { parto: 'Parto realizado', perda: 'Perda gestacional', obito: 'Óbito fetal', desistencia: 'Desistência da paciente' };
 let _encGid = null, _encTxtManual = false, _encRetro = false;
 const _ENC_STATUS_MOTIVO = { finalizada: 'parto', aborto: 'perda', ectopica: 'perda', obito_fetal: 'obito', desistencia: 'desistencia' };
 const _brl = v => 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function _encCalc(r, sit, motivo, pago, taxaPct, cartao) {
+// Desistência e perda/óbito (2026-10-15): a gestante escolhe entre devolução em dinheiro (menos taxa do cartão
+// e, se houve nota, imposto; na desistência, também 15% do total do plano) e crédito para uma nova gestação
+// (menos só a taxa do cartão). Parto: crédito de 12 meses, mãe e recém-nascido, como antes.
+function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct) {
   const key = r.acompanhamento, mult = key.startsWith('gemelar') ? 2 : 1;
   const total = (_ADESAO_PRECO[key] || {}).total || 0;
   const peso = i => _ADESAO_PESO[sit.plano.ex[i]] * mult;
@@ -4169,18 +4178,17 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao) {
   const vFeitos = vFeitosPlano + sit.extras.length * _EXTRA_AVULSO * mult;
   const vNaoFeitos = naoFeitos.reduce((a, x) => a + peso(x.i), 0);
   const saldo = Math.max(0, pago - vFeitos);
-  const taxa = cartao ? taxaPct / 100 : 0;
-  const out = { total, pago, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0 };
-  if (motivo === 'desistencia') {
-    out.retencao = total * 0.2;
-    out.estorno = Math.max(0, saldo - out.retencao);
-    out.credito = Math.max(0, saldo * (1 - taxa)); out.taxaVal = saldo * taxa;
-  } else if (motivo === 'perda' || motivo === 'obito') {
-    // Perda/óbito: devolve pago − exames do calendário já feitos (avulso); o extra não desconta.
-    const saldoPerda = Math.max(0, pago - vFeitosPlano);
-    const base = saldoPerda;
-    out.vFeitos = vFeitosPlano;
-    out.estorno = Math.max(0, base * (1 - taxa)); out.taxaVal = base * taxa; out.base = base;
+  const taxa = cartao ? taxaPct / 100 : 0, imp = nf ? (impostoPct || 0) / 100 : 0;
+  const out = { total, pago, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0, nf: !!nf, impostoPct: nf ? (impostoPct || 0) : 0 };
+  if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
+    // Perda/óbito: o ultrassom extra já usado não desconta; desistência: desconta.
+    const base = motivo === 'desistencia' ? saldo : Math.max(0, pago - vFeitosPlano);
+    if (motivo !== 'desistencia') out.vFeitos = vFeitosPlano;
+    out.base = base; out.saldo = base;
+    out.retencao = motivo === 'desistencia' ? total * _RETENCAO_DESISTENCIA : 0;
+    out.taxaVal = base * taxa; out.impostoVal = base * imp;
+    out.estorno = Math.max(0, base - out.retencao - out.taxaVal - out.impostoVal);
+    out.credito = Math.max(0, base - out.taxaVal);
   } else {
     out.credito = Math.min(saldo, vNaoFeitos); out.base = out.credito;
   }
@@ -4205,15 +4213,16 @@ function _encTexto(r, sit, motivo, hoje, c) {
   L.push('');
   L.push(`Valor pago: ${_brl(c.pago)}`);
   L.push(`Exames realizados (valor avulso): ${_brl(c.vFeitos)}`);
-  if (motivo === 'desistencia') {
-    L.push(`Saldo: ${_brl(c.saldo)}`);
+  if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
+    L.push(`Saldo: ${_brl(c.base)}`);
     L.push('');
     L.push('Você pode escolher:');
-    L.push(`1) Devolução em dinheiro: *${_brl(c.estorno)}* (saldo menos 20% do valor total do plano, ${_brl(c.retencao)}).`);
-    L.push(`2) Crédito na clínica: *${_brl(c.credito)}*${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}, válido por 12 meses, de uso pessoal.`);
-  } else if (motivo === 'perda' || motivo === 'obito') {
-    L.push('');
-    L.push(`Valor a devolver: *${_brl(c.estorno)}*${c.taxaVal ? ` (exames não realizados, ${_brl(c.base)}, menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ' (exames não realizados)'}.`);
+    const desc = [];
+    if (c.retencao) desc.push(`15% do valor total do plano, ${_brl(c.retencao)}`);
+    if (c.taxaVal) desc.push(`taxa da operadora do cartão, ${_brl(c.taxaVal)}`);
+    if (c.impostoVal) desc.push(`imposto da nota fiscal, ${_brl(c.impostoVal)}`);
+    L.push(`1) Devolução em dinheiro: *${_brl(c.estorno)}*${desc.length ? ` (saldo menos ${desc.length > 1 ? desc.slice(0, -1).join(', ') + ' e ' + desc[desc.length - 1] : desc[0]})` : ''}.`);
+    L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}*${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}. Com adesão em até 12 meses, vale a tabela de preços do seu contrato; depois disso, o crédito continua valendo e você paga a diferença para a tabela da época.`);
   } else {
     L.push('');
     L.push(`Crédito: *${_brl(c.credito)}* (exames não realizados), válido por 12 meses, para você e para o recém-nascido.`);
@@ -4239,6 +4248,8 @@ function recepcaoEncerrarAbrir(gid, retro) {
   const pg = r.pagamento || {};
   const total = (_ADESAO_PRECO[r.acompanhamento] || {}).total || 0;
   const pagoIni = pg.valor_pago != null ? pg.valor_pago : (pg.status === 'quitado' ? total : 0);
+  const encAnt = retro && pg.encerramento;
+  const nfIni = !!(encAnt && encAnt.nf), impIni = encAnt && encAnt.imposto_pct ? encAnt.imposto_pct : _IMPOSTO_NF_PCT;
   let el = document.getElementById('rc-enc-modal');
   if (el) el.remove();
   el = document.createElement('div');
@@ -4252,6 +4263,10 @@ function recepcaoEncerrarAbrir(gid, retro) {
       <div><label style="font-size:12px;">Valor pago (R$)</label><input id="rc-enc-pago" type="number" step="0.01" min="0" value="${pagoIni}" style="${inp}" oninput="_encRefazer()"></div>
       <div><label style="font-size:12px;">Pagou no cartão?</label><select id="rc-enc-cartao" style="${inp}" onchange="_encRefazer()"><option value="1" ${pg.forma === 'cartao' || !pg.forma ? 'selected' : ''}>Sim</option><option value="0" ${pg.forma && pg.forma !== 'cartao' ? 'selected' : ''}>Não</option></select></div>
       <div><label style="font-size:12px;">Taxa maquininha (%)</label><input id="rc-enc-taxa" type="number" step="0.1" min="0" value="${_TAXA_MAQUININHA_PCT}" style="${inp}" oninput="_encRefazer()"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div><label style="font-size:12px;">Emitiu nota fiscal?</label><select id="rc-enc-nf" style="${inp}" onchange="_encRefazer()"><option value="0" ${!nfIni ? 'selected' : ''}>Não</option><option value="1" ${nfIni ? 'selected' : ''}>Sim</option></select></div>
+      <div><label style="font-size:12px;">Imposto da nota (%)</label><input id="rc-enc-imp" type="number" step="0.1" min="0" value="${impIni}" style="${inp}" oninput="_encRefazer()"></div>
     </div>
     <div style="margin-bottom:10px;"><label style="font-size:12px;">Celular da paciente (com DDD)</label><input id="rc-enc-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml(pg.celular || '')}" style="${inp}"></div>
     <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
@@ -4274,7 +4289,9 @@ function _encRefazer() {
   const pago = parseFloat(document.getElementById('rc-enc-pago').value) || 0;
   const taxa = parseFloat(document.getElementById('rc-enc-taxa').value) || 0;
   const cartao = document.getElementById('rc-enc-cartao').value === '1';
-  const c = _encCalc(r, sit, el.dataset.motivo, pago, taxa, cartao);
+  const nf = document.getElementById('rc-enc-nf').value === '1';
+  const imp = parseFloat(document.getElementById('rc-enc-imp').value) || 0;
+  const c = _encCalc(r, sit, el.dataset.motivo, pago, taxa, cartao, nf, imp);
   document.getElementById('rc-enc-txt').value = _encTexto(r, sit, el.dataset.motivo, _hojeISO(), c);
 }
 
@@ -4290,21 +4307,21 @@ function _encExtrato(r, sit, motivo) {
   const pago = parseFloat(document.getElementById('rc-enc-pago').value) || 0;
   const taxa = parseFloat(document.getElementById('rc-enc-taxa').value) || 0;
   const cartao = document.getElementById('rc-enc-cartao').value === '1';
-  const c = _encCalc(r, sit, motivo, pago, taxa, cartao);
+  const nf = document.getElementById('rc-enc-nf').value === '1';
+  const imp = parseFloat(document.getElementById('rc-enc-imp').value) || 0;
+  const c = _encCalc(r, sit, motivo, pago, taxa, cartao, nf, imp);
   const hoje = (_encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.em) || _hojeISO();
   const v = new Date(hoje + 'T12:00:00Z'); v.setUTCMonth(v.getUTCMonth() + 12);
   const ex = {
     motivo, em: hoje, plano: sit.plano.nome, total: c.total, pago: c.pago, valor_feitos: c.vFeitos,
-    taxa_pct: c.taxaPct, cartao, celular: document.getElementById('rc-enc-tel').value.trim(),
+    taxa_pct: c.taxaPct, cartao, nf: c.nf, imposto_pct: c.impostoPct, celular: document.getElementById('rc-enc-tel').value.trim(),
     mensagem: document.getElementById('rc-enc-txt').value,
     exames: c.feitos.map(x => ({ n: x.s.def.n, data: x.s.hit.v.data_exame })).concat(sit.extras.map(x => ({ n: 'Ultrassom extra', data: x.v.data_exame }))),
   };
-  if (motivo === 'desistencia') {
-    Object.assign(ex, { saldo: c.saldo, retencao: c.retencao, estorno: c.estorno, credito: c.credito, taxa_val: c.taxaVal, validade: v.toISOString().slice(0, 10) });
+  if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
+    // validade aqui = fim da tabela de preços do contrato; o crédito para nova gestação não expira (2026-10-15).
+    Object.assign(ex, { saldo: c.base, retencao: c.retencao, estorno: c.estorno, credito: c.credito, taxa_val: c.taxaVal, imposto_val: c.impostoVal, credito_nova_gestacao: true, validade: v.toISOString().slice(0, 10) });
     ex.devolucao = (c.estorno > 0 || c.credito > 0) ? { status: 'escolha' } : { status: 'nada' };
-  } else if (motivo === 'perda' || motivo === 'obito') {
-    Object.assign(ex, { estorno: c.estorno, taxa_val: c.taxaVal });
-    ex.devolucao = c.estorno > 0 ? { status: 'pendente', opcao: 'dinheiro', valor: c.estorno } : { status: 'nada' };
   } else {
     Object.assign(ex, { credito: c.credito, validade: v.toISOString().slice(0, 10) });
     ex.devolucao = c.credito > 0 ? { status: 'credito', opcao: 'credito', valor: c.credito } : { status: 'nada' };
@@ -7249,15 +7266,17 @@ ${telCanal ? (d.telegramCodigo
 <li>Todo ultrassom em situação de urgência exige pedido médico, inclusive quando for usado um ultrassom extra da modalidade. Os que excederem os extras são cobrados à parte pelo valor avulso. Em todos os casos, o exame tem prioridade de agenda conforme disponibilidade e pode ser realizado por outro médico da equipe.</li></ul>
 <h2>7) Desistência</h2>
 <p>Em caso de desistência do acompanhamento, aplicam-se as regras abaixo.</p>
-<p><b>a) Até 7 dias.</b> Se a desistência ocorrer em até 7 (sete) dias corridos da adesão e antes do primeiro ultrassom do acompanhamento, o valor será devolvido por estorno no cartão de crédito utilizado, descontadas as taxas cobradas pela operadora do cartão.</p>
-<p><b>b) Depois de 7 dias ou após o primeiro ultrassom.</b> Calcula-se o saldo: o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II. A gestante escolhe entre:</p>
-<ul><li>devolução em dinheiro do saldo, descontados 20% (vinte por cento) do valor total do plano; ou</li><li>crédito do saldo na clínica, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado.</li></ul>
+<p><b>a) Até 7 dias.</b> Se a desistência ocorrer em até 7 (sete) dias corridos da adesão e antes do primeiro ultrassom do acompanhamento, o valor será devolvido por estorno no cartão de crédito utilizado, descontadas as taxas cobradas pela operadora do cartão e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela.</p>
+<p><b>b) Depois de 7 dias ou após o primeiro ultrassom.</b> Calcula-se o saldo: o valor pago menos os exames já realizados, inclusive os ultrassons extras utilizados, cada um cobrado pelo valor avulso da tabela do Anexo II. A gestante escolhe entre:</p>
+<ul><li>devolução em dinheiro do saldo, descontados 15% (quinze por cento) do valor total do plano, as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado.</li></ul>
 <p><b>c) Validade do crédito.</b> O crédito é pessoal e intransferível: pode ser usado somente pela própria gestante, em qualquer serviço da clínica, em até 12 (doze) meses. Após esse prazo, expira.</p>
 <p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
 <h2>8) Imprevistos na gestação</h2>
-<p><b>a) Perda gestacional.</b> A clínica entrará em contato com cuidado e sem pressa. Será devolvido o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado. O ultrassom extra já utilizado não é descontado dessa devolução.</p>
+<p><b>a) Perda gestacional ou óbito fetal.</b> A clínica entrará em contato com cuidado e sem pressa. Calcula-se o saldo: o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II; o ultrassom extra já utilizado não é descontado. A gestante escolhe entre:</p>
+<ul><li>devolução em dinheiro do saldo, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado.</li></ul>
 <p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, o valor avulso dos exames não realizados é convertido em crédito válido por 12 (doze) meses, que pode ser usado pela mãe e pelo recém-nascido. Os ultrassons extras não utilizados não geram crédito.</p>
 <p><b>c) Perda de um dos fetos em gestação gemelar.</b> O plano é reajustado para a modalidade de feto único correspondente (Essencial ou Premium). A diferença de valor, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, fica como crédito nas regras do item 7c ou pode ser convertida em ultrassons extras, pelo valor avulso do ultrassom extra do Anexo II.</p>
+<p><b>d) Crédito para nova gestação.</b> O crédito dos itens 7b e 8a é pessoal e intransferível e é abatido do valor de um novo Acompanhamento Fetal MK, em uma nova gestação da própria gestante. Se a nova adesão ocorrer em até 12 (doze) meses do encerramento, vale a tabela de preços deste contrato. Depois desse prazo, o crédito continua válido, mas a modalidade escolhida segue a tabela de preços vigente na nova adesão, e a gestante paga a diferença.</p>
 <h2>9) Gestação gemelar identificada e troca de modalidade</h2>
 <p><b>a) Gestação gemelar identificada após a adesão.</b> Se a gestação gemelar for identificada após a adesão, a gestante poderá migrar para a modalidade gemelar correspondente, pagando a diferença de valor vigente.</p>
 <p><b>b) Troca de modalidade.</b> A gestante pode trocar de modalidade durante o acompanhamento. Os exames já realizados continuam valendo e o valor da troca é a diferença entre os preços das modalidades (Anexo I). Para uma modalidade superior (por exemplo, de Essencial para Premium), a diferença é paga em até 3 (três) parcelas no cartão de crédito, e qualquer troca, para cima ou para baixo, só pode ser feita até 26 semanas de idade gestacional (fim da janela do morfológico de 2º trimestre), em gestação única ou gemelar; depois disso, os exames desejados da outra modalidade são feitos pelo valor avulso do Anexo II. Para uma modalidade inferior, a troca só é possível se a gestante ainda não tiver realizado exame exclusivo da modalidade atual; da diferença, se o restante for devolvido à gestante em dinheiro ou Pix, a clínica retém 20% (vinte por cento) e desconta as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado; se a gestante preferir, a diferença é mantida como crédito para uso na clínica, nas regras do item 7c, sem a retenção de 20% e descontadas apenas as taxas da operadora do cartão, no caso de pagamento parcelado. Os ultrassons extras já utilizados contam dentro do total da nova modalidade e, se excederem esse total, são descontados pelo valor avulso do Anexo II. O canal direto no Telegram começa ou termina na data da troca. A troca é registrada em termo aditivo assinado pelas duas partes.</p>

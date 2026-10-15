@@ -3309,7 +3309,8 @@ function _rcDetalheHtml(i) {
         <option value="">Encerrar acompanhamento…</option><option value="parto">Parto realizado</option><option value="perda">Perda gestacional</option><option value="obito">Óbito fetal</option><option value="desistencia">Desistência da paciente</option>${_TR_PERDA_GEMELAR[r.acompanhamento] ? '<option value="perda_gemelar">Perda de um dos gêmeos</option>' : ''}</select>
       <button type="button" class="rc-btn-claro" onclick="recepcaoEncerrarAbrir(${r.gestacao_id})">Encerrar…</button>
       <button type="button" class="rc-btn-claro" onclick="recepcaoTrocarAbrir(${r.gestacao_id})">Trocar modalidade…</button></div>`}
-    ${(!i.enc && sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}`;
+    ${(!i.enc && sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}
+    ${_rcHistoricoHtml(r)}`;
 }
 
 // ── Contrato na ficha: estado, cópia arquivada e assinado (migração 026) ──
@@ -3867,10 +3868,129 @@ async function recepcaoContratoRemover(gid, ig, ia) {
     for (const c of itens) {
       const { error } = await supabaseClient.rpc('recepcao_contrato_remover', { p_gestacao_id: gid, p_path: c.path });
       if (error) throw error;
-      if (!/^ipad:/.test(c.path || '')) await supabaseClient.storage.from('comprovantes').remove([c.path]);
+      // O arquivo fica no Storage de propósito: some da ficha, mas continua aberto pelo Histórico (038).
     }
   } catch (err) { alert('Não consegui remover: ' + (err.message || err)); }
   await recepcaoAtualizar();
+}
+
+// ── Histórico da ficha (migração 038) ─────────────────────────────────────
+// Registro gravado por trigger no banco (historico_ficha), só de acréscimo: ninguém edita nem apaga
+// pela API. Aqui só se lê e se traduz cada mudança de campo numa frase. Antes da 038 não havia
+// registro; para esse período a lista mostra o que dá para reconstruir das datas guardadas
+// (contratos, comprovantes, trocas, encerramento, exames), marcado como "reconstruído".
+const _histCache = {};
+function _rcHistoricoHtml(r) {
+  return `<details class="rc-pag" id="rc-hist" style="margin-top:22px;" ontoggle="if(this.open)recepcaoHistoricoCarregar(${r.gestacao_id})">
+    <summary style="cursor:pointer;font-weight:700;font-size:13.5px;">🕘 Histórico da paciente</summary>
+    <div id="rc-hist-corpo" style="margin-top:10px;font-size:13px;color:var(--text-muted);">Carregando…</div></details>`;
+}
+
+function _histPlano(k) { return (_ADESAO_PRECO[k] || {}).nome || k || '—'; }
+function _histArquivos(antes, depois, rotulo) {
+  const a = Array.isArray(antes) ? antes : [], d = Array.isArray(depois) ? depois : [];
+  const pa = new Set(a.map(x => x.path)), pd = new Set(d.map(x => x.path));
+  const out = [];
+  d.filter(x => !pa.has(x.path)).forEach(x => out.push({ txt: `${rotulo(x, true)}${x.valor != null ? ' · ' + _brl(x.valor) : ''}`, arq: x }));
+  a.filter(x => !pd.has(x.path)).forEach(x => out.push({ txt: `Removido da ficha: ${rotulo(x, false).toLowerCase()}`, arq: x, alerta: true }));
+  return out;
+}
+const _HIST_GEST_STATUS = { ativa: 'ativa', finalizada: 'encerrada (parto)', aborto: 'encerrada (perda gestacional)', obito_fetal: 'encerrada (óbito fetal)', desistencia: 'encerrada (desistência)' };
+function _histFrases(h) {
+  const a = h.antes, d = h.depois, v = x => (x == null || x === '' ? '—' : x);
+  const ctr = (x) => x.kind === 'assinado' ? (/^Termo aditivo/.test(x.nome || '') ? 'Termo aditivo assinado' : 'Contrato assinado') + (/iPad/.test(x.nome || '') ? ' no iPad' : /na tela/.test(x.nome || '') ? ' na tela' : ' (arquivo anexado)')
+    : (/^Termo aditivo/.test(x.nome || '') ? 'Termo aditivo gerado (troca de plano)' : 'Contrato gerado');
+  switch (h.campo) {
+    case 'status': return [{ txt: `Pagamento: ${(_RC_PAG[a] || {}).rotulo || 'novo registro'} → ${(_RC_PAG[d] || {}).rotulo || v(d)}` }];
+    case 'valor_pago': return [{ txt: `Valor pago: ${a != null ? _brl(a) : '—'} → ${d != null ? _brl(d) : '—'}` }];
+    case 'forma': return [{ txt: `Forma de pagamento: ${v(a)} → ${v(d)}` }];
+    case 'parcelas': return [{ txt: `Parcelas: ${v(a)} → ${v(d)}` }];
+    case 'celular': return [{ txt: `Celular: ${v(a)} → ${v(d)}` }];
+    case 'observacao': return [{ txt: `Observação do pagamento: "${v(d)}"` }];
+    case 'contrato_assinado': return [{ txt: d ? 'Marcado como "contrato assinado"' : 'Desmarcado "contrato assinado"', alerta: !d }];
+    case 'contratos': return _histArquivos(a, d, ctr);
+    case 'comprovantes': return _histArquivos(a, d, () => 'Comprovante de pagamento anexado');
+    case 'trocas': {
+      const na = (Array.isArray(a) ? a.length : 0);
+      return (Array.isArray(d) ? d.slice(na) : []).map(t => ({ txt: `Troca de plano: ${_histPlano(t.de)} → ${_histPlano(t.para)}${t.valor ? ' · ' + (t.direcao === 'upgrade' ? 'a pagar ' : 'saldo ') + _brl(t.valor) : ''}` }));
+    }
+    case 'encerramento': {
+      if (!d) return [{ txt: 'Registro de encerramento apagado', alerta: true }];
+      const out = [];
+      if (!a || a.motivo !== d.motivo) out.push({ txt: `Encerramento registrado: ${_ENC_MOTIVO[d.motivo] || v(d.motivo)}${d.pago != null ? ' · pago ' + _brl(d.pago) : ''}` });
+      const da = a && a.devolucao, dd = d.devolucao;
+      if (dd && (!da || da.status !== dd.status)) out.push({ txt: `Devolução: ${(_DEV_ROT[dd.status] || [, dd.status])[1]}${dd.valor != null ? ' · ' + _brl(dd.valor) : ''}${dd.forma ? ' · ' + (_DEV_FORMA[dd.forma] || dd.forma) : ''}`, arq: dd.comprovante || null });
+      return out.length ? out : [{ txt: 'Extrato de encerramento atualizado' }];
+    }
+    case 'agendamento': {
+      const e = d && d.estado, ea = a && a.estado;
+      if (!d) return [{ txt: 'Agendamento limpo' }];
+      if (e === ea) {
+        if (d.confirmada && !(a && a.confirmada)) return [{ txt: 'Gestante confirmou os horários pelo link' }];
+        if (JSON.stringify(d.agendados || null) !== JSON.stringify((a && a.agendados) || null)) return [{ txt: 'Horários alterados e enviados à gestante' }];
+        return [];
+      }
+      return [{ txt: { aguardando: 'Mensagem para combinar datas enviada', respondeu: 'Gestante escolheu as datas pelo link', agendado: 'Agendamento confirmado e enviado à gestante' }[e] || 'Agendamento: ' + v(e) }];
+    }
+    case 'gestacao.acompanhamento': return [{ txt: a == null ? `Adesão: ${_histPlano(d)}` : d == null ? `Plano retirado (era ${_histPlano(a)})` : `Plano: ${_histPlano(a)} → ${_histPlano(d)}`, alerta: d == null }];
+    case 'gestacao.status': return [{ txt: `Acompanhamento ${_HIST_GEST_STATUS[d] || v(d)}${a ? ' (era ' + (_HIST_GEST_STATUS[a] || a) + ')' : ''}` }];
+    case 'gestacao.dum': return [{ txt: `DUM: ${a ? formatDateBR(a) : '—'} → ${d ? formatDateBR(d) : '—'}` }];
+    case 'gestacao.ig_base_data': case 'gestacao.ig_base_valor': return [{ txt: 'Datação da gestação alterada' }];
+    case 'gestacao.excluido_em': return [{ txt: d ? 'Cadastro excluído (lixeira)' : 'Cadastro restaurado da lixeira', alerta: !!d }];
+  }
+  return [{ txt: h.campo }];
+}
+
+// Período anterior ao registro: só o que tem data guardada.
+function _histReconstruido(r, ate) {
+  const pg = r.pagamento || {}, ev = [], antes = em => em && (!ate || new Date(em) < new Date(ate));
+  (pg.contratos || []).forEach(x => { if (antes(x.em)) ev.push({ em: x.em, por: x.por || '', frases: [{ txt: (x.kind === 'assinado' ? 'Contrato assinado' : 'Contrato gerado') + (x.valor != null ? ' · ' + _brl(x.valor) : ''), arq: x }] }); });
+  (pg.comprovantes || []).forEach(x => { if (antes(x.em)) ev.push({ em: x.em, por: x.por || '', frases: [{ txt: 'Comprovante de pagamento anexado', arq: x }] }); });
+  (pg.trocas || []).forEach(t => { if (antes(t.em)) ev.push({ em: t.em, por: t.por || '', frases: [{ txt: `Troca de plano: ${_histPlano(t.de)} → ${_histPlano(t.para)}` }] }); });
+  const e = pg.encerramento;
+  const ee = e && (e.em || e.data);
+  if (e && antes(ee)) ev.push({ em: ee.length === 10 ? ee + 'T12:00:00' : ee, dia: ee.length === 10, por: e.por || '', frases: [{ txt: `Encerramento registrado: ${_ENC_MOTIVO[e.motivo] || e.motivo || ''}` }] });
+  return ev;
+}
+
+async function recepcaoHistoricoCarregar(gid) {
+  const corpo = document.getElementById('rc-hist-corpo');
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  if (!corpo || !r) return;
+  let reg = [], semTabela = false;
+  try {
+    const { data, error } = await supabaseClient.rpc('recepcao_historico', { p_gestacao_id: gid });
+    if (error) throw error;
+    reg = data || [];
+  } catch (err) {
+    console.warn('[CurvaFetal] histórico:', err);
+    semTabela = true;
+  }
+  const ev = reg.map(h => ({ em: h.em, por: h.por, frases: _histFrases(h) })).filter(x => x.frases.length);
+  const primeiro = reg.length ? reg[reg.length - 1].em : null;
+  const rec = _histReconstruido(r, primeiro).map(x => Object.assign(x, { rec: true }));
+  (r.exames || []).forEach(x => { if (x.data_exame) rec.push({ em: x.data_exame + 'T12:00:00', dia: true, por: '', rec: true, frases: [{ txt: (x.externo ? 'Exame externo registrado' : x.extra ? 'Ultrassom extra realizado' : 'Exame realizado') }] }); });
+  const todos = ev.concat(rec).sort((a, b) => new Date(b.em) - new Date(a.em));
+  _histCache[gid] = [];
+  const linhas = todos.map(x => {
+    const quando = x.dia ? formatDateBR(x.em.slice(0, 10)) : _rcDataHora(x.em);
+    return x.frases.map(f => {
+      let ver = '';
+      if (f.arq && f.arq.path) { const k = _histCache[gid].push(f.arq) - 1; ver = ` <button type="button" class="rc-btn-claro" style="padding:3px 9px;font-size:12px;" onclick="recepcaoHistoricoVer(${gid}, ${k})">Ver</button>`; }
+      return `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <div style="min-width:112px;font-size:12px;color:var(--text-muted);">${quando}</div>
+        <div style="flex:1;font-size:13px;color:${f.alerta ? 'var(--danger)' : 'inherit'};">${escapeHtml(f.txt)}${ver}${x.por ? `<br><small style="color:var(--text-muted);">${escapeHtml(x.por)}</small>` : ''}${x.rec ? '<br><small style="color:var(--text-muted);">reconstruído das datas guardadas</small>' : ''}</div></div>`;
+    }).join('');
+  }).join('');
+  corpo.innerHTML = (semTabela ? '<p style="margin:0 0 8px;color:var(--danger);">O registro permanente ainda não está ativo (migração 038). Abaixo, só o que dá para reconstruir das datas guardadas.</p>' : '')
+    + (linhas || '<p style="margin:0;">Nada registrado ainda.</p>')
+    + '<p style="margin:10px 0 0;font-size:11.5px;color:var(--text-muted);">Registro automático do sistema: ninguém consegue editar ou apagar estas linhas. Arquivos removidos da ficha continuam guardados e abrem por aqui.</p>';
+}
+
+async function recepcaoHistoricoVer(gid, k) {
+  const c = (_histCache[gid] || [])[k];
+  if (!c) return;
+  try { await _arqAbrir(c); } catch (err) { alert('Não consegui abrir o arquivo: ' + (err.message || err)); }
 }
 
 // ── Encerramento na ficha: extrato guardado e status da devolução (migração 026) ──
@@ -7364,7 +7484,7 @@ async function recepcaoComprovanteRemover(gid, i) {
   try {
     const { error } = await supabaseClient.rpc('recepcao_comprovante_remover', { p_gestacao_id: gid, p_path: c.path });
     if (error) throw error;
-    await supabaseClient.storage.from('comprovantes').remove([c.path]);
+    // O arquivo fica no Storage: some da ficha, mas continua aberto pelo Histórico (038).
     await recepcaoAtualizar();
     recepcaoComprovanteAbrir(gid);
   } catch (err) {

@@ -1989,3 +1989,17 @@ aplicada em 2026-10-14.** A secretária não vê as ausências (Confirmar agenda
 precisar, é uma policy de select pelo `recepcao_acessos.dono_id`.
 - **Remover o contrato assinado desmarca "assinado" (2026-10-14, migração 037):** a 026 só tirava o item da lista e `contrato_assinado` continuava true, então a ficha seguia "Assinado ✓" e "Gerar contrato" não voltava. `recepcao_contrato_remover` agora recalcula o flag quando o item removido era `assinado` (fica true só se sobrar outro assinado); remover um `gerado` não mexe no flag, que pode ter sido marcado à mão para contrato em papel. Para o flag manual sem arquivo, a ficha diz para desmarcar na conferência de pagamento. **A 037 já foi aplicada no Supabase** (por Claude, em 2026-10-14).
 - **Um card por contrato (2026-10-15):** a ficha não lista mais cada arquivo de `contratos` como um card ("Contrato gerado" + "Contrato assinado" separados). `_rcContratoCards` junta cada via assinada à gerada mais recente antes dela, da mesma família (contrato × termo aditivo), pela ordem de gravação — o JSON não guarda o vínculo. Card assinado: "Ver" abre o assinado + "Enviar cópia à gestante"; não assinado: "✍ Assinar na tela"; gerado com outra via mais nova sem assinatura = "Via substituída". "Remover" apaga o contrato inteiro (assinado primeiro, depois o gerado). O selo do cabeçalho segue o contrato mais recente: termo aditivo pendente mostra "Aguardando assinatura" mesmo com o contrato original assinado. Cards do mais novo para o mais antigo.
+
+## Histórico da paciente: registro permanente (2026-10-15, migração 038)
+
+Pedido da Morgana: "preciso estar resguardada de qualquer problema". Triggers em `pagamentos_acompanhamento`
+e `gestacoes` gravam cada mudança de campo em `historico_ficha` (quem — e-mail do login, "Gestante" para
+anon/iPad, "Sistema" para SQL direto —, quando, antes, depois). Só acréscimo: RLS sem nenhuma policy e
+`revoke all` de anon/authenticated; lê-se só por `recepcao_historico(gid)`. Em `gestacoes` só entram
+acompanhamento/status/dum/ig_base_*/excluido_em, e só quando o valor muda de fato (o saveDB da médica
+reescreve a tabela inteira sem gerar linha). Na ficha, `<details>` "🕘 Histórico da paciente" no fim
+(`_rcHistoricoHtml`, `_histFrases`); antes da 038 mostra o que dá para reconstruir das datas guardadas
+(contratos, comprovantes, trocas, encerramento, exames), marcado como tal. **Remover contrato ou
+comprovante não apaga mais o arquivo do Storage**: some da ficha, mas abre pelo Histórico. Não voltar
+a apagar. Campo novo em `pagamentos_acompanhamento` que importe para o contrato: acrescentar no array
+de `_historico_pagamentos()` e uma frase em `_histFrases`. Aplicada no Supabase por Claude em 2026-10-15.

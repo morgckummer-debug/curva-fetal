@@ -634,6 +634,7 @@ header::after{display:none;}
 .rc-pre-aviso{background:#fff8e8;border:1px solid #f0d9a4;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px;}
 .rc-link-box{display:flex;flex-direction:column;gap:14px;}
 .rc-link-box input{width:100%;font-size:12px;}
+.rc-link-box #rc-links-tel{font-size:16px;padding:8px 10px;margin-top:4px;}
 #rc-adesao{display:none;position:fixed;inset:0;z-index:9100;background:rgba(46,33,56,.55);align-items:center;justify-content:center;padding:20px;}
 .rc-modal{background:var(--surface,#fff);border-radius:20px;box-shadow:0 20px 60px rgba(46,33,56,.4);width:100%;max-width:680px;max-height:92vh;overflow:auto;padding:26px 30px 24px;}
 .rc-modal h3{font-family:var(--font-serif);font-size:23px;margin:0 0 4px;color:var(--text);}
@@ -4879,9 +4880,21 @@ async function recepcaoVitrineLinks() {
   const msgCasa = 'Olá! Aqui você conhece o Acompanhamento Fetal MK e já deixa seus dados preenchidos. No dia do exame, é só trazer um documento com foto: o pagamento e a assinatura do contrato levam poucos minutos na recepção 💜\n\n' + casa;
   c.innerHTML = `<div><b>iPad da recepção</b><div class="rc-pre-sub">Abra este endereço no Safari do iPad, toque em Compartilhar → "Adicionar à Tela de Início" e use o Acesso Guiado para ele não sair da página.${semAss ? '' : ' Com este endereço, o botão "Assinar contrato" da capa busca a paciente por nome ou CPF.'} Se o iPad já estava com o endereço antigo, abra este de novo.</div><input type="text" readonly value="${escapeHtml(ipad)}" onclick="this.select()"></div>
     <div><b>Link para a paciente preencher em casa</b><div class="rc-pre-sub">Mesma página, sem voltar sozinha ao início. Os dados aparecem aqui como "preenchido em casa".</div><input type="text" readonly value="${escapeHtml(casa)}" onclick="this.select()">
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="rc-btn-claro" id="rc-links-copiar">Copiar mensagem</button><a class="rc-btn-dark" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msgCasa)}">Abrir no WhatsApp</a></div></div>`;
+    <label style="display:block;margin-top:10px;font-size:13px">Celular da paciente (com DDD)<input type="tel" id="rc-links-tel" inputmode="tel" placeholder="(31) 99999-9999" autocomplete="off"></label>
+    <div class="rc-pre-sub" id="rc-links-tel-aviso">Com o número, o WhatsApp abre direto na conversa dela.</div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="rc-btn-claro" id="rc-links-copiar">Copiar mensagem</button><a class="rc-btn-dark" id="rc-links-wa" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msgCasa)}">Abrir no WhatsApp</a></div></div>`;
   document.getElementById('rc-links-copiar').onclick = function () {
     navigator.clipboard.writeText(msgCasa).then(() => { this.textContent = 'Copiada ✓'; }, () => alert(msgCasa));
+  };
+  // Celular da paciente: o link do WhatsApp vai direto para a conversa dela (wa.me/55DDDNÚMERO).
+  const tel = document.getElementById('rc-links-tel'), wa = document.getElementById('rc-links-wa'), av = document.getElementById('rc-links-tel-aviso');
+  tel.oninput = function () {
+    let d = tel.value.replace(/\D/g, '');
+    if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
+    const ok = d.length === 10 || d.length === 11;
+    wa.href = 'https://wa.me/' + (ok ? '55' + d : '') + '?text=' + encodeURIComponent(msgCasa);
+    av.textContent = !d ? 'Com o número, o WhatsApp abre direto na conversa dela.' : ok ? 'O WhatsApp vai abrir na conversa deste número.' : 'Confira o número: DDD + celular.';
+    av.style.color = d && !ok ? '#b3261e' : '';
   };
 }
 

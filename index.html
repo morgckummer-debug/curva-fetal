@@ -4168,7 +4168,23 @@ const _brl = v => 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { 
 // Desistência e perda/óbito (2026-10-15): a gestante escolhe entre devolução em dinheiro (menos taxa do cartão
 // e, se houve nota, imposto; na desistência, também 15% do total do plano) e crédito para uma nova gestação
 // (menos só a taxa do cartão). Parto: crédito de 12 meses, mãe e recém-nascido, como antes.
-function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct) {
+// Data da adesão = assinatura do contrato (o primeiro assinado; sem assinado, o primeiro gerado). Termo aditivo não conta.
+function _encDataAdesao(r) {
+  const cs = ((r.pagamento || {}).contratos || []).filter(x => x.em && !/^Termo aditivo/.test(x.nome || ''));
+  const pri = k => cs.filter(x => x.kind === k).map(x => x.em).sort()[0];
+  const em = pri('assinado') || pri('gerado');
+  return em ? String(em).slice(0, 10) : null;
+}
+
+// Item 7a: desistência em até 7 dias da adesão, sem nenhum exame feito, não tem retenção de 15%.
+function _encAte7Dias(r, sit, hoje) {
+  const ad = _encDataAdesao(r);
+  if (!ad || sit.slots.some(s => s.hit) || sit.extras.length) return { adesao: ad, ate7: false };
+  const dias = Math.round((new Date(hoje + 'T12:00:00Z') - new Date(ad + 'T12:00:00Z')) / 864e5);
+  return { adesao: ad, ate7: dias >= 0 && dias <= 7 };
+}
+
+function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
   const key = r.acompanhamento, mult = key.startsWith('gemelar') ? 2 : 1;
   const total = (_ADESAO_PRECO[key] || {}).total || 0;
   const peso = i => _ADESAO_PESO[sit.plano.ex[i]] * mult;
@@ -4185,7 +4201,9 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct) {
     const base = motivo === 'desistencia' ? saldo : Math.max(0, pago - vFeitosPlano);
     if (motivo !== 'desistencia') out.vFeitos = vFeitosPlano;
     out.base = base; out.saldo = base;
-    out.retencao = motivo === 'desistencia' ? total * _RETENCAO_DESISTENCIA : 0;
+    const a7 = _encAte7Dias(r, sit, hoje || _hojeISO());
+    out.adesao = a7.adesao; out.ate7 = motivo === 'desistencia' && a7.ate7;
+    out.retencao = motivo === 'desistencia' && !out.ate7 ? total * _RETENCAO_DESISTENCIA : 0;
     out.taxaVal = base * taxa; out.impostoVal = base * imp;
     out.estorno = Math.max(0, base - out.retencao - out.taxaVal - out.impostoVal);
     out.credito = Math.max(0, base - out.taxaVal);
@@ -4215,6 +4233,7 @@ function _encTexto(r, sit, motivo, hoje, c) {
   L.push(`Exames realizados (valor avulso): ${_brl(c.vFeitos)}`);
   if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
     L.push(`Saldo: ${_brl(c.base)}`);
+    if (c.ate7) L.push(`Desistência em até 7 dias da adesão (${formatDateBR(c.adesao)}), antes do primeiro exame: sem retenção.`);
     L.push('');
     L.push('Você pode escolher:');
     const desc = [];
@@ -4269,6 +4288,7 @@ function recepcaoEncerrarAbrir(gid, retro) {
       <div><label style="font-size:12px;">Imposto da nota (%)</label><input id="rc-enc-imp" type="number" step="0.1" min="0" value="${impIni}" style="${inp}" oninput="_encRefazer()"></div>
     </div>
     <div style="margin-bottom:10px;"><label style="font-size:12px;">Celular da paciente (com DDD)</label><input id="rc-enc-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml(pg.celular || '')}" style="${inp}"></div>
+    <div id="rc-enc-ad" style="font-size:12.5px;margin-bottom:8px;color:var(--text-muted);"></div>
     <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
     <textarea id="rc-enc-txt" rows="14" style="${inp}font-size:13px;" oninput="_encTxtManual=true"></textarea>
     <div id="rc-enc-aviso" style="font-size:12px;color:var(--text-muted);margin:8px 0;">Confira o valor pago e o celular (vêm da ficha; se estiverem vazios ou errados, corrija aqui ou na conferência de pagamento). Quem entrou com o calendário em andamento paga menos que o plano.</div>
@@ -4291,7 +4311,13 @@ function _encRefazer() {
   const cartao = document.getElementById('rc-enc-cartao').value === '1';
   const nf = document.getElementById('rc-enc-nf').value === '1';
   const imp = parseFloat(document.getElementById('rc-enc-imp').value) || 0;
-  const c = _encCalc(r, sit, el.dataset.motivo, pago, taxa, cartao, nf, imp);
+  const hoje = (_encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.em) || _hojeISO();
+  const c = _encCalc(r, sit, el.dataset.motivo, pago, taxa, cartao, nf, imp, hoje);
+  const av = document.getElementById('rc-enc-ad');
+  if (av) av.textContent = el.dataset.motivo !== 'desistencia' ? '' : !c.adesao
+    ? 'Não achei a data da adesão (nenhum contrato registrado na ficha). Se a desistência for em até 7 dias e antes do primeiro exame, tire a retenção de 15% da mensagem.'
+    : c.ate7 ? `Adesão em ${formatDateBR(c.adesao)}: desistência em até 7 dias e sem exame feito, por isso não há retenção de 15% (contrato, item 7a).`
+    : `Adesão em ${formatDateBR(c.adesao)}.`;
   document.getElementById('rc-enc-txt').value = _encTexto(r, sit, el.dataset.motivo, _hojeISO(), c);
 }
 
@@ -4309,8 +4335,8 @@ function _encExtrato(r, sit, motivo) {
   const cartao = document.getElementById('rc-enc-cartao').value === '1';
   const nf = document.getElementById('rc-enc-nf').value === '1';
   const imp = parseFloat(document.getElementById('rc-enc-imp').value) || 0;
-  const c = _encCalc(r, sit, motivo, pago, taxa, cartao, nf, imp);
   const hoje = (_encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.em) || _hojeISO();
+  const c = _encCalc(r, sit, motivo, pago, taxa, cartao, nf, imp, hoje);
   const v = new Date(hoje + 'T12:00:00Z'); v.setUTCMonth(v.getUTCMonth() + 12);
   const ex = {
     motivo, em: hoje, plano: sit.plano.nome, total: c.total, pago: c.pago, valor_feitos: c.vFeitos,
@@ -4320,7 +4346,7 @@ function _encExtrato(r, sit, motivo) {
   };
   if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
     // validade aqui = fim da tabela de preços do contrato; o crédito para nova gestação não expira (2026-10-15).
-    Object.assign(ex, { saldo: c.base, retencao: c.retencao, estorno: c.estorno, credito: c.credito, taxa_val: c.taxaVal, imposto_val: c.impostoVal, credito_nova_gestacao: true, validade: v.toISOString().slice(0, 10) });
+    Object.assign(ex, { saldo: c.base, retencao: c.retencao, estorno: c.estorno, credito: c.credito, taxa_val: c.taxaVal, imposto_val: c.impostoVal, credito_nova_gestacao: true, adesao: c.adesao, ate7: c.ate7, validade: v.toISOString().slice(0, 10) });
     ex.devolucao = (c.estorno > 0 || c.credito > 0) ? { status: 'escolha' } : { status: 'nada' };
   } else {
     Object.assign(ex, { credito: c.credito, validade: v.toISOString().slice(0, 10) });

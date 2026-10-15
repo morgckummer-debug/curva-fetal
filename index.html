@@ -3332,23 +3332,59 @@ function _rcContratoEstado(pg) {
   return { lista, gerados, assinados, assinado: !!pg.contrato_assinado || assinados.length > 0 };
 }
 
+// Agrupa os arquivos de contrato em um card por contrato: cada via assinada se junta à via gerada mais
+// recente antes dela, da mesma família (contrato ou termo aditivo). O JSON não guarda esse vínculo;
+// a ordem de gravação é que diz. Assinado sem gerado (PDF anexado) vira card próprio; gerado
+// seguido de outra via da mesma família sem assinatura fica como "via substituída".
+function _rcContratoCards(lista) {
+  const termo = x => /^Termo aditivo/.test(x.nome || '');
+  const cards = [];
+  lista.forEach((x, i) => {
+    if (x.kind === 'assinado') {
+      const alvo = cards.slice().reverse().find(cd => cd.g != null && cd.a == null && cd.termo === termo(x));
+      if (alvo) alvo.a = i; else cards.push({ g: null, a: i, termo: termo(x), ref: x });
+    } else cards.push({ g: i, a: null, termo: termo(x), ref: x });
+  });
+  cards.forEach((cd, k) => {
+    cd.subst = cd.a == null && cards.slice(k + 1).some(o => o.termo === cd.termo && o.g != null);
+  });
+  return cards;
+}
+
 function _rcContratoHtml(r, enc) {
   const pg = r.pagamento || {}, c = _rcContratoEstado(pg), gid = r.gestacao_id;
   const ultimo = c.gerados[c.gerados.length - 1];
+  const cards = _rcContratoCards(c.lista);
+  const vigente = cards.filter(cd => !cd.subst).pop();
+  const titulo = cd => {
+    if (!cd.termo) return 'Contrato';
+    const n = cd.ref.nome || '';
+    return 'Novo contrato por ' + (/downgrade/.test(n) ? 'troca para plano inferior' : /upgrade/.test(n) ? 'upgrade do plano' : 'troca de plano');
+  };
   let pill, dica;
-  if (c.assinado) { pill = ['rc-pill--ok', 'Assinado ✓']; dica = c.assinados.length ? '' : 'Marcado como assinado, mas sem o arquivo anexado. Para gerar outro contrato, desmarque "Contrato assinado" na conferência de pagamento e salve.'; }
-  else if (ultimo) { pill = ['rc-pill--parcial', 'Aguardando assinatura']; dica = `Gerado em ${_rcDataHora(ultimo.em)} por ${escapeHtml(ultimo.por || '—')}. Toque em "Assinar na tela" para a gestante ler e assinar no celular ou tablet.`; }
+  if (vigente && vigente.a == null) { pill = ['rc-pill--parcial', 'Aguardando assinatura']; dica = `${titulo(vigente)} gerado em ${_rcDataHora(c.lista[vigente.g].em)} por ${escapeHtml(c.lista[vigente.g].por || '—')}. Toque em "Assinar na tela" para a gestante ler e assinar no celular ou tablet.`; }
+  else if (c.assinado) { pill = ['rc-pill--ok', 'Assinado ✓']; dica = c.assinados.length ? '' : 'Marcado como assinado, mas sem o arquivo anexado. Para gerar outro contrato, desmarque "Contrato assinado" na conferência de pagamento e salve.'; }
   else { pill = ['rc-pill--pend', 'Sem contrato']; dica = enc ? 'Nenhum contrato foi gerado para esta paciente.' : 'Nenhum contrato gerado ainda.'; }
-  const arq = c.lista.map((x, i) => `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:12px;padding:7px 10px;background:#fff;">
-      <span style="flex:1;min-width:150px;font-size:13px;"><b>${x.kind === 'assinado' ? 'Contrato assinado' : 'Contrato gerado'}</b>${x.kind !== 'assinado' && /^Termo aditivo/.test(x.nome || '') ? ' (novo contrato por ' + (/downgrade/.test(x.nome) ? 'troca para plano inferior' : /upgrade/.test(x.nome) ? 'upgrade do plano' : 'troca de plano') + ')' : ''}${x.valor != null ? ' · ' + _brl(x.valor) : ''}<br><small style="color:var(--text-muted);">${escapeHtml(x.por || '')}${x.em ? ', ' + _rcDataHora(x.em) : ''}</small></span>
-      <button type="button" class="rc-btn-claro" onclick="recepcaoContratoVer(${gid}, ${i})">Ver</button>
-      ${x.kind === 'assinado' ? `<button type="button" class="rc-btn-claro" onclick="recepcaoContratoCopia(${gid}, ${i}, this)">📤 Enviar cópia à gestante</button>` : ''}
-      ${x.kind === 'gerado' && !enc && /^Termo aditivo/.test(x.nome || '') ? `<button type="button" class="rc-btn-claro" onclick="recepcaoAssinarAbrir(${gid}, ${i})">✍ Assinar</button>` : ''}
-      <button type="button" class="rc-btn-claro" onclick="recepcaoContratoRemover(${gid}, ${i})">Remover</button></div>`).join('');
-  // O contrato a assinar é o último gerado que não é termo aditivo (os termos se assinam na própria linha).
-  const idxContrato = c.lista.map((x, i) => ({ x, i })).filter(o => o.x.kind === 'gerado' && !/^Termo aditivo/.test(o.x.nome || '')).map(o => o.i).pop();
-  const assinar = (!enc && !c.assinado && idxContrato != null)
-    ? `<button type="button" class="rc-btn-dark" onclick="recepcaoAssinarAbrir(${gid}, ${idxContrato})">✍ Assinar na tela</button>` : '';
+  const arq = cards.map(cd => {
+    const ass = cd.a != null ? c.lista[cd.a] : null, ger = cd.g != null ? c.lista[cd.g] : null;
+    const doc = ass || ger, idxVer = cd.a != null ? cd.a : cd.g;
+    const valor = doc.valor != null ? doc.valor : (ger && ger.valor);
+    const selo = ass ? '<span class="rc-pill rc-pill--ok" style="font-size:11.5px;padding:3px 9px;">Assinado ✓</span>'
+      : cd.subst ? '<span class="rc-pill" style="font-size:11.5px;padding:3px 9px;background:#eee;color:#777;">Via substituída</span>'
+      : '<span class="rc-pill rc-pill--parcial" style="font-size:11.5px;padding:3px 9px;">Aguardando assinatura</span>';
+    const meta = ass
+      ? `Assinado${ass.por ? ' · ' + escapeHtml(ass.por) : ''}${ass.em ? ', ' + _rcDataHora(ass.em) : ''}`
+      : `Gerado${ger.por ? ' · ' + escapeHtml(ger.por) : ''}${ger.em ? ', ' + _rcDataHora(ger.em) : ''}`;
+    return `<div style="border:1px solid var(--border);border-radius:12px;padding:9px 11px;background:#fff;${cd.subst ? 'opacity:.65;' : ''}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px;">
+        <b style="font-size:13.5px;">${titulo(cd)}</b>${valor != null ? `<span style="font-size:13px;">· ${_brl(valor)}</span>` : ''}${selo}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">${meta}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="rc-btn-claro" onclick="recepcaoContratoVer(${gid}, ${idxVer})">Ver</button>
+        ${ass ? `<button type="button" class="rc-btn-claro" onclick="recepcaoContratoCopia(${gid}, ${cd.a}, this)">📤 Enviar cópia à gestante</button>` : ''}
+        ${!ass && !cd.subst && !enc ? `<button type="button" class="rc-btn-dark" onclick="recepcaoAssinarAbrir(${gid}, ${cd.g})">✍ Assinar na tela</button>` : ''}
+        <button type="button" class="rc-btn-claro" onclick="recepcaoContratoRemover(${gid}, ${cd.g == null ? 'null' : cd.g}, ${cd.a == null ? 'null' : cd.a})">Remover</button></div></div>`;
+  }).reverse().join('');
   const lbl = 'display:inline-block;padding:9px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;';
   const gerar = (!enc && !c.assinado)
     ? `<button type="button" class="${ultimo ? 'rc-btn-claro' : 'rc-btn-dark'}" onclick="recepcaoContratoGerar(${gid})">${ultimo ? 'Gerar nova via…' : 'Gerar contrato'}</button>` : '';
@@ -3356,7 +3392,7 @@ function _rcContratoHtml(r, enc) {
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Contrato</div><span class="rc-pill ${pill[0]}">${pill[1]}</span></div>
     ${dica ? `<p class="rc-det-meta" style="margin:0 0 10px;">${dica}</p>` : ''}
     ${arq ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">${arq}</div>` : ''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${assinar}${gerar}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${gerar}
       <label style="${lbl}">📎 Anexar assinado em PDF<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoContratoEnviar(${gid}, this)"></label>
       <span id="rc-ctr-msg" style="font-size:12.5px;color:var(--text-muted);"></span></div>
   </div>`;
@@ -3818,16 +3854,23 @@ async function recepcaoContratoCopia(gid, i, btn) {
   }
 }
 
-async function recepcaoContratoRemover(gid, i) {
+// Remove o contrato inteiro do card: a via assinada (primeiro, para o flag "assinado" ser recalculado)
+// e a via gerada. Os índices são lidos antes de qualquer remoção, por path.
+async function recepcaoContratoRemover(gid, ig, ia) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
-  const c = r && r.pagamento && (r.pagamento.contratos || [])[i];
-  if (!c || !confirm('Remover este ' + (c.kind === 'assinado' ? 'contrato assinado' : 'contrato gerado') + '?')) return;
+  const lista = (r && r.pagamento && r.pagamento.contratos) || [];
+  const itens = [ia, ig].filter(i => i != null && lista[i]).map(i => lista[i]);
+  if (!itens.length) return;
+  const qual = ia != null && ig != null ? 'este contrato (a via gerada e a assinada)' : ia != null ? 'este contrato assinado' : 'este contrato gerado';
+  if (!confirm('Remover ' + qual + '? Não dá para desfazer.')) return;
   try {
-    const { error } = await supabaseClient.rpc('recepcao_contrato_remover', { p_gestacao_id: gid, p_path: c.path });
-    if (error) throw error;
-    if (!/^ipad:/.test(c.path || '')) await supabaseClient.storage.from('comprovantes').remove([c.path]);
-    await recepcaoAtualizar();
+    for (const c of itens) {
+      const { error } = await supabaseClient.rpc('recepcao_contrato_remover', { p_gestacao_id: gid, p_path: c.path });
+      if (error) throw error;
+      if (!/^ipad:/.test(c.path || '')) await supabaseClient.storage.from('comprovantes').remove([c.path]);
+    }
   } catch (err) { alert('Não consegui remover: ' + (err.message || err)); }
+  await recepcaoAtualizar();
 }
 
 // ── Encerramento na ficha: extrato guardado e status da devolução (migração 026) ──

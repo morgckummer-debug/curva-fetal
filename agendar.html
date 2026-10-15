@@ -112,7 +112,8 @@ small{color:#7a6a88}
   function agendados(d) {
     limpa(); var c = el('div', 'card');
     var lista = d.agendados && d.agendados.length ? d.agendados : null;
-    c.appendChild(el('h1', null, lista ? (d.confirmada ? 'Presença confirmada 💜' : 'Confira seus horários') : 'Seus ultrassons já estão agendados 💜'));
+    var nm = d.nome ? ', ' + d.nome : '';
+    c.appendChild(el('h1', null, lista ? (d.confirmada ? 'Presença confirmada' + nm + ' 💜' : 'Confira seus horários' + nm) : 'Seus ultrassons já estão agendados' + nm + ' 💜'));
     if (!lista) { c.appendChild(el('p', null, 'A nossa equipe enviou a confirmação pelo WhatsApp. Qualquer dúvida, é só responder lá.')); app.appendChild(c); return; }
     lista.forEach(function (x) {
       var r = el('div', 'res');
@@ -121,7 +122,8 @@ small{color:#7a6a88}
       c.appendChild(r);
     });
     if (d.confirmada) {
-      c.appendChild(el('p', null, 'Obrigada! Anotamos a sua confirmação. Se precisar remarcar, avise com 48 horas de antecedência pelo WhatsApp.'));
+      c.appendChild(el('p', null, 'Obrigada por confirmar! Será um prazer receber você e acompanhar de perto cada fase da sua gestação. Até breve! 💜'));
+      c.appendChild(el('p', null, 'Se precisar remarcar, avise com 48 horas de antecedência pelo WhatsApp.'));
     } else {
       var er = el('p', 'res', '');
       var b = el('button', null, 'Confirmo');

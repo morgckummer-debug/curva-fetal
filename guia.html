@@ -22,10 +22,10 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--fundo);color:var(--texto);font-family:'Jost',-apple-system,sans-serif;font-size:17px;line-height:1.55}
 .w{max-width:720px;margin:0 auto;padding:0 16px 40px}
-.topo{background:var(--plum);color:#F8F2E8;text-align:center;padding:34px 20px 30px;margin:0 -16px 26px}
-.kicker{font-size:12px;letter-spacing:4px;text-transform:uppercase;color:var(--ouro-c)}
+.topo{background:linear-gradient(135deg,#8A6BA8,#6E5090);color:#fff;text-align:center;padding:34px 20px 30px;margin:0 -16px 26px}
+.kicker{font-size:12px;letter-spacing:4px;text-transform:uppercase;color:#F6E7C1}
 .topo h1{margin:10px 0 6px;font-family:'Cormorant Garamond',Georgia,serif;font-weight:400;font-size:40px;line-height:1.05}
-.topo .sem{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:22px;color:var(--ouro-c)}
+.topo .sem{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:22px;color:#F6E7C1}
 .intro{font-family:'Cormorant Garamond',Georgia,serif;font-size:23px;line-height:1.4;color:var(--roxo);margin:0 0 22px}
 h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:26px;color:var(--roxo);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--linha)}
 ul{margin:0;padding:0;list-style:none}
@@ -43,7 +43,7 @@ li b{color:var(--roxo);font-weight:600}
 .lista a span{font-size:15px;color:var(--suave)}
 @media print{
   @page{size:A4;margin:14mm 16mm}
-  html,body{background:#fff;font-size:10.5pt;line-height:1.45}
+  html,body{background:#fff;font-size:10.3pt;line-height:1.4}
   .topo{padding:22px 20px 18px}.topo h1{font-size:32px}.topo .sem{font-size:18px}
   .intro{font-size:17px;margin-bottom:12px}
   h2{font-size:21px;margin:14px 0 6px}
@@ -65,21 +65,20 @@ li b{color:var(--roxo);font-weight:600}
 (function () {
   var GUIAS = {
     m1: {
-      t: 'Morfológico de 1º trimestre', sem: 'entre 12 e 13 semanas',
-      intro: 'É o primeiro grande encontro com o seu bebê. Nesta fase já conseguimos ver muito mais do que parece, e é também quando calculamos alguns riscos importantes para o resto da gestação.',
+      t: 'Morfológico de 1º trimestre', sem: 'entre 12 semanas e 13 semanas e 6 dias',
+      intro: 'É o primeiro grande encontro com o seu bebê. Nesta fase já conseguimos ver muito mais do que parece, e é também quando calculamos riscos importantes para o resto da gestação.',
       av: [
         ['Idade gestacional', 'confirmo a idade do bebê pelo comprimento dele, o que deixa a data provável do parto mais precisa.'],
-        ['Translucência nucal e osso nasal', 'medidas pequenas na região da nuca e do nariz que fazem parte do rastreamento de alterações cromossômicas, como a síndrome de Down.'],
-        ['Coração e circulação', 'batimentos do bebê e o fluxo de sangue em um vaso chamado ducto venoso.'],
+        ['Marcadores de síndromes cromossômicas', 'são vários sinais que, juntos, ajudam a rastrear alterações como a síndrome de Down: a presença do osso do nariz, a medida da nuca (translucência nucal), o fluxo de sangue em um vaso chamado ducto venoso, o funcionamento da válvula tricúspide do coração, se há dilatação dos rins e as medidas da bexiga do bebê.'],
         ['Anatomia inicial', 'cabeça, coluna, abdome, braços e pernas, já formados nesta fase.'],
-        ['Artérias uterinas', 'o fluxo de sangue que chega à placenta, usado para calcular o risco de pré-eclâmpsia.'],
-        ['Cálculo de risco', 'pelo método da Fetal Medicine Foundation (FMF), juntando as medidas do exame com a sua idade e a sua história.']
+        ['Colo do útero', 'medido pela via vaginal.'],
+        ['Risco de pré-eclâmpsia', 'junto o Doppler das artérias uterinas (o fluxo de sangue que chega à placenta) com a sua idade, peso, altura, doenças prévias, gestações anteriores e história familiar. Essas informações entram na calculadora internacional da Fetal Medicine Foundation (FMF), a mais precisa do mundo, que mostra se você deve ou não tomar medicação para prevenir a pré-eclâmpsia.']
       ],
       prep: [
         'Não precisa de jejum.',
-        'Traga, se tiver, os ultrassons e exames de sangue que já fez nesta gestação.',
-        'Saiba seu peso e sua altura atuais, e se usa algum remédio: eles entram no cálculo de risco.',
-        'Às vezes, para ver melhor alguma estrutura, o exame é completado pela via vaginal. Se for preciso, explico na hora.'
+        'O exame sempre tem uma parte pela via vaginal, para medir o colo do útero e completar o estudo do bebê. É rápida e cuidadosa.',
+        'Venha sabendo seu peso e sua altura atuais, as doenças que tem ou já teve, os remédios que usa, como foram suas gestações anteriores e se há casos de pré-eclâmpsia ou outras doenças na família. Tudo isso entra no cálculo de risco.',
+        'Traga, se tiver, os ultrassons e exames de sangue que já fez nesta gestação.'
       ],
       bom: [
         'É um exame mais demorado e detalhado. Se o bebê estiver numa posição difícil, podemos pedir que você caminhe um pouco ou mude de posição.',

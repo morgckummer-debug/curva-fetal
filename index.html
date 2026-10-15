@@ -2704,7 +2704,7 @@ initAuth();
 // livre do plano que contém a IG dela. Visita marcada como "extra" não ocupa janela; visita
 // fora de qualquer janela e sem a marca aparece à parte, para a recepção conferir.
 const ACOMP_EX = {
-  m1:   { n: 'Morfológico de 1º trimestre', sub: '',                     ini: 12*7, fim: 13*7+5 },
+  m1:   { n: 'Morfológico de 1º trimestre', sub: '',                     ini: 12*7, fim: 13*7+6 },
   colo: { n: 'Obstétrico com colo',         sub: '',                     ini: 16*7, fim: 18*7, tol: 14 }, // tolerância até 20s (Morgana, 2026-10-14)
   m2:   { n: 'Morfológico de 2º trimestre', sub: 'com colo e Doppler',   ini: 21*7, fim: 26*7 },
   d28:  { n: 'Doppler + PBF',               sub: '',                     ini: 28*7, fim: 28*7+6, tol: 7 },
@@ -4660,7 +4660,7 @@ function _adesaoProporcao(mod, igHoje) {
   plano.ex.forEach(k => {
     const def = ACOMP_EX[k], w = _ADESAO_PESO[k];
     tot += w;
-    // Morfo 1º tri: para efeito de valor, a entrada vale cheia até 14s0d (decisão da médica), embora a janela de agenda feche em 13s5d.
+    // Morfo 1º tri: para efeito de valor, a entrada vale cheia até 14s0d (decisão da médica), embora a janela de agenda feche em 13s6d.
     const fim = (k === 'm1' ? 14 * 7 : def.fim) + (def.tol || 0);
     if (igHoje <= fim) { rest += w; faltam.push(k); } else perdidos.push(k);
   });

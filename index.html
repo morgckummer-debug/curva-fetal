@@ -3173,7 +3173,7 @@ function _rcConfRefazer() {
   document.getElementById('rc-conf-txt').value = itens.length
     ? `Olá, ${el._nome}! Seus próximos ultrassons estão agendados 🥰\n\n${itens.map(x => x.linha).join('\n')}\n\nLembretes importantes:\n- Você pode remarcar sem custo, dentro do período de cada exame, avisando com pelo menos 48 horas de antecedência.\n- Se faltar sem avisar com 48 horas e o período do exame passar, o valor do exame vira crédito, e seu acompanhamento segue normalmente para o próximo exame.\n\nQualquer dúvida, estamos à disposição 💜`
     : '';
-  if (el._url && itens.length) document.getElementById('rc-conf-txt').value += `\n\n👉 Confirme seus horários neste link:\n${el._url}`;
+  if (el._url && itens.length) document.getElementById('rc-conf-txt').value += `\n\n👉 Confirme seus horários neste link. Lá também está o guia de cada exame, com o que vamos avaliar e como se preparar:\n${el._url}`;
 }
 
 function _rcConfWhats() {

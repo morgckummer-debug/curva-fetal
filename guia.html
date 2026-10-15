@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Guia do exame · Acompanhamento Fetal MK</title>
+<link rel="icon" href="favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!--
+  Guia de cada exame da jornada (2026-10-15). Página sem login e sem dados da paciente: só texto.
+  guia.html?ex=m1 | colo | m2 | doppler | m3 (as chaves d28/d32/d36/d38 do ACOMP_EX caem em "doppler").
+  A paciente chega aqui pelo link pessoal (agendar.html), que mostra "O que vamos avaliar" ao lado de
+  cada exame agendado; a mensagem de confirmação do agendamento já leva esse link. Nenhuma tarefa nova
+  para a recepção. "Salvar em PDF" usa a impressão do navegador.
+  Texto revisado pela médica? Ver o CLAUDE.md, seção "Guias dos exames".
+-->
+<style>
+:root{--plum:#2E1F3B;--roxo:#3E2A4F;--tinta:#2E2338;--texto:#3A2F44;--suave:#6B5C76;--ouro:#A8843A;--ouro-c:#C9A55A;--linha:#D9C9A3;--fundo:#FBF8F4;--lilas:#F1EAF3}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--fundo);color:var(--texto);font-family:'Jost',-apple-system,sans-serif;font-size:17px;line-height:1.55}
+.w{max-width:720px;margin:0 auto;padding:0 16px 40px}
+.topo{background:var(--plum);color:#F8F2E8;text-align:center;padding:34px 20px 30px;margin:0 -16px 26px}
+.kicker{font-size:12px;letter-spacing:4px;text-transform:uppercase;color:var(--ouro-c)}
+.topo h1{margin:10px 0 6px;font-family:'Cormorant Garamond',Georgia,serif;font-weight:400;font-size:40px;line-height:1.05}
+.topo .sem{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:22px;color:var(--ouro-c)}
+.intro{font-family:'Cormorant Garamond',Georgia,serif;font-size:23px;line-height:1.4;color:var(--roxo);margin:0 0 22px}
+h2{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;font-size:26px;color:var(--roxo);margin:26px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--linha)}
+ul{margin:0;padding:0;list-style:none}
+li{position:relative;padding:0 0 10px 22px}
+li::before{content:"";position:absolute;left:4px;top:.62em;width:7px;height:7px;border-radius:50%;background:var(--ouro-c)}
+li b{color:var(--roxo);font-weight:600}
+.nota{background:var(--lilas);padding:18px 20px;margin-top:26px;font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:21px;line-height:1.4;color:var(--roxo);text-align:center}
+.nota small{display:block;margin-top:6px;font-family:'Jost',sans-serif;font-style:normal;font-size:14px;color:var(--suave)}
+.rodape{margin-top:24px;text-align:center;font-size:13px;color:var(--suave)}
+.acoes{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+.btn{border:0;background:var(--roxo);color:#fff;font:inherit;font-weight:500;padding:13px 24px;border-radius:999px;cursor:pointer;text-decoration:none}
+.btn.linha{background:none;color:var(--roxo);border:1px solid var(--roxo)}
+.lista a{display:block;background:#fff;border:1px solid var(--linha);padding:16px 18px;margin-bottom:10px;color:var(--roxo);text-decoration:none}
+.lista a b{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:600}
+.lista a span{font-size:15px;color:var(--suave)}
+@media print{
+  @page{size:A4;margin:14mm 16mm}
+  html,body{background:#fff;font-size:10.5pt;line-height:1.45}
+  .topo{padding:22px 20px 18px}.topo h1{font-size:32px}.topo .sem{font-size:18px}
+  .intro{font-size:17px;margin-bottom:12px}
+  h2{font-size:21px;margin:14px 0 6px}
+  li{padding-bottom:5px}
+  .nota{font-size:17px;padding:12px 16px;margin-top:16px}
+  .rodape{margin-top:12px}
+  .w{max-width:none;padding:0}
+  .topo{margin:0 0 18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .nota{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .acoes{display:none}
+  h2{break-after:avoid}
+  li{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="w" id="app"></div>
+<script>
+(function () {
+  var GUIAS = {
+    m1: {
+      t: 'Morfológico de 1º trimestre', sem: 'entre 12 e 13 semanas',
+      intro: 'É o primeiro grande encontro com o seu bebê. Nesta fase já conseguimos ver muito mais do que parece, e é também quando calculamos alguns riscos importantes para o resto da gestação.',
+      av: [
+        ['Idade gestacional', 'confirmo a idade do bebê pelo comprimento dele, o que deixa a data provável do parto mais precisa.'],
+        ['Translucência nucal e osso nasal', 'medidas pequenas na região da nuca e do nariz que fazem parte do rastreamento de alterações cromossômicas, como a síndrome de Down.'],
+        ['Coração e circulação', 'batimentos do bebê e o fluxo de sangue em um vaso chamado ducto venoso.'],
+        ['Anatomia inicial', 'cabeça, coluna, abdome, braços e pernas, já formados nesta fase.'],
+        ['Artérias uterinas', 'o fluxo de sangue que chega à placenta, usado para calcular o risco de pré-eclâmpsia.'],
+        ['Cálculo de risco', 'pelo método da Fetal Medicine Foundation (FMF), juntando as medidas do exame com a sua idade e a sua história.']
+      ],
+      prep: [
+        'Não precisa de jejum.',
+        'Traga, se tiver, os ultrassons e exames de sangue que já fez nesta gestação.',
+        'Saiba seu peso e sua altura atuais, e se usa algum remédio: eles entram no cálculo de risco.',
+        'Às vezes, para ver melhor alguma estrutura, o exame é completado pela via vaginal. Se for preciso, explico na hora.'
+      ],
+      bom: [
+        'É um exame mais demorado e detalhado. Se o bebê estiver numa posição difícil, podemos pedir que você caminhe um pouco ou mude de posição.',
+        'Você recebe o resultado do cálculo de risco no mesmo dia, e eu explico cada número com calma.'
+      ]
+    },
+    colo: {
+      t: 'Obstétrico com avaliação do colo', sem: 'entre 16 e 18 semanas',
+      intro: 'Um exame mais leve, mas muito esperado: em geral já é possível ver o sexo do bebê. E aproveitamos para medir o colo do útero, que ajuda a prever o risco de parto prematuro.',
+      av: [
+        ['Crescimento', 'medidas da cabeça, do abdome e do fêmur, e o peso estimado do bebê.'],
+        ['Sexo do bebê', 'quando a posição permite. Se preferir que seja surpresa, é só me avisar antes.'],
+        ['Batimentos, placenta e líquido', 'como estão funcionando nesta fase.'],
+        ['Colo do útero', 'medido pela via vaginal, que é a forma mais precisa. É rápido e não dói.']
+      ],
+      prep: [
+        'Não precisa de jejum.',
+        'Esvazie a bexiga antes do exame: para medir o colo, a bexiga vazia ajuda.',
+        'Se for fazer revelação do sexo para a família, conte para nós ao chegar.'
+      ],
+      bom: [
+        'Quem você quiser pode acompanhar: as imagens aparecem na parede da sala.'
+      ]
+    },
+    m2: {
+      t: 'Morfológico de 2º trimestre', sem: 'entre 21 e 26 semanas · com colo e Doppler',
+      intro: 'É o exame mais completo da gestação. O bebê já está grande o bastante para avaliarmos, órgão por órgão, como ele está se formando.',
+      av: [
+        ['Anatomia completa', 'cérebro, rosto, lábios, coluna, coração, pulmões, estômago, rins, bexiga, braços, mãos, pernas e pés.'],
+        ['Coração', 'as quatro câmaras e a saída dos grandes vasos. (Este exame não substitui o ecocardiograma fetal, quando ele for indicado.)'],
+        ['Crescimento', 'peso estimado e as medidas comparadas com o esperado para a idade do bebê, já na curva de crescimento dele.'],
+        ['Placenta, cordão e líquido amniótico', 'posição da placenta, inserção do cordão e quantidade de líquido.'],
+        ['Colo do útero', 'nova medida, para acompanhar o risco de parto prematuro.'],
+        ['Doppler', 'o fluxo de sangue nas artérias uterinas, que mostra como a placenta está sendo nutrida.']
+      ],
+      prep: [
+        'Não precisa de jejum. Coma normalmente antes de vir.',
+        'Esvazie a bexiga antes do exame.',
+        'Venha com roupa confortável e reserve tempo: este é o exame mais longo da jornada.'
+      ],
+      bom: [
+        'Se o bebê estiver numa posição que esconda alguma estrutura, podemos pedir que você caminhe um pouco e voltar a olhar. Faz parte, e vale a pena.',
+        'É uma ótima fase para imagens em 3D do rostinho, quando a posição e o líquido ajudam.'
+      ]
+    },
+    doppler: {
+      t: 'Doppler e perfil biofísico fetal', sem: 'com 28, 32 e 36 semanas (e 38 no Premium)',
+      intro: 'No terceiro trimestre, o que mais importa é saber se o bebê está crescendo bem e recebendo tudo o que precisa da placenta. É isso que estes exames acompanham, de perto.',
+      av: [
+        ['Crescimento', 'peso estimado e medidas, marcados na curva de crescimento do seu bebê. Assim vemos não só o tamanho de hoje, mas a tendência desde o início.'],
+        ['Doppler', 'o fluxo de sangue no cordão umbilical, no cérebro do bebê e nas artérias do útero: mostra como a placenta está funcionando.'],
+        ['Perfil biofísico', 'movimentos do corpo, movimentos de respiração, tônus e quantidade de líquido. É a forma de o bebê "mostrar" que está bem.'],
+        ['Posição do bebê e da placenta', 'importante para a conversa com seu obstetra sobre o parto.']
+      ],
+      prep: [
+        'Coma normalmente antes do exame: bebê alimentado costuma ficar mais ativo.',
+        'Não precisa de bexiga cheia.',
+        'Traga, se tiver, os exames feitos com seu obstetra desde a última visita.'
+      ],
+      bom: [
+        'Se o bebê estiver dormindo, podemos esperar um pouco ou pedir que você mude de posição. É normal e não significa problema.',
+        'Você sai com o relatório evolutivo, que mostra a curva de crescimento para seu obstetra.'
+      ]
+    },
+    m3: {
+      t: 'Morfológico de 3º trimestre', sem: 'com 36 semanas · com Doppler',
+      intro: 'Na reta final, revisamos a anatomia do bebê, agora maior, e conferimos crescimento e circulação para que você chegue ao parto com toda a informação em mãos.',
+      av: [
+        ['Revisão da anatomia', 'cérebro, coração, rins e outros órgãos, que podem mostrar achados que só aparecem mais tarde na gestação.'],
+        ['Crescimento', 'peso estimado e medidas, na curva de crescimento do seu bebê.'],
+        ['Doppler', 'fluxo de sangue no cordão, no cérebro do bebê e nas artérias do útero.'],
+        ['Líquido amniótico, placenta e posição do bebê', 'informações úteis para o planejamento do parto.']
+      ],
+      prep: [
+        'Coma normalmente antes do exame.',
+        'Não precisa de bexiga cheia.',
+        'Traga, se tiver, os exames feitos com seu obstetra desde a última visita.'
+      ],
+      bom: [
+        'Nesta fase o bebê ocupa bastante espaço, e o rosto nem sempre fica visível para imagens em 3D. Tentamos sempre, mas depende da posição dele.',
+        'Você sai com o relatório evolutivo atualizado para levar ao seu obstetra.'
+      ]
+    }
+  };
+  var ALIAS = { d28: 'doppler', d32: 'doppler', d36: 'doppler', d38: 'doppler' };
+  var app = document.getElementById('app');
+  var ex = (new URLSearchParams(location.search).get('ex') || '').toLowerCase();
+  ex = ALIAS[ex] || ex;
+
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function topo(kicker, titulo, sem) {
+    var t = el('div', 'topo');
+    t.appendChild(el('div', 'kicker', kicker));
+    t.appendChild(el('h1', null, titulo));
+    if (sem) t.appendChild(el('div', 'sem', sem));
+    app.appendChild(t);
+  }
+  function lista(titulo, itens) {
+    app.appendChild(el('h2', null, titulo));
+    var ul = el('ul');
+    itens.forEach(function (it) {
+      var li = el('li');
+      if (Array.isArray(it)) { li.appendChild(el('b', null, it[0] + ': ')); li.appendChild(document.createTextNode(it[1])); }
+      else li.textContent = it;
+      ul.appendChild(li);
+    });
+    app.appendChild(ul);
+  }
+
+  var g = GUIAS[ex];
+  if (!g) {
+    document.title = 'Guias dos exames · Acompanhamento Fetal MK';
+    topo('Acompanhamento Fetal MK', 'Guias dos exames', 'o que vamos avaliar em cada encontro');
+    var l = el('div', 'lista');
+    ['m1', 'colo', 'm2', 'doppler', 'm3'].forEach(function (k) {
+      var a = el('a'); a.href = 'guia.html?ex=' + k;
+      a.appendChild(el('b', null, GUIAS[k].t)); a.appendChild(el('span', null, GUIAS[k].sem));
+      l.appendChild(a);
+    });
+    app.appendChild(l);
+  } else {
+    document.title = g.t + ' · Acompanhamento Fetal MK';
+    topo('Acompanhamento Fetal MK · Guia do exame', g.t, g.sem);
+    app.appendChild(el('p', 'intro', g.intro));
+    lista('O que vou avaliar', g.av);
+    lista('Como se preparar', g.prep);
+    lista('Bom saber', g.bom.concat([
+      'Precisa remarcar? Avise com pelo menos 48 horas de antecedência pelo WhatsApp.',
+      'Chegue uns 10 minutos antes, para fazermos sua recepção com calma.'
+    ]));
+    var n = el('div', 'nota', '“Cada exame é um passo da mesma história. Estou cuidando de vocês dois.”');
+    n.appendChild(el('small', null, 'Dra. Morgana Kummer'));
+    app.appendChild(n);
+    var ac = el('div', 'acoes');
+    var b = el('button', 'btn', 'Salvar em PDF'); b.onclick = function () { window.print(); };
+    ac.appendChild(b);
+    var v = el('a', 'btn linha', 'Ver todos os guias'); v.href = 'guia.html';
+    ac.appendChild(v);
+    app.appendChild(ac);
+  }
+  app.appendChild(el('p', 'rodape', 'Acompanhamento Fetal MK · Dra. Morgana Kummer · Ficou alguma dúvida? Fale com a nossa equipe pelo WhatsApp.'));
+})();
+</script>
+</body>
+</html>

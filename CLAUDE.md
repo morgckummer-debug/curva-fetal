@@ -2008,3 +2008,14 @@ reescreve a tabela inteira sem gerar linha). Na ficha, `<details>` "🕘 Histór
 comprovante não apaga mais o arquivo do Storage**: some da ficha, mas abre pelo Histórico. Não voltar
 a apagar. Campo novo em `pagamentos_acompanhamento` que importe para o contrato: acrescentar no array
 de `_historico_pagamentos()` e uma frase em `_histFrases`. Aplicada no Supabase por Claude em 2026-10-15.
+
+## Guias dos exames: o "PDF explicativo" da vitrine e do portfólio (2026-10-15)
+
+`guia.html?ex=m1|colo|m2|doppler|m3` (d28/d32/d36/d38 viram `doppler`; sem `ex`, lista os cinco): o que será
+avaliado, como se preparar e "bom saber", na paleta da vitrine, com "Salvar em PDF" (impressão do navegador,
+cabe em uma folha A4). Página estática, sem dado de paciente. **Chega à gestante sem tarefa nova para a
+recepção**: o link pessoal (`agendar.html`) mostra "📄 O que vamos avaliar e como se preparar" em cada exame
+(na escolha de datas e nos horários agendados), e a mensagem de "Confirmar agendamento" já diz que o guia está
+no link. Os PDFs gerados ficam em `/mnt/project-files/guias/` (regerar se o texto mudar). Texto escrito por
+Claude e ainda **sem revisão da médica**, principalmente preparo (bexiga, via vaginal, chegar 10 min antes).
+Sem preços, de propósito.

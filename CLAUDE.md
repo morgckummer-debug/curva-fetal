@@ -1948,8 +1948,12 @@ preço (cópia de `_ADESAO_PRECO`: **mudou preço lá, mude aqui**) e "Quero con
 pré-adesões aparecem em amarelo acima da lista; "Conferir e cadastrar" abre a Nova adesão de sempre já
 preenchida, com aviso para conferir nome e CPF com o documento (o nome da adesão não muda depois), e ao
 concluir marca a pré-adesão como `cadastrada`. Pagamento continua na maquininha e a assinatura no iPad.
-- **De casa**: o mesmo link com `&de=casa` (botão "📱 iPad e link de adesão" gera os dois e a mensagem de
-  WhatsApp). Muda os textos e não volta sozinho à capa; a pré-adesão chega como "preenchido em casa".
+- **De casa**: o mesmo link com `&de=casa`. Muda os textos e não volta sozinho à capa; a pré-adesão chega
+  como "preenchido em casa". **Os dois links ficam em botões separados (2026-10-15)**, porque juntos
+  confundiam: a recepção tem só "📲 Enviar link de adesão" (`recepcaoVitrineLinks('casa')`, com o celular
+  da paciente para o wa.me abrir direto na conversa dela); o endereço do iPad (com `&a=`) fica em
+  "📱 Configurar iPad", só na visão da médica e em Mais opções (`recepcaoVitrineLinks('ipad')`), porque
+  se configura uma vez e nunca vai para paciente.
 - No iPad, a página volta à capa (e limpa o formulário) após 3 min parada, ou 40 s na tela de obrigado.
 - **A 033 precisa estar aplicada**; sem ela o bloco de pré-adesões só fica vazio e o botão de links avisa.
 - **Nascimento e IG na vitrine (2026-10-14, migração 034):** a paciente digita a data de nascimento (vai para `pre_adesoes.nascimento` e preenche a Nova adesão) e vê "Hoje: X semanas e Y dias" assim que informa a DUM ou o ultrassom. Sem a 034 a página reenvia sem o nascimento (fallback no PGRST202).

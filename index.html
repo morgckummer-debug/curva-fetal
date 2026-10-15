@@ -1263,6 +1263,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <span class="rc-bar-user" id="rc-user"></span>
       <button type="button" class="rc-btn" id="rc-minha-ass" style="display:none" onclick="recepcaoMinhaAssinaturaAbrir()">✍ Minha assinatura</button>
       <button type="button" class="rc-btn" id="rc-ausencias" style="display:none" onclick="recepcaoAusenciasAbrir()">🗓 Minhas ausências</button>
+      <button type="button" class="rc-btn" id="rc-ipad" style="display:none" onclick="recepcaoVitrineLinks('ipad')">📱 Configurar iPad</button>
       <button type="button" class="rc-btn" onclick="recepcaoAtualizar()">Atualizar</button>
       <button type="button" class="rc-btn" id="rc-sair" onclick="recepcaoSair()">Sair</button>
     </div>
@@ -1272,7 +1273,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
     <div class="rc-busca-row">
       <input type="search" id="rc-busca" class="rc-busca" placeholder="Buscar por nome ou CPF" oninput="recepcaoFiltrar()" autocomplete="off">
       <div class="rc-chips" id="rc-chips"></div>
-      <button type="button" class="rc-btn-claro" style="margin-left:auto;padding:12px 16px;font-size:14px;" onclick="recepcaoVitrineLinks()">📱 iPad e link de adesão</button>
+      <button type="button" class="rc-btn-claro" style="margin-left:auto;padding:12px 16px;font-size:14px;" onclick="recepcaoVitrineLinks('casa')">📲 Enviar link de adesão</button>
       <button type="button" class="rc-btn-dark" style="padding:12px 20px;font-size:14px;" onclick="recepcaoAdesaoAbrir(null)">+ Nova adesão</button>
     </div>
     <div id="rc-pre"></div>
@@ -1311,7 +1312,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 </div>
 <div id="rc-links" onclick="if(event.target===this)this.style.display='none'" style="display:none;position:fixed;inset:0;z-index:9100;background:rgba(46,33,56,.55);align-items:center;justify-content:center;padding:20px;">
   <div class="rc-modal" style="max-width:560px;width:100%;">
-    <h3>iPad e link de adesão</h3>
+    <h3 id="rc-links-tit">Enviar link de adesão</h3>
     <div class="rc-link-box" id="rc-links-corpo">Carregando…</div>
     <div class="rc-modal-acoes"><button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-links').style.display='none'">Fechar</button></div>
   </div>
@@ -1374,6 +1375,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <button class="btn btn-secondary" onclick="toggleMoreMenu(event)" aria-haspopup="true" aria-expanded="false" id="more-menu-btn">⋯ Mais opções</button>
             <div class="more-menu-list" id="more-menu-list">
               <button onclick="abrirPainelRecepcao();closeMoreMenu()" title="Tela da recepção: exames feitos e a fazer, e conferência de pagamento">💳 Painel da recepção</button>
+              <button onclick="recepcaoVitrineLinks('ipad');closeMoreMenu()" title="Endereço da vitrine para abrir uma vez no iPad da recepção">📱 Configurar iPad da recepção</button>
               <button onclick="recepcaoAusenciasAbrir();closeMoreMenu()" title="Dias em que você não atende: somem da agenda das gestantes">🗓 Minhas ausências</button>
               <button onclick="openLixeiraModal();closeMoreMenu()" title="Pacientes e exames excluídos">🗑 Lixeira</button>
               <button onclick="exportData();closeMoreMenu()" title="Baixar uma cópia de segurança de todos os dados">⬇ Backup</button>
@@ -2864,6 +2866,8 @@ async function _abrirRecepcao() {
   if (ma) ma.style.display = _rcMedica ? '' : 'none';
   const au = document.getElementById('rc-ausencias');
   if (au) au.style.display = _rcMedica ? '' : 'none';
+  const ip = document.getElementById('rc-ipad');
+  if (ip) ip.style.display = _rcMedica ? '' : 'none';
   await recepcaoAtualizar();
   const b = document.getElementById('rc-busca');
   if (b) b.focus();
@@ -4867,22 +4871,36 @@ async function recepcaoPreDescartar(id) {
   await recepcaoAtualizar();
 }
 // Links da vitrine: o do iPad (fica aberto na recepção) e o de casa (vai pelo WhatsApp).
-async function recepcaoVitrineLinks() {
+// modo 'casa' (recepção, dia a dia): só o link para a gestante preencher em casa, enviado pelo WhatsApp.
+// modo 'ipad' (só a médica, uma vez): o endereço do iPad da vitrine, que leva a chave de assinatura
+// e por isso NUNCA vai para paciente.
+async function recepcaoVitrineLinks(modo) {
+  modo = modo === 'ipad' ? 'ipad' : 'casa';
   const m = document.getElementById('rc-links'), c = document.getElementById('rc-links-corpo');
+  document.getElementById('rc-links-tit').textContent = modo === 'ipad' ? 'Configurar o iPad da recepção' : 'Enviar link de adesão';
   m.style.display = 'flex'; c.textContent = 'Carregando…';
   const { data: k, error } = await supabaseClient.rpc('recepcao_vitrine_chave');
   if (error || !k) { c.textContent = 'Não consegui gerar o link: ' + ((error && error.message) || 'sem resposta') + '. A migração 033 foi aplicada no Supabase?'; return; }
+  if (modo === 'ipad') {
+    let ipad = _VITRINE_URL + '?k=' + k, semAss = false;
+    try { const a = await supabaseClient.rpc('recepcao_vitrine_assinatura_token'); if (a.error || !a.data) throw a.error; ipad += '&a=' + a.data; }
+    catch (e) { semAss = true; console.warn('[CurvaFetal] chave de assinatura do iPad:', e); }
+    c.innerHTML = `<div class="rc-pre-sub">Faça isto uma vez só, no iPad da recepção. <b>Não envie este endereço para pacientes</b>: ele também abre a busca de contratos para assinatura.</div>
+      <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.6"><li>No iPad, abra este endereço no Safari.</li><li>Toque em Compartilhar → "Adicionar à Tela de Início".</li><li>Use o Acesso Guiado para o iPad não sair da página.</li></ol>
+      ${semAss ? '<div class="rc-pre-sub" style="color:#b3261e">Sem a chave de assinatura: o botão "Assinar contrato" não vai aparecer no iPad.</div>' : '<div class="rc-pre-sub">Se o iPad já tinha um endereço antigo, troque pelo deste.</div>'}
+      <input type="text" readonly value="${escapeHtml(ipad)}" onclick="this.select()">
+      <div><button type="button" class="rc-btn-claro" id="rc-links-copiar">Copiar endereço</button></div>`;
+    document.getElementById('rc-links-copiar').onclick = function () {
+      navigator.clipboard.writeText(ipad).then(() => { this.textContent = 'Copiado ✓'; }, () => alert(ipad));
+    };
+    return;
+  }
   const casa = _VITRINE_URL + '?k=' + k + '&de=casa';
-  // O endereço do iPad leva também a chave de assinatura (migração 035), que NÃO vai no link de casa.
-  let ipad = _VITRINE_URL + '?k=' + k, semAss = false;
-  try { const a = await supabaseClient.rpc('recepcao_vitrine_assinatura_token'); if (a.error || !a.data) throw a.error; ipad += '&a=' + a.data; }
-  catch (e) { semAss = true; console.warn('[CurvaFetal] chave de assinatura do iPad:', e); }
   const msgCasa = 'Olá! Aqui você conhece o Acompanhamento Fetal MK e já deixa seus dados preenchidos. No dia do exame, é só trazer um documento com foto: o pagamento e a assinatura do contrato levam poucos minutos na recepção 💜\n\n' + casa;
-  c.innerHTML = `<div><b>iPad da recepção</b><div class="rc-pre-sub">Abra este endereço no Safari do iPad, toque em Compartilhar → "Adicionar à Tela de Início" e use o Acesso Guiado para ele não sair da página.${semAss ? '' : ' Com este endereço, o botão "Assinar contrato" da capa busca a paciente por nome ou CPF.'} Se o iPad já estava com o endereço antigo, abra este de novo.</div><input type="text" readonly value="${escapeHtml(ipad)}" onclick="this.select()"></div>
-    <div><b>Link para a paciente preencher em casa</b><div class="rc-pre-sub">Mesma página, sem voltar sozinha ao início. Os dados aparecem aqui como "preenchido em casa".</div><input type="text" readonly value="${escapeHtml(casa)}" onclick="this.select()">
-    <label style="display:block;margin-top:10px;font-size:13px">Celular da paciente (com DDD)<input type="tel" id="rc-links-tel" inputmode="tel" placeholder="(31) 99999-9999" autocomplete="off"></label>
+  c.innerHTML = `<div class="rc-pre-sub">Para a gestante que não está na clínica conhecer os planos e deixar os dados preenchidos. O que ela enviar aparece aqui em amarelo, como "preenchido em casa".</div>
+    <label style="display:block;font-size:13px">Celular da paciente (com DDD)<input type="tel" id="rc-links-tel" inputmode="tel" placeholder="(31) 99999-9999" autocomplete="off"></label>
     <div class="rc-pre-sub" id="rc-links-tel-aviso">Com o número, o WhatsApp abre direto na conversa dela.</div>
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="rc-btn-claro" id="rc-links-copiar">Copiar mensagem</button><a class="rc-btn-dark" id="rc-links-wa" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msgCasa)}">Abrir no WhatsApp</a></div></div>`;
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="rc-btn-dark" id="rc-links-wa" style="text-decoration:none;display:inline-block" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msgCasa)}">Abrir no WhatsApp</a><button type="button" class="rc-btn-claro" id="rc-links-copiar">Copiar mensagem</button></div>`;
   document.getElementById('rc-links-copiar').onclick = function () {
     navigator.clipboard.writeText(msgCasa).then(() => { this.textContent = 'Copiada ✓'; }, () => alert(msgCasa));
   };

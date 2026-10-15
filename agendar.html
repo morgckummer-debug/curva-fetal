@@ -37,6 +37,9 @@ button:disabled{opacity:.5}
 .ok{text-align:center;padding:10px 0}
 .ok .t{font-size:40px}
 .res{font-size:15px;margin:6px 0}
+.ag .res{margin:0;padding:14px 0;border-top:1px solid #eee5f3}
+.ag .res:first-of-type{border-top:0;padding-top:6px}
+.ag .res b{display:block;margin-bottom:3px}
 .sec{background:none;color:#4b2a6b;border:1px solid #4b2a6b;margin-top:10px}
 small{color:#7a6a88}
 .guia{display:inline-block;margin-top:4px;font-size:14px;color:#4b2a6b;font-weight:600}
@@ -123,6 +126,7 @@ small{color:#7a6a88}
     var nm = d.nome ? ', ' + d.nome : '';
     c.appendChild(el('h1', null, lista ? (d.confirmada ? 'Presença confirmada' + nm + ' 💜' : 'Confira seus horários' + nm) : 'Seus ultrassons já estão agendados' + nm + ' 💜'));
     if (!lista) { c.appendChild(el('p', null, 'A nossa equipe enviou a confirmação pelo WhatsApp. Qualquer dúvida, é só responder lá.')); app.appendChild(c); return; }
+    c.classList.add('ag');
     lista.forEach(function (x) {
       var r = el('div', 'res');
       r.appendChild(el('b', null, x.n));
@@ -159,7 +163,6 @@ small{color:#7a6a88}
       var c = el('div', 'card');
       c.appendChild(el('h2', null, ex.n));
       c.appendChild(el('div', 'jan', 'Entre ' + fmtLongo(ex.de) + ' e ' + fmtLongo(ex.ate)));
-      var gl = guia(ex.key); if (gl) { gl.style.marginBottom = '10px'; c.appendChild(gl); }
       var linhas = [];
       for (var k = 0; k < 1; k++) {
         var l = el('div', 'lin');

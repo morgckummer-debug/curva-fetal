@@ -2035,3 +2035,13 @@ Mudar o critério = mudar nos dois lugares (`_rcAgendaPendencias` e `_agenda_lib
 ## Quando a gestante assina e paga (2026-10-16)
 
 Decisão da Morgana: contrato e pagamento são feitos **pessoalmente na clínica**, logo após o ultrassom inicial com ela, ou, se a gestante levar o link dos planos para casa, **até 7 dias antes do primeiro exame do acompanhamento**. Nunca "no dia do primeiro exame". Está no item 3 do contrato (`_contratoHtml`, "Onde e quando"; espelhado no .docx/PDF de `/mnt/project-files/contratos/`), nos textos `de=casa` da `vitrine.html` (formulário, aceite, nota na tela de planos, tela final) e na mensagem do "Enviar link de adesão" (`recepcaoVitrineLinks`). O app não cobra o prazo: é só orientação.
+
+## Prioridade e 20% de desconto nos avulsos (2026-10-16)
+
+Decisão da Morgana: a gestante do acompanhamento tem prioridade na agenda em todos os ultrassons e paga
+exames feitos à parte (fora da modalidade, além dos extras, fora da janela, urgência) com 20% de desconto,
+arredondado para a dezena: 500→400, 295→240, 270→220, 250→200, 230→180 (gemelar em dobro). Está no item 5
+do contrato ("Prioridade e desconto"), na 3ª coluna do Anexo II (`avulsos` em `_contratoHtml`) e na
+vitrine (tabela comparativa e legenda da jornada). **Os cálculos de saldo (desistência, perda, parto, troca)
+continuam no valor avulso cheio** (`_ADESAO_PESO`, `_EXTRA_AVULSO`): o desconto é só para o que ela paga.
+O módulo de vigilância de CIUR (R$ 230/semana) não muda. Mudou um preço avulso? Atualize as duas colunas.

@@ -2045,3 +2045,10 @@ do contrato ("Prioridade e desconto"), na 3ª coluna do Anexo II (`avulsos` em `
 vitrine (tabela comparativa e legenda da jornada). **Os cálculos de saldo (desistência, perda, parto, troca)
 continuam no valor avulso cheio** (`_ADESAO_PESO`, `_EXTRA_AVULSO`): o desconto é só para o que ela paga.
 O módulo de vigilância de CIUR (R$ 230/semana) não muda. Mudou um preço avulso? Atualize as duas colunas.
+
+## Módulo de vigilância de CIUR: sempre com pedido do obstetra (2026-10-16)
+
+Decisão da Morgana: quem indica o Doppler semanal do CIUR é o obstetra assistente, não ela. O módulo (R$ 230/exame)
+só vale com pedido médico do obstetra, apresentado no agendamento — é a exceção à regra de que os exames do
+acompanhamento dispensam pedido. Contrato itens 2 e 5 (`_contratoHtml` e o .docx/PDF em
+`/mnt/project-files/contratos/`) e plano de negócios atualizados.

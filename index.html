@@ -3374,7 +3374,9 @@ function _rcDetalheHtml(i) {
 // qual for o motivo. Uso do crédito durante a gestação: "Registrar uso do crédito".
 function _rcFaltasAtual(r) {
   const f = r.faltas || {};
-  return { itens: Array.isArray(f.itens) ? f.itens.slice() : [], usos: Array.isArray(f.usos) ? f.usos.slice() : [] };
+  // usosEnc = usos do crédito do encerramento (parto, item 8b), guardados no mesmo jsonb para não precisar de migração.
+  return { itens: Array.isArray(f.itens) ? f.itens.slice() : [], usos: Array.isArray(f.usos) ? f.usos.slice() : [],
+    usosEnc: Array.isArray(f.usosEnc) ? f.usosEnc.slice() : [] };
 }
 async function _rcFaltasSalvar(r, f) {
   const { error } = await supabaseClient.rpc('recepcao_faltas_set', { p_gestacao_id: r.gestacao_id, p_faltas: f });
@@ -3415,41 +3417,54 @@ async function recepcaoFaltaDesfazer(key) {
   f.itens = f.itens.filter(x => x.key !== key);
   try { await _rcFaltasSalvar(r, f); } catch (err) { alert('Não consegui desfazer: ' + (err.message || err)); }
 }
-async function recepcaoCreditoUsar() {
+// Crédito do encerramento por parto (item 8b): valor, usos, disponível e vencimento. null quando não se aplica
+// (sem extrato, sem crédito, ou crédito para nova gestação — esse é usado inteiro numa nova adesão).
+function _rcCreditoEnc(r) {
+  const e = (r.pagamento || {}).encerramento, d = e && e.devolucao;
+  if (!e || !d || d.status !== 'credito' || e.credito_nova_gestacao) return null;
+  const valor = +d.valor || +e.credito || 0;
+  if (!(valor > 0)) return null;
+  const usos = _rcFaltasAtual(r).usosEnc;
+  const usado = usos.reduce((a, x) => a + (+x.valor || 0), 0);
+  const vencido = !!(e.validade && e.validade < _hojeISO());
+  return { valor, usos, usado, disponivel: vencido ? 0 : Math.max(0, valor - usado), validade: e.validade || null, vencido };
+}
+async function recepcaoCreditoUsar(tipo) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === _rcSel);
   const i = r && _rcInfo(r);
   if (!i) return;
-  const c = i.sit.creditoFalta;
-  if (!(c.disponivel > 0)) { alert('Não há crédito disponível.'); return; }
+  const enc = tipo === 'enc';
+  const c = enc ? _rcCreditoEnc(r) : i.sit.creditoFalta;
+  if (!c || !(c.disponivel > 0)) { alert(c && c.vencido ? 'O crédito já venceu.' : 'Não há crédito disponível.'); return; }
   const vTxt = prompt(`Quanto do crédito foi usado? (disponível: ${_brl(c.disponivel)})`, String(c.disponivel));
   if (vTxt == null) return;
   const valor = Math.round(parseFloat(String(vTxt).replace(/\./g, '').replace(',', '.')) * 100) / 100;
   if (!(valor > 0) || valor > c.disponivel + 0.001) { alert('Valor inválido.'); return; }
-  const desc = prompt('Em quê? (ex.: Doppler avulso em 20/11)', '');
+  const desc = prompt('Em quê? (ex.: Transvaginal em 20/04, Dra. X)', '');
   if (desc == null) return;
   const f = _rcFaltasAtual(r);
-  f.usos.push({ valor, data: _hojeISO(), desc: desc.trim(), em: new Date().toISOString() });
+  f[enc ? 'usosEnc' : 'usos'].push({ valor, data: _hojeISO(), desc: desc.trim(), em: new Date().toISOString() });
   try { await _rcFaltasSalvar(r, f); } catch (err) { alert('Não consegui registrar: ' + (err.message || err)); }
 }
-async function recepcaoCreditoUsoApagar(idx) {
+async function recepcaoCreditoUsoApagar(idx, tipo) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === _rcSel);
   if (!r) return;
-  const f = _rcFaltasAtual(r);
-  const u = f.usos[idx];
+  const f = _rcFaltasAtual(r), lista = f[tipo === 'enc' ? 'usosEnc' : 'usos'];
+  const u = lista[idx];
   if (!u || !confirm(`Apagar o uso de ${_brl(+u.valor || 0)}${u.desc ? ' (' + u.desc + ')' : ''}? O valor volta ao crédito.`)) return;
-  f.usos.splice(idx, 1);
+  lista.splice(idx, 1);
   try { await _rcFaltasSalvar(r, f); } catch (err) { alert('Não consegui apagar: ' + (err.message || err)); }
 }
 function _rcCreditoFaltaHtml(i) {
   const c = i.sit.creditoFalta;
   if (!c || !c.itens.length) return '';
-  const usos = c.usos.map((u, k) => `<li>Usado ${_brl(+u.valor || 0)} em ${formatDateBR(u.data)}${u.desc ? ' · ' + escapeHtml(u.desc) : ''}${i.enc ? '' : ` · <a href="#" onclick="recepcaoCreditoUsoApagar(${k});return false;">apagar</a>`}</li>`).join('');
+  const usos = c.usos.map((u, k) => `<li>Usado ${_brl(+u.valor || 0)} em ${formatDateBR(u.data)}${u.desc ? ' · ' + escapeHtml(u.desc) : ''} · <a href="#" onclick="recepcaoCreditoUsoApagar(${k});return false;">apagar</a></li>`).join('');
   const venc = c.validade && c.validade < _hojeISO();
   return `<div class="rc-pag" style="margin-top:12px;">
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Crédito por falta (contrato, item 7d)</div><span class="rc-pill ${c.disponivel > 0 ? 'rc-pill--ok' : 'rc-pill--parcial'}">Disponível ${_brl(c.disponivel)}</span></div>
     <ul class="rc-det-meta" style="margin:6px 0;padding-left:18px;">${c.itens.map(x => `<li>${escapeHtml(x.n)}: faltou, sem reagendar · ${_brl(+x.valor || 0)} · válido até ${formatDateBR(x.validade)}</li>`).join('')}${usos}</ul>
     <p class="rc-det-meta" style="margin:0 0 8px;">Pessoal, para qualquer serviço da clínica.${venc ? ' <b style="color:var(--danger);">Prazo de 12 meses vencido.</b>' : ''} O saldo entra sozinho no extrato do encerramento.</p>
-    ${!i.enc && c.disponivel > 0 ? '<button type="button" class="rc-btn-claro" onclick="recepcaoCreditoUsar()">Registrar uso do crédito</button>' : ''}</div>`;
+    ${c.disponivel > 0 ? '<button type="button" class="rc-btn-claro" onclick="recepcaoCreditoUsar()">Registrar uso do crédito</button>' : ''}</div>`;
 }
 
 // ── Contrato na ficha: estado, cópia arquivada e assinado (migração 026) ──
@@ -4067,6 +4082,9 @@ function _histFrases(h) {
       ia.filter(x => !id.some(y => y.key === x.key)).forEach(x => out.push({ txt: `Falta desfeita: ${x.n}`, alerta: true }));
       if (ud.length > ua.length) ud.slice(ua.length).forEach(u => out.push({ txt: `Crédito por falta usado: ${_brl(+u.valor || 0)}${u.desc ? ' · ' + u.desc : ''}` }));
       else if (ud.length < ua.length) out.push({ txt: 'Uso de crédito apagado', alerta: true });
+      const ea = (a && a.usosEnc) || [], ed = (d && d.usosEnc) || [];
+      if (ed.length > ea.length) ed.slice(ea.length).forEach(u => out.push({ txt: `Crédito do encerramento usado: ${_brl(+u.valor || 0)}${u.desc ? ' · ' + u.desc : ''}` }));
+      else if (ed.length < ea.length) out.push({ txt: 'Uso de crédito do encerramento apagado', alerta: true });
       return out.length ? out : [{ txt: 'Crédito por falta atualizado' }];
     }
     case 'agendamento': {
@@ -4159,7 +4177,9 @@ function _rcEncerramentoHtml(r, i) {
       <p class="rc-det-meta" style="margin:0 0 10px;">Não há extrato guardado (valor pago, valor devolvido ou crédito, status da devolução). Registre agora para a ficha ficar completa.</p>
       <button type="button" class="rc-btn-dark" onclick="recepcaoEncerrarAbrir(${gid}, true)">Registrar encerramento</button></div>`;
   }
-  const d = e.devolucao || { status: 'nada' }, rot = _DEV_ROT[d.status] || _DEV_ROT.nada;
+  const d = e.devolucao || { status: 'nada' };
+  const ce = _rcCreditoEnc(r);
+  const rot = ce && ce.vencido ? ['rc-pill--pend', 'Crédito vencido'] : ce && ce.disponivel <= 0 ? ['rc-pill--ok', 'Crédito usado'] : (_DEV_ROT[d.status] || _DEV_ROT.nada);
   const li = (t, v) => v == null || v === '' ? '' : `<tr><td style="padding:2px 14px 2px 0;color:var(--text-muted);">${t}</td><td><b>${v}</b></td></tr>`;
   let sit;
   if (d.status === 'devolvido') sit = `Devolvido em ${formatDateBR(d.data)} — ${_brl(d.valor || 0)}${d.forma ? ' (' + escapeHtml(_DEV_FORMA[d.forma] || d.forma) + ')' : ''}`;
@@ -4167,8 +4187,10 @@ function _rcEncerramentoHtml(r, i) {
   else if (d.status === 'credito') sit = e.credito_nova_gestacao
     ? `Crédito de ${_brl(d.valor || 0)} para nova gestação${e.validade ? ' (tabela do contrato até ' + formatDateBR(e.validade) + '; depois, paga a diferença)' : ''}`
     : `Crédito de ${_brl(d.valor || 0)}${e.validade ? ', válido até ' + formatDateBR(e.validade) : ''}`;
-  else if (d.status === 'escolha') sit = `Devolução em dinheiro: ${_brl(e.estorno || 0)} · ou crédito: ${_brl(e.credito || 0)}`;
-  else sit = 'Nenhum valor a devolver';
+  if (ce && ce.usado > 0) sit += ` · usado ${_brl(ce.usado)} · <b>disponível ${_brl(ce.disponivel)}</b>`;
+  if (ce && ce.vencido) sit += ` · <b style="color:var(--danger);">VENCIDO em ${formatDateBR(ce.validade)}</b>`;
+  if (d.status === 'escolha') sit = `Devolução em dinheiro: ${_brl(e.estorno || 0)} · ou crédito: ${_brl(e.credito || 0)}`;
+  else if (!['devolvido', 'pendente', 'credito'].includes(d.status)) sit = 'Nenhum valor a devolver';
   const btn = (t, js, cls) => `<button type="button" class="${cls || 'rc-btn-claro'}" onclick="${js}">${t}</button>`;
   let acoes = '';
   if (d.status === 'escolha') {
@@ -4181,6 +4203,8 @@ function _rcEncerramentoHtml(r, i) {
   }
   if (d.comprovante) acoes += btn('Ver comprovante da devolução', `recepcaoDevolucaoComprovanteVer(${gid})`);
   if (d.status === 'devolvido') acoes += `<label class="rc-btn-claro" style="display:inline-block;">📎 ${d.comprovante ? 'Trocar' : 'Anexar'} comprovante da devolução<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoDevolucaoComprovanteEnviar(${gid}, this)"></label>`;
+  if (ce && ce.disponivel > 0) acoes = btn('Registrar uso do crédito', `recepcaoCreditoUsar('enc')`, 'rc-btn-dark') + acoes;
+  const usosEnc = ce && ce.usos.length ? `<ul class="rc-det-meta" style="margin:0 0 10px;padding-left:18px;">${ce.usos.map((u, k) => `<li>Usado ${_brl(+u.valor || 0)} em ${formatDateBR(u.data)}${u.desc ? ' · ' + escapeHtml(u.desc) : ''} · <a href="#" onclick="recepcaoCreditoUsoApagar(${k}, 'enc');return false;">apagar</a></li>`).join('')}</ul>` : '';
   if (e.mensagem) acoes += btn('Ver mensagem enviada', `recepcaoEncMsgVer(${gid})`);
   acoes += btn('Refazer registro', `recepcaoEncerrarAbrir(${gid}, true)`);
   return `<div class="rc-pag" style="margin-top:0;margin-bottom:14px;border-color:#c0392b;background:#fff7f7;">
@@ -4192,7 +4216,7 @@ function _rcEncerramentoHtml(r, i) {
       ${li('Situação', sit)}${li('Crédito por falta (item 7d)', e.credito_falta ? _brl(e.credito_falta) + (e.credito_falta_validade ? ', válido até ' + formatDateBR(e.credito_falta_validade) : '') : '')}
       ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
       ${li('Registrado por', escapeHtml(e.por || '') + (e.gravado_em ? ', ' + _rcDataHora(e.gravado_em) : ''))}</tbody></table>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">${acoes}</div>
+    ${usosEnc}<div style="display:flex;gap:8px;flex-wrap:wrap;">${acoes}</div>
   </div>`;
 }
 
@@ -4401,7 +4425,8 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}*${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}. Com adesão em até 12 meses, vale a tabela de preços do seu contrato; depois disso, o crédito continua valendo e você paga a diferença para a tabela da época.`);
   } else {
     L.push('');
-    L.push(`Crédito: *${_brl(c.credito)}* (exames não realizados), válido por 12 meses, para uso da mãe.`);
+    const vc = new Date(hoje + 'T12:00:00Z'); vc.setUTCMonth(vc.getUTCMonth() + 12);
+    L.push(`Crédito: *${_brl(c.credito)}* (exames não realizados), válido até ${formatDateBR(vc.toISOString().slice(0, 10))}, para uso da mãe.`);
   }
   if (c.creditoFalta > 0) {
     L.push('');

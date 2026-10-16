@@ -2066,3 +2066,7 @@ exame perdido sai do saldo do plano (não sofre os 15% da desistência nem entra
 crédito por falta aparece em linha própria na mensagem e no extrato (`credito_falta`). Não somar de novo ao saldo:
 antes desta mudança o exame faltado já ficava dentro do saldo por não ter sido feito. Histórico (038) registra
 `faltas`. **A 040 precisa estar aplicada**; sem ela o botão avisa.
+
+## Crédito do parto: qualquer médico da equipe, pelo valor avulso (2026-10-16)
+
+Contrato item 7c: o crédito pode ser usado com qualquer médico da equipe, não só com a Dra. Morgana. Cada exame pago com crédito é abatido pelo valor avulso da tabela (cheio, sem os 20% de desconto). O médico recebe o repasse normal (40–50%) sobre esse valor, porque o dinheiro já entrou na clínica. Como isso entra na Feegow (pacote, crédito do paciente ou forma de pagamento) ainda depende do suporte da Feegow, que a médica vai consultar. Itens a R$ 0 quebram o fechamento do repasse.

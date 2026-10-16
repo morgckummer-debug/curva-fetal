@@ -103,6 +103,15 @@ small{color:#7a6a88}
     app.appendChild(c);
   }
 
+  // Antes do contrato assinado e do pagamento confirmado o agendamento não abre (migração 039).
+  function naoLiberado(d) {
+    limpa();
+    var c = el('div', 'card');
+    c.appendChild(el('h1', null, 'Olá' + (d.nome ? ', ' + d.nome : '') + '!'));
+    c.appendChild(el('p', null, 'O agendamento dos seus exames abre assim que o contrato estiver assinado e o pagamento confirmado. Fale com a nossa equipe pelo WhatsApp que deixamos tudo pronto 💜'));
+    app.appendChild(c);
+  }
+
   function resumo(resp) {
     var c = el('div', 'card');
     c.appendChild(el('h1', null, 'Recebemos suas datas 💜'));
@@ -236,6 +245,7 @@ small{color:#7a6a88}
   if (tok.length < 32) { invalido(); return; }
   rpc('agenda_publica', { p_token: tok }).then(function (d) {
     if (!d) return invalido();
+    if (d.liberado === false) return naoLiberado(d);
     dados = d;
     if (d.agendado && !d.resposta) { agendados(d); return; }
     if (d.resposta) resumo(d.resposta); else form();

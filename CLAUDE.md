@@ -2019,3 +2019,15 @@ só nos horários já agendados (não na escolha de datas: decisão da médica, 
 no link. Os PDFs gerados ficam em `/mnt/project-files/guias/` (regerar se o texto mudar). Texto escrito por
 Claude e ainda **sem revisão da médica**, principalmente preparo (bexiga, via vaginal, chegar 10 min antes).
 Sem preços, de propósito.
+
+## Agendamento só depois de contrato assinado e pagamento confirmado (2026-10-16, migração 039)
+
+Pedido da Morgana. "Combinar datas", "Reagendar", "Confirmar agendamento" e "Alterar horários" abrem um modal
+(`_rcAgendaBloqueada`) com "Contrato ainda não assinado" e/ou "Pagamento ainda não confirmado" e param ali, sem
+"seguir mesmo assim". Assinado = `_rcContratoEstado(pg).assinado` (caixinha ou via `assinado` em `contratos`, inclusive
+iPad); pago = `pagamento.status === 'quitado'` (só depois de "Salvar conferência"). Na lista, essas pacientes saem de
+"Datas a combinar" com a etiqueta "Agendar após contrato e pagamento" (`agEstado = 'travado'`). A 039 repete a regra
+no servidor (`_agenda_liberada`): `recepcao_agenda_link`/`recepcao_agendamento_horarios` recusam, e o link pessoal
+(`agenda_publica` devolve `liberado:false`; `agenda_responder`/`agenda_confirmar` recusam) mostra "o agendamento abre
+assim que o contrato estiver assinado e o pagamento confirmado". **Aplicada no Supabase por Claude em 2026-10-16.**
+Mudar o critério = mudar nos dois lugares (`_rcAgendaPendencias` e `_agenda_liberada`).

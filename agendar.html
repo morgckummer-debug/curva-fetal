@@ -140,7 +140,7 @@ small{color:#7a6a88}
       var r = el('div', 'res');
       r.appendChild(el('b', null, x.n));
       r.appendChild(el('div', null, fmtDia(x.d) + (x.h ? ' · às ' + x.h.slice(0, 2) + 'h' + (x.h.slice(3, 5) !== '00' ? x.h.slice(3, 5) : '') : '')));
-      var gl = guia(x.key); if (gl) r.appendChild(gl);
+      if (d.confirmada) { var gl = guia(x.key); if (gl) r.appendChild(gl); }
       c.appendChild(r);
     });
     if (d.confirmada) {

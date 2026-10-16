@@ -2087,3 +2087,19 @@ Revisão da Morgana a partir de `/mnt/project-files/contratos/conferencia-clausu
 **Mensagem do parto (2026-10-16, Morgana):** `_encTextoParto` lista os exames do plano não realizados (com valor avulso) e o crédito da falta, e dá o "Total a seu favor" somado. O crédito da falta só existe como crédito (7d): na opção em dinheiro ele continua à parte; na de crédito, soma, cada parte com sua validade. Não mostra mais "Valor pago / Exames realizados (valor avulso)" no parto.
 
 **Uma validade só depois do encerramento (2026-10-16, Morgana):** todo crédito ainda disponível (falta 7d e parto 8b) vale até 12 meses após o encerramento, ou a data própria do item se for mais tarde (contrato 7c). `_encCalc` estende `creditoFaltaValidade` até `validade12`, o extrato grava essa data em `credito_falta_validade` e `_acompSituacao` a respeita depois do encerramento. A mensagem do parto (`_encTextoParto`) responde três perguntas, nesta ordem: quanto ela tem a receber, de onde vem o valor (exames não feitos pelo avulso + crédito da falta) e as opções (dinheiro + crédito da falta, ou tudo em crédito).
+
+## Imagem 3D do bebê na divulgação: escolha no contrato, etiqueta na ficha (2026-10-16, migração 041)
+
+A Morgana só publica imagens 3D dos bebês, sem identificação: não filma nem mostra pacientes. Por isso a
+autorização continua dentro do contrato (item 10), sem termo separado, mas específica: "Uso de imagens 3D do
+bebê, sem nenhum dado que identifique a gestante, nas redes sociais e no material de divulgação da clínica",
+seguida de "opcional, não altera nenhuma condição, revogável a qualquer momento". A linha de Autorizo/Não
+autorizo começa igual à antiga, para o `replace` da assinatura continuar marcando o X (inclusive em contrato
+gerado antes). Ao assinar (tela: `_assConfirmar`; iPad: `vitrine_assinatura_salvar` com `p_imagem`) a escolha
+vai para `pagamentos_acompanhamento.imagem` (`{autoriza, em, origem, por, revogada_em?, revogada_por?,
+revogada_via?}`); termo aditivo não mexe. O quadro do contrato na ficha mostra "Imagem 3D do bebê na
+divulgação" (`_rcImagemHtml`) com Autorizado / Não autorizado / Ver contrato (assinado antes da 041) e o botão
+"Revogar autorização" (`recepcaoImagemRevogar`, `recepcao_imagem_set`). Só revoga; quem quiser voltar a
+autorizar assina nova via. O Histórico (038) registra. Sem a 041 o app funciona como antes (sem etiqueta) e o
+iPad assina sem `p_imagem` (fallback no PGRST202). Proposta mais ampla (termo separado com rosto, depoimento,
+bebê nascido) ficou em `/mnt/project-files/contratos/autorizacao-uso-imagem.md`, não adotada.

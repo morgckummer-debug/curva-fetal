@@ -289,7 +289,7 @@ button{font:inherit;cursor:pointer}
   <div class="ass-doc" id="ass-doc">Carregando…</div>
   <div class="ass-campos">
     <label><input type="checkbox" id="ass-li"> <span id="ass-li-txt">Li o contrato e concordo com os seus termos.</span></label>
-    <div id="ass-img-wrap" style="margin-top:6px">Uso de imagens e vídeos do exame, sem identificação, nas redes sociais da clínica:
+    <div id="ass-img-wrap" style="margin-top:6px">Uso de imagens 3D do bebê, sem identificação, na divulgação da clínica (opcional, pode ser revogado):
       <label><input type="radio" name="ass-img" value="sim"> Autorizo</label>
       <label><input type="radio" name="ass-img" value="nao"> Não autorizo</label></div>
     <div style="margin-top:12px;font-size:15px;color:var(--suave)">Assine com o dedo no quadro abaixo</div>
@@ -629,7 +629,12 @@ button{font:inherit;cursor:pointer}
       var esc2 = document.querySelector('input[name="ass-img"]:checked');
       if (esc2) html = html.replace('( ) Autorizo &nbsp; ( ) Não autorizo &nbsp;&nbsp; Rubrica: ________________',
         esc2.value === 'sim' ? '<b>(X) Autorizo</b> &nbsp; ( ) Não autorizo &nbsp;&nbsp; (marcado pela gestante na assinatura eletrônica)' : '( ) Autorizo &nbsp; <b>(X) Não autorizo</b> &nbsp;&nbsp; (marcado pela gestante na assinatura eletrônica)');
-      return rpc('vitrine_assinatura_salvar', { p_token: tokAss, p_id: d.id, p_html: html });
+      var corpo = { p_token: tokAss, p_id: d.id, p_html: html, p_imagem: esc2 ? esc2.value : null };
+      // Sem a migração 041 a função não tem p_imagem: assina do mesmo jeito (a escolha fica no contrato).
+      return rpc('vitrine_assinatura_salvar', corpo).catch(function (e) {
+        if (e.code !== 'PGRST202') throw e;
+        delete corpo.p_imagem; return rpc('vitrine_assinatura_salvar', corpo);
+      });
     }).then(function () { ir('assfim'); })
       .catch(function (e) { $('ass-msg').textContent = 'Não consegui salvar (' + e.message + '). Chame a recepção, por favor.'; btn.disabled = false; })
       .then(function () { btn.textContent = 'Confirmar assinatura'; });

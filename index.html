@@ -1360,7 +1360,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       <div class="hero-logo-wrap">
         <img class="hero-logo" src="hero-logo.png" alt="MK Medicina Fetal" width="130" height="130">
       </div>
-      <h1>Programa Personalizado de Crescimento Fetal</h1>
+      <h1>Acompanhamento Fetal MK</h1>
       <p>Busque uma paciente pelo CPF para acessar o histórico de exames ou cadastrar um novo.</p>
       <div class="search-box">
         <input type="text" id="search-cpf" placeholder="Nome ou CPF da paciente" oninput="smartSearchInput(this)" onkeydown="if(event.key==='Enter') searchPatient()">
@@ -16162,15 +16162,15 @@ function _relHeaderHtml(nomePaciente, kicker) {
 // lugar de sempre do nome do programa (ver comentário em _relHeaderHtml sobre
 // por que ele não vive no cabeçalho), agora com o logotipo que identifica a
 // marca em toda a tela do app (favicon, cabeçalho, busca de paciente). Nome
-// alinhado ao que aparece nas outras telas — "Programa Personalizado de
-// Crescimento Fetal" — em vez do texto solto que só existia aqui.
+// alinhado ao que aparece nas outras telas — "Acompanhamento Fetal MK" (antes "Programa
+// Personalizado de Crescimento Fetal") — em vez do texto solto que só existia aqui.
 function _relFooterHtml() {
   const dataEmissao = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
   return `<footer class="ftr">
     <div class="ftr-brand">
       <img class="ftr-brand-logo" src="data:image/png;base64,${_REL_LOGO_MK}" alt="">
       <div class="ftr-brand-txt">
-        <div class="ftr-brand-nome">Programa Personalizado de Crescimento Fetal</div>
+        <div class="ftr-brand-nome">Acompanhamento Fetal MK</div>
         <div class="ftr-brand-emit">Emitido em ${dataEmissao}</div>
       </div>
     </div>

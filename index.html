@@ -4200,7 +4200,7 @@ const _brl = v => 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { 
 
 // Desistência e perda/óbito (2026-10-15): a gestante escolhe entre devolução em dinheiro (menos taxa do cartão
 // e, se houve nota, imposto; na desistência, também 15% do total do plano) e crédito para uma nova gestação
-// (menos só a taxa do cartão). Parto: crédito de 12 meses, mãe e recém-nascido, como antes.
+// (menos só a taxa do cartão). Parto: crédito de 12 meses, só da mãe (2026-10-16: a produção do ultrassom do recém-nascido é de outra médica).
 // Data da adesão = assinatura do contrato (o primeiro assinado; sem assinado, o primeiro gerado). Termo aditivo não conta.
 function _encDataAdesao(r) {
   const cs = ((r.pagamento || {}).contratos || []).filter(x => x.em && !/^Termo aditivo/.test(x.nome || ''));
@@ -4277,7 +4277,7 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}*${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}. Com adesão em até 12 meses, vale a tabela de preços do seu contrato; depois disso, o crédito continua valendo e você paga a diferença para a tabela da época.`);
   } else {
     L.push('');
-    L.push(`Crédito: *${_brl(c.credito)}* (exames não realizados), válido por 12 meses, para você e para o recém-nascido.`);
+    L.push(`Crédito: *${_brl(c.credito)}* (exames não realizados), válido por 12 meses, para uso da mãe.`);
   }
   L.push('');
   L.push('Qualquer dúvida, estamos à disposição.');
@@ -4510,7 +4510,7 @@ function recepcaoTrocarAbrir(gid, fixa) {
   const opts = Object.keys(_ADESAO_PRECO).filter(k => fixa ? k === fixa : k !== r.acompanhamento)
     .map(k => `<option value="${k}">${escapeHtml(_ADESAO_PRECO[k].nome)} — ${_brl(_ADESAO_PRECO[k].total)}</option>`).join('');
   el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
-    <h3 style="margin:0 0 4px;">${fixa ? 'Perda de um dos gêmeos' : 'Trocar modalidade'}</h3>${fixa ? '<div style="font-size:13px;margin-bottom:8px;">O acompanhamento continua, agora no plano de feto único. A diferença vira crédito de 12 meses ou ultrassons extras (contrato, item 8c).</div>' : ''}
+    <h3 style="margin:0 0 4px;">${fixa ? 'Perda de um dos gêmeos' : 'Trocar modalidade'}</h3>${fixa ? '<div style="font-size:13px;margin-bottom:8px;">O acompanhamento continua, agora no plano de feto único. A diferença vira crédito de 12 meses ou ultrassons extras (contrato, item 8c). Avise o setor de agendamento: rever os horários já marcados na Feegow e liberar os que sobrarem para outra gestante.</div>' : ''}
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · hoje: ${escapeHtml(_ADESAO_PRECO[r.acompanhamento].nome)} (${_brl(_ADESAO_PRECO[r.acompanhamento].total)}) · IG ${sit.igHoje != null ? _acompSemDia(sit.igHoje) : '—'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
       <div style="grid-column:1/-1;"><label style="font-size:12px;">Nova modalidade</label><select id="rc-tr-nova" style="${inp}" onchange="_trRefazer()">${opts}</select></div>
@@ -7331,7 +7331,7 @@ ${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesã
 <p><u>O valor corresponde ao acompanhamento como um todo (organização, reserva de agenda em todas as janelas, exames, relatórios e materiais descritos neste contrato), e não à soma de exames avulsos.</u></p>
 <h2>4) O que está incluído</h2>
 <p>Em todos os exames do acompanhamento, a gestante receberá:</p>
-<ul><li>Laudo médico;</li><li>Imagens em PDF;</li><li>Vídeo do exame;</li><li>3D/8K sempre que possível, conforme condições técnicas e posicionamento fetal;</li><li>Relatório evolutivo com a curva de crescimento fetal, entregue a partir do morfológico de 2º trimestre e atualizado nos exames seguintes;</li><li>Material de orientação antes de cada exame (o que será avaliado e como se preparar).</li></ul>
+<ul><li>Laudo médico;</li><li>Imagens em PDF;</li><li>Vídeo do exame, enviado por WhatsApp;</li><li>3D/8K sempre que possível, conforme condições técnicas e posicionamento fetal;</li><li>Relatório evolutivo com a curva de crescimento fetal, entregue a partir do morfológico de 2º trimestre e atualizado nos exames seguintes;</li><li>Material de orientação antes de cada exame (o que será avaliado e como se preparar).</li></ul>
 <p><b>Ultrassons extras.</b> A modalidade inclui o número de ultrassons extras indicado no Anexo I (exame obstétrico de cerca de 30 minutos), que podem ser usados livremente, mediante agendamento, ou em caso de intercorrência, mediante pedido médico (ver item 6). Os extras valem até o parto; os não utilizados não são convertidos em dinheiro nem em crédito.</p>
 <p><b>Canal direto (somente modalidades Premium e Gemelar Premium).</b> A gestante terá um canal de mensagens com a Dra. Morgana Kummer pelo Telegram, para dúvidas sobre os exames do acompanhamento, respondido em dias úteis e horário comercial, até o parto. Esse canal não é de urgência e não substitui consulta com o obstetra assistente nem atendimento na maternidade.${telCanal ? '' : ' <i>(Não incluído na modalidade escolhida.)</i>'}</p>
 ${telCanal ? (d.telegramCodigo
@@ -7340,6 +7340,7 @@ ${telCanal ? (d.telegramCodigo
 <h2>5) Agendamento</h2>
 <p>No ato da adesão, a clínica organiza e agenda todos os ultrassons da modalidade, respeitando as janelas gestacionais. A adesão garante a reserva antecipada de agenda em todas essas janelas. Ajustes de data podem ocorrer por organização de agenda ou por correção da idade gestacional (por exemplo, datação pelo CCN), sempre dentro das janelas indicadas.</p>
 <p>A gestante pode remarcar um exame sem custo, dentro da mesma janela, avisando com pelo menos 48 horas de antecedência.</p>
+<p><b>Pedido médico.</b> Os exames do acompanhamento são agendados sem pedido médico. Se a gestante tiver pedido do obstetra assistente, deve apresentá-lo no momento do exame.</p>
 <p><b>Exame fora da janela.</b> Os Dopplers de 28, 32, 36 e 38 semanas têm tolerância de 7 (sete) dias depois do fim da janela. Passada a tolerância, o exame que não foi feito é cobrado pelo valor avulso do Anexo II ou, se a gestante preferir, realizado em troca de um ultrassom extra da modalidade, sem custo.</p>
 <p><b>Recesso e ausências.</b> Há um recesso anual programado de até 15 dias em dezembro/janeiro, além de eventuais ausências curtas da Dra. Morgana Kummer. Se alguma janela coincidir com esses períodos, o exame será antecipado ou remarcado dentro do período ideal. Se isso não for possível, a gestante escolhe entre realizar o exame com outro médico da equipe ou converter o valor do exame em crédito.</p>
 <p><b>Entrada após o 1º trimestre.</b> Quando a adesão ocorre com 16–18 semanas ou no morfológico de 2º trimestre, os exames cujas janelas já passaram não são realizados nem creditados; o valor é o da proposta apresentada na adesão.</p>
@@ -7360,7 +7361,7 @@ ${telCanal ? (d.telegramCodigo
 <h2>8) Imprevistos na gestação</h2>
 <p><b>a) Perda gestacional ou óbito fetal.</b> A clínica entrará em contato com cuidado e sem pressa. Calcula-se o saldo: o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II; o ultrassom extra já utilizado não é descontado. A gestante escolhe entre:</p>
 <ul><li>devolução em dinheiro do saldo, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado.</li></ul>
-<p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, o valor avulso dos exames não realizados é convertido em crédito válido por 12 (doze) meses, que pode ser usado pela mãe e pelo recém-nascido. Os ultrassons extras não utilizados não geram crédito.</p>
+<p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, o valor avulso dos exames não realizados é convertido em crédito válido por 12 (doze) meses, que pode ser usado somente pela mãe, não pelo recém-nascido. Os ultrassons extras não utilizados não geram crédito.</p>
 <p><b>c) Perda de um dos fetos em gestação gemelar.</b> O plano é reajustado para a modalidade de feto único correspondente (Essencial ou Premium). A diferença de valor, descontadas as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado, fica como crédito nas regras do item 7c ou pode ser convertida em ultrassons extras, pelo valor avulso do ultrassom extra do Anexo II.</p>
 <p><b>d) Crédito para nova gestação.</b> O crédito dos itens 7b e 8a é pessoal e intransferível e é abatido do valor de um novo Acompanhamento Fetal MK, em uma nova gestação da própria gestante. Se a nova adesão ocorrer em até 12 (doze) meses do encerramento, vale a tabela de preços deste contrato. Depois desse prazo, o crédito continua válido, mas a modalidade escolhida segue a tabela de preços vigente na nova adesão, e a gestante paga a diferença.</p>
 <h2>9) Gestação gemelar identificada e troca de modalidade</h2>

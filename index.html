@@ -4371,7 +4371,8 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
     if (motivo !== 'desistencia') out.vFeitos = vFeitosPlano;
     out.base = base; out.saldo = base;
     out.adesao = _encDataAdesao(r);
-    out.retencao = motivo === 'desistencia' ? base * _RETENCAO_DESISTENCIA : 0;
+    // 15% do saldo só na devolução em dinheiro, nos três motivos (perda/óbito desde 2026-10-16, Morgana); o crédito não retém.
+    out.retencao = base * _RETENCAO_DESISTENCIA;
     out.taxaVal = base * taxa; out.impostoVal = base * imp;
     out.estorno = Math.max(0, base - out.retencao - out.taxaVal - out.impostoVal);
     // Item 7b: na desistência, a devolução em dinheiro nunca passa da parte do valor pago que corresponde aos
@@ -7526,7 +7527,7 @@ ${telCanal ? (d.telegramCodigo
 <p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
 <h2>8) Imprevistos na gestação</h2>
 <p><b>a) Perda gestacional ou óbito fetal.</b> A clínica entrará em contato com cuidado e sem pressa. Calcula-se o saldo: o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II; o ultrassom extra já utilizado não é descontado. A gestante escolhe entre:</p>
-<ul><li>devolução em dinheiro do saldo, descontadas as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado, e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, descontadas apenas as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado.</li></ul>
+<ul><li>devolução em dinheiro do saldo, descontados 15% (quinze por cento) do próprio saldo, as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado, e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, sem a retenção de 15%, descontadas apenas as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado.</li></ul>
 <p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, calcula-se o valor avulso, pela tabela do Anexo II, dos exames não realizados. A gestante escolhe entre:</p>
 <ul><li>devolução desse valor em dinheiro, descontadas as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado, e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela; ou</li><li>crédito desse valor, válido por 12 (doze) meses, nas regras do item 7c, que pode ser usado somente pela mãe, não pelo recém-nascido.</li></ul>
 <p>Os ultrassons extras não utilizados não geram devolução nem crédito.</p>

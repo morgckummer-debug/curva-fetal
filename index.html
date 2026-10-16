@@ -4924,7 +4924,7 @@ async function recepcaoVitrineLinks(modo) {
     return;
   }
   const casa = _VITRINE_URL + '?k=' + k + '&de=casa';
-  const msgCasa = 'Olá! Aqui você conhece o Acompanhamento Fetal MK e já deixa seus dados preenchidos. Quando decidir por fechar um dos planos conosco, é só apresentar um documento com foto, assinar o contrato e o pagamento diretamente na recepção 💜\n\n' + casa;
+  const msgCasa = 'Olá! Aqui você conhece o Acompanhamento Fetal MK e já deixa seus dados preenchidos. Quando decidir por um dos planos, venha pessoalmente à clínica até 7 dias antes do primeiro exame do acompanhamento, com um documento com foto: o pagamento e a assinatura do contrato são feitos na recepção 💜\n\n' + casa;
   c.innerHTML = `<div class="rc-pre-sub">Para a gestante que não está na clínica conhecer os planos e deixar os dados preenchidos. O que ela enviar aparece aqui em amarelo, como "preenchido em casa".</div>
     <label style="display:block;font-size:13px">Celular da paciente (com DDD)<input type="tel" id="rc-links-tel" inputmode="tel" placeholder="(31) 99999-9999" autocomplete="off"></label>
     <div class="rc-pre-sub" id="rc-links-tel-aviso">Com o número, o WhatsApp abre direto na conversa dela.</div>
@@ -7327,6 +7327,7 @@ th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
 <p>A gestação de alto risco pode ser acompanhada em qualquer modalidade, Essencial ou Premium. Se houver restrição de crescimento fetal com Doppler semanal, vale o módulo de vigilância do item 5. Outros exames além dos previstos na modalidade, quando indicados clinicamente, são cobrados pelo valor avulso vigente.</p>
 <h2>3) Valor e pagamento</h2>
 <p>Valor da modalidade: <b>R$ ${fmt(p.total)}</b> (${p.extenso}), pago em <b>${d.parcelas}</b> parcela(s) de <b>R$ ${fmt(p.total / d.parcelas)}</b> no cartão de crédito. Não são aceitos boleto ou PIX parcelado.</p>
+<p><b>Onde e quando.</b> A assinatura deste contrato e o pagamento são feitos pessoalmente na clínica: logo após o ultrassom inicial com a Dra. Morgana Kummer ou, se a gestante preferir decidir em casa, até 7 (sete) dias antes do primeiro exame do acompanhamento.</p>
 ${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesão, as janelas dos exames a seguir já haviam passado e eles não fazem parte deste acompanhamento, não sendo realizados nem creditados: ${pr.perdidos.map(_adesaoNomeEx).join('; ')}. O valor acima (modalidade cheia: R$ ${fmt(p0.total)}) é o proposto para os ${pr.faltam.length} exames restantes e os extras da modalidade.</p>` : ''}
 <p><u>O valor corresponde ao acompanhamento como um todo (organização, reserva de agenda em todas as janelas, exames, relatórios e materiais descritos neste contrato), e não à soma de exames avulsos.</u></p>
 <h2>4) O que está incluído</h2>

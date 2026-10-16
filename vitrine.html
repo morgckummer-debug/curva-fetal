@@ -229,6 +229,7 @@ button{font:inherit;cursor:pointer}
     </tbody>
   </table>
   <div class="nota">Valores para começar até 14 semanas, em até 6x no cartão de crédito. Começando depois, a recepção calcula o valor descontando os exames que já passaram. A adesão vai até 26 semanas.</div>
+  <div class="nota" id="pla-casa" style="display:none"><b>Como contratar:</b> o pagamento e a assinatura do contrato são feitos pessoalmente na clínica, até 7 dias antes do primeiro exame do acompanhamento.</div>
 </div></section>
 
 <!-- Formulário -->
@@ -317,8 +318,10 @@ button{font:inherit;cursor:pointer}
   // De casa (link mandado no WhatsApp): mesmo formulário, outros textos e sem voltar sozinho à capa.
   var deCasa = qs.get('de') === 'casa';
   if (deCasa) {
-    document.getElementById('f-lead').textContent = 'Preencha com calma. No dia do seu exame, a recepção confere o seu documento, faz o pagamento no cartão e você assina o contrato no iPad: leva poucos minutos.';
-    document.getElementById('fim-txt').textContent = 'Que alegria ter você com a gente! Seus dados chegaram à clínica. No dia do seu exame, traga um documento com foto: a recepção conclui o pagamento e você assina o contrato.';
+    document.getElementById('f-lead').textContent = 'Preencha com calma. Depois, venha pessoalmente à clínica até 7 dias antes do primeiro exame do acompanhamento: a recepção confere o seu documento, faz o pagamento no cartão e você assina o contrato. Leva poucos minutos.';
+    document.getElementById('fim-txt').textContent = 'Que alegria ter você com a gente! Seus dados chegaram à clínica. Para garantir o seu acompanhamento, venha pessoalmente à clínica, com um documento com foto, até 7 dias antes do primeiro exame: a recepção faz o pagamento e você assina o contrato.';
+    document.querySelector('#f-aceite + span').textContent = 'Entendo que a contratação só é concluída pessoalmente na clínica, com o pagamento e a assinatura do contrato, até 7 dias antes do primeiro exame do acompanhamento.';
+    document.getElementById('pla-casa').style.display = '';
     document.getElementById('fim-btn').textContent = 'Voltar ao início';
   }
 

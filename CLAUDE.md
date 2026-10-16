@@ -2031,3 +2031,7 @@ no servidor (`_agenda_liberada`): `recepcao_agenda_link`/`recepcao_agendamento_h
 (`agenda_publica` devolve `liberado:false`; `agenda_responder`/`agenda_confirmar` recusam) mostra "o agendamento abre
 assim que o contrato estiver assinado e o pagamento confirmado". **Aplicada no Supabase por Claude em 2026-10-16.**
 Mudar o critério = mudar nos dois lugares (`_rcAgendaPendencias` e `_agenda_liberada`).
+
+## Quando a gestante assina e paga (2026-10-16)
+
+Decisão da Morgana: contrato e pagamento são feitos **pessoalmente na clínica**, logo após o ultrassom inicial com ela, ou, se a gestante levar o link dos planos para casa, **até 7 dias antes do primeiro exame do acompanhamento**. Nunca "no dia do primeiro exame". Está no item 3 do contrato (`_contratoHtml`, "Onde e quando"; espelhado no .docx/PDF de `/mnt/project-files/contratos/`), nos textos `de=casa` da `vitrine.html` (formulário, aceite, nota na tela de planos, tela final) e na mensagem do "Enviar link de adesão" (`recepcaoVitrineLinks`). O app não cobra o prazo: é só orientação.

@@ -4376,7 +4376,8 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
     out.estorno = Math.max(0, base - out.retencao - out.taxaVal - out.impostoVal);
     // Item 7b: na desistência, a devolução em dinheiro nunca passa da parte do valor pago que corresponde aos
     // exames ainda não feitos, na proporção dos avulsos (fecha a brecha de "desistir" com tudo feito; 2026-10-16).
-    const teto = vNaoFeitos + vFeitosPlano > 0 ? pago * vNaoFeitos / (vNaoFeitos + vFeitosPlano) : 0;
+    // O exame perdido por falta entra no denominador: a parte dele já virou crédito (7d), e faltar não pode render mais dinheiro que comparecer.
+    const teto = vNaoFeitos + vFeitosPlano + vFaltas > 0 ? pago * vNaoFeitos / (vNaoFeitos + vFeitosPlano + vFaltas) : 0;
     if (motivo === 'desistencia' && out.estorno > teto) { out.estorno = teto; out.teto = teto; }
     out.credito = Math.max(0, base - out.taxaVal);
   } else {

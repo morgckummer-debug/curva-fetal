@@ -2103,3 +2103,13 @@ divulgação" (`_rcImagemHtml`) com Autorizado / Não autorizado / Ver contrato 
 autorizar assina nova via. O Histórico (038) registra. Sem a 041 o app funciona como antes (sem etiqueta) e o
 iPad assina sem `p_imagem` (fallback no PGRST202). Proposta mais ampla (termo separado com rosto, depoimento,
 bebê nascido) ficou em `/mnt/project-files/contratos/autorizacao-uso-imagem.md`, não adotada.
+
+## Ficha da recepção: Contrato e Pagamento recolhíveis (2026-10-16)
+
+Pedido da Morgana, para a ficha ficar mais limpa. Os dois quadros viraram `<details>` (`_rcDobra`) com setinha,
+título, resumo curto e o selo de sempre no cabeçalho (Contrato: "N contratos" + Assinado/Aguardando/Sem contrato;
+Pagamento: valor pago · forma · comprovantes + Pago/Aguardando). **Fechados por padrão; abrem sozinhos com
+pendência** (sem contrato ou via aguardando assinatura; pagamento não confirmado), nunca em encerrada. Se a
+recepção abre/fecha à mão, `_rcDobraEstado[gid:chave]` guarda (gravado no clique do `summary`, não no `toggle`,
+que também dispara no render) e vale enquanto a tela estiver aberta. O botão "📄 Contrato" do topo abre a seção.
+Todo o conteúdo (imagem 3D, comprovante, assinar, enviar cópia) continua dentro, com os mesmos ids.

@@ -605,9 +605,17 @@ header::after{display:none;}
 .rc-seg button.rc-on[data-v="pendente"]{background:#a63a3a;}
 .rc-form{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .rc-form label{display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:3px;}
-.rc-form select,.rc-form textarea,.rc-form input[type=text]{width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;background:#fff;color:var(--text);box-sizing:border-box;}
+.rc-form select,.rc-form textarea,.rc-form input[type=text],.rc-form input[type=tel],.rc-form input[type=number]{width:100%;padding:9px 11px;border-radius:10px;border:1.5px solid var(--border);font:inherit;font-size:13.5px;background:#fff;color:var(--text);box-sizing:border-box;}
 .rc-form .rc-col2{grid-column:span 2;}
 .rc-form .rc-chk{display:flex;align-items:center;gap:8px;padding-top:22px;font-size:13.5px;font-weight:600;color:var(--text);}
+.rc-dobra{padding:0;}
+.rc-dobra-s{list-style:none;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 20px;cursor:pointer;user-select:none;}
+.rc-dobra-s::-webkit-details-marker{display:none;}
+.rc-dobra-seta{display:inline-block;font-size:13px;color:var(--text-muted);transition:transform .15s;}
+.rc-dobra[open] .rc-dobra-seta{transform:rotate(90deg);}
+.rc-dobra-r{font-size:12.5px;color:var(--text-muted);}
+.rc-dobra-c{padding:0 20px 18px;}
+@media (max-width:640px){.rc-dobra-s{padding:12px 14px;}.rc-dobra-c{padding:0 14px 14px;}}
 .rc-pag-msg{font-size:12.5px;margin-top:10px;color:var(--text-muted);}
 .rc-aviso{font-size:12px;color:var(--text-muted);margin-top:18px;}
 @media(max-width:1000px){.rc-grade{grid-template-columns:1fr;}.rc-kpis{grid-template-columns:1fr 1fr;}.rc-lista{max-height:340px;}.rc-form{grid-template-columns:1fr 1fr;}.rc-main{padding:16px;}.rc-bar{padding:14px 16px;}}
@@ -3336,8 +3344,8 @@ function _rcDetalheHtml(i) {
     ? `Última conferência: ${escapeHtml(pg.atualizado_por || '—')}, ${quando}`
     : 'Nenhuma conferência registrada ainda.';
   const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
-  const pagHtml = `<div class="rc-pag" oninput="_rcPagSujo()" onchange="_rcPagSujo()">
-    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Pagamento do acompanhamento</div><button type="button" class="rc-btn-claro" onclick="recepcaoComprovanteAbrir(${r.gestacao_id})">Comprovante${(pg.comprovantes || []).length ? ' (' + pg.comprovantes.length + ')' : ''}</button><span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span></div>
+  const nComp = (pg.comprovantes || []).length;
+  const pagCorpo = `<div style="margin-bottom:12px;"><button type="button" class="rc-btn-claro" onclick="recepcaoComprovanteAbrir(${r.gestacao_id})">Comprovante${nComp ? ' (' + nComp + ')' : ''}</button></div>
     <div class="rc-seg" id="rc-pg-seg">
       <button type="button" data-v="quitado" class="${st === 'quitado' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('quitado')">Pago</button>
       <button type="button" data-v="pendente" class="${st === 'pendente' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('pendente')">Aguardando pagamento</button>
@@ -3354,8 +3362,9 @@ function _rcDetalheHtml(i) {
     </div>
     <div style="display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap;">
       <button type="button" class="rc-btn-dark" id="rc-pg-salvar" onclick="recepcaoSalvarPagamento(${r.gestacao_id})">Salvar conferência</button>
-      <span class="rc-pag-msg" id="rc-pg-msg">${quem}</span></div>
-  </div>`;
+      <span class="rc-pag-msg" id="rc-pg-msg">${quem}</span></div>`;
+  const pagResumo = [pg.valor_pago != null && pg.valor_pago !== '' ? _brl(+pg.valor_pago) : '', pg.forma === 'cartao' ? 'cartão ' + (pg.parcelas || 1) + 'x' : ({ pix: 'Pix', dinheiro: 'dinheiro', outro: 'outra forma' }[pg.forma] || ''), nComp ? nComp + ' comprovante' + (nComp > 1 ? 's' : '') : ''].filter(Boolean).join(' · ');
+  const pagHtml = _rcDobra('pagamento', r.gestacao_id, 'Pagamento do acompanhamento', `<span class="rc-pill ${stRot.cls}">${stRot.rotulo}</span>`, pagResumo, !i.enc && st !== 'quitado', pagCorpo, 'oninput="_rcPagSujo()" onchange="_rcPagSujo()"');
 
   const faixaEnc = i.enc ? `<div class="rc-enc-faixa">🔴 Acompanhamento encerrado — ${escapeHtml(i.motivoEnc)}</div>` : '';
   return `${faixaEnc}<div class="rc-det-top"><div><h2>${escapeHtml(r.nome)}</h2>
@@ -3363,7 +3372,7 @@ function _rcDetalheHtml(i) {
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
       ${_rcRespostaHtml(i)}
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;"><div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div>
-        <button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="var e=document.getElementById('rc-contrato-card');if(e)e.scrollIntoView({behavior:'smooth',block:'center'})" title="Vai até o bloco Contrato, mais abaixo na ficha">📄 Contrato</button>${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">${i.agEstado === 'agendado' ? 'Reagendar' : 'Combinar datas'}</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">${i.agEstado === 'agendado' ? 'Alterar horários' : 'Confirmar agendamento'}</button>` : ''}</div></div>
+        <button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="var e=document.getElementById('rc-contrato-card');if(e){e.open=true;e.scrollIntoView({behavior:'smooth',block:'center'})}" title="Vai até o bloco Contrato, mais abaixo na ficha">📄 Contrato</button>${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">${i.agEstado === 'agendado' ? 'Reagendar' : 'Combinar datas'}</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">${i.agEstado === 'agendado' ? 'Alterar horários' : 'Confirmar agendamento'}</button>` : ''}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
     ${_rcEncerramentoHtml(r, i)}
     ${prox}
@@ -3556,15 +3565,27 @@ function _rcContratoHtml(r, enc) {
   const lbl = 'display:inline-block;padding:9px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;';
   const gerar = (!enc && !c.assinado)
     ? `<button type="button" class="${ultimo ? 'rc-btn-claro' : 'rc-btn-dark'}" onclick="recepcaoContratoGerar(${gid})">${ultimo ? 'Gerar nova via…' : 'Gerar contrato'}</button>` : '';
-  return `<div class="rc-pag" id="rc-contrato-card" style="margin-top:16px;">
-    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Contrato</div><span class="rc-pill ${pill[0]}">${pill[1]}</span></div>
-    ${dica ? `<p class="rc-det-meta" style="margin:0 0 10px;">${dica}</p>` : ''}
+  const corpo = `${dica ? `<p class="rc-det-meta" style="margin:0 0 10px;">${dica}</p>` : ''}
     ${arq ? `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;">${arq}</div>` : ''}
     ${_rcImagemHtml(r, c)}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${gerar}
       <label style="${lbl}">📎 Anexar assinado em PDF<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoContratoEnviar(${gid}, this)"></label>
-      <span id="rc-ctr-msg" style="font-size:12.5px;color:var(--text-muted);"></span></div>
-  </div>`;
+      <span id="rc-ctr-msg" style="font-size:12.5px;color:var(--text-muted);"></span></div>`;
+  // Fechado por padrão; abre sozinho com contrato pendente (sem contrato ou aguardando assinatura)
+  const pendente = !enc && !(c.assinado && !(vigente && vigente.a == null));
+  const resumo = cards.length ? cards.length + (cards.length === 1 ? ' contrato' : ' contratos') : '';
+  return _rcDobra('contrato', gid, 'Contrato', `<span class="rc-pill ${pill[0]}">${pill[1]}</span>`, resumo, pendente, corpo, 'id="rc-contrato-card" style="margin-top:16px;"');
+}
+
+// Seção recolhível da ficha (contrato, pagamento): setinha + resumo no cabeçalho. Fica fechada por
+// padrão e abre sozinha com pendência; se a recepção abriu ou fechou à mão, isso vale enquanto a tela estiver aberta
+// (o render refaz o HTML a cada gravação e não pode fechar o que ela acabou de abrir).
+const _rcDobraEstado = {};
+function _rcDobra(chave, gid, titulo, pillHtml, resumo, abrirPadrao, corpo, attrs) {
+  const k = gid + ':' + chave, aberta = k in _rcDobraEstado ? _rcDobraEstado[k] : abrirPadrao;
+  return `<details class="rc-pag rc-dobra" ${attrs || ''} ${aberta ? 'open' : ''}>
+    <summary class="rc-dobra-s" onclick="_rcDobraEstado['${k}']=!this.parentNode.open"><span class="rc-dobra-seta" aria-hidden="true">▸</span><span class="rc-sec-t" style="margin:0;">${titulo}</span>${resumo ? `<span class="rc-dobra-r">${resumo}</span>` : ''}<span style="flex:1"></span>${pillHtml}</summary>
+    <div class="rc-dobra-c">${corpo}</div></details>`;
 }
 
 // Autorização de imagens 3D do bebê na divulgação (contrato, item 10; migração 041). Quem posta confere aqui.

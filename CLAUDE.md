@@ -2083,3 +2083,5 @@ Revisão da Morgana a partir de `/mnt/project-files/contratos/conferencia-clausu
 - **Taxa do cartão só no parcelado**, como o contrato diz: o campo do modal virou "Pagou parcelado no cartão?". A taxa continua editável (10% é só o padrão); a recepção deve pôr a taxa real.
 
 **Perda/óbito também retêm 15% do saldo (2026-10-16, Morgana).** Na devolução em dinheiro, `_encCalc` aplica `_RETENCAO_DESISTENCIA` nos três motivos (desistência, perda, óbito fetal); o crédito para nova gestação não retém. O teto da devolução continua só na desistência. Contrato item 8a (app e .docx/PDF) diz o mesmo.
+
+**Mensagem do parto (2026-10-16, Morgana):** `_encTextoParto` lista os exames do plano não realizados (com valor avulso) e o crédito da falta, e dá o "Total a seu favor" somado. O crédito da falta só existe como crédito (7d): na opção em dinheiro ele continua à parte; na de crédito, soma, cada parte com sua validade. Não mostra mais "Valor pago / Exames realizados (valor avulso)" no parto.

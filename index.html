@@ -4288,7 +4288,7 @@ function _rcEncerramentoHtml(r, i) {
     <table style="font-size:13.5px;border-collapse:collapse;margin-bottom:10px;"><tbody>
       ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
       ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}
-      ${li(e.credito_nova_gestacao ? 'Retenção (15%, só na devolução)' : 'Retenção (20%)', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}${li('Imposto da nota (só na devolução)', e.imposto_val ? _brl(e.imposto_val) : '')}
+      ${li(e.credito_nova_gestacao ? 'Retenção (15%, só na devolução)' : 'Retenção', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}${li('Imposto da nota (só na devolução)', e.imposto_val ? _brl(e.imposto_val) : '')}
       ${li('Situação', sit)}${li('Crédito por falta (item 7d)', e.credito_falta ? _brl(e.credito_falta) + (e.credito_falta_validade ? ', válido até ' + formatDateBR(e.credito_falta_validade) : '') : '')}
       ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
       ${li('Registrado por', escapeHtml(e.por || '') + (e.gravado_em ? ', ' + _rcDataHora(e.gravado_em) : ''))}</tbody></table>
@@ -4704,7 +4704,8 @@ async function _encConfirmar(motivo) {
 
 // ── Troca de modalidade (contrato item 9; migração 029) ──────────────────
 // Upgrade: paga a diferença dos preços (Anexo I), até 3x no cartão. Downgrade: só se não fez exame
-// exclusivo da modalidade atual; a clínica retém 20% da diferença. Qualquer troca até 26 semanas
+// exclusivo da modalidade atual; na devolução em dinheiro a clínica retém 15% da diferença (mesma
+// retenção da desistência, Morgana 2026-10-16; antes 20%). Qualquer troca até 26 semanas
 // (fim da janela do morfológico de 2º trimestre), única ou gemelar; só a perda de um feto (8c) não tem prazo.
 let _trGid = null;
 const _TR_PERDA_GEMELAR = { gemelar_essencial: 'essencial', gemelar_dc: 'premium' };
@@ -4737,12 +4738,12 @@ function _trCalc(r, sit, nova, cartao, taxaPct, parcelas) {
     out.direcao = 'downgrade';
     const abs = -diff;
     if (out.tipo === 'gemelar_perda') {
-      // 8c: a diferença, sem retenção de 20% e menos a taxa do cartão, é devolvida em dinheiro, vira crédito
+      // 8c: a diferença, sem retenção e menos a taxa do cartão, é devolvida em dinheiro, vira crédito
       // ou ultrassons extras, à escolha da gestante (dinheiro incluído em 2026-10-16, CDC art. 51, II).
       out.retencao = 0;
       out.base = abs;
     } else {
-      out.retencao = abs * 0.2;
+      out.retencao = abs * _RETENCAO_DESISTENCIA;
       out.base = abs - out.retencao;
       const feitosExcl = sit.slots.map((s, i) => ({ s, k: sit.plano.ex[i] })).filter(x => x.s.hit && !planoN.ex.includes(x.k));
       out.exclusivos = feitosExcl.map(x => x.s.def.n);
@@ -4751,7 +4752,7 @@ function _trCalc(r, sit, nova, cartao, taxaPct, parcelas) {
     out.base = Math.max(0, out.base - out.descontoExtras);
     out.taxaVal = out.base * taxa;
     out.valor = out.base - out.taxaVal;
-    // crédito para usar na clínica: sem retenção de 20%, só a taxa do cartão (como na desistência)
+    // crédito para usar na clínica: sem retenção, só a taxa do cartão (como na desistência)
     out.baseCredito = Math.max(0, abs - out.descontoExtras);
     out.taxaCredito = out.baseCredito * taxa;
     out.credito = out.baseCredito - out.taxaCredito;
@@ -4768,11 +4769,11 @@ function _trTexto(r, c) {
     L.push(`Diferença a pagar: ${_brl(c.valor)}` + (c.parcelas > 1 ? ` em ${c.parcelas}x de ${_brl(c.valorParcela)} no cartão` : ' (à vista ou em 1x)'));
   } else {
     L.push(`Diferença: ${_brl(-(c.diff))}`);
-    if (c.retencao) L.push(`Retenção da clínica (20%): ${_brl(c.retencao)}`);
+    if (c.retencao) L.push(`Retenção da clínica (15%): ${_brl(c.retencao)}`);
     if (c.descontoExtras) L.push(`Desconto de ${c.extrasExcedentes} ultrassom(ns) extra(s) usado(s) além do novo total: ${_brl(c.descontoExtras)}`);
     if (c.taxaVal) L.push(`Taxa da operadora do cartão: ${_brl(c.taxaVal)}`);
     L.push(`A devolver em dinheiro/Pix: ${_brl(c.valor)}`);
-    if (c.tipo !== 'gemelar_perda') L.push(`Ou crédito de 12 meses na clínica (sem retenção de 20%${c.taxaCredito ? ', só a taxa do cartão de ' + _brl(c.taxaCredito) : ''}): ${_brl(c.credito)}`);
+    if (c.tipo !== 'gemelar_perda') L.push(`Ou crédito de 12 meses na clínica (sem retenção${c.taxaCredito ? ', só a taxa do cartão de ' + _brl(c.taxaCredito) : ''}): ${_brl(c.credito)}`);
     if (c.tipo === 'gemelar_perda') L.push(`Ou crédito de 12 meses: ${_brl(c.valor)}, ou até ${c.extrasEquiv} ultrassom(ns) extra(s) a ${_brl(_EXTRA_AVULSO)}`);
   }
   c.avisos.forEach(a => L.push(a));
@@ -4835,7 +4836,7 @@ function _trTermoHtml(r, c, d) {
   const dataExt = `${hoje.getDate()} de ${_ADESAO_MESES[hoje.getMonth()]} de ${hoje.getFullYear()}`;
   const corpo = c.direcao === 'upgrade'
     ? `<p>A gestante passa a ter direito aos exames da modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. O valor da troca é a diferença entre os preços das modalidades (Anexo I do contrato), <b>${_brl(c.valor)}</b> (${_extensoReais(c.valor)}), a ser paga ${c.parcelas > 1 ? `em ${c.parcelas} parcelas de ${_brl(c.valorParcela)} no cartão de crédito` : 'à vista ou em 1 parcela no cartão de crédito'}.</p>`
-    : `<p>A gestante passa à modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. A diferença entre os preços das modalidades é de <b>${_brl(-c.diff)}</b>${c.retencao ? `; a clínica retém 20% (${_brl(c.retencao)})` : ''}${c.descontoExtras ? `; são descontados ${_brl(c.descontoExtras)} de ultrassom(ns) extra(s) já utilizado(s) além do total da nova modalidade, pelo valor avulso do Anexo II` : ''}${c.taxaVal ? `; são descontadas as taxas da operadora do cartão (${_brl(c.taxaVal)})` : ''}. ${c.tipo === 'gemelar_perda' ? `O saldo de <b>${_brl(c.valor)}</b> é, à escolha da gestante, devolvido em dinheiro ou Pix, mantido como crédito válido por 12 (doze) meses, nas regras do item 7c do contrato, ou convertido em até ${c.extrasEquiv} ultrassom(ns) extra(s), pelo valor avulso do Anexo II.` : `O saldo de <b>${_brl(c.valor)}</b> será devolvido à gestante em dinheiro ou Pix. Se ela preferir, a diferença é mantida como crédito para uso na clínica, válido por 12 (doze) meses (item 7c do contrato), sem a retenção de 20%${c.taxaCredito ? ` e descontada apenas a taxa da operadora do cartão (${_brl(c.taxaCredito)})` : ''}, no valor de <b>${_brl(c.credito)}</b>.`}</p>`;
+    : `<p>A gestante passa à modalidade <b>${E(N(c.nova))}</b>, mantendo válidos os exames já realizados. A diferença entre os preços das modalidades é de <b>${_brl(-c.diff)}</b>${c.retencao ? `; a clínica retém 15% (${_brl(c.retencao)})` : ''}${c.descontoExtras ? `; são descontados ${_brl(c.descontoExtras)} de ultrassom(ns) extra(s) já utilizado(s) além do total da nova modalidade, pelo valor avulso do Anexo II` : ''}${c.taxaVal ? `; são descontadas as taxas da operadora do cartão (${_brl(c.taxaVal)})` : ''}. ${c.tipo === 'gemelar_perda' ? `O saldo de <b>${_brl(c.valor)}</b> é, à escolha da gestante, devolvido em dinheiro ou Pix, mantido como crédito válido por 12 (doze) meses, nas regras do item 7c do contrato, ou convertido em até ${c.extrasEquiv} ultrassom(ns) extra(s), pelo valor avulso do Anexo II.` : `O saldo de <b>${_brl(c.valor)}</b> será devolvido à gestante em dinheiro ou Pix. Se ela preferir, a diferença é mantida como crédito para uso na clínica, válido por 12 (doze) meses (item 7c do contrato), sem a retenção de 15%${c.taxaCredito ? ` e descontada apenas a taxa da operadora do cartão (${_brl(c.taxaCredito)})` : ''}, no valor de <b>${_brl(c.credito)}</b>.`}</p>`;
   const tg = (c.nova === 'premium' || c.nova === 'gemelar_dc') && c.atual !== 'premium' && c.atual !== 'gemelar_dc'
     ? (d.telegramCodigo ? `<p>A gestante passa a ter o canal direto no Telegram a partir da data deste termo. Leia o QR abaixo com a câmera do celular (uso individual).</p><div style="width:130px;height:130px">${_telegramQrSvg(d.telegramCodigo)}</div>` : '<p>A gestante passa a ter o canal direto no Telegram a partir da data deste termo; o QR de acesso será entregue pela clínica.</p>')
     : (c.avisos.some(a => /termina/.test(a)) ? '<p>O canal direto no Telegram termina na data deste termo.</p>' : '');
@@ -7656,7 +7657,7 @@ ${telCanal ? (d.telegramCodigo
 <p><b>d) Crédito para nova gestação.</b> O crédito dos itens 7b e 8a é pessoal e intransferível e é abatido do valor de um novo Acompanhamento Fetal MK, em uma nova gestação da própria gestante. Se a nova adesão ocorrer em até 12 (doze) meses do encerramento, vale a tabela de preços deste contrato. Depois desse prazo, o crédito continua válido, mas a modalidade escolhida segue a tabela de preços vigente na nova adesão, e a gestante paga a diferença.</p>
 <h2>9) Gestação gemelar identificada e troca de modalidade</h2>
 <p><b>a) Gestação gemelar identificada após a adesão.</b> Se a gestação gemelar for identificada após a adesão, a gestante poderá migrar para a modalidade gemelar correspondente, pagando a diferença de valor vigente.</p>
-<p><b>b) Troca de modalidade.</b> A gestante pode trocar de modalidade durante o acompanhamento. Os exames já realizados continuam valendo e o valor da troca é a diferença entre os preços das modalidades (Anexo I). Para uma modalidade superior (por exemplo, de Essencial para Premium), a diferença é paga em até 3 (três) parcelas no cartão de crédito, e qualquer troca, para cima ou para baixo, só pode ser feita até 26 semanas de idade gestacional (fim da janela do morfológico de 2º trimestre), em gestação única ou gemelar; depois disso, os exames desejados da outra modalidade são feitos pelo valor com desconto do Anexo II. Para uma modalidade inferior, a troca só é possível se a gestante ainda não tiver realizado exame exclusivo da modalidade atual; da diferença, se o restante for devolvido à gestante em dinheiro ou Pix, a clínica retém 20% (vinte por cento) e desconta as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado; se a gestante preferir, a diferença é mantida como crédito para uso na clínica, nas regras do item 7c, sem a retenção de 20% e descontadas apenas as taxas da operadora do cartão, no caso de pagamento parcelado. Os ultrassons extras já utilizados contam dentro do total da nova modalidade e, se excederem esse total, são descontados pelo valor avulso do Anexo II. O canal direto no Telegram começa ou termina na data da troca. A troca é registrada em termo aditivo assinado pelas duas partes.</p>
+<p><b>b) Troca de modalidade.</b> A gestante pode trocar de modalidade durante o acompanhamento. Os exames já realizados continuam valendo e o valor da troca é a diferença entre os preços das modalidades (Anexo I). Para uma modalidade superior (por exemplo, de Essencial para Premium), a diferença é paga em até 3 (três) parcelas no cartão de crédito, e qualquer troca, para cima ou para baixo, só pode ser feita até 26 semanas de idade gestacional (fim da janela do morfológico de 2º trimestre), em gestação única ou gemelar; depois disso, os exames desejados da outra modalidade são feitos pelo valor com desconto do Anexo II. Para uma modalidade inferior, a troca só é possível se a gestante ainda não tiver realizado exame exclusivo da modalidade atual; da diferença, se o restante for devolvido à gestante em dinheiro ou Pix, a clínica retém 15% (quinze por cento) e desconta as taxas cobradas pela operadora do cartão, no caso de pagamento parcelado; se a gestante preferir, a diferença é mantida como crédito para uso na clínica, nas regras do item 7c, sem a retenção de 15% e descontadas apenas as taxas da operadora do cartão, no caso de pagamento parcelado. Os ultrassons extras já utilizados contam dentro do total da nova modalidade e, se excederem esse total, são descontados pelo valor avulso do Anexo II. O canal direto no Telegram começa ou termina na data da troca. A troca é registrada em termo aditivo assinado pelas duas partes.</p>
 <h2>10) Dados pessoais e imagens</h2>
 <p>Os dados pessoais, laudos, imagens e vídeos são tratados conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018), com a finalidade de prestar o acompanhamento, guardar o prontuário pelo prazo legal e enviar os documentos à gestante. Eles não são compartilhados com terceiros sem autorização, exceto com o obstetra assistente quando a gestante solicitar ou por obrigação legal.</p>
 <p><b>Uso de imagens 3D do bebê</b>, sem nenhum dado que identifique a gestante, nas redes sociais e no material de divulgação da clínica: &nbsp; ( ) Autorizo &nbsp; ( ) Não autorizo &nbsp;&nbsp; Rubrica: ________________</p>

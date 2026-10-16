@@ -186,7 +186,7 @@ button{font:inherit;cursor:pointer}
     <div class="item"><h3><span>03</span>Imagens 3D e vídeos</h3><p>Momentos para guardar para sempre: imagens em 8K, quando o bebê colaborar, e os vídeos no seu WhatsApp.</p></div>
     <div class="item"><h3><span>04</span>A família na sala</h3><p>Esse momento é de todos vocês: o exame é projetado na parede, para quem você ama ver o bebê junto.</p></div>
     <div class="item"><h3><span>05</span>Preparo antes de cada exame</h3><p>Você chega sabendo o que esperar: um guia explica, sem termos difíceis, o que vamos ver e como se preparar.</p></div>
-    <div class="item"><h3><span>06</span>Laudo evolutivo</h3><p>A história do seu bebê em um só lugar: todos os exames reunidos e a curva de crescimento dele.</p></div>
+    <div class="item"><h3><span>06</span>Laudo evolutivo</h3><p>A partir do morfológico de 2º trimestre, a história do seu bebê em um só lugar: todos os exames reunidos e a curva de crescimento dele.</p></div>
   </div>
   <div class="citacao"><p>“Acompanhar uma gestação é um privilégio. Quero que você viva cada exame com segurança, sabendo que estou cuidando de vocês dois.”</p><small>Dra. Morgana Kummer</small></div>
   <div class="seguir"><button type="button" class="btn-roxo" data-ir="jor">Ver a jornada →</button></div>
@@ -225,7 +225,7 @@ button{font:inherit;cursor:pointer}
       <tr><td>Doppler e perfil biofísico 38 sem</td><td class="nao">—</td><td class="sim">✓</td></tr>
       <tr><td>Ultrassons extras</td><td>1</td><td>2</td></tr>
       <tr><td>Canal direto com a Dra. Morgana (Telegram)</td><td class="nao">—</td><td class="sim">✓</td></tr>
-      <tr><td>3D, vídeos, projeção e laudo evolutivo</td><td class="sim">✓</td><td class="sim">✓</td></tr>
+      <tr><td>3D, vídeos, projeção e laudo evolutivo (a partir do morfo 2º tri)</td><td class="sim">✓</td><td class="sim">✓</td></tr>
     </tbody>
   </table>
   <div class="nota">Valores para começar até 14 semanas, em até 6x no cartão de crédito. Começando depois, a recepção calcula o valor descontando os exames que já passaram. A adesão vai até 26 semanas.</div>
@@ -324,9 +324,9 @@ button{font:inherit;cursor:pointer}
 
   // Mesmos valores de _ADESAO_PRECO (index.html). Mudou lá, mude aqui.
   var PLANOS = [
-    { k: 'essencial', nome: 'Essencial', total: 3400, para: 'Para a gestação de baixo risco e para mamães de primeira viagem.', itens: ['Os seis exames do protocolo, do 1º trimestre às 36 semanas', '1 ultrassom extra, para quando você precisar ou só quiser ver o seu bebê', 'Imagens 3D, vídeos, projeção na parede e guias de preparo', 'Laudo evolutivo com a curva de crescimento'] },
+    { k: 'essencial', nome: 'Essencial', total: 3400, para: 'Para a gestação de baixo risco e para mamães de primeira viagem.', itens: ['Os seis exames do protocolo, do 1º trimestre às 36 semanas', '1 ultrassom extra, para quando você precisar ou só quiser ver o seu bebê', 'Imagens 3D, vídeos, projeção na parede e guias de preparo', 'Laudo evolutivo com a curva de crescimento, a partir do morfológico de 2º trimestre'] },
     { k: 'premium', nome: 'Premium', total: 4200, dest: true, para: 'Para a gestação de alto risco, para mamães mais ansiosas ou de primeira viagem que querem ainda mais contato com o seu bebê.', itens: ['Tudo o que o Essencial oferece', 'Morfológico de 3º trimestre às 36 semanas, e mais um exame às 38', '2 ultrassons extras', 'Canal direto com a Dra. Morgana Kummer pelo Telegram'] },
-    { k: 'gemelar_essencial', nome: 'Gemelar Essencial', total: 6800, para: 'Gestação de gêmeos, com o calendário do Essencial', itens: ['O calendário do Essencial, com cada bebê olhado com calma e carinho', '1 ultrassom extra', 'Imagens, vídeos e laudo evolutivo de cada bebê'] },
+    { k: 'gemelar_essencial', nome: 'Gemelar Essencial', total: 6800, para: 'Gestação de gêmeos, com o calendário do Essencial', itens: ['O calendário do Essencial, com cada bebê olhado com calma e carinho', '1 ultrassom extra', 'Imagens, vídeos e laudo evolutivo de cada bebê, a partir do morfológico de 2º trimestre'] },
     { k: 'gemelar_dc', nome: 'Gemelar Premium', total: 8400, para: 'Gestação de gêmeos, com o calendário do Premium', itens: ['O calendário completo do Premium, para dois bebês', '2 ultrassons extras', 'Canal direto com a Dra. Morgana Kummer pelo Telegram'] }
   ];
   function reais(n, cent) { return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: cent ? 2 : 0, maximumFractionDigits: cent ? 2 : 0 }); }

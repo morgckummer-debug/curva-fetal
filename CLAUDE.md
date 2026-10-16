@@ -2052,3 +2052,17 @@ Decisão da Morgana: quem indica o Doppler semanal do CIUR é o obstetra assiste
 só vale com pedido médico do obstetra, apresentado no agendamento — é a exceção à regra de que os exames do
 acompanhamento dispensam pedido. Contrato itens 2 e 5 (`_contratoHtml` e o .docx/PDF em
 `/mnt/project-files/contratos/`) e plano de negócios atualizados.
+
+## Falta sem reagendamento vira crédito (2026-10-16, migração 040)
+
+Contrato item 7d: faltou sem remarcar com 48 h e a janela se perdeu → o valor avulso cheio do exame vira crédito
+pessoal de 12 meses, para qualquer serviço da clínica. Antes o app não registrava: o exame só aparecia como "Janela
+vencida". Agora, no exame de janela vencida da ficha da recepção, o botão **"Faltou, sem reagendar"** grava em
+`pagamentos_acompanhamento.faltas` (`{itens:[{key,n,valor,data,validade}], usos:[{valor,data,desc}]}`, RPCs
+`recepcao_faltas_set`/`recepcao_faltas`, carregadas à parte como o agendamento). O slot passa a `status = 'faltou'`
+(sai das pendências), validade = fim da janela + 12 meses (`_acompSituacao` calcula `sit.creditoFalta`). Uso do
+crédito durante a gestação: "Registrar uso do crédito" no quadro do crédito. **Encerramento, qualquer motivo:** o
+exame perdido sai do saldo do plano (não sofre os 15% da desistência nem entra no crédito de parto) e o saldo do
+crédito por falta aparece em linha própria na mensagem e no extrato (`credito_falta`). Não somar de novo ao saldo:
+antes desta mudança o exame faltado já ficava dentro do saldo por não ter sido feito. Histórico (038) registra
+`faltas`. **A 040 precisa estar aplicada**; sem ela o botão avisa.

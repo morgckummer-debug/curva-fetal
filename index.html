@@ -2756,15 +2756,25 @@ function _acompSituacao(g, exams) {
     const hit = normais.find(x => !usados.has(x) && x.ig != null && x.ig >= def.ini && x.ig <= def.fim + (def.tol || 0));
     if (hit) usados.add(hit);
     const limite = def.fim + (def.tol || 0);
-    const status = hit ? 'feito'
+    // Falta sem reagendamento registrada pela recepção (contrato 7d, migração 040): o exame vira crédito.
+    const falta = !hit && g.faltas && Array.isArray(g.faltas.itens) ? g.faltas.itens.find(x => x.key === k) || null : null;
+    const status = hit ? 'feito' : falta ? 'faltou'
       : (igHoje != null && igHoje > limite) ? 'atrasado'
       : (igHoje != null && igHoje > def.fim) ? 'tolerancia' : 'falta';
-    return { def, hit, status, de: _acompIgParaData(g, def.ini), ate: _acompIgParaData(g, def.fim), ateTol: def.tol ? _acompIgParaData(g, limite) : null };
+    return { key: k, def, hit, falta, status, de: _acompIgParaData(g, def.ini), ate: _acompIgParaData(g, def.fim), ateTol: def.tol ? _acompIgParaData(g, limite) : null };
   });
+  // Crédito das faltas: soma dos exames perdidos menos o que já foi usado; item vencido (12 meses) não conta.
+  const fItens = slots.filter(s => s.falta).map(s => s.falta);
+  const fUsos = (g.faltas && Array.isArray(g.faltas.usos)) ? g.faltas.usos : [];
+  const fTotal = fItens.reduce((a, x) => a + (+x.valor || 0), 0);
+  const fUsado = fUsos.reduce((a, x) => a + (+x.valor || 0), 0);
+  const fValido = fItens.filter(x => !x.validade || x.validade >= hoje).reduce((a, x) => a + (+x.valor || 0), 0);
+  const fValidade = fItens.map(x => x.validade).filter(Boolean).sort().pop() || null;
+  const creditoFalta = { itens: fItens, usos: fUsos, total: fTotal, usado: fUsado, disponivel: Math.max(0, Math.min(fValido, fTotal - fUsado)), validade: fValidade };
   // Próximo a fazer: primeiro pendente ainda dentro do prazo (ou o mais antigo atrasado, se não houver).
   const prox = slots.find(s => s.status === 'tolerancia') || slots.find(s => s.status === 'falta') || null;
   return {
-    plano, igHoje, slots, prox, extras,
+    plano, igHoje, slots, prox, extras, creditoFalta,
     fora: normais.filter(x => !usados.has(x)),
     feitos: slots.filter(s => s.hit).length,
   };
@@ -2787,6 +2797,7 @@ function _acompQuadroHtml(sit) {
     const ig = `${_acompSemDia(s.def.ini)} a ${_acompSemDia(s.def.fim)}`;
     let st;
     if (s.status === 'feito') st = `<span class="ac-st ac-st--feito">✓ Feito ${formatDateBR(s.hit.v.data_exame)}</span>`;
+    else if (s.status === 'faltou') st = `<span class="ac-st ac-st--falta">Não compareceu · crédito ${_brl(+s.falta.valor || 0)}</span>`;
     else if (s.status === 'atrasado') st = `<span class="ac-st ac-st--atrasado">Janela passou${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</span>`;
     else if (s.status === 'tolerancia') st = `<span class="ac-st ac-st--prox">Na tolerância${s.ateTol ? ' até ' + _acompDataCurta(s.ateTol) : ''}</span>`;
     else if (s === sit.prox) st = '<span class="ac-st ac-st--prox">Próximo</span>';
@@ -2839,7 +2850,7 @@ function _fecharRecepcao() {
 // "Mais opções" e volta ao app; a secretária só tem esta tela e sair).
 let _rcSel = null;
 let _rcFiltro = 'todas';
-let _rcAgOk = false;
+let _rcAgOk = false, _rcFaltasOk = false;
 const _RC_AG_PRAZO_H = 48;
 const _RC_AG_RESP_H = 24; // paciente respondeu e ninguém marcou na agenda // sem resposta depois disso, a etiqueta fica vermelha
 let _rcMedica = false;
@@ -2897,6 +2908,15 @@ async function recepcaoAtualizar() {
         _recepcaoDados.forEach(r => { r.agendamento = ag.data[String(r.gestacao_id)] || null; });
       }
     } catch (e) { console.error('[CurvaFetal] recepcao_agendamentos:', e); }
+    // Faltas sem reagendamento e crédito (migração 040). Sem ela, o botão "Faltou" avisa.
+    _rcFaltasOk = false;
+    try {
+      const fa = await supabaseClient.rpc('recepcao_faltas');
+      if (!fa.error && fa.data && typeof fa.data === 'object') {
+        _rcFaltasOk = true;
+        _recepcaoDados.forEach(r => { r.faltas = fa.data[String(r.gestacao_id)] || null; });
+      }
+    } catch (e) { console.error('[CurvaFetal] recepcao_faltas:', e); }
     // Pré-adesões vindas do iPad ou do link (migração 033). Sem ela, o bloco só fica vazio.
     _rcPre = [];
     try {
@@ -3275,7 +3295,8 @@ function _rcDetalheHtml(i) {
     while (extrasOrd.length && (s.status === 'feito' ? extrasOrd[0].v.data_exame < s.hit.v.data_exame : (!s.ate || extrasOrd[0].v.data_exame <= s.ate))) antes += trExtra(extrasOrd.shift());
     let ic, st;
     if (s.status === 'feito') { ic = '<span class="rc-dot rc-dot--feito">✓</span>'; st = `<b class="rc-feito-t">Feito em ${formatDateBR(s.hit.v.data_exame)}</b>`; }
-    else if (s.status === 'atrasado') { ic = '<span class="rc-dot rc-dot--atrasado">!</span>'; st = `<b class="rc-atras-t">Janela vencida${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</b>`; }
+    else if (s.status === 'faltou') { ic = '<span class="rc-dot">×</span>'; st = `<b>Não compareceu</b><span class="rc-ex-s">virou crédito de ${_brl(+s.falta.valor || 0)}${i.enc ? '' : ` · <a href="#" onclick="recepcaoFaltaDesfazer('${s.key}');return false;">desfazer</a>`}</span>`; }
+    else if (s.status === 'atrasado') { ic = '<span class="rc-dot rc-dot--atrasado">!</span>'; st = `<b class="rc-atras-t">Janela vencida${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</b>${i.enc ? '' : `<button type="button" class="rc-btn-claro" style="display:block;margin-top:4px;padding:4px 10px;font-size:12px;" onclick="recepcaoFaltou('${s.key}')" title="A gestante faltou e não reagendou: o exame é perdido e o valor avulso vira crédito (contrato, item 7d)">Faltou, sem reagendar</button>`}`; }
     else if (s === p) { ic = '<span class="rc-dot rc-dot--prox">→</span>'; st = '<b>Próximo</b>'; }
     else { ic = '<span class="rc-dot">·</span>'; st = '<b>A fazer</b>'; }
     const ag = r.agendamento, ja = ag && ag.estado === 'agendado' && (ag.agendados || []).find(x => x.key === sit.plano.ex[sit.slots.indexOf(s)]);
@@ -3334,7 +3355,7 @@ function _rcDetalheHtml(i) {
     ${_rcEncerramentoHtml(r, i)}
     ${prox}
     <div class="rc-sec-t">Exames do plano</div>
-    <table class="rc-tl"><tbody>${linhas}${linhasExtra}</tbody></table>${extras}${fora}
+    <table class="rc-tl"><tbody>${linhas}${linhasExtra}</tbody></table>${extras}${fora}${_rcCreditoFaltaHtml(i)}
     ${_rcContratoHtml(r, i.enc)}
     ${pagHtml}
     ${i.enc ? '' : `<div style="margin-top:22px;display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap;">
@@ -3344,6 +3365,91 @@ function _rcDetalheHtml(i) {
       <button type="button" class="rc-btn-claro" onclick="recepcaoTrocarAbrir(${r.gestacao_id})">Trocar modalidade…</button></div>`}
     ${(!i.enc && sit.feitos === 0 && !sit.extras.length && !sit.fora.length) ? `<div style="margin-top:22px;text-align:right;"><button type="button" style="padding:8px 14px;border-radius:10px;border:1px solid var(--danger);background:#fff;color:var(--danger);font:inherit;font-size:13px;font-weight:700;cursor:pointer;" onclick="recepcaoExcluir(${r.gestacao_id})">Excluir cadastro (feito por engano)</button></div>` : ''}
     ${_rcHistoricoHtml(r)}`;
+}
+
+// ── Falta sem reagendamento → crédito (contrato, item 7d; migração 040) ──
+// A recepção marca, no exame de janela vencida, que a gestante faltou e não reagendou. O exame
+// sai do calendário e o valor avulso cheio vira crédito pessoal de 12 meses (contado do fim da
+// janela), para qualquer serviço da clínica. O saldo entra no extrato do encerramento, seja
+// qual for o motivo. Uso do crédito durante a gestação: "Registrar uso do crédito".
+function _rcFaltasAtual(r) {
+  const f = r.faltas || {};
+  return { itens: Array.isArray(f.itens) ? f.itens.slice() : [], usos: Array.isArray(f.usos) ? f.usos.slice() : [] };
+}
+async function _rcFaltasSalvar(r, f) {
+  const { error } = await supabaseClient.rpc('recepcao_faltas_set', { p_gestacao_id: r.gestacao_id, p_faltas: f });
+  if (error) {
+    if (error.code === 'PGRST202' || /Could not find the function|schema cache/i.test(error.message || ''))
+      throw new Error('falta aplicar a migração 040 no Supabase');
+    throw error;
+  }
+  await recepcaoAtualizar();
+}
+async function recepcaoFaltou(key) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _rcSel);
+  const i = r && _rcInfo(r);
+  if (!i) return;
+  const s = i.sit.slots.find(x => x.key === key);
+  if (!s || s.status !== 'atrasado') return;
+  const mult = (r.acompanhamento || '').startsWith('gemelar') ? 2 : 1;
+  const valor = (_ADESAO_PESO[key] || 0) * mult;
+  const perdeu = s.ateTol || s.ate || _hojeISO();
+  const v = new Date(perdeu + 'T12:00:00Z'); v.setUTCMonth(v.getUTCMonth() + 12);
+  const validade = v.toISOString().slice(0, 10);
+  if (!confirm(`${r.nome || 'A gestante'} faltou ao ${s.def.n} e não reagendou?\n\nO exame sai do calendário e ${_brl(valor)} (valor avulso) viram crédito, válido até ${formatDateBR(validade)}, para qualquer serviço da clínica (contrato, item 7d).`)) return;
+  const f = _rcFaltasAtual(r);
+  f.itens = f.itens.filter(x => x.key !== key);
+  f.itens.push({ key, n: s.def.n, valor, data: perdeu, validade, em: new Date().toISOString() });
+  try { await _rcFaltasSalvar(r, f); } catch (err) { alert('Não consegui registrar: ' + (err.message || err)); }
+}
+async function recepcaoFaltaDesfazer(key) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _rcSel);
+  if (!r) return;
+  const f = _rcFaltasAtual(r);
+  const it = f.itens.find(x => x.key === key);
+  if (!it) return;
+  const resta = f.itens.filter(x => x.key !== key).reduce((a, x) => a + (+x.valor || 0), 0);
+  const usado = f.usos.reduce((a, x) => a + (+x.valor || 0), 0);
+  if (usado > resta) { alert(`Não dá para desfazer: ${_brl(usado)} deste crédito já foram usados. Apague antes o uso registrado.`); return; }
+  if (!confirm(`Desfazer a falta no ${it.n}? O crédito de ${_brl(+it.valor || 0)} deixa de existir e o exame volta ao calendário.`)) return;
+  f.itens = f.itens.filter(x => x.key !== key);
+  try { await _rcFaltasSalvar(r, f); } catch (err) { alert('Não consegui desfazer: ' + (err.message || err)); }
+}
+async function recepcaoCreditoUsar() {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _rcSel);
+  const i = r && _rcInfo(r);
+  if (!i) return;
+  const c = i.sit.creditoFalta;
+  if (!(c.disponivel > 0)) { alert('Não há crédito disponível.'); return; }
+  const vTxt = prompt(`Quanto do crédito foi usado? (disponível: ${_brl(c.disponivel)})`, String(c.disponivel));
+  if (vTxt == null) return;
+  const valor = Math.round(parseFloat(String(vTxt).replace(/\./g, '').replace(',', '.')) * 100) / 100;
+  if (!(valor > 0) || valor > c.disponivel + 0.001) { alert('Valor inválido.'); return; }
+  const desc = prompt('Em quê? (ex.: Doppler avulso em 20/11)', '');
+  if (desc == null) return;
+  const f = _rcFaltasAtual(r);
+  f.usos.push({ valor, data: _hojeISO(), desc: desc.trim(), em: new Date().toISOString() });
+  try { await _rcFaltasSalvar(r, f); } catch (err) { alert('Não consegui registrar: ' + (err.message || err)); }
+}
+async function recepcaoCreditoUsoApagar(idx) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === _rcSel);
+  if (!r) return;
+  const f = _rcFaltasAtual(r);
+  const u = f.usos[idx];
+  if (!u || !confirm(`Apagar o uso de ${_brl(+u.valor || 0)}${u.desc ? ' (' + u.desc + ')' : ''}? O valor volta ao crédito.`)) return;
+  f.usos.splice(idx, 1);
+  try { await _rcFaltasSalvar(r, f); } catch (err) { alert('Não consegui apagar: ' + (err.message || err)); }
+}
+function _rcCreditoFaltaHtml(i) {
+  const c = i.sit.creditoFalta;
+  if (!c || !c.itens.length) return '';
+  const usos = c.usos.map((u, k) => `<li>Usado ${_brl(+u.valor || 0)} em ${formatDateBR(u.data)}${u.desc ? ' · ' + escapeHtml(u.desc) : ''}${i.enc ? '' : ` · <a href="#" onclick="recepcaoCreditoUsoApagar(${k});return false;">apagar</a>`}</li>`).join('');
+  const venc = c.validade && c.validade < _hojeISO();
+  return `<div class="rc-pag" style="margin-top:12px;">
+    <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Crédito por falta (contrato, item 7d)</div><span class="rc-pill ${c.disponivel > 0 ? 'rc-pill--ok' : 'rc-pill--parcial'}">Disponível ${_brl(c.disponivel)}</span></div>
+    <ul class="rc-det-meta" style="margin:6px 0;padding-left:18px;">${c.itens.map(x => `<li>${escapeHtml(x.n)}: faltou, sem reagendar · ${_brl(+x.valor || 0)} · válido até ${formatDateBR(x.validade)}</li>`).join('')}${usos}</ul>
+    <p class="rc-det-meta" style="margin:0 0 8px;">Pessoal, para qualquer serviço da clínica.${venc ? ' <b style="color:var(--danger);">Prazo de 12 meses vencido.</b>' : ''} O saldo entra sozinho no extrato do encerramento.</p>
+    ${!i.enc && c.disponivel > 0 ? '<button type="button" class="rc-btn-claro" onclick="recepcaoCreditoUsar()">Registrar uso do crédito</button>' : ''}</div>`;
 }
 
 // ── Contrato na ficha: estado, cópia arquivada e assinado (migração 026) ──
@@ -3955,6 +4061,14 @@ function _histFrases(h) {
       if (dd && (!da || da.status !== dd.status)) out.push({ txt: `Devolução: ${(_DEV_ROT[dd.status] || [, dd.status])[1]}${dd.valor != null ? ' · ' + _brl(dd.valor) : ''}${dd.forma ? ' · ' + (_DEV_FORMA[dd.forma] || dd.forma) : ''}`, arq: dd.comprovante || null });
       return out.length ? out : [{ txt: 'Extrato de encerramento atualizado' }];
     }
+    case 'faltas': {
+      const out = [], ia = (a && a.itens) || [], id = (d && d.itens) || [], ua = (a && a.usos) || [], ud = (d && d.usos) || [];
+      id.filter(x => !ia.some(y => y.key === x.key)).forEach(x => out.push({ txt: `Faltou, sem reagendar: ${x.n} · crédito ${_brl(+x.valor || 0)}` }));
+      ia.filter(x => !id.some(y => y.key === x.key)).forEach(x => out.push({ txt: `Falta desfeita: ${x.n}`, alerta: true }));
+      if (ud.length > ua.length) ud.slice(ua.length).forEach(u => out.push({ txt: `Crédito por falta usado: ${_brl(+u.valor || 0)}${u.desc ? ' · ' + u.desc : ''}` }));
+      else if (ud.length < ua.length) out.push({ txt: 'Uso de crédito apagado', alerta: true });
+      return out.length ? out : [{ txt: 'Crédito por falta atualizado' }];
+    }
     case 'agendamento': {
       const e = d && d.estado, ea = a && a.estado;
       if (!d) return [{ txt: 'Agendamento limpo' }];
@@ -4075,7 +4189,7 @@ function _rcEncerramentoHtml(r, i) {
       ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
       ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}
       ${li(e.credito_nova_gestacao ? 'Retenção (15%, só na devolução)' : 'Retenção (20%)', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}${li('Imposto da nota (só na devolução)', e.imposto_val ? _brl(e.imposto_val) : '')}
-      ${li('Situação', sit)}
+      ${li('Situação', sit)}${li('Crédito por falta (item 7d)', e.credito_falta ? _brl(e.credito_falta) + (e.credito_falta_validade ? ', válido até ' + formatDateBR(e.credito_falta_validade) : '') : '')}
       ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
       ${li('Registrado por', escapeHtml(e.por || '') + (e.gravado_em ? ', ' + _rcDataHora(e.gravado_em) : ''))}</tbody></table>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">${acoes}</div>
@@ -4222,16 +4336,20 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
   const total = (_ADESAO_PRECO[key] || {}).total || 0;
   const peso = i => _ADESAO_PESO[sit.plano.ex[i]] * mult;
   const feitos = sit.slots.map((s, i) => ({ s, i })).filter(x => x.s.hit);
-  const naoFeitos = sit.slots.map((s, i) => ({ s, i })).filter(x => !x.s.hit);
+  // Exame perdido por falta (item 7d) já virou crédito à parte: sai do saldo do plano e entra como crédito por falta.
+  const naoFeitos = sit.slots.map((s, i) => ({ s, i })).filter(x => !x.s.hit && !x.s.falta);
+  const vFaltas = sit.slots.reduce((a, s) => a + (s.falta ? (+s.falta.valor || 0) : 0), 0);
   const vFeitosPlano = feitos.reduce((a, x) => a + peso(x.i), 0);
   const vFeitos = vFeitosPlano + sit.extras.length * _EXTRA_AVULSO * mult;
   const vNaoFeitos = naoFeitos.reduce((a, x) => a + peso(x.i), 0);
-  const saldo = Math.max(0, pago - vFeitos);
+  const saldo = Math.max(0, pago - vFeitos - vFaltas);
   const taxa = cartao ? taxaPct / 100 : 0, imp = nf ? (impostoPct || 0) / 100 : 0;
-  const out = { total, pago, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0, nf: !!nf, impostoPct: nf ? (impostoPct || 0) : 0 };
+  const cf = sit.creditoFalta || { itens: [], disponivel: 0 };
+  const out = { total, pago, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0, nf: !!nf, impostoPct: nf ? (impostoPct || 0) : 0,
+    faltas: cf.itens, creditoFalta: Math.min(cf.disponivel, Math.max(0, pago - vFeitosPlano)), creditoFaltaValidade: cf.validade };
   if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
     // Perda/óbito: o ultrassom extra já usado não desconta; desistência: desconta.
-    const base = motivo === 'desistencia' ? saldo : Math.max(0, pago - vFeitosPlano);
+    const base = motivo === 'desistencia' ? saldo : Math.max(0, pago - vFeitosPlano - vFaltas);
     if (motivo !== 'desistencia') out.vFeitos = vFeitosPlano;
     out.base = base; out.saldo = base;
     const a7 = _encAte7Dias(r, sit, hoje || _hojeISO());
@@ -4261,9 +4379,15 @@ function _encTexto(r, sit, motivo, hoje, c) {
   if (!c.feitos.length && !sit.extras.length) L.push('- nenhum');
   c.feitos.forEach(x => L.push(`- ${x.s.def.n} em ${formatDateBR(x.s.hit.v.data_exame)}`));
   sit.extras.forEach(x => L.push(`- Ultrassom extra em ${formatDateBR(x.v.data_exame)}`));
+  if (c.faltas.length) {
+    L.push('');
+    L.push('Exames em que você não compareceu (viraram crédito):');
+    c.faltas.forEach(x => L.push(`- ${x.n} (${_brl(+x.valor || 0)})`));
+  }
   L.push('');
   L.push(`Valor pago: ${_brl(c.pago)}`);
   L.push(`Exames realizados (valor avulso): ${_brl(c.vFeitos)}`);
+  if (c.faltas.length) L.push(`Exames em que não compareceu (viraram crédito à parte): ${_brl(c.faltas.reduce((t, x) => t + (+x.valor || 0), 0))}`);
   if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
     L.push(`Saldo: ${_brl(c.base)}`);
     if (c.ate7) L.push(`Desistência em até 7 dias da adesão (${formatDateBR(c.adesao)}), antes do primeiro exame: sem retenção.`);
@@ -4278,6 +4402,10 @@ function _encTexto(r, sit, motivo, hoje, c) {
   } else {
     L.push('');
     L.push(`Crédito: *${_brl(c.credito)}* (exames não realizados), válido por 12 meses, para uso da mãe.`);
+  }
+  if (c.creditoFalta > 0) {
+    L.push('');
+    L.push(`${motivo === 'parto' ? 'Crédito' : 'Além disso, você tem crédito'} pelos exames em que não compareceu: *${_brl(c.creditoFalta)}*${c.creditoFaltaValidade ? `, válido até ${formatDateBR(c.creditoFaltaValidade)}` : ''}, para qualquer serviço da clínica.`);
   }
   L.push('');
   L.push('Qualquer dúvida, estamos à disposição.');
@@ -4376,6 +4504,8 @@ function _encExtrato(r, sit, motivo) {
     taxa_pct: c.taxaPct, cartao, nf: c.nf, imposto_pct: c.impostoPct, celular: document.getElementById('rc-enc-tel').value.trim(),
     mensagem: document.getElementById('rc-enc-txt').value,
     exames: c.feitos.map(x => ({ n: x.s.def.n, data: x.s.hit.v.data_exame })).concat(sit.extras.map(x => ({ n: 'Ultrassom extra', data: x.v.data_exame }))),
+    faltas: c.faltas.map(x => ({ n: x.n, valor: x.valor, data: x.data })),
+    credito_falta: c.creditoFalta, credito_falta_validade: c.creditoFaltaValidade,
   };
   if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
     // validade aqui = fim da tabela de preços do contrato; o crédito para nova gestação não expira (2026-10-15).

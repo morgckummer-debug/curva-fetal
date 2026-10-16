@@ -2768,8 +2768,11 @@ function _acompSituacao(g, exams) {
   const fUsos = (g.faltas && Array.isArray(g.faltas.usos)) ? g.faltas.usos : [];
   const fTotal = fItens.reduce((a, x) => a + (+x.valor || 0), 0);
   const fUsado = fUsos.reduce((a, x) => a + (+x.valor || 0), 0);
-  const fValido = fItens.filter(x => !x.validade || x.validade >= hoje).reduce((a, x) => a + (+x.valor || 0), 0);
-  const fValidade = fItens.map(x => x.validade).filter(Boolean).sort().pop() || null;
+  // Depois do encerramento, todo crédito vale até 12 meses após ele (Morgana 2026-10-16): o extrato guarda essa data.
+  const fEnc = g.pagamento && g.pagamento.encerramento && g.pagamento.encerramento.credito_falta_validade || null;
+  const fVal = x => (fEnc && (!x.validade || fEnc > x.validade)) ? fEnc : x.validade;
+  const fValido = fItens.filter(x => !fVal(x) || fVal(x) >= hoje).reduce((a, x) => a + (+x.valor || 0), 0);
+  const fValidade = fItens.map(fVal).filter(Boolean).sort().pop() || null;
   const creditoFalta = { itens: fItens, usos: fUsos, total: fTotal, usado: fUsado, disponivel: Math.max(0, Math.min(fValido, fTotal - fUsado)), validade: fValidade };
   // Próximo a fazer: primeiro pendente ainda dentro do prazo (ou o mais antigo atrasado, se não houver).
   const prox = slots.find(s => s.status === 'tolerancia') || slots.find(s => s.status === 'falta') || null;
@@ -4365,6 +4368,9 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
   const cf = sit.creditoFalta || { itens: [], disponivel: 0 };
   const out = { total, pago, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0, nf: !!nf, impostoPct: nf ? (impostoPct || 0) : 0,
     faltas: cf.itens, creditoFalta: Math.min(cf.disponivel, Math.max(0, pago - vFeitosPlano)), creditoFaltaValidade: cf.validade };
+  // Uma data só para todo crédito depois do encerramento: 12 meses a partir dele (ou a do item 7d, se for mais tarde).
+  { const v = new Date(hoje + 'T12:00:00Z'); v.setUTCMonth(v.getUTCMonth() + 12); out.validade12 = v.toISOString().slice(0, 10); }
+  if (cf.itens.length && (!out.creditoFaltaValidade || out.creditoFaltaValidade < out.validade12)) out.creditoFaltaValidade = out.validade12;
   if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
     // Perda/óbito: o ultrassom extra já usado não desconta; desistência: desconta.
     const base = motivo === 'desistencia' ? saldo : Math.max(0, pago - vFeitosPlano - vFaltas);
@@ -4452,40 +4458,38 @@ function _encTexto(r, sit, motivo, hoje, c) {
 }
 
 function _encTextoParto(L, hoje, c) {
-  const vc = new Date(hoje + 'T12:00:00Z'); vc.setUTCMonth(vc.getUTCMonth() + 12);
-  const validade = formatDateBR(vc.toISOString().slice(0, 10));
+  const validade = formatDateBR(c.validade12);
   const cf = c.creditoFalta > 0 ? c.creditoFalta : 0;
-  const cfVal = c.creditoFaltaValidade ? `, válido até ${formatDateBR(c.creditoFaltaValidade)}` : '';
+  const total = c.base + cf;
   L.push('');
-  if (c.naoFeitos.length) {
-    L.push('Exames do plano que não chegaram a ser realizados (valor avulso):');
-    c.naoFeitos.forEach(x => L.push(`- ${x.n}: ${_brl(x.valor)}`));
-    // Só acontece se o valor pago não cobrir o avulso dos exames que faltavam (ex.: pagamento incompleto).
-    if (c.base < c.naoFeitos.reduce((t, x) => t + x.valor, 0) - 0.005) L.push(`Limitado ao valor pago: ${_brl(c.base)}`);
-  }
-  if (c.faltas.length) {
-    L.push('');
-    L.push('Exames em que você não compareceu (já viraram crédito):');
-    c.faltas.forEach(x => L.push(`- ${x.n}: ${_brl(+x.valor || 0)}`));
-  }
-  L.push('');
-  if (c.base <= 0 && !cf) {
-    L.push('Todos os exames do plano foram realizados: não há valor a devolver.');
+  if (total <= 0) {
+    L.push('Todos os exames do plano foram realizados: não há valor a receber.');
   } else {
-    L.push(`Total a seu favor: *${_brl(c.base + cf)}*${cf && c.base > 0 ? ` (${_brl(c.base)} + ${_brl(cf)})` : ''}`);
+    L.push(`*Quanto você tem a receber:* ${_brl(total)}`);
+    L.push('');
+    L.push('*De onde vem esse valor:*');
+    if (c.naoFeitos.length && c.base > 0) {
+      L.push('Exames do plano que não chegaram a ser realizados, pelo valor avulso:');
+      c.naoFeitos.forEach(x => L.push(`- ${x.n}: ${_brl(x.valor)}`));
+      // Só acontece se o valor pago não cobrir o avulso dos exames que faltavam (ex.: pagamento incompleto).
+      if (c.base < c.naoFeitos.reduce((t, x) => t + x.valor, 0) - 0.005) L.push(`Limitado ao valor pago: ${_brl(c.base)}`);
+    }
+    if (cf) {
+      L.push(`Exame${c.faltas.length > 1 ? 's' : ''} em que você não compareceu, que já ${c.faltas.length > 1 ? 'viraram' : 'virou'} crédito:`);
+      c.faltas.forEach(x => L.push(`- ${x.n}: ${_brl(+x.valor || 0)}`));
+    }
+    L.push('');
+    L.push('*Suas opções:*');
     if (c.base > 0) {
       const desc = [];
       if (c.taxaVal) desc.push(`taxa da operadora do cartão, ${_brl(c.taxaVal)}`);
       if (c.impostoVal) desc.push(`imposto da nota fiscal, ${_brl(c.impostoVal)}`);
-      L.push('');
-      L.push('Você pode escolher:');
-      L.push(`1) Devolução em dinheiro de *${_brl(c.estorno)}*${desc.length ? ` (${_brl(c.base)} menos ${desc.join(' e ')})` : ''}${cf ? `, mais o crédito de ${_brl(cf)} do exame em que não compareceu${cfVal}` : ''}.`);
-      L.push(cf
-        ? `2) Crédito de *${_brl(c.credito + cf)}* para uso da mãe em qualquer serviço da clínica: ${_brl(c.credito)} válidos até ${validade} e ${_brl(cf)}${c.creditoFaltaValidade ? ` até ${formatDateBR(c.creditoFaltaValidade)}` : ''}.`
-        : `2) Crédito de *${_brl(c.credito)}*, válido até ${validade}, para uso da mãe em qualquer serviço da clínica.`);
+      L.push(`1) ${_brl(c.estorno)} em dinheiro${desc.length ? ` (${_brl(c.base)} menos ${desc.join(' e ')})` : ''}${cf ? ` e ${_brl(cf)} em crédito, válido até ${validade}` : ''}.`);
+      L.push(`2) ${_brl(c.credito + cf)} em crédito, válido até ${validade}.`);
     } else {
-      L.push(`Crédito pelos exames em que não compareceu: *${_brl(cf)}*${cfVal}, para qualquer serviço da clínica.`);
+      L.push(`${_brl(cf)} em crédito, válido até ${validade}.`);
     }
+    L.push('O crédito é para uso da mãe em qualquer serviço da clínica, com qualquer médico da equipe.');
   }
   L.push('');
   L.push('Qualquer dúvida, estamos à disposição.');
@@ -7567,7 +7571,7 @@ ${telCanal ? (d.telegramCodigo
 <p><b>a) Contratação presencial.</b> Este contrato é assinado e pago pessoalmente, no estabelecimento da clínica (item 3). Por isso não se aplica o direito de arrependimento do art. 49 do Código de Defesa do Consumidor, previsto para contratações feitas fora do estabelecimento comercial. A desistência, a qualquer tempo, segue o item (b).</p>
 <p><b>b) Cálculo da devolução.</b> Calcula-se o saldo: o valor pago menos os exames já realizados, inclusive os ultrassons extras utilizados, cada um cobrado pelo valor avulso da tabela do Anexo II. A gestante escolhe entre:</p>
 <ul><li>devolução em dinheiro do saldo, descontados 15% (quinze por cento) do próprio saldo, as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado, e, se tiver sido emitida nota fiscal, os impostos incidentes sobre ela. A devolução em dinheiro nunca é maior que a parte do valor pago que corresponde aos exames da modalidade ainda não realizados, na proporção dos valores avulsos do Anexo II; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, sem a retenção de 15%, descontadas apenas as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado.</li></ul>
-<p><b>c) Validade do crédito.</b> O crédito é pessoal e intransferível: pode ser usado somente pela própria gestante, em qualquer serviço da clínica, em até 12 (doze) meses. Após esse prazo, expira. Cada exame pago com crédito é abatido pelo valor avulso da tabela da clínica e pode ser realizado por qualquer médico da equipe.</p>
+<p><b>c) Validade do crédito.</b> O crédito é pessoal e intransferível: pode ser usado somente pela própria gestante, em qualquer serviço da clínica, em até 12 (doze) meses. Com o encerramento do acompanhamento, todo crédito ainda disponível passa a valer até 12 (doze) meses após a data do encerramento, quando esse prazo for mais longo. Após o prazo, expira. Cada exame pago com crédito é abatido pelo valor avulso da tabela da clínica e pode ser realizado por qualquer médico da equipe.</p>
 <p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
 <h2>8) Imprevistos na gestação</h2>
 <p><b>a) Perda gestacional ou óbito fetal.</b> A clínica entrará em contato com cuidado e sem pressa. Calcula-se o saldo: o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II; o ultrassom extra já utilizado não é descontado. A gestante escolhe entre:</p>

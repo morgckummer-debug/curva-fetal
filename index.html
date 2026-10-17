@@ -2891,6 +2891,7 @@ let _rcSel = null;
 let _rcFiltro = 'todas';
 let _rcAgOk = false, _rcFaltasOk = false;
 const _RC_AG_PRAZO_H = 48;
+const _RC_DEV_PRAZO_DIAS = 7; // devolução pendente ou aguardando escolha há mais que isso vira aviso vermelho
 const _RC_AG_RESP_H = 24; // paciente respondeu e ninguém marcou na agenda // sem resposta depois disso, a etiqueta fica vermelha
 let _rcMedica = false;
 
@@ -2999,6 +3000,20 @@ function _rcInfo(r) {
   const extrato = r.pagamento && r.pagamento.encerramento;
   const devSt = extrato && extrato.devolucao && extrato.devolucao.status;
   const devAberta = enc && (!extrato || devSt === 'pendente' || devSt === 'escolha');
+  // Desde quando a devolução está parada: a última mudança de status (recepcao_devolucao grava devolucao.em);
+  // 'escolha' nasce no encerramento, sem 'em' próprio, e conta da gravação do extrato.
+  let devDias = null;
+  if (enc && (devSt === 'pendente' || devSt === 'escolha')) {
+    const desde = extrato.devolucao.em || extrato.gravado_em || extrato.em;
+    if (desde) {
+      const t = /^\d{4}-\d{2}-\d{2}$/.test(desde) ? new Date(desde + 'T12:00:00') : new Date(desde);
+      if (!isNaN(t)) {
+        const dia = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        devDias = Math.round((new Date(_hojeISO() + 'T12:00:00') - new Date(dia + 'T12:00:00')) / 864e5);
+      }
+    }
+  }
+  const devParada = devDias != null && devDias > _RC_DEV_PRAZO_DIAS;
   // Agendamento: "sem contato" (nunca combinou datas), "aguardando" (mensagem enviada, sem confirmação) ou "agendado".
   const pendKeys = sit.slots.map((s, k) => ({ s, k: sit.plano.ex[k] })).filter(x => x.s.status === 'falta' || x.s.status === 'tolerancia').map(x => x.k);
   const ag = r.agendamento;
@@ -3012,7 +3027,7 @@ function _rcInfo(r) {
     if (agEstado === 'sem' && _rcAgendaPendencias(r).length) agEstado = 'travado';
     agUrgente = agEstado === 'sem' ? perto : agEstado === 'aguardando' ? (agHoras > _RC_AG_PRAZO_H || perto) : agEstado === 'respondeu' ? (agHoras > _RC_AG_RESP_H || perto) : false;
   }
-  return { r, sit, pag, agEstado, agHoras, agUrgente, pendKeys, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, semExtrato: enc && !extrato,
+  return { r, sit, pag, agEstado, agHoras, agUrgente, pendKeys, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, devSt, devDias, devParada, semExtrato: enc && !extrato,
     motivoEnc: enc ? (_RC_ENC_ROTULO[r.status] || r.status) : '',
     pendencia: !enc && (atrasadas.length > 0 || pag !== 'quitado') };
 }
@@ -3039,6 +3054,7 @@ function _rcPassaFiltro(i) {
     case 'combinar':   return i.agEstado === 'sem';
     case 'encerradas': return i.enc;
     case 'devolucao':  return i.devAberta;
+    case 'devparada':  return i.devParada;
     default:          return true;
   }
 }
@@ -3055,13 +3071,15 @@ function recepcaoFiltrar() {
   const lista = document.getElementById('rc-lista');
   if (!lista) return;
   const todosComEnc = _recepcaoDados.map(_rcInfo).filter(Boolean)
-    .sort((a, b) => (a.enc - b.enc) || ((_rcFiltro === 'aguardando' || _rcFiltro === 'respondeu') ? (b.agHoras || 0) - (a.agHoras || 0) : 0) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
+    .sort((a, b) => (_rcFiltro === 'devparada' ? (b.devDias || 0) - (a.devDias || 0) : 0) || (a.enc - b.enc) || ((_rcFiltro === 'aguardando' || _rcFiltro === 'respondeu') ? (b.agHoras || 0) - (a.agHoras || 0) : 0) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
   const todos = todosComEnc.filter(i => !i.enc); // KPIs contam só os ativos
   const nEnc = todosComEnc.length - todos.length;
 
+  const nDevParada = todosComEnc.filter(i => i.devParada).length;
   const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
   document.getElementById('rc-kpis').innerHTML =
     kpi('todas', todos.length, 'Acompanhamentos ativos') +
+    (nDevParada || _rcFiltro === 'devparada' ? kpi('devparada', nDevParada, `Devolução parada há mais de ${_RC_DEV_PRAZO_DIAS} dias`, 'rc-kpi--alerta') : '') +
     kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Aguardando pagamento', 'rc-kpi--alerta') +
     (_rcAgOk ? kpi('respondeu', todos.filter(i => i.agEstado === 'respondeu').length, 'Respondeu · agendar', todos.some(i => i.agEstado === 'respondeu') ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
       kpi('aguardando', todos.filter(i => i.agEstado === 'aguardando').length, 'Aguardando resposta' + (todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? ' · ' + todos.filter(i => i.agEstado === 'aguardando' && i.agUrgente).length + ' atrasada(s)' : ''), todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
@@ -3095,7 +3113,7 @@ function recepcaoFiltrar() {
       <div class="rc-it-corpo"><div class="rc-it-nome">${escapeHtml(r.nome)}</div>
         <div class="rc-it-sub"><b class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}" style="font-size:11px;padding:2px 9px;">${escapeHtml(i.sit.plano.nome)}</b>${i.sit.igHoje != null ? ' · IG ' + _acompSemDia(i.sit.igHoje) : ''} · ${i.sit.feitos}/${i.sit.slots.length} exames</div>
         <div class="rc-prog"><i style="width:${pct}%"></i></div></div>
-      <div class="rc-it-lado">${_rcAgPill(i)}${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill rc-pill--parcial">${i.semExtrato ? 'Sem extrato' : 'Devolução pendente'}</span>` : ''}<span class="rc-pill ${pg.cls}">${i.enc ? 'Plano ' + pg.rotulo.charAt(0).toLowerCase() + pg.rotulo.slice(1) : pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
+      <div class="rc-it-lado">${_rcAgPill(i)}${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill ${i.devParada ? 'rc-pill--alerta' : 'rc-pill--parcial'}">${i.semExtrato ? 'Sem extrato' : (i.devSt === 'escolha' ? 'Aguardando escolha' : 'Devolução pendente') + (i.devParada ? ' há ' + i.devDias + ' dias' : '')}</span>` : ''}<span class="rc-pill ${pg.cls}">${i.enc ? 'Plano ' + pg.rotulo.charAt(0).toLowerCase() + pg.rotulo.slice(1) : pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
     </div>`;
   }).join('');
   const sel = itens.find(i => i.r.gestacao_id === _rcSel);
@@ -4313,6 +4331,7 @@ function _rcEncerramentoHtml(r, i) {
   acoes += btn('Refazer registro', `recepcaoEncerrarAbrir(${gid}, true)`);
   return `<div class="rc-pag" style="margin-top:0;margin-bottom:14px;border-color:#c0392b;background:#fff7f7;">
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Encerramento e devolução</div><span class="rc-pill ${rot[0]}">${rot[1]}</span></div>
+    ${i.devParada ? `<div style="border-left:4px solid #c0392b;background:#fdecea;border-radius:10px;padding:8px 12px;margin:8px 0 10px;font-size:13.5px;color:#a02a1e;"><b>⚠ ${d.status === 'escolha' ? 'Aguardando a escolha da paciente' : 'Devolução ainda não feita'} há ${i.devDias} dias.</b> ${d.status === 'escolha' ? 'Entre em contato para ela escolher entre devolução e crédito.' : 'Faça a devolução e registre aqui.'}</div>` : ''}
     <table style="font-size:13.5px;border-collapse:collapse;margin-bottom:10px;"><tbody>
       ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
       ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}

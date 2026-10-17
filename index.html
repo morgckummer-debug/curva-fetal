@@ -5067,8 +5067,7 @@ function _adesaoProporcao(mod, igHoje) {
   plano.ex.forEach(k => {
     const def = ACOMP_EX[k], w = _ADESAO_PESO[k];
     tot += w;
-    // Morfo 1º tri: para efeito de valor, a entrada vale cheia até 14s0d (decisão da médica), embora a janela de agenda feche em 13s6d.
-    const fim = (k === 'm1' ? 14 * 7 : def.fim) + (def.tol || 0);
+    const fim = def.fim + (def.tol || 0);
     if (igHoje <= fim) { rest += w; faltam.push(k); } else perdidos.push(k);
   });
   const total = _ADESAO_PRECO[mod].total;
@@ -7669,8 +7668,12 @@ function _contratoHtml(d) {
     + `<tr><td>Até o parto</td><td>Canal direto pelo Telegram</td><td${colOk('essencial')}>—</td><td${colOk('premium')}><span class="ck">✓</span></td><td${colOk('gemelar_essencial')}>—</td><td${colOk('gemelar_dc')}><span class="ck">✓</span></td></tr>`
     + (parcial ? `<tr><td>Valor desta adesão</td><td>Proporcional aos exames restantes (${pr.faltam.length} de ${pr.faltam.length + pr.perdidos.length})</td><td colspan="4" class="sel">R$ ${fmt(valor)} (${d.parcelas}x de R$ ${fmt(valor / d.parcelas)})</td></tr>` : '')
     + `<tr><td>Valor</td><td>Valor da modalidade (cartão de crédito, em até 6x)</td><td${colOk('essencial')}>R$ 3.400,00</td><td${colOk('premium')}>R$ 4.200,00 (6x de R$ 700,00)</td><td${colOk('gemelar_essencial')}>R$ 6.800,00 (6x de R$ 1.133,33)</td><td${colOk('gemelar_dc')}>R$ 8.400,00 (6x de R$ 1.400,00)</td></tr>`;
-  const avulsos = [['Morfológico de 1º trimestre','500,00','400,00'],['Obstétrico com medida do colo','250,00','200,00'],['Morfológico de 2º trimestre + colo + Doppler','500,00','400,00'],['Doppler + perfil biofísico fetal','295,00','240,00'],['Morfológico de 3º trimestre + Doppler','500,00','400,00'],['Obstétrico com Doppler','270,00','220,00'],['Ultrassom extra (obstétrico simples)','230,00','180,00']]
-    .map(([e, v, vd]) => `<tr><td>${e}</td><td>R$ ${v}</td><td>R$ ${vd}</td></tr>`).join('');
+  // Desconto da gestante do acompanhamento nos exames pagos à parte: 10% no Essencial, 20% no Premium (Morgana, 2026-10-17).
+  const descPremium = (d.mod === 'premium' || d.mod === 'gemelar_dc');
+  const descPct = descPremium ? 20 : 10;
+  const colEss = descPremium ? '' : ' class="sel"', colPre = descPremium ? ' class="sel"' : '';
+  const avulsos = [['Morfológico de 1º trimestre','500,00','450,00','400,00'],['Obstétrico com medida do colo','250,00','225,00','200,00'],['Morfológico de 2º trimestre + colo + Doppler','500,00','450,00','400,00'],['Doppler + perfil biofísico fetal','295,00','265,00','240,00'],['Morfológico de 3º trimestre + Doppler','500,00','450,00','400,00'],['Obstétrico com Doppler','270,00','245,00','220,00'],['Ultrassom extra (obstétrico simples)','230,00','205,00','180,00']]
+    .map(([e, v, ve, vp]) => `<tr><td>${e}</td><td>R$ ${v}</td><td${colEss}>R$ ${ve}</td><td${colPre}>R$ ${vp}</td></tr>`).join('');
   const telCanal = (d.mod === 'premium' || d.mod === 'gemelar_dc');
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none';">
@@ -7719,7 +7722,7 @@ ${telCanal ? (d.telegramCodigo
 <p>No ato da adesão, a clínica organiza e agenda todos os ultrassons da modalidade, respeitando as janelas gestacionais. A adesão garante a reserva antecipada de agenda em todas essas janelas. Ajustes de data podem ocorrer por organização de agenda ou por correção da idade gestacional (por exemplo, datação pelo CCN), sempre dentro das janelas indicadas.</p>
 <p>A gestante pode remarcar um exame sem custo, dentro da mesma janela, avisando com pelo menos 48 horas de antecedência.</p>
 <p><b>Pedido médico.</b> Os exames do acompanhamento são agendados sem pedido médico, exceto o módulo de vigilância de CIUR (abaixo), que sempre exige pedido do obstetra assistente. Se a gestante tiver pedido do obstetra assistente, deve apresentá-lo no momento do exame.</p>
-<p><b>Prioridade e desconto.</b> Durante o acompanhamento, a gestante tem prioridade na agenda da clínica em todos os ultrassons, inclusive nos que não fazem parte da modalidade. Todo exame que ela pagar à parte (fora da modalidade, além dos extras, fora da janela ou na urgência) tem 20% (vinte por cento) de desconto sobre o valor avulso, com valores arredondados, conforme a coluna "Gestante do acompanhamento" do Anexo II. O desconto não altera os cálculos de saldo dos itens 7, 8 e 9, que usam o valor avulso cheio, nem o módulo de vigilância de CIUR, que tem valor próprio.</p>
+<p><b>Prioridade e desconto.</b> Durante o acompanhamento, a gestante tem prioridade na agenda da clínica em todos os ultrassons, inclusive nos que não fazem parte da modalidade. Todo exame que ela pagar à parte (fora da modalidade, além dos extras, fora da janela ou na urgência) tem desconto sobre o valor avulso, com valores arredondados: 10% (dez por cento) nas modalidades Essencial e Gemelar Essencial e 20% (vinte por cento) nas modalidades Premium e Gemelar Premium, conforme o Anexo II. Nesta adesão, o desconto é de <b>${descPct}%</b>. O desconto não altera os cálculos de saldo dos itens 7, 8 e 9, que usam o valor avulso cheio, nem o módulo de vigilância de CIUR, que tem valor próprio.</p>
 <p><b>Exame fora da janela.</b> Os Dopplers de 28, 32, 36 e 38 semanas têm tolerância de 7 (sete) dias depois do fim da janela. Passada a tolerância, o exame que não foi feito é cobrado pelo valor com desconto do Anexo II ou, se a gestante preferir, realizado em troca de um ultrassom extra da modalidade, sem custo.</p>
 <p><b>Vigilância de CIUR (Doppler semanal).</b> Se o médico obstetra assistente indicar Doppler semanal por restrição de crescimento fetal (CIUR), a gestante pode aderir ao módulo de vigilância: cada exame semanal custa R$ 230,00, pagos no dia do exame (valor menor que o avulso do Doppler com perfil biofísico, R$ 295,00). Na adesão, a gestante escolhe uma única vez: usar um ultrassom extra da modalidade no primeiro exame semanal e pagar os demais, ou guardar o extra e pagar todos. A série semanal exige pedido médico do obstetra assistente, apresentado no agendamento, e é agendada de uma só vez. O módulo não altera o valor da modalidade contratada.</p>
 <p><b>Recesso e ausências.</b> Há um recesso anual programado de até 15 dias em dezembro/janeiro, além de eventuais ausências curtas da Dra. Morgana Kummer. Se alguma janela coincidir com esses períodos, o exame será antecipado ou remarcado dentro do período ideal. Se isso não for possível, a gestante escolhe entre realizar o exame com outro médico da equipe ou converter o valor do exame em crédito.</p>
@@ -7763,8 +7766,8 @@ ${telCanal ? (d.telegramCodigo
 <table class="mod"><thead><tr><th>Janela</th><th>Exame</th><th${colOk('essencial')}>Essencial</th><th${colOk('premium')}>Premium</th><th${colOk('gemelar_essencial')}>Gemelar Essencial</th><th${colOk('gemelar_dc')}>Gemelar Premium</th></tr></thead><tbody>${linhasAx}</tbody></table>
 <p>Na gestação gemelar, cada exame avalia os dois fetos.</p>
 <h2>Anexo II — Valores avulsos de referência</h2>
-<p>Tabela vigente na data da adesão. Na gestação gemelar, os valores são em dobro. A coluna "Valor avulso" é a usada nos cálculos de saldo (itens 7, 8 e 9); a coluna "Gestante do acompanhamento" é o valor que a gestante paga por um exame feito à parte durante o acompanhamento (20% de desconto, arredondado; item 5).</p>
-<table><thead><tr><th>Exame</th><th>Valor avulso</th><th>Gestante do acompanhamento</th></tr></thead><tbody>${avulsos}</tbody></table>
+<p>Tabela vigente na data da adesão. Na gestação gemelar, os valores são em dobro. A coluna "Valor avulso" é a usada nos cálculos de saldo (itens 7, 8 e 9); as colunas "Essencial" e "Premium" são o valor que a gestante paga por um exame feito à parte durante o acompanhamento (10% e 20% de desconto, arredondados; item 5). As modalidades gemelares seguem a coluna da modalidade única correspondente, em dobro.</p>
+<table><thead><tr><th>Exame</th><th>Valor avulso</th><th${colEss}>Essencial (10%)</th><th${colPre}>Premium (20%)</th></tr></thead><tbody>${avulsos}</tbody></table>
 </body></html>`;
 }
 

@@ -2142,5 +2142,9 @@ peso (0 com peso, 5 sem, 8 com). Vale para exame externo e para exame com biomet
 Todo `wa.me` passa por `_waTel(raw)`: só dígitos, sem zero de discagem, `55` + DDD + número (10 ou 11 dígitos
 depois do 55), ou `''` se não fecha. "Enviar cópia à gestante" só usa o menu de compartilhar
 (`navigator.share`) em tela de toque (`pointer: coarse`, iPad/celular): no computador o Chrome também
-oferece esse menu, mas o WhatsApp Desktop recebe o arquivo sem conversa escolhida. Lá o arquivo é baixado
-e o `wa.me` abre na conversa dela, para anexar.
+oferece esse menu, mas o WhatsApp Desktop recebe o arquivo sem conversa escolhida. No computador a via
+em HTML vai como **link pessoal** (migração 042, aplicada por Claude em 2026-10-17): `recepcao_via_publicar`
+guarda uma cópia em `vias_gestante` e devolve um token; a mensagem do `wa.me` leva `via.html?t=<token>`,
+página sem login que lê só aquela via (`via_publica`) e tem "Salvar em PDF / imprimir". Assim ninguém escolhe
+arquivo à mão (risco de mandar o contrato de outra paciente, a preocupação da Morgana). PDF anexado, ou falha
+do RPC, cai no caminho antigo: baixa o arquivo e abre a conversa.

@@ -4139,10 +4139,28 @@ async function recepcaoContratoCopia(gid, i, btn) {
       btn.textContent = '📤 Enviar cópia à gestante';
       return;
     }
-    // Computador: baixa o arquivo e abre a conversa no WhatsApp para anexá-lo.
+    // Computador: o navegador não anexa arquivo no WhatsApp. Para HTML, a mensagem leva um link pessoal
+    // (via.html, migração 042) que abre só a via desta gestante; ninguém escolhe arquivo à mão.
+    const tel = _waTel(r.pagamento && r.pagamento.celular);
+    if (/\.html$/.test(file.name)) {
+      btn.disabled = true; btn.textContent = 'Preparando…';
+      const { data: tok, error } = await supabaseClient.rpc('recepcao_via_publicar', {
+        p_gestacao_id: gid, p_nome: termo ? 'Termo aditivo' : 'Contrato', p_html: await file.text(),
+      });
+      btn.disabled = false; btn.textContent = rotulo;
+      if (!error && tok) {
+        const link = new URL('via.html?t=' + tok, location.href).href;
+        const msg = `Olá, ${primeiro}! Segue a sua via do ${termo ? 'termo aditivo' : 'contrato'} do Acompanhamento Fetal MK, assinado hoje. 💜\nÉ só abrir o link (lá também dá para salvar em PDF):\n${link}`;
+        if (!tel) { prompt('O celular dela não está na ficha. Copie a mensagem e mande pelo WhatsApp ou e-mail:', msg); return; }
+        const w = window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
+        if (!w) prompt('O navegador bloqueou a abertura do WhatsApp. Copie a mensagem:', msg);
+        return;
+      }
+      console.error('[CurvaFetal] recepcao_via_publicar:', error);
+      // sem a 042 (ou falha): cai no caminho antigo, baixar o arquivo
+    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
-    const tel = _waTel(r.pagamento && r.pagamento.celular);
     if (tel) window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texto), '_blank');
     // O navegador não consegue anexar arquivo numa conversa do WhatsApp: só abrir a conversa e baixar o arquivo.
     alert('O arquivo "' + file.name + '" foi salvo na pasta Downloads. ' + (tel

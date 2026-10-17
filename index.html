@@ -4144,7 +4144,10 @@ async function recepcaoContratoCopia(gid, i, btn) {
     a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
     const tel = _waTel(r.pagamento && r.pagamento.celular);
     if (tel) window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texto), '_blank');
-    alert('O arquivo foi baixado. ' + (tel ? 'Anexe-o na conversa do WhatsApp que abriu.' : 'Anexe-o no WhatsApp ou e-mail da gestante (o celular dela não está na ficha).'));
+    // O navegador não consegue anexar arquivo numa conversa do WhatsApp: só abrir a conversa e baixar o arquivo.
+    alert('O arquivo "' + file.name + '" foi salvo na pasta Downloads. ' + (tel
+      ? 'Na conversa do WhatsApp que abriu, toque no clipe (📎) → Documento e escolha esse arquivo, ou arraste-o da pasta Downloads para a conversa.'
+      : 'O celular dela não está na ficha: anexe o arquivo no WhatsApp ou no e-mail da gestante.'));
   } catch (err) {
     btn.disabled = false; btn.textContent = rotulo;
     console.error('[CurvaFetal] cópia do contrato:', err);

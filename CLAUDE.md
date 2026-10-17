@@ -1868,6 +1868,11 @@ pagamento pode ser parcial. O estado é explícito.
   devolução feita" ou depois, no bloco de encerramento. Arquivo em `{dono}/{gestacao}/devolucao-…` (mesmo
   bucket), referência em `encerramento.devolucao.comprovante`. `recepcao_devolucao` ganhou
   `p_comprovante` (opcional; omitido mantém o anterior).
+- **Devolução parada (2026-10-17)**: devolução `pendente` ou `escolha` há mais de 7 dias
+  (`_RC_DEV_PRAZO_DIAS`) ganha etiqueta vermelha na lista ("… há N dias"), aviso no bloco de encerramento
+  e um KPI "Devolução parada há mais de 7 dias" (só aparece com alguma; filtro `devparada`, mais antigas
+  primeiro). Conta desde `devolucao.em` (gravado por `recepcao_devolucao` a cada mudança de status); a
+  `escolha` criada no encerramento não tem `em` e conta de `encerramento.gravado_em`. Sem migração.
 
 ## Conclusão do laudo guardada no exame (2026-10-12, migração 028)
 
@@ -2113,3 +2118,21 @@ pendência** (sem contrato ou via aguardando assinatura; pagamento não confirma
 recepção abre/fecha à mão, `_rcDobraEstado[gid:chave]` guarda (gravado no clique do `summary`, não no `toggle`,
 que também dispara no render) e vale enquanto a tela estiver aberta. O botão "📄 Contrato" do topo abre a seção.
 Todo o conteúdo (imagem 3D, comprovante, assinar, enviar cópia) continua dentro, com os mesmos ids.
+
+## Peso fetal só com 7 dias de intervalo (2026-10-17)
+
+Regra da médica: PFE e percentil só com pelo menos 7 dias (`_INTERVALO_MIN_PESO_DIAS`) desde o último exame
+do mesmo feto que **teve** peso. Abaixo disso o exame registra a biometria sem peso e sem percentil (nem de
+CA/CC/fêmur/DBP) e leva "biometria corresponde ao exame de dd/mm". A contagem é encadeada pelo último exame com
+peso (0 com peso, 5 sem, 8 com). Vale para exame externo e para exame com biometria parcial.
+- **Uma porta só:** `_pesoInfo(e)` lê os irmãos em `DB.exams` (mesma gestação, mesmo feto, fora da lixeira);
+  `_efwExame(e)` e `_bioExame(e, valor, refKey, ig)` substituíram `e.efw ?? calcEFW(...)` e `calcBiometria(e.x, ...)`
+  em todo o app. Código novo que pede peso ou percentil de um exame passa por elas.
+- `enrichExams` zera os z biométricos do exame sem peso (`_semPeso`, `_pesoRefId`, `_pesoRefData`): ele sai de
+  séries, tendências, cruzamento de quartis e velocidade (que continua exigindo 14 dias entre exames com peso).
+- **Diagnóstico:** `calcDiagnosticoFGR` lê os critérios de crescimento do exame de referência; o **Doppler é o do
+  exame novo** (decisão padrão: uma diástole zero que aparece em 3 dias tem de aparecer). `efwPercentil` da
+  impressão é o da referência e `biometriaRef` leva a data para a Conclusão (única e múltipla, uma linha só).
+- Gráficos de biometria/peso não plotam o exame sem peso (as uterinas sim). Selos "Atual" e o alerta da tela usam
+  `_exameComPeso()`. Histórico do PDF, Revisão e lista de exames mostram "sem peso (biometria corresponde...)".
+- O laudo obstétrico do editor (`laudos-dramorgana`) **não** tem essa regra: ele não vê exames anteriores.

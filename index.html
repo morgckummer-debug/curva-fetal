@@ -2596,10 +2596,14 @@ function _showResetPasswordForm() {
   _showLoginScreen();
 }
 
+// uid da sessão já carregada. O supabase-js reemite SIGNED_IN ao voltar o foco na aba;
+// sem isso cada reemissão refazia o login inteiro e tirava a Recepção da frente.
+let _sessaoUid = null;
+
 async function initAuth() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) { _hideLoginScreen(); _aposLogin(); } else _showLoginForm();
+    if (session) { _sessaoUid = session.user.id; _hideLoginScreen(); _aposLogin(); } else _showLoginForm();
   } catch (err) {
     // Se não der pra confirmar a sessão, assume deslogado (mais seguro que mostrar o app à toa).
     console.error('[CurvaFetal] initAuth:', err);
@@ -2622,8 +2626,16 @@ async function initAuth() {
       // cadastro que ainda não tinha terminado de gravar — por isso só o login e o
       // carregamento inicial da página disparam a busca completa.
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
+      // O supabase-js reemite SIGNED_IN toda vez que a aba volta ao foco (trocar de
+      // aba/app, travar e destravar o celular). Para a médica, _aposLogin() fecha a
+      // Recepção aberta pelo menu e recarrega tudo — a tela "sumia" sozinha para o
+      // app. Mesmo usuário já carregado = não é login novo. O INITIAL_SESSION, que chega
+      // ao registrar este listener, repetiria o _aposLogin() que o getSession() acima já fez.
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && _sessaoUid === session.user.id) return;
+      _sessaoUid = session.user.id;
       _aposLogin();
     } else {
+      _sessaoUid = null;
       _fecharRecepcao();
       _recepcaoDados = [];
       _showLoginForm();
@@ -2896,6 +2908,7 @@ let _rcSel = null;
 let _rcFiltro = 'todas';
 let _rcAgOk = false, _rcFaltasOk = false;
 const _RC_AG_PRAZO_H = 48;
+const _RC_DEV_PRAZO_DIAS = 7; // devolução pendente ou aguardando escolha há mais que isso vira aviso vermelho
 const _RC_AG_RESP_H = 24; // paciente respondeu e ninguém marcou na agenda // sem resposta depois disso, a etiqueta fica vermelha
 let _rcMedica = false;
 
@@ -3004,6 +3017,20 @@ function _rcInfo(r) {
   const extrato = r.pagamento && r.pagamento.encerramento;
   const devSt = extrato && extrato.devolucao && extrato.devolucao.status;
   const devAberta = enc && (!extrato || devSt === 'pendente' || devSt === 'escolha');
+  // Desde quando a devolução está parada: a última mudança de status (recepcao_devolucao grava devolucao.em);
+  // 'escolha' nasce no encerramento, sem 'em' próprio, e conta da gravação do extrato.
+  let devDias = null;
+  if (enc && (devSt === 'pendente' || devSt === 'escolha')) {
+    const desde = extrato.devolucao.em || extrato.gravado_em || extrato.em;
+    if (desde) {
+      const t = /^\d{4}-\d{2}-\d{2}$/.test(desde) ? new Date(desde + 'T12:00:00') : new Date(desde);
+      if (!isNaN(t)) {
+        const dia = new Date(t.getTime() - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        devDias = Math.round((new Date(_hojeISO() + 'T12:00:00') - new Date(dia + 'T12:00:00')) / 864e5);
+      }
+    }
+  }
+  const devParada = devDias != null && devDias > _RC_DEV_PRAZO_DIAS;
   // Agendamento: "sem contato" (nunca combinou datas), "aguardando" (mensagem enviada, sem confirmação) ou "agendado".
   const pendKeys = sit.slots.map(s => ({ s, k: s.key })).filter(x => x.s.status === 'falta' || x.s.status === 'tolerancia').map(x => x.k);
   const ag = r.agendamento;
@@ -3017,7 +3044,7 @@ function _rcInfo(r) {
     if (agEstado === 'sem' && _rcAgendaPendencias(r).length) agEstado = 'travado';
     agUrgente = agEstado === 'sem' ? perto : agEstado === 'aguardando' ? (agHoras > _RC_AG_PRAZO_H || perto) : agEstado === 'respondeu' ? (agHoras > _RC_AG_RESP_H || perto) : false;
   }
-  return { r, sit, pag, agEstado, agHoras, agUrgente, pendKeys, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, semExtrato: enc && !extrato,
+  return { r, sit, pag, agEstado, agHoras, agUrgente, pendKeys, atrasadas: enc ? [] : atrasadas, semana, enc, devAberta, devSt, devDias, devParada, semExtrato: enc && !extrato,
     motivoEnc: enc ? (_RC_ENC_ROTULO[r.status] || r.status) : '',
     pendencia: !enc && (atrasadas.length > 0 || pag !== 'quitado') };
 }
@@ -3044,6 +3071,7 @@ function _rcPassaFiltro(i) {
     case 'combinar':   return i.agEstado === 'sem';
     case 'encerradas': return i.enc;
     case 'devolucao':  return i.devAberta;
+    case 'devparada':  return i.devParada;
     default:          return true;
   }
 }
@@ -3060,13 +3088,15 @@ function recepcaoFiltrar() {
   const lista = document.getElementById('rc-lista');
   if (!lista) return;
   const todosComEnc = _recepcaoDados.map(_rcInfo).filter(Boolean)
-    .sort((a, b) => (a.enc - b.enc) || ((_rcFiltro === 'aguardando' || _rcFiltro === 'respondeu') ? (b.agHoras || 0) - (a.agHoras || 0) : 0) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
+    .sort((a, b) => (_rcFiltro === 'devparada' ? (b.devDias || 0) - (a.devDias || 0) : 0) || (a.enc - b.enc) || ((_rcFiltro === 'aguardando' || _rcFiltro === 'respondeu') ? (b.agHoras || 0) - (a.agHoras || 0) : 0) || String(a.r.nome).localeCompare(String(b.r.nome), 'pt-BR'));
   const todos = todosComEnc.filter(i => !i.enc); // KPIs contam só os ativos
   const nEnc = todosComEnc.length - todos.length;
 
+  const nDevParada = todosComEnc.filter(i => i.devParada).length;
   const kpi = (f, n, rot, cls) => `<button type="button" class="rc-kpi ${cls || ''} ${_rcFiltro === f ? 'rc-on' : ''}" onclick="recepcaoFiltro('${f}')"><b>${n}</b><span>${rot}</span></button>`;
   document.getElementById('rc-kpis').innerHTML =
     kpi('todas', todos.length, 'Acompanhamentos ativos') +
+    (nDevParada || _rcFiltro === 'devparada' ? kpi('devparada', nDevParada, `Devolução parada há mais de ${_RC_DEV_PRAZO_DIAS} dias`, 'rc-kpi--alerta') : '') +
     kpi('pagamento', todos.filter(i => i.pag !== 'quitado').length, 'Aguardando pagamento', 'rc-kpi--alerta') +
     (_rcAgOk ? kpi('respondeu', todos.filter(i => i.agEstado === 'respondeu').length, 'Respondeu · agendar', todos.some(i => i.agEstado === 'respondeu') ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
       kpi('aguardando', todos.filter(i => i.agEstado === 'aguardando').length, 'Aguardando resposta' + (todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? ' · ' + todos.filter(i => i.agEstado === 'aguardando' && i.agUrgente).length + ' atrasada(s)' : ''), todos.some(i => i.agEstado === 'aguardando' && i.agUrgente) ? 'rc-kpi--alerta' : 'rc-kpi--atencao') +
@@ -3100,7 +3130,7 @@ function recepcaoFiltrar() {
       <div class="rc-it-corpo"><div class="rc-it-nome">${escapeHtml(r.nome)}</div>
         <div class="rc-it-sub"><b class="rc-plano rc-plano--${escapeHtml(r.acompanhamento || '')}" style="font-size:11px;padding:2px 9px;">${escapeHtml(i.sit.plano.nome)}</b>${i.sit.igHoje != null ? ' · IG ' + _acompSemDia(i.sit.igHoje) : ''} · ${i.sit.feitos}/${i.sit.slots.length} exames</div>
         <div class="rc-prog"><i style="width:${pct}%"></i></div></div>
-      <div class="rc-it-lado">${_rcAgPill(i)}${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill rc-pill--parcial">${i.semExtrato ? 'Sem extrato' : 'Devolução pendente'}</span>` : ''}<span class="rc-pill ${pg.cls}">${i.enc ? 'Plano ' + pg.rotulo.charAt(0).toLowerCase() + pg.rotulo.slice(1) : pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
+      <div class="rc-it-lado">${_rcAgPill(i)}${i.enc ? `<span class="rc-pill rc-pill--alerta">Encerrado · ${escapeHtml(i.motivoEnc)}</span>` : ''}${i.devAberta ? `<span class="rc-pill ${i.devParada ? 'rc-pill--alerta' : 'rc-pill--parcial'}">${i.semExtrato ? 'Sem extrato' : (i.devSt === 'escolha' ? 'Aguardando escolha' : 'Devolução pendente') + (i.devParada ? ' há ' + i.devDias + ' dias' : '')}</span>` : ''}<span class="rc-pill ${pg.cls}">${i.enc ? 'Plano ' + pg.rotulo.charAt(0).toLowerCase() + pg.rotulo.slice(1) : pg.rotulo}</span>${i.atrasadas.length ? '<span class="rc-pill rc-pill--alerta">Janela vencida</span>' : ''}</div>
     </div>`;
   }).join('');
   const sel = itens.find(i => i.r.gestacao_id === _rcSel);
@@ -4318,6 +4348,7 @@ function _rcEncerramentoHtml(r, i) {
   acoes += btn('Refazer registro', `recepcaoEncerrarAbrir(${gid}, true)`);
   return `<div class="rc-pag" style="margin-top:0;margin-bottom:14px;border-color:#c0392b;background:#fff7f7;">
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Encerramento e devolução</div><span class="rc-pill ${rot[0]}">${rot[1]}</span></div>
+    ${i.devParada ? `<div style="border-left:4px solid #c0392b;background:#fdecea;border-radius:10px;padding:8px 12px;margin:8px 0 10px;font-size:13.5px;color:#a02a1e;"><b>⚠ ${d.status === 'escolha' ? 'Aguardando a escolha da paciente' : 'Devolução ainda não feita'} há ${i.devDias} dias.</b> ${d.status === 'escolha' ? 'Entre em contato para ela escolher entre devolução e crédito.' : 'Faça a devolução e registre aqui.'}</div>` : ''}
     <table style="font-size:13.5px;border-collapse:collapse;margin-bottom:10px;"><tbody>
       ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
       ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}
@@ -8320,6 +8351,106 @@ function calcEFW(dbp_mm, cc_mm, ca_mm, fl_mm) {
   return Math.round(Math.pow(10, log10efw));
 }
 
+// ── Peso fetal só com 7 dias de intervalo (regra da médica, 2026-10-17) ──
+// O PFE e o percentil dele só são calculados quando há pelo menos 7 dias desde
+// o último exame do mesmo feto que TEVE peso calculado. Abaixo disso a medida
+// repetida mede o erro do método (~10-15% no PFE), não crescimento: um exame de
+// 4 dias depois com o peso "caindo" 10% vira queda de percentil falsa e, com o
+// Doppler normal, até um PIG ou um RCIU que não existem. Esses exames continuam
+// registrando a biometria (DBP, CC, CA, fêmur), sem peso e sem percentil, e
+// levam a observação "biometria corresponde ao exame de dd/mm" — o exame cujo
+// peso ainda vale.
+//
+// A contagem é encadeada pelo último exame COM peso, não pelo anterior imediato:
+// exame com peso no dia 0, sem peso no dia 5, o do dia 8 volta a ter peso (8 dias
+// desde o dia 0). Vale para exame externo também (o peso digitado do laudo de
+// fora entra na mesma régua). A velocidade de crescimento continua exigindo 14
+// dias entre exames com peso (_INTERVALO_MIN_CRESCIMENTO_DIAS).
+//
+// Lê os irmãos direto de DB.exams (mesma gestação, mesmo feto, fora da lixeira),
+// para valer igual em todo lugar que pergunta o peso de um exame — tela, gráficos,
+// Conclusão e PDF — sem cada chamador ter de passar a lista certa. Um exame ainda
+// não salvo (prévia do modal) entra na conta pela data dele.
+const _INTERVALO_MIN_PESO_DIAS = 7;
+
+function _diasEntreDatas(isoA, isoB) {
+  const a = Date.parse(String(isoA).slice(0, 10) + 'T00:00:00Z');
+  const b = Date.parse(String(isoB).slice(0, 10) + 'T00:00:00Z');
+  return Math.round((b - a) / 86400000);
+}
+
+function _pesoInfo(e) {
+  const livre = { semPeso: false, ref: null, refData: null };
+  if (!e || !e.data_exame || e.gestacao_id == null) return livre;
+  const temPesoBase = x => x.efw != null || calcEFW(x.dbp, x.cc, x.ca, x.femur) != null;
+  // O exame em questão entra na regra se tiver QUALQUER biometria: uma CA
+  // isolada 3 dias depois teria o mesmo erro de medida e o mesmo poder de
+  // inventar queda de percentil. Já para reiniciar a contagem só vale exame
+  // que de fato teve peso.
+  const temBio = x => x.efw != null || x.dbp || x.cc || x.ca || x.femur;
+  if (!temBio(e)) return livre;
+  const feto = e.feto || '';
+  const lista = (typeof DB !== 'undefined' && DB && DB.exams ? DB.exams : [])
+    .filter(x => x !== e && (e.id == null || x.id !== e.id) && x.gestacao_id === e.gestacao_id
+              && (x.feto || '') === feto && !x.excluido_em && x.data_exame);
+  lista.push(e);
+  lista.sort((a, b) => a.data_exame.localeCompare(b.data_exame)
+                    || ((a.id ?? Infinity) - (b.id ?? Infinity)));
+  let ultimoComPeso = null;
+  for (const x of lista) {
+    if (x !== e && !temPesoBase(x)) continue;
+    const semPeso = ultimoComPeso
+      && _diasEntreDatas(ultimoComPeso.data_exame, x.data_exame) < _INTERVALO_MIN_PESO_DIAS;
+    if (x === e) {
+      return semPeso
+        ? { semPeso: true, ref: ultimoComPeso, refData: _dataCurtaBR(ultimoComPeso.data_exame) }
+        : livre;
+    }
+    if (!semPeso && temPesoBase(x)) ultimoComPeso = x;
+  }
+  return livre;
+}
+
+// PFE do exame respeitando a regra dos 7 dias: null no exame sem peso. Todo
+// lugar que antes fazia `e.efw ?? calcEFW(...)` passa por aqui.
+function _efwExame(e) {
+  if (!e) return null;
+  if (_pesoInfo(e).semPeso) return null;
+  return e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+}
+
+// Percentil de biometria (CA/CC/fêmur/DBP) respeitando a regra dos 7 dias:
+// null no exame sem peso, que registra a medida sem percentil.
+function _bioExame(e, valor, refKey, igDays) {
+  if (e && _pesoInfo(e).semPeso) return null;
+  return calcBiometria(valor, refKey, igDays);
+}
+
+function _dataCurtaBR(iso) {
+  const [, m, d] = String(iso).slice(0, 10).split('-');
+  return d && m ? `${d}/${m}` : '';
+}
+
+// A observação, igual em tela, Conclusão e PDF.
+function _obsBiometriaRefTxt(refData) {
+  return refData ? `biometria corresponde ao exame de ${refData}` : '';
+}
+// Texto curto para a célula de PFE de um exame sem peso.
+function _semPesoCelTxt(e) {
+  const i = _pesoInfo(e);
+  return i.semPeso ? `sem peso (${_obsBiometriaRefTxt(i.refData)})` : null;
+}
+// O exame cuja biometria vale para `e`: o de referência, se `e` ficou sem peso
+// pela regra dos 7 dias; o próprio `e`, caso contrário. Para os selos de
+// "Atual: Pxx", que devem mostrar o percentil que continua valendo.
+function _exameComPeso(e) {
+  const i = _pesoInfo(e);
+  return i.semPeso && i.ref ? i.ref : e;
+}
+function _obsBiometriaRefLinha(refData) {
+  return refData ? `Biometria corresponde ao exame de ${refData}.` : '';
+}
+
 // ═══════════════════════════════════════════════════════════
 // PESO FETAL ESTIMADO (PFE) — percentil combinado Hadlock + INTERGROWTH-21st
 // Abaixo de 30 sem: Hadlock (1991) puro. A partir de 35 sem: INTERGROWTH-21st
@@ -8857,14 +8988,27 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   const z        = lastExam._z || {};
   const multipla = _ehMultipla(gestacao);
 
+  // Exame sem peso pela regra dos 7 dias (_pesoInfo): a biometria dele não
+  // gera diagnóstico novo. Os critérios de CRESCIMENTO (CA/PFE, cruzamento de
+  // quartis) vêm do exame de referência — o último com peso, cujo diagnóstico
+  // continua valendo —; o Doppler, que não sofre do erro de medida da
+  // biometria repetida, continua sendo o deste exame (uma diástole zero que
+  // aparece em 3 dias precisa aparecer).
+  const refBio = lastExam._semPeso && allExams
+    ? allExams.find(e => e.id === lastExam._pesoRefId && e._igDays != null) || null
+    : null;
+  const zb     = lastExam._semPeso ? (refBio?._z || {}) : z;
+  const igBio  = refBio ? refBio._igDays : igDays;
+  const baseBio = refBio || lastExam;
+
   // z-score thresholds (distribuição normal)
   // P3 ≈ z < -1.88 | P10 ≈ z < -1.28 | P90 ≈ z > 1.28 | P95 ≈ z > 1.645
-  const caBelowP3   = z.ca  != null && z.ca  < -1.88;
-  const caBelowP10  = z.ca  != null && z.ca  < -1.28;
-  const caAboveP90  = z.ca  != null && z.ca  >  1.28;
-  const efwBelowP3  = z.efw != null && z.efw < -1.88;
-  const efwBelowP10 = z.efw != null && z.efw < -1.28;
-  const efwAboveP90 = z.efw != null && z.efw >  1.28;
+  const caBelowP3   = zb.ca  != null && zb.ca  < -1.88;
+  const caBelowP10  = zb.ca  != null && zb.ca  < -1.28;
+  const caAboveP90  = zb.ca  != null && zb.ca  >  1.28;
+  const efwBelowP3  = zb.efw != null && zb.efw < -1.88;
+  const efwBelowP10 = zb.efw != null && zb.efw < -1.28;
+  const efwAboveP90 = zb.efw != null && zb.efw >  1.28;
 
   // AU: z.au positivo = IP alto = ruim
   const auAboveP95  = z.au  != null && z.au  >  1.645;
@@ -8884,11 +9028,11 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   // mais antigo que respeite o intervalo (não com o anterior imediato): a
   // queda de percentil que o critério procura é a da trajetória inteira.
   let cruzamentoQuartis = false;
-  if (allExams && allExams.length >= 2 && z.ca != null) {
-    const base = allExams.find(e => e !== lastExam && e._z?.ca != null && e._igDays != null
-                                    && (igDays - e._igDays) >= _INTERVALO_MIN_CRESCIMENTO_DIAS);
+  if (allExams && allExams.length >= 2 && zb.ca != null) {
+    const base = allExams.find(e => e !== lastExam && e !== baseBio && e._z?.ca != null && e._igDays != null
+                                    && (igBio - e._igDays) >= _INTERVALO_MIN_CRESCIMENTO_DIAS);
     // 2 quartis ≈ 1.35 unidades de z (IQR = 1.349)
-    if (base && base._z.ca > z.ca) cruzamentoQuartis = (base._z.ca - z.ca) >= 1.35;
+    if (base && base._z.ca > zb.ca) cruzamentoQuartis = (base._z.ca - zb.ca) >= 1.35;
   }
 
   // Diástole zero (AEDF) — REDF implica ausência de diástole também, conta junto
@@ -8904,7 +9048,7 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
   // "CA/PFE"), mas sozinha NÃO nomeia PIG — a CA isolada tem erro de medida
   // maior que a PFE. O achado não some: vira nota (_notasDiagnostico) e item
   // próprio em _critItemsDiagnostico.
-  const caIsoladaP10 = caBelowP10 && z.efw != null && !efwBelowP10;
+  const caIsoladaP10 = caBelowP10 && zb.efw != null && !efwBelowP10;
 
   // ── Diagnóstico Delphi ────────────────────────────────────
   let diagnostico = 'adequado';
@@ -9008,8 +9152,11 @@ function calcDiagnosticoFGR(lastExam, allExams, gestacao) {
     isPrecoce,
     gaW,
     trajetoria: _trajetoriaPIG(allExams, igDays),
+    // Data (dd/mm) do exame cuja biometria vale para este, quando este não teve
+    // peso pela regra dos 7 dias; null no exame com peso.
+    biometriaRefData: lastExam._semPeso ? (lastExam._pesoRefData || null) : null,
     criterios: {
-      caBelowP3, caBelowP10, caAboveP90, caIsoladaP10, caIsoladaP90: caAboveP90 && z.efw != null && !efwAboveP90,
+      caBelowP3, caBelowP10, caAboveP90, caIsoladaP10, caIsoladaP90: caAboveP90 && zb.efw != null && !efwAboveP90,
       efwBelowP3, efwBelowP10, efwAboveP90,
       auAboveP95, utAboveP95, cprBelowP5,
       acmBelowP5: acmBelowP5 && !multipla,
@@ -9125,8 +9272,13 @@ const _VELOCIDADE_TOLERANCIA_PERCENTIL = 20;
 // tendo base para dizer nada, e quem chama não imprime frase nenhuma.
 function _velocidadeCrescimento(enriched) {
   if (!enriched || enriched.length < 2) return null;
-  const ultimo = enriched[enriched.length - 1];
-  if (ultimo._z?.efw == null || ultimo._igDays == null) return null;
+  // O último exame COM peso: um exame sem peso pela regra dos 7 dias
+  // (_pesoInfo) não tem z de PFE e herda a leitura do exame de referência.
+  const ultimoBruto = enriched[enriched.length - 1];
+  const ultimo = ultimoBruto._semPeso
+    ? [...enriched].reverse().find(e => e._z?.efw != null && e._igDays != null)
+    : ultimoBruto;
+  if (!ultimo || ultimo._z?.efw == null || ultimo._igDays == null) return null;
 
   const base = enriched.find(e => e !== ultimo && e._z?.efw != null && e._igDays != null
                                  && (ultimo._igDays - e._igDays) >= _INTERVALO_MIN_CRESCIMENTO_DIAS);
@@ -10587,12 +10739,12 @@ function renderPercentilePanelForExam(gestacao, e) {
 
   const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
   const igStr  = igToStr(igDays);
-  const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+  const efw    = _efwExame(e);
 
-  const caCalc  = calcBiometria(e.ca,    'ca',  igDays);
-  const ccCalc  = calcBiometria(e.cc,    'cc',  igDays);
-  const flCalc  = calcBiometria(e.femur, 'fl',  igDays);
-  const dbpCalc = calcBiometria(e.dbp,   'dbp', igDays);
+  const caCalc  = _bioExame(e, e.ca,    'ca',  igDays);
+  const ccCalc  = _bioExame(e, e.cc,    'cc',  igDays);
+  const flCalc  = _bioExame(e, e.femur, 'fl',  igDays);
+  const dbpCalc = _bioExame(e, e.dbp,   'dbp', igDays);
   const efwCalc = calcEFWPercentile(efw, igDays);
 
   const rows = [
@@ -10610,6 +10762,7 @@ function renderPercentilePanelForExam(gestacao, e) {
         <span class="pct-panel-title">Percentis — ${formatDateBR(e.data_exame)}</span>
         <span class="pct-panel-ig">IG ${igStr}</span>
       </div>
+      ${(() => { const i = _pesoInfo(e); return i.semPeso ? `<div style="font-size:12px;color:var(--text-muted);margin:4px 0 8px;">Sem peso e sem percentil: menos de ${_INTERVALO_MIN_PESO_DIAS} dias desde o último exame com peso. A ${escapeHtml(_obsBiometriaRefTxt(i.refData))}.</div>` : ''; })()}
       ${rows}
       ${dopplerRows ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-soft);">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-light);margin-bottom:8px;">Dopplervelocimetria</div>
@@ -10629,6 +10782,13 @@ function _exameBcfAlertaHtml(exams) {
   if (!fora.length) return '';
   const txt = fora.map(e => `${e.fc}${e.feto ? ' (F' + numeroDoFeto(e.feto) + ')' : ''}`).join(' · ');
   return `<span class="exam-row-alert-dot" title="BCF fora de ${_BCF_ALERTA_MIN}–${_BCF_ALERTA_MAX} bpm">⚠ BCF ${txt}</span>`;
+}
+
+// Selo "Sem peso" (regra dos 7 dias) na linha do exame/visita.
+function _exameSemPesoBadgeHtml(exams) {
+  const i = exams.map(_pesoInfo).find(x => x.semPeso);
+  if (!i) return '';
+  return `<span class="exam-row-ext-badge" title="Menos de ${_INTERVALO_MIN_PESO_DIAS} dias desde o último exame com peso: biometria registrada sem peso e sem percentil">Sem peso · ${escapeHtml(_obsBiometriaRefTxt(i.refData))}</span>`;
 }
 
 function _exameExternoBadgeHtml(exams) {
@@ -10660,8 +10820,8 @@ function renderExamList(gestacao, exams) {
   Object.values(porFeto).forEach(seq => {
     seq.forEach((e, idx) => {
       const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-      const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
-      const caCalc = calcBiometria(e.ca, 'ca', igDays);
+      const efw    = _efwExame(e);
+      const caCalc = _bioExame(e, e.ca, 'ca', igDays);
       const efwCalc = calcEFWPercentile(efw, igDays);
       const caP     = caCalc  ? caCalc.percentil  : null;
       const p3ca    = getCAP3(igDays);
@@ -10670,7 +10830,7 @@ function renderExamList(gestacao, exams) {
       if (!hasAlert && caP != null && idx > 0) {
         const prev    = seq[idx - 1];
         const prevIg  = prev.ig_dias_manual ?? calcIgDays(gestacao, prev.data_exame);
-        const prevCaC = calcBiometria(prev.ca, 'ca', prevIg);
+        const prevCaC = _bioExame(prev, prev.ca, 'ca', prevIg);
         if (prevCaC && caP < 10 && (prevCaC.percentil - caP) >= 30) hasAlert = true;
       }
       if (hasAlert) alertIds.add(e.id);
@@ -10699,6 +10859,7 @@ function renderExamList(gestacao, exams) {
           <span class="exam-row-sep">•</span>
           <span class="exam-row-ig">${igToStr(igDays)}</span>
           ${_exameExternoBadgeHtml([e])}
+          ${_exameSemPesoBadgeHtml([e])}
           ${_exameBcfAlertaHtml([e])}
           ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
           ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
@@ -10733,6 +10894,7 @@ function renderExamList(gestacao, exams) {
         <span class="exam-row-sep">•</span>
         <span class="exam-row-ig">${igToStr(igDays)}</span>
         ${_exameExternoBadgeHtml(examsDoDia)}
+        ${_exameSemPesoBadgeHtml(examsDoDia)}
         ${_exameBcfAlertaHtml(examsDoDia)}
         ${hasAlert ? `<span class="exam-row-alert-dot">⚠</span>` : ''}
         ${isLast ? `<span class="exam-row-last-badge">Último</span>` : ''}
@@ -10768,10 +10930,10 @@ function renderAlerts(gestacao, exams) {
   if (!container) return;
   if (!gestacao || exams.length === 0) { container.innerHTML = ''; return; }
 
-  const last    = exams[exams.length - 1];
+  const last    = _exameComPeso(exams[exams.length - 1]); // regra dos 7 dias
   const igDays  = last.ig_dias_manual ?? calcIgDays(gestacao, last.data_exame);
-  const efw     = last.efw ?? calcEFW(last.dbp, last.cc, last.ca, last.femur);
-  const caCalc  = calcBiometria(last.ca, 'ca', igDays);
+  const efw     = _efwExame(last);
+  const caCalc  = _bioExame(last, last.ca, 'ca', igDays);
   const efwCalc = calcEFWPercentile(efw, igDays);
   const caP     = caCalc  ? caCalc.percentil  : null;
   const efwP    = efwCalc ? efwCalc.percentil : null;
@@ -10833,16 +10995,17 @@ function buildRefCurve(biometria, wMin, wMax) {
 }
 
 function patientHasAlert(gestacao, exams, bioKey, refKey) {
+  exams = exams.filter(e => !_pesoInfo(e).semPeso); // regra dos 7 dias
   for (let i = 0; i < exams.length; i++) {
     const e = exams[i];
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    const calc = calcBiometria(e[bioKey], refKey, igDays);
+    const calc = _bioExame(e, e[bioKey], refKey, igDays);
     if (!calc) continue;
     if (calc.percentil < 10) return true;
     if (i > 0) {
       const prev = exams[i - 1];
       const prevIg = prev.ig_dias_manual ?? calcIgDays(gestacao, prev.data_exame);
-      const prevCalc = calcBiometria(prev[bioKey], refKey, prevIg);
+      const prevCalc = _bioExame(prev, prev[bioKey], refKey, prevIg);
       if (prevCalc && (prevCalc.percentil - calc.percentil) >= 30) return true;
     }
   }
@@ -10850,17 +11013,18 @@ function patientHasAlert(gestacao, exams, bioKey, refKey) {
 }
 
 function patientEFWHasAlert(gestacao, exams) {
+  exams = exams.filter(e => !_pesoInfo(e).semPeso); // regra dos 7 dias
   for (let i = 0; i < exams.length; i++) {
     const e = exams[i];
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    const efw  = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+    const efw  = _efwExame(e);
     const calc = calcEFWPercentile(efw, igDays);
     if (!calc) continue;
     if (calc.percentil < 10) return true;
     if (i > 0) {
       const prev    = exams[i - 1];
       const prevIg  = prev.ig_dias_manual ?? calcIgDays(gestacao, prev.data_exame);
-      const prevEfw = prev.efw ?? calcEFW(prev.dbp, prev.cc, prev.ca, prev.femur);
+      const prevEfw = _efwExame(prev);
       const prevCalc = calcEFWPercentile(prevEfw, prevIg);
       if (prevCalc && (prevCalc.percentil - calc.percentil) >= 30) return true;
     }
@@ -11146,6 +11310,7 @@ function buildChart(canvasId, gestacao, exams, bioKey, refKey, yLabel, isGrams) 
     if (igDays < 99) return; // biometria apenas a partir de 14s1d (REF_TABLES cobre desde a 14ª)
     const val = e[bioKey];
     if (!val) return;
+    if (_pesoInfo(e).semPeso) return; // regra dos 7 dias: sem percentil, fora da curva
     const calc = calcBiometria(val, refKey, igDays);
     const p = calc ? calc.percentil : null;
     let color = '#3D2352';
@@ -11180,7 +11345,7 @@ function buildEFWChart(canvasId, gestacao, exams) {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     if (!igDays) return;
     if (igDays < 99) return; // EFW apenas a partir de 14s1d — não é pra calcular peso por Hadlock antes disso
-    const efw = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+    const efw = _efwExame(e);
     if (!efw) return;
     const calc = calcEFWPercentile(efw, igDays);
     const p = calc ? calc.percentil : null;
@@ -11223,7 +11388,7 @@ function updateEFWNote(gestacao, exams) {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     // Antes de 15 semanas o gráfico não plota peso de propósito — não é omissão a explicar.
     if (!igDays || igDays < 99) return;
-    if (e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur)) return;
+    if (_efwExame(e)) return;
     const faltam = _biometriaFaltante(e);
     // Exame sem biometria nenhuma (uma visita só de Doppler, por exemplo) não é
     // biometria pela metade: avisar ali seria ruído.
@@ -11714,7 +11879,7 @@ function _discrepanciaResumoGenerica(gestacao, exams, extrator, denominador) {
 }
 
 function _discrepanciaPesoResumo(gestacao, allExams) {
-  const r = _discrepanciaResumoGenerica(gestacao, allExams, e => e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur), 'maior');
+  const r = _discrepanciaResumoGenerica(gestacao, allExams, e => _efwExame(e), 'maior');
   if (!r) return null;
   r.severidade = _discrepanciaSeveridade(r.pct);
   return r;
@@ -12192,6 +12357,9 @@ function renderCharts(gestacao, exams, allExams) {
 }
 
 function updateChartHeaders(gestacao, exams) {
+  // Regra dos 7 dias: o "Atual" do card é o do último exame com peso (a
+  // biometria do exame sem peso corresponde a ele).
+  exams = exams.filter(e => !_pesoInfo(e).semPeso);
   if (exams.length === 0) return;
   const last   = exams[exams.length - 1];
   const igDays = last.ig_dias_manual ?? calcIgDays(gestacao, last.data_exame);
@@ -12220,7 +12388,7 @@ function updateChartHeaders(gestacao, exams) {
       const prev   = exams[exams.length - 2];
       const prevIg = prev.ig_dias_manual ?? calcIgDays(gestacao, prev.data_exame);
       const prevVal = refKey === 'efw'
-        ? (prev.efw ?? calcEFW(prev.dbp, prev.cc, prev.ca, prev.femur))
+        ? (_efwExame(prev))
         : prev[refKey === 'fl' ? 'femur' : refKey];
       if (prevVal && prevIg) {
         const prevCalc = refKey === 'efw'
@@ -12233,7 +12401,7 @@ function updateChartHeaders(gestacao, exams) {
     subEl.textContent = sub;
   }
 
-  const efw = last.efw ?? calcEFW(last.dbp, last.cc, last.ca, last.femur);
+  const efw = _efwExame(last);
   setHeader('pct-cc',  'sub-cc',  last.cc,    'cc',  false);
   setHeader('pct-ca',  'sub-ca',  last.ca,    'ca',  false);
   setHeader('pct-dbp', 'sub-dbp', last.dbp,   'dbp', false);
@@ -12253,13 +12421,20 @@ function enrichExams(gestacao, rawExams) {
   return sorted.map(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
     const gaW    = igDays ? igDays / 7 : null;
-    const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+    // Regra dos 7 dias (_pesoInfo): exame sem peso também não tem percentil de
+    // biometria — os z ficam null, e com isso ele não entra em nenhuma série
+    // (extractSeries), tendência, cruzamento de quartis nem velocidade. O
+    // diagnóstico de crescimento desse exame lê a biometria do exame de
+    // referência (ver calcDiagnosticoFGR).
+    const pInfo  = _pesoInfo(e);
+    const bio    = !pInfo.semPeso;
+    const efw    = bio ? (e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur)) : null;
 
     // Z-scores biométricos
-    const zCA  = igDays && e.ca    ? (calcBiometria(e.ca,    'ca',  igDays) || {}).zscore ?? null : null;
-    const zCC  = igDays && e.cc    ? (calcBiometria(e.cc,    'cc',  igDays) || {}).zscore ?? null : null;
-    const zFL  = igDays && e.femur ? (calcBiometria(e.femur, 'fl',  igDays) || {}).zscore ?? null : null;
-    const zDBP = igDays && e.dbp   ? (calcBiometria(e.dbp,   'dbp', igDays) || {}).zscore ?? null : null;
+    const zCA  = bio && igDays && e.ca    ? (calcBiometria(e.ca,    'ca',  igDays) || {}).zscore ?? null : null;
+    const zCC  = bio && igDays && e.cc    ? (calcBiometria(e.cc,    'cc',  igDays) || {}).zscore ?? null : null;
+    const zFL  = bio && igDays && e.femur ? (calcBiometria(e.femur, 'fl',  igDays) || {}).zscore ?? null : null;
+    const zDBP = bio && igDays && e.dbp   ? (calcBiometria(e.dbp,   'dbp', igDays) || {}).zscore ?? null : null;
     const zEFW = igDays && efw     ? (calcEFWPercentile(efw, igDays) || {}).zscore ?? null : null;
 
     // Doppler z-scores via modelo linear — AU e ACM têm distribuição conhecida
@@ -12286,6 +12461,9 @@ function enrichExams(gestacao, rawExams) {
       _igDays: igDays,
       _gaW: gaW,
       _efw: efw,
+      _semPeso: pInfo.semPeso,
+      _pesoRefId: pInfo.ref ? pInfo.ref.id : null,
+      _pesoRefData: pInfo.refData,
       _z: { ca: zCA, cc: zCC, fl: zFL, dbp: zDBP, efw: zEFW, au: zAU, acm: zACM, cpr: zCPR, ut: zUT },
       _cprVal: cprVal,
       _utMean: utMean,
@@ -13117,7 +13295,7 @@ function _buildSummaryHtml(gestacao, exams, feto) {
   ].filter(Boolean).join('') || `<p style="color:var(--text-muted);font-size:13px;">Sem biometria registrada.</p>`;
 
   // ── Bloco 2: Peso Fetal ───────────────────────────────────
-  const efwVal = last._efw || (last.dbp && last.cc && last.ca && last.femur ? calcEFW(last.dbp, last.cc, last.ca, last.femur) : null);
+  const efwVal = last._efw ?? null;
   const efwPct = z.efw != null ? _zToPercentile(z.efw) : null;
   const efwP50 = getEFWP50(igDays);
   let pesoMsg  = '';
@@ -13135,7 +13313,9 @@ function _buildSummaryHtml(gestacao, exams, feto) {
         ${efwP50 ? `<span style="font-size:12px;color:var(--text-muted);">P50 esperado: ${Math.round(efwP50)}g</span>` : ''}
       </div>
       <p style="font-size:13px;color:var(--text-muted);">${pesoMsg}</p>`
-    : `<p style="font-size:13px;color:var(--text-muted);">Biometria incompleta (DBP + CC + CA + CF necessários para estimar o peso fetal).</p>`;
+    : last._semPeso
+      ? `<p style="font-size:13px;color:var(--text-muted);">Sem peso estimado neste exame: menos de ${_INTERVALO_MIN_PESO_DIAS} dias desde o último exame com peso. A ${_obsBiometriaRefTxt(last._pesoRefData)}.</p>`
+      : `<p style="font-size:13px;color:var(--text-muted);">Biometria incompleta (DBP + CC + CA + CF necessários para estimar o peso fetal).</p>`;
 
   // ── Bloco 3: Tendência Evolutiva ──────────────────────────
   let tendHtml = '';
@@ -13509,10 +13689,10 @@ function _rvPct(p) {
 
 function _rvLinhaExame(gestacao, e, fetoCol) {
   const ig   = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-  const efw  = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+  const efw  = _efwExame(e);
   const pEfw = efw != null ? calcEFWPercentile(efw, ig) : null;
-  const pCa  = e.ca != null ? calcBiometria(e.ca, 'ca', ig) : null;
-  const pfe  = efw != null ? `${efw} g${_rvPct(pEfw && pEfw.percentil)}` : '—';
+  const pCa  = e.ca != null ? _bioExame(e, e.ca, 'ca', ig) : null;
+  const pfe  = efw != null ? `${efw} g${_rvPct(pEfw && pEfw.percentil)}` : (_semPesoCelTxt(e) || '—');
   const ca   = e.ca != null ? `${(e.ca / 10).toFixed(1)} cm${_rvPct(pCa && pCa.percentil)}` : '—';
   const liq  = e.ila != null ? `ILA ${e.ila}` : e.bolsao != null ? `MBV ${e.bolsao}` : '—';
   const colo = e.colo != null ? `<span class="${e.colo < _COLO_CURTO_MM ? 'rv-fora' : ''}">${e.colo} mm</span>` : '—';
@@ -14754,6 +14934,20 @@ function _meCalcTable() {
     { id: 'e-fibula',key:'fibula',label: 'Fíbula' },
   ];
 
+  // Regra dos 7 dias (_pesoInfo): o exame que está sendo digitado entra na conta
+  // pela data dele, contra os exames já salvos do mesmo feto. Sem peso, a
+  // biometria aparece sem percentil.
+  const _vNum = id => { const el = document.getElementById(id); const v = el ? parseFloat(el.value) : NaN; return isNaN(v) || v <= 0 ? null : v; };
+  const _gPrev  = getGestacaoById(currentGestacaoId);
+  const _eDataV = (document.getElementById('e-data') || {}).value || '';
+  const _multPrev = fetosDaGestacao(_gPrev).length > 0;
+  const _infoPeso = _gPrev && _eDataV ? _pesoInfo({
+    id: _multPrev ? (_meFetoExamIds[_meActiveFeto] ?? null) : (currentExamEditingId ?? null),
+    gestacao_id: _gPrev.id, feto: _multPrev ? _meActiveFeto : null, data_exame: _eDataV,
+    dbp: _vNum('e-dbp'), cc: _vNum('e-cc'), ca: _vNum('e-ca'), femur: _vNum('e-femur'),
+    efw: _meExterno() ? _vNum('e-efw') : null,
+  }) : { semPeso: false };
+
   let hasAny = false;
   let rows = '';
   fields.forEach(f => {
@@ -14762,7 +14956,8 @@ function _meCalcTable() {
     if (isNaN(val) || val <= 0) return;
     hasAny = true;
     const refKey = f.key;
-    const calc   = refKey ? calcBiometria(val, refKey, igDays) : null;
+    const semPct = _infoPeso.semPeso && ['dbp','cc','ca','fl'].includes(refKey);
+    const calc   = refKey && !semPct ? calcBiometria(val, refKey, igDays) : null;
     const p      = calc ? calc.percentil : null;
     const ref    = calc ? calc.ref : null;
     const p50    = ref ? Math.round(ref[2] * 10) / 10 : '—';
@@ -14800,7 +14995,15 @@ function _meCalcTable() {
   const flV   = flEl  ? parseFloat(flEl.value)  : NaN;
 
   const temMedidas = !isNaN(dbpV) && !isNaN(ccV) && !isNaN(caV) && !isNaN(flV);
-  if (temEfwInf || temMedidas) {
+  if (_infoPeso.semPeso && (temEfwInf || temMedidas)) {
+    const lbl = document.getElementById('me-efw-label');
+    if (lbl) lbl.textContent = `Sem peso estimado: menos de ${_INTERVALO_MIN_PESO_DIAS} dias desde o último exame com peso · ${_obsBiometriaRefTxt(_infoPeso.refData)}`;
+    const wt  = document.getElementById('me-efw-weight');
+    const pct = document.getElementById('me-efw-pct');
+    if (wt) wt.textContent = '—';
+    if (pct) { pct.textContent = '—'; pct.className = 'calc-efw-meta-value calc-pct'; }
+    if (efwBlk) efwBlk.style.display = 'block';
+  } else if (temEfwInf || temMedidas) {
     const efwHadlock = temMedidas ? calcEFW(dbpV, ccV, caV, flV) : null;
     const efw  = temEfwInf ? efwInf : efwHadlock;
     const pEfw = calcEFWPercentile(efw, igDays);
@@ -15708,9 +15911,17 @@ function computeImpressaoDiagnostica(gestacao, exams) {
     gratacos,
     estadioIndeterminado,
     velocidade: _velocidadeCrescimento(enriched),
-    efwPercentil: (last._efw != null && last._igDays != null)
-      ? (calcEFWPercentile(last._efw, last._igDays) || {}).percentil ?? null
-      : null,
+    // Exame sem peso (regra dos 7 dias): o percentil citado é o do exame de
+    // referência — o mesmo cuja biometria fechou o diagnóstico acima —, e
+    // `biometriaRef` leva a data para a observação "biometria corresponde ao
+    // exame de dd/mm" sair junto, em tela, Conclusão e PDF.
+    efwPercentil: (() => {
+      const base = last._semPeso ? enriched.find(e => e.id === last._pesoRefId) : last;
+      return (base && base._efw != null && base._igDays != null)
+        ? (calcEFWPercentile(base._efw, base._igDays) || {}).percentil ?? null
+        : null;
+    })(),
+    biometriaRef: last._semPeso ? (last._pesoRefData || null) : null,
     conduta: _condutaDiagnostico(dx),
     notas: _notasDiagnostico(dx),
     peRisco: avaliarRiscoPreEclampsia(dx),
@@ -15878,7 +16089,7 @@ function abrirLaudoMamae() {
 
   const semanas = _mamaeSemanas(gestacao, exame);
   const dias = (exame.ig_dias_manual ?? calcIgDays(gestacao, exame.data_exame)) % 7;
-  const efw = exame.efw ?? calcEFW(exame.dbp, exame.cc, exame.ca, exame.femur);
+  const efw = _efwExame(exame);
   _mamae = {
     patientId: patient.id, gestacaoId: gestacao.id,
     igTxt: `${Math.floor(semanas)} e ${dias} dias`,
@@ -16283,8 +16494,11 @@ function _relPatientPoints(paramKey, gestacao, exams) {
     if (!ig) return null;
     const w = ig / 7;
     if (w < 99 / 7) return null; // mesmo corte de buildChart/buildEFWChart — 15 semanas, não mais 20
+    // Regra dos 7 dias: exame sem peso não entra nas curvas de biometria/peso
+    // (sem percentil, não pode desenhar queda). As uterinas são Doppler e ficam.
+    if (paramKey !== 'uta' && _pesoInfo(e).semPeso) return null;
     let y;
-    if (paramKey === 'efw') y = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+    if (paramKey === 'efw') y = _efwExame(e);
     else if (paramKey === 'uta') {
       const ev = e.aut_e, dv = e.aut_d;
       y = (ev != null && dv != null) ? (ev + dv) / 2 : (ev ?? dv ?? null);
@@ -16605,16 +16819,16 @@ function _buildRelHistoricoUnicaHtml(gestacao, exams) {
   const temBcf  = _relTemBcf(exams);
   const linhas = exams.map(e => {
     const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-    const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+    const efw    = _efwExame(e);
     const efwC   = calcEFWPercentile(efw, igDays);
-    const caC    = calcBiometria(e.ca, 'ca', igDays);
-    const ccC    = calcBiometria(e.cc, 'cc', igDays);
-    const flC    = calcBiometria(e.femur, 'fl', igDays);
+    const caC    = _bioExame(e, e.ca, 'ca', igDays);
+    const ccC    = _bioExame(e, e.cc, 'cc', igDays);
+    const flC    = _bioExame(e, e.femur, 'fl', igDays);
     const igTxt  = igDays ? `${Math.floor(igDays / 7)}s${igDays % 7}d` : '—';
     const cel = (valorMm, calc, casasDecimais) => valorMm != null
       ? `${(valorMm / 10).toFixed(casasDecimais)} cm${calc?.percentil != null ? ' · P' + calc.percentil : ''}`
       : '—';
-    const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
+    const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : (_semPesoCelTxt(e) || '—');
     return `<tr><td><b>${formatDateBR(e.data_exame)}</b></td><td>${igTxt}</td><td>${efwTxt}</td>`
       + `<td>${cel(e.ca, caC, 1)}</td><td>${cel(e.cc, ccC, 1)}</td><td>${cel(e.femur, flC, 1)}</td>`
       + (temBcf ? _relBcfCel(e) : '') + (temColo ? _relColoCel(e) : '') + `</tr>`;
@@ -16703,6 +16917,9 @@ function _gerarConclusaoUnicaInicial(impressao, exams) {
       linhas.push(`${labelTxt}${pctTxt}${critTxt}${trajetoriaOk ? _fraseTrajetoriaTxt(impressao.velocidade?.classe) : ''}.`);
     }
   }
+  // Exame sem peso pela regra dos 7 dias: a observação vem logo depois da
+  // linha do diagnóstico, que é a do exame de referência.
+  if (impressao.biometriaRef) linhas.push(_obsBiometriaRefLinha(impressao.biometriaRef));
   if (trajetoriaOk && impressao.velocidade?.classe === 'queda') linhas.push(_notaDesaceleracaoTxt());
   if (impressao.peRisco) linhas.push(_riscoLinhaTexto(impressao.peRisco));
   if (impressao.coloRisco) linhas.push(_riscoLinhaTexto(impressao.coloRisco));
@@ -16832,11 +17049,14 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
   // cabeçalho de cada gráfico (chart-t i) — os cards de biometria com o valor
   // em mm/g foram removidos do layout para caber numa página A4; o valor em
   // si já aparece plotado na curva.
-  const efw  = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
-  const efwC = calcEFWPercentile(efw, igDays);
-  const caC  = calcBiometria(lastExam.ca, 'ca', igDays);
-  const ccC  = calcBiometria(lastExam.cc, 'cc', igDays);
-  const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
+  // Selos "Atual": regra dos 7 dias — percentil do exame cuja biometria vale.
+  const exP  = _exameComPeso(lastExam);
+  const igP  = exP.ig_dias_manual ?? calcIgDays(gestacao, exP.data_exame);
+  const efw  = _efwExame(exP);
+  const efwC = calcEFWPercentile(efw, igP);
+  const caC  = _bioExame(exP, exP.ca, 'ca', igP);
+  const ccC  = _bioExame(exP, exP.cc, 'cc', igP);
+  const flC  = _bioExame(exP, exP.femur, 'fl', igP);
 
   // Gráficos — mesma linguagem visual dos cards da gemelar (borda dourada,
   // selo de percentil no cabeçalho): ver _buildRelGemelarPaginaHtml. A
@@ -16977,7 +17197,7 @@ function _buildRelChartEfwSvg(gestacao, exams) {
     if (!ig) return null;
     const semanas = ig / 7;
     if (semanas < 99 / 7) return null; // EFW apenas a partir de 15 semanas — mesmo corte da tela
-    const peso = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+    const peso = _efwExame(e);
     if (peso == null) return null;
     return { semanas, peso, pct: calcEFWPercentile(peso, ig)?.percentil };
   }).filter(Boolean).sort((a, b) => a.semanas - b.semanas);
@@ -17823,11 +18043,14 @@ function _buildRelChartsPageHtml(patient, gestacao, exams, feto) {
   const lastExam = exams[exams.length - 1];
   const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
 
-  const efw  = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
-  const efwC = calcEFWPercentile(efw, igDays);
-  const caC  = calcBiometria(lastExam.ca, 'ca', igDays);
-  const ccC  = calcBiometria(lastExam.cc, 'cc', igDays);
-  const flC  = calcBiometria(lastExam.femur, 'fl', igDays);
+  // Selos "Atual": regra dos 7 dias — percentil do exame cuja biometria vale.
+  const exP  = _exameComPeso(lastExam);
+  const igP  = exP.ig_dias_manual ?? calcIgDays(gestacao, exP.data_exame);
+  const efw  = _efwExame(exP);
+  const efwC = calcEFWPercentile(efw, igP);
+  const caC  = _bioExame(exP, exP.ca, 'ca', igP);
+  const ccC  = _bioExame(exP, exP.cc, 'cc', igP);
+  const flC  = _bioExame(exP, exP.femur, 'fl', igP);
 
   const chartCells = [];
   ['cc', 'ca', 'fl', 'efw'].forEach(key => {
@@ -17974,10 +18197,10 @@ function _buildRelHistoricoGemelarHtml(gestacao, porFeto) {
       const e = porData[data][pf.feto];
       if (!e) return '<td>—</td><td>—</td>' + (temBcf ? '<td>—</td>' : '');
       const igDays = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
-      const efw    = e.efw ?? calcEFW(e.dbp, e.cc, e.ca, e.femur);
+      const efw    = _efwExame(e);
       const efwC   = calcEFWPercentile(efw, igDays);
-      const caC    = calcBiometria(e.ca, 'ca', igDays);
-      const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : '—';
+      const caC    = _bioExame(e, e.ca, 'ca', igDays);
+      const efwTxt = efw != null ? `${efw} g${efwC?.percentil != null ? ' · P' + efwC.percentil : ''}` : (_semPesoCelTxt(e) || '—');
       const caTxt  = e.ca != null ? `${_numBR(e.ca / 10, 1)} cm${caC?.percentil != null ? ' · P' + caC.percentil : ''}` : '—';
       return `<td>${efwTxt}</td><td>${caTxt}</td>` + (temBcf ? _relBcfCel(e) : '');
     }).join('');
@@ -18143,6 +18366,11 @@ function _gerarConclusaoGemelarInicial(porFetoComDados, discrepResumo, taps, ris
     });
   });
 
+  // Regra dos 7 dias: na múltipla os fetos da visita têm a mesma data, então a
+  // observação sai uma vez só, para a visita.
+  const biometriaRefMult = porFetoComDados.map(pf => pf.impressao?.biometriaRef).find(Boolean);
+  if (biometriaRefMult) linhas.push(_obsBiometriaRefLinha(biometriaRefMult));
+
   if (discrepResumo) {
     const f = _DISCREP_FAIXA[discrepResumo.severidade] || _DISCREP_FAIXA.ok;
     linhas.push(`Discordância de peso entre os fetos: ${_numBR(discrepResumo.pct, 1)}% — ${f.corte}, ${f.leitura}.`);
@@ -18219,14 +18447,14 @@ function _buildRelAssessmentPageHtml(patient, gestacao, porFeto, allExams, opts)
   // aqui — o comparativo (badges) e o detalhe completo abaixo usam os mesmos
   // dados, em vez de rodar a análise longitudinal duas vezes por feto.
   const porFetoComDados = porFeto.map(pf => {
-    const lastExam = pf.exams[pf.exams.length - 1];
+    const lastExam = _exameComPeso(pf.exams[pf.exams.length - 1]); // regra dos 7 dias
     const igDays   = lastExam.ig_dias_manual ?? calcIgDays(gestacao, lastExam.data_exame);
-    const efw      = lastExam.efw ?? calcEFW(lastExam.dbp, lastExam.cc, lastExam.ca, lastExam.femur);
+    const efw      = _efwExame(lastExam);
     return {
       ...pf,
       impressao: computeImpressaoDiagnostica(gestacao, pf.exams),
       efwC: calcEFWPercentile(efw, igDays),
-      caC:  calcBiometria(lastExam.ca, 'ca', igDays),
+      caC:  _bioExame(lastExam, lastExam.ca, 'ca', igDays),
     };
   });
 

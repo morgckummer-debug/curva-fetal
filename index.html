@@ -2596,10 +2596,14 @@ function _showResetPasswordForm() {
   _showLoginScreen();
 }
 
+// uid da sessão já carregada. O supabase-js reemite SIGNED_IN ao voltar o foco na aba;
+// sem isso cada reemissão refazia o login inteiro e tirava a Recepção da frente.
+let _sessaoUid = null;
+
 async function initAuth() {
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) { _hideLoginScreen(); _aposLogin(); } else _showLoginForm();
+    if (session) { _sessaoUid = session.user.id; _hideLoginScreen(); _aposLogin(); } else _showLoginForm();
   } catch (err) {
     // Se não der pra confirmar a sessão, assume deslogado (mais seguro que mostrar o app à toa).
     console.error('[CurvaFetal] initAuth:', err);
@@ -2622,8 +2626,16 @@ async function initAuth() {
       // cadastro que ainda não tinha terminado de gravar — por isso só o login e o
       // carregamento inicial da página disparam a busca completa.
       if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
+      // O supabase-js reemite SIGNED_IN toda vez que a aba volta ao foco (trocar de
+      // aba/app, travar e destravar o celular). Para a médica, _aposLogin() fecha a
+      // Recepção aberta pelo menu e recarrega tudo — a tela "sumia" sozinha para o
+      // app. Mesmo usuário já carregado = não é login novo. O INITIAL_SESSION, que chega
+      // ao registrar este listener, repetiria o _aposLogin() que o getSession() acima já fez.
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && _sessaoUid === session.user.id) return;
+      _sessaoUid = session.user.id;
       _aposLogin();
     } else {
+      _sessaoUid = null;
       _fecharRecepcao();
       _recepcaoDados = [];
       _showLoginForm();

@@ -5038,8 +5038,7 @@ function _adesaoProporcao(mod, igHoje) {
   plano.ex.forEach(k => {
     const def = ACOMP_EX[k], w = _ADESAO_PESO[k];
     tot += w;
-    // Morfo 1º tri: para efeito de valor, a entrada vale cheia até 14s0d (decisão da médica), embora a janela de agenda feche em 13s6d.
-    const fim = (k === 'm1' ? 14 * 7 : def.fim) + (def.tol || 0);
+    const fim = def.fim + (def.tol || 0);
     if (igHoje <= fim) { rest += w; faltam.push(k); } else perdidos.push(k);
   });
   const total = _ADESAO_PRECO[mod].total;

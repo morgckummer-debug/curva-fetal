@@ -2787,6 +2787,9 @@ function _acompSituacao(g, exams) {
   const extras = visitas.filter(x => x.v.extra);
   const normais = visitas.filter(x => !x.v.extra);
   const usados = new Set();
+  // Adesão = primeiro contrato (Morgana 2026-10-17). Janela que fechou antes dela não é do plano contratado.
+  const adesao = _encDataAdesao(g);
+  const igAdesao = adesao ? calcIgDays(g, adesao) : null;
   const slots = plano.ex.map(k => {
     const def = ACOMP_EX[k];
     const hit = normais.find(x => !usados.has(x) && x.ig != null && x.ig >= def.ini && x.ig <= def.fim + (def.tol || 0));
@@ -2794,11 +2797,13 @@ function _acompSituacao(g, exams) {
     const limite = def.fim + (def.tol || 0);
     // Falta sem reagendamento registrada pela recepção (contrato 7d, migração 040): o exame vira crédito.
     const falta = !hit && g.faltas && Array.isArray(g.faltas.itens) ? g.faltas.itens.find(x => x.key === k) || null : null;
+    // Janela fechada antes da adesão: não é falta, não tem botão, não vira crédito nem pendência. Se foi feito, conta.
+    if (!hit && !falta && igAdesao != null && limite < igAdesao) return null;
     const status = hit ? 'feito' : falta ? 'faltou'
       : (igHoje != null && igHoje > limite) ? 'atrasado'
       : (igHoje != null && igHoje > def.fim) ? 'tolerancia' : 'falta';
     return { key: k, def, hit, falta, status, de: _acompIgParaData(g, def.ini), ate: _acompIgParaData(g, def.fim), ateTol: def.tol ? _acompIgParaData(g, limite) : null };
-  });
+  }).filter(Boolean);
   // Crédito das faltas: soma dos exames perdidos menos o que já foi usado; item vencido (12 meses) não conta.
   const fItens = slots.filter(s => s.falta).map(s => s.falta);
   const fUsos = (g.faltas && Array.isArray(g.faltas.usos)) ? g.faltas.usos : [];
@@ -3000,7 +3005,7 @@ function _rcInfo(r) {
   const devSt = extrato && extrato.devolucao && extrato.devolucao.status;
   const devAberta = enc && (!extrato || devSt === 'pendente' || devSt === 'escolha');
   // Agendamento: "sem contato" (nunca combinou datas), "aguardando" (mensagem enviada, sem confirmação) ou "agendado".
-  const pendKeys = sit.slots.map((s, k) => ({ s, k: sit.plano.ex[k] })).filter(x => x.s.status === 'falta' || x.s.status === 'tolerancia').map(x => x.k);
+  const pendKeys = sit.slots.map(s => ({ s, k: s.key })).filter(x => x.s.status === 'falta' || x.s.status === 'tolerancia').map(x => x.k);
   const ag = r.agendamento;
   let agEstado = null, agHoras = null, agUrgente = false;
   if (_rcAgOk && !enc && pendKeys.length) {
@@ -3175,7 +3180,7 @@ function recepcaoCombinarDatas() {
 function _rcAgLinkAnexar(r, i) {
   const hoje = _hojeISO();
   const exames = i.sit.slots.filter(s => (s.status === 'falta' || s.status === 'tolerancia') && s.de).map(s => ({
-    key: i.sit.plano.ex[i.sit.slots.indexOf(s)],
+    key: s.key,
     n: s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : ''),
     de: s.de < hoje ? hoje : s.de,
     ate: s.ateTol || s.ate
@@ -3211,11 +3216,11 @@ function recepcaoConfirmarAgenda() {
   const PER = { qualquer: 'qualquer horário', manha: 'manhã', tarde: 'tarde' };
   let temResp = false;
   const linhas = pend.map((s, k) => {
-    const pf = resp.find(p => p.key === i.sit.plano.ex[i.sit.slots.indexOf(s)]);
+    const pf = resp.find(p => p.key === s.key);
     const dp = pf && pf.datas && pf.datas[0];
     if (dp && /^\d{4}-\d{2}-\d{2}$/.test(dp.d)) temResp = true;
     const dv = dp && /^\d{4}-\d{2}-\d{2}$/.test(dp.d) ? dp.d : '';
-    const ja = ((r.agendamento && r.agendamento.agendados) || []).find(x => x.key === i.sit.plano.ex[i.sit.slots.indexOf(s)]);
+    const ja = ((r.agendamento && r.agendamento.agendados) || []).find(x => x.key === s.key);
     const dv2 = dv || (ja && /^\d{4}-\d{2}-\d{2}$/.test(ja.d) ? ja.d : ''), hv = !dv && ja && ja.h ? ja.h : '';
     const nota = dv ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Escolha da paciente: ${_acompDataCurta(dv)}${dp.p && PER[dp.p] ? ' · ' + PER[dp.p] : ''}${new Date(dv + 'T12:00:00Z').getUTCDay() === 6 ? ' · sábado só até 12h' : ''}</div>` : '';
     const rot = s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : '') + (s.def.tol ? ' (' + _acompSemDia(s.def.ini) + ')' : '');
@@ -3235,7 +3240,7 @@ function recepcaoConfirmarAgenda() {
       <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-conf-modal').remove()">Cancelar</button>
       <button type="button" class="rc-btn-dark" onclick="_rcConfWhats()">Abrir no WhatsApp</button></div></div>`;
   document.body.appendChild(el);
-  el._pend = pend; el._keys = pend.map(sl => i.sit.plano.ex[i.sit.slots.indexOf(sl)]); el._nome = String(r.nome || '').trim().split(/\s+/)[0];
+  el._pend = pend; el._keys = pend.map(sl => sl.key); el._nome = String(r.nome || '').trim().split(/\s+/)[0];
   _rcConfRefazer();
   _rcConfLink(r, i, el);
 }
@@ -3244,7 +3249,7 @@ function recepcaoConfirmarAgenda() {
 function _rcConfLink(r, i, el) {
   const hoje = _hojeISO();
   const exames = i.sit.slots.filter(s => (s.status === 'falta' || s.status === 'tolerancia') && s.de).map(s => ({
-    key: i.sit.plano.ex[i.sit.slots.indexOf(s)], n: s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : ''),
+    key: s.key, n: s.def.n + (s.def.sub ? ' (' + s.def.sub + ')' : ''),
     de: s.de < hoje ? hoje : s.de, ate: s.ateTol || s.ate })).filter(x => x.de <= x.ate);
   if (!exames.length) return;
   supabaseClient.rpc('recepcao_agenda_link', { p_gestacao_id: r.gestacao_id, p_nome: el._nome, p_exames: exames }).then(({ data, error }) => {
@@ -3318,7 +3323,7 @@ function _rcDataPonto(iso) { return iso ? iso.slice(8, 10) + '.' + iso.slice(5, 
 function _rcDetalheHtml(i) {
   const r = i.r, sit = i.sit, pg = r.pagamento || {};
   const p = sit.prox;
-  const agP = r.agendamento, jaP = p && agP && agP.estado === 'agendado' && (agP.agendados || []).find(x => x.key === sit.plano.ex[sit.slots.indexOf(p)]);
+  const agP = r.agendamento, jaP = p && agP && agP.estado === 'agendado' && (agP.agendados || []).find(x => x.key === p.key);
   const jaOk = jaP && /^\d{4}-\d{2}-\d{2}$/.test(jaP.d);
   const hhP = jaOk && jaP.h ? ' às ' + jaP.h.slice(0, 2) + 'h' + (jaP.h.slice(3, 5) !== '00' ? jaP.h.slice(3, 5) : '') : '';
   const prox = jaOk
@@ -3348,7 +3353,7 @@ function _rcDetalheHtml(i) {
     else if (s.status === 'atrasado') { ic = '<span class="rc-dot rc-dot--atrasado">!</span>'; st = `<b class="rc-atras-t">Janela vencida${(s.ateTol || s.ate) ? ' em ' + _acompDataCurta(s.ateTol || s.ate) : ''}</b>${i.enc ? '' : `<button type="button" class="rc-btn-claro" style="display:block;margin-top:4px;padding:4px 10px;font-size:12px;" onclick="recepcaoFaltou('${s.key}')" title="A gestante faltou e não reagendou: o exame é perdido e o valor avulso vira crédito (contrato, item 7d)">Faltou, sem reagendar</button>`}`; }
     else if (s === p) { ic = '<span class="rc-dot rc-dot--prox">→</span>'; st = '<b>Próximo</b>'; }
     else { ic = '<span class="rc-dot">·</span>'; st = '<b>A fazer</b>'; }
-    const ag = r.agendamento, ja = ag && ag.estado === 'agendado' && (ag.agendados || []).find(x => x.key === sit.plano.ex[sit.slots.indexOf(s)]);
+    const ag = r.agendamento, ja = ag && ag.estado === 'agendado' && (ag.agendados || []).find(x => x.key === s.key);
     if (s.status !== 'feito' && ja && /^\d{4}-\d{2}-\d{2}$/.test(ja.d)) {
       const hh = ja.h ? ' às ' + ja.h.slice(0, 2) + 'h' + (ja.h.slice(3, 5) !== '00' ? ja.h.slice(3, 5) : '') : '';
       st = `<b class="rc-feito-t">Agendado: ${_RC_DIAS_SEM[new Date(ja.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(ja.d)}${hh}</b><span class="rc-ex-s">${ag.confirmada ? 'paciente confirmou' : 'aguardando confirmação'}</span>`;
@@ -4456,14 +4461,14 @@ function _encDataAdesao(r) {
 function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
   const key = r.acompanhamento, mult = key.startsWith('gemelar') ? 2 : 1;
   const total = (_ADESAO_PRECO[key] || {}).total || 0;
-  const peso = i => _ADESAO_PESO[sit.plano.ex[i]] * mult;
+  const peso = s => _ADESAO_PESO[s.key] * mult;
   const feitos = sit.slots.map((s, i) => ({ s, i })).filter(x => x.s.hit);
   // Exame perdido por falta (item 7d) já virou crédito à parte: sai do saldo do plano e entra como crédito por falta.
   const naoFeitos = sit.slots.map((s, i) => ({ s, i })).filter(x => !x.s.hit && !x.s.falta);
   const vFaltas = sit.slots.reduce((a, s) => a + (s.falta ? (+s.falta.valor || 0) : 0), 0);
-  const vFeitosPlano = feitos.reduce((a, x) => a + peso(x.i), 0);
+  const vFeitosPlano = feitos.reduce((a, x) => a + peso(x.s), 0);
   const vFeitos = vFeitosPlano + sit.extras.length * _EXTRA_AVULSO * mult;
-  const vNaoFeitos = naoFeitos.reduce((a, x) => a + peso(x.i), 0);
+  const vNaoFeitos = naoFeitos.reduce((a, x) => a + peso(x.s), 0);
   const saldo = Math.max(0, pago - vFeitos - vFaltas);
   const taxa = cartao ? taxaPct / 100 : 0, imp = nf ? (impostoPct || 0) / 100 : 0;
   const cf = sit.creditoFalta || { itens: [], disponivel: 0 };
@@ -4491,7 +4496,7 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
   } else {
     // Parto (item 8b): o avulso dos exames não feitos, em dinheiro (menos taxa e imposto) ou crédito de 12 meses.
     out.base = Math.min(saldo, vNaoFeitos);
-    out.naoFeitos = naoFeitos.map(x => ({ n: x.s.def.n + (/^d\d+$/.test(sit.plano.ex[x.i]) ? ` de ${sit.plano.ex[x.i].slice(1)} semanas` : ''), valor: peso(x.i) }));
+    out.naoFeitos = naoFeitos.map(x => ({ n: x.s.def.n + (/^d\d+$/.test(x.s.key) ? ` de ${x.s.key.slice(1)} semanas` : ''), valor: peso(x.s) }));
     out.taxaVal = out.base * taxa; out.impostoVal = out.base * imp;
     out.estorno = Math.max(0, out.base - out.taxaVal - out.impostoVal);
     out.credito = out.base;
@@ -4773,7 +4778,7 @@ function _trCalc(r, sit, nova, cartao, taxaPct, parcelas) {
     } else {
       out.retencao = abs * _RETENCAO_DESISTENCIA;
       out.base = abs - out.retencao;
-      const feitosExcl = sit.slots.map((s, i) => ({ s, k: sit.plano.ex[i] })).filter(x => x.s.hit && !planoN.ex.includes(x.k));
+      const feitosExcl = sit.slots.map(s => ({ s, k: s.key })).filter(x => x.s.hit && !planoN.ex.includes(x.k));
       out.exclusivos = feitosExcl.map(x => x.s.def.n);
       if (feitosExcl.length) out.bloqueios.push('Já foi feito exame exclusivo da modalidade atual (' + out.exclusivos.join(', ') + '): não é possível trocar para uma inferior.');
     }

@@ -2143,11 +2143,12 @@ peso (0 com peso, 5 sem, 8 com). Vale para exame externo e para exame com biomet
 ## WhatsApp: abre sempre na conversa da gestante (2026-10-17)
 
 Todo `wa.me` passa por `_waTel(raw)`: só dígitos, sem zero de discagem, `55` + DDD + número (10 ou 11 dígitos
-depois do 55), ou `''` se não fecha. "Enviar cópia à gestante" só usa o menu de compartilhar
-(`navigator.share`) em tela de toque (`pointer: coarse`, iPad/celular): no computador o Chrome também
-oferece esse menu, mas o WhatsApp Desktop recebe o arquivo sem conversa escolhida. No computador a via
-em HTML vai como **link pessoal** (migração 042, aplicada por Claude em 2026-10-17): `recepcao_via_publicar`
-guarda uma cópia em `vias_gestante` e devolve um token; a mensagem do `wa.me` leva `via.html?t=<token>`,
-página sem login que lê só aquela via (`via_publica`) e tem "Salvar em PDF / imprimir". Assim ninguém escolhe
-arquivo à mão (risco de mandar o contrato de outra paciente, a preocupação da Morgana). PDF anexado, ou falha
-do RPC, cai no caminho antigo: baixa o arquivo e abre a conversa.
+depois do 55), ou `''` se não fecha. "Enviar cópia à gestante" de uma via em HTML vai como **link pessoal**
+(migração 042, aplicada por Claude em 2026-10-17), **no computador e no celular**: `recepcao_via_publicar`
+guarda uma cópia em `vias_gestante` e devolve um token; o `wa.me` com o número dela leva `via.html?t=<token>`,
+página sem login que lê só aquela via (`via_publica`) e tem "Salvar em PDF / imprimir". Ninguém escolhe arquivo
+nem conversa à mão (a preocupação da Morgana). A aba do WhatsApp é aberta **no toque, antes de qualquer
+await** (`window.open('')`, depois `w.location.href`): aberta depois da espera do RPC, o celular bloqueia como
+pop-up — foi o que quebrou o envio pelo celular na primeira versão. O menu de compartilhar com arquivo
+(`navigator.share`, só tela de toque) ficou só para PDF/foto ou falha do link; no computador esses caem em
+baixar o arquivo e abrir a conversa.

@@ -4114,6 +4114,13 @@ async function recepcaoContratoCopia(gid, i, btn) {
   const primeiro = (r.nome || '').trim().split(/\s+/)[0] || '';
   const texto = `Olá, ${primeiro}! Segue a sua via do ${termo ? 'termo aditivo' : 'contrato'} do Acompanhamento Fetal MK, assinado hoje. Guarde este arquivo. 💜`;
   const rotulo = btn.textContent;
+  const tel = _waTel(r.pagamento && r.pagamento.celular);
+  const ehHtml = c.tipo !== 'application/pdf' && c.tipo !== 'image/jpeg';
+  // Contrato em HTML vai como link pessoal (via.html, migração 042) pelo wa.me com o número dela,
+  // no computador e no celular: o menu de compartilhar do celular não escolhe a conversa sozinho.
+  // A aba do WhatsApp é aberta já no toque, antes de qualquer espera: aberta depois de um await,
+  // o celular a trata como pop-up e bloqueia.
+  const w = ehHtml && tel ? window.open('', '_blank') : null;
   try {
     let file = _copiaCache[c.path];
     if (!file) {
@@ -4126,8 +4133,30 @@ async function recepcaoContratoCopia(gid, i, btn) {
       file = _copiaCache[c.path] = new File([corpo], nomeArq, { type: c.tipo || data.type });
       btn.disabled = false; btn.textContent = rotulo;
     }
-    // Só em tela de toque (iPad/celular). No computador o Chrome também oferece o menu de compartilhar,
-    // mas o WhatsApp Desktop recebe o arquivo sem conversa escolhida: lá vai o wa.me com o número dela.
+    if (ehHtml) {
+      let tok = _copiaCache['tok:' + c.path];
+      if (!tok) {
+        btn.disabled = true; btn.textContent = 'Preparando…';
+        const res = await supabaseClient.rpc('recepcao_via_publicar', {
+          p_gestacao_id: gid, p_nome: termo ? 'Termo aditivo' : 'Contrato', p_html: await file.text(),
+        });
+        btn.disabled = false; btn.textContent = rotulo;
+        if (res.error) console.error('[CurvaFetal] recepcao_via_publicar:', res.error);
+        else tok = _copiaCache['tok:' + c.path] = res.data;
+      }
+      if (tok) {
+        const link = new URL('via.html?t=' + tok, location.href).href;
+        const msg = `Olá, ${primeiro}! Segue a sua via do ${termo ? 'termo aditivo' : 'contrato'} do Acompanhamento Fetal MK, assinado hoje. 💜\nÉ só abrir o link (lá também dá para salvar em PDF):\n${link}`;
+        if (!tel) { prompt('O celular dela não está na ficha. Copie a mensagem e mande pelo WhatsApp ou e-mail:', msg); return; }
+        const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
+        if (w && !w.closed) w.location.href = url;
+        else if (!window.open(url, '_blank')) prompt('O navegador bloqueou a abertura do WhatsApp. Copie a mensagem:', msg);
+        return;
+      }
+      // sem a 042 (ou falha): cai no caminho antigo
+      if (w && !w.closed) w.close();
+    }
+    // PDF/foto (ou falha do link) em tela de toque: menu de compartilhar com o arquivo, como antes.
     const toque = window.matchMedia && matchMedia('(pointer: coarse)').matches;
     if (toque && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: file.name, text: texto }); }
@@ -4139,26 +4168,6 @@ async function recepcaoContratoCopia(gid, i, btn) {
       btn.textContent = '📤 Enviar cópia à gestante';
       return;
     }
-    // Computador: o navegador não anexa arquivo no WhatsApp. Para HTML, a mensagem leva um link pessoal
-    // (via.html, migração 042) que abre só a via desta gestante; ninguém escolhe arquivo à mão.
-    const tel = _waTel(r.pagamento && r.pagamento.celular);
-    if (/\.html$/.test(file.name)) {
-      btn.disabled = true; btn.textContent = 'Preparando…';
-      const { data: tok, error } = await supabaseClient.rpc('recepcao_via_publicar', {
-        p_gestacao_id: gid, p_nome: termo ? 'Termo aditivo' : 'Contrato', p_html: await file.text(),
-      });
-      btn.disabled = false; btn.textContent = rotulo;
-      if (!error && tok) {
-        const link = new URL('via.html?t=' + tok, location.href).href;
-        const msg = `Olá, ${primeiro}! Segue a sua via do ${termo ? 'termo aditivo' : 'contrato'} do Acompanhamento Fetal MK, assinado hoje. 💜\nÉ só abrir o link (lá também dá para salvar em PDF):\n${link}`;
-        if (!tel) { prompt('O celular dela não está na ficha. Copie a mensagem e mande pelo WhatsApp ou e-mail:', msg); return; }
-        const w = window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(msg), '_blank');
-        if (!w) prompt('O navegador bloqueou a abertura do WhatsApp. Copie a mensagem:', msg);
-        return;
-      }
-      console.error('[CurvaFetal] recepcao_via_publicar:', error);
-      // sem a 042 (ou falha): cai no caminho antigo, baixar o arquivo
-    }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
     if (tel) window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texto), '_blank');
@@ -4167,6 +4176,7 @@ async function recepcaoContratoCopia(gid, i, btn) {
       ? 'Na conversa do WhatsApp que abriu, toque no clipe (📎) → Documento e escolha esse arquivo, ou arraste-o da pasta Downloads para a conversa.'
       : 'O celular dela não está na ficha: anexe o arquivo no WhatsApp ou no e-mail da gestante.'));
   } catch (err) {
+    if (w && !w.closed) w.close();
     btn.disabled = false; btn.textContent = rotulo;
     console.error('[CurvaFetal] cópia do contrato:', err);
     alert('Não consegui preparar a cópia: ' + (err.message || err));

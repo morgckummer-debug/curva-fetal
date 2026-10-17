@@ -1420,6 +1420,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
       </div>
       <button class="btn-pdf-report" id="btn-pdf-report" onclick="abrirRelatorioUnico()" style="display:none;">⬇ Relatório PDF</button>
       <button class="btn-pdf-report" id="btn-laudo-1tri" onclick="abrirPreviewLaudo1Tri()" style="display:none;" title="Laudo do morfológico de 1º trimestre — gerado uma vez, 11-14 semanas">📋 Laudo 1º Trimestre</button>
+      <button class="btn-pdf-report" id="btn-laudo-mamae" onclick="abrirLaudoMamae()" style="display:none;" title="Laudo da mamãe — papel para a gestante, a partir do morfológico de 2º trimestre">💌 Laudo da mamãe</button>
       <button class="btn-pdf-report" id="btn-relatorios-emitidos" onclick="abrirRelatoriosModal()" style="display:none;" title="Segunda via de relatórios já gerados para esta gestação">📄 Relatórios emitidos</button>
     </div>
 
@@ -2258,6 +2259,19 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
      #modal-relatorio) porque o botão "Gerar PDF" de lá já tem onclick fixo
      pro fluxo do evolutivo — duplicar a casca rasa é mais simples e seguro do
      que fazer o mesmo modal servir dois fluxos com estado. -->
+<div class="modal-overlay" id="modal-laudo-mamae">
+  <div class="modal" style="max-width:860px;width:95vw;max-height:92vh;display:flex;flex-direction:column;">
+    <div class="modal-header" style="flex-shrink:0;">
+      <h2>Laudo da mamãe</h2>
+      <button class="modal-close" onclick="closeModal('modal-laudo-mamae')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-laudo-mamae-body" style="flex:1;overflow-y:auto;padding:24px;"></div>
+    <div class="modal-footer" style="flex-shrink:0;">
+      <button class="btn btn-secondary" onclick="closeModal('modal-laudo-mamae')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-mamae-gerar" onclick="confirmarGerarLaudoMamae()">Gerar PDF</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="modal-laudo-1tri">
   <div class="modal" style="max-width:860px;width:95vw;max-height:92vh;display:flex;flex-direction:column;">
     <div class="modal-header" style="flex-shrink:0;">
@@ -10437,6 +10451,8 @@ function renderPatientScreen() {
   if (btnPdf) btnPdf.style.display = 'none';
   const btnLaudo1Tri = document.getElementById('btn-laudo-1tri');
   if (btnLaudo1Tri) btnLaudo1Tri.style.display = 'none';
+  const btnMamae = document.getElementById('btn-laudo-mamae');
+  if (btnMamae) btnMamae.style.display = 'none';
   const btnRel = document.getElementById('btn-relatorios-emitidos');
   if (btnRel) btnRel.style.display = 'none';
 
@@ -15561,6 +15577,11 @@ function setTab(tab) {
     const g = tab === 'summary' ? getGestacaoById(currentGestacaoId) : null;
     laudo1TriBtn.style.display = 'none'; // unificado em "Relatório PDF" (abrirRelatorioUnico)
   }
+  const mamaeBtn = document.getElementById('btn-laudo-mamae');
+  if (mamaeBtn) {
+    const g = tab === 'summary' ? getGestacaoById(currentGestacaoId) : null;
+    mamaeBtn.style.display = g && _laudoMamaeExame(g, getExamsByGestacao(g.id)) ? '' : 'none';
+  }
 
   if (tab === 'revisao') {
     const gestacao = getGestacaoById(currentGestacaoId);
@@ -15737,6 +15758,193 @@ ${sheetHtml}
 </body></html>`;
 
   _abrirJanelaImpressao(gestacao, printHTML, _salvarLaudo1TriGerado);
+}
+
+// ── Laudo da mamãe ─────────────────────────────────────────────────────
+// Papel para a gestante, em linguagem leiga, a partir do morfológico de 2º
+// trimestre. Frases fixas aprovadas pela Dra. Morgana (2026-10-17): nenhum
+// texto é gerado por IA e nada sai do navegador. Peso (do exame salvo), BCF
+// e IG vêm do próprio exame; sexo e foto são escolhas da médica no momento de
+// imprimir. Não é arquivado no Storage: a foto não fica guardada em lugar nenhum.
+// Só gestação única: em gemelar o papel não sabe qual feto mostrar.
+const _MAMAE_ABERTURA = {
+  morfo2:  'O ultrassom de hoje foi um dos mais completos da gestação. Pudemos ver o seu bebê em detalhe, cada estrutura e cada traço do rostinho.',
+  doppler: 'Hoje acompanhamos de perto o crescimento e o bem-estar do seu bebê, e também como ele está recebendo da placenta tudo o que precisa.',
+  morfo3:  'Hoje olhamos o seu bebê com calma mais uma vez, agora já grandinho, conferindo o crescimento, o bem-estar e cada detalhe.',
+  extra:   'Hoje foi dia de matar a saudade do seu bebê e ver como ele está.'
+};
+const _MAMAE_TIPO_LABEL = { morfo2: 'Morfológico de 2º trimestre', doppler: 'Doppler e perfil biofísico', morfo3: 'Morfológico de 3º trimestre', extra: 'Ultrassom extra' };
+const _MAMAE_RESULTADO = {
+  tudo:    { rotulo: 'Tudo bem', texto: 'Tudo o que avaliamos hoje está dentro do esperado. Seu bebê está crescendo bem e recebendo todos os nutrientes da placenta sem dificuldade.' },
+  atencao: { rotulo: 'Merece atenção', texto: 'Hoje encontramos um detalhe que vamos acompanhar com mais atenção nos próximos exames. Já conversamos sobre ele, e você não está sozinha: vou estar ao seu lado em cada etapa.' },
+  alteracao: { rotulo: 'Alteração identificada' }
+};
+const _MAMAE_FECHAMENTO = 'Aproveite cada instante dessa linda espera e conte comigo para estar ao seu lado sempre que precisar. Até a próxima!';
+const _MAMAE_CSS = `
+.mamae-body{font-size:14px;line-height:1.75;gap:14px;padding-top:26px}
+.mamae-p{margin:0}
+.mamae-foto{display:flex;justify-content:center}
+.mamae-foto img{width:150px;height:150px;object-fit:cover;border-radius:50%;border:3px solid #D9BE7A}
+.mamae-form{display:flex;flex-direction:column;gap:14px;margin-bottom:18px}
+.mamae-form fieldset{border:1px solid var(--line,#e5dde9);border-radius:8px;padding:10px 14px}
+.mamae-form legend{font-size:12.5px;color:var(--ink-soft,#6b5b78);padding:0 6px}
+.mamae-form label{font-size:14px}
+.mamae-bloqueado{padding:18px;border-radius:8px;background:#fbf3ea;color:#6F3F22;font-size:14px;line-height:1.6}
+`;
+
+// IG do exame em semanas (decimal).
+function _mamaeSemanas(gestacao, e) {
+  const d = e.ig_dias_manual ?? calcIgDays(gestacao, e.data_exame);
+  return d ? d / 7 : 0;
+}
+
+// Último exame próprio (não externo) a partir de 18 semanas. Só gestação única.
+function _laudoMamaeExame(gestacao, allExams) {
+  if (!gestacao || fetosDaGestacao(gestacao).length) return null;
+  const comIg = allExams.filter(e => !e.externo && _mamaeSemanas(gestacao, e) >= _MORFO2_SEM_MIN);
+  return comIg[comIg.length - 1] || null;
+}
+
+// Tipo do exame sugerido pela IG; a médica troca no seletor se for outro.
+function _mamaeTipoPadrao(semanas) {
+  if (semanas < 26) return 'morfo2';
+  if (semanas < 35) return 'doppler';
+  return 'morfo3';
+}
+
+// Frase do meio: só entra o que foi medido. BCF fora da faixa de alerta
+// (_bcfFora) não é impresso aqui; quem lê o laudo vê o valor no exame.
+function _mamaeMeioTxt(m) {
+  const frases = [];
+  if (m.peso != null) frases.push(`Com ${m.igTxt} semanas, seu bebê está pesando cerca de ${m.peso.toLocaleString('pt-BR')} gramas.`);
+  else frases.push(`Seu bebê está com ${m.igTxt} semanas de gestação.`);
+  if (m.bcf != null && !_bcfFora(m.bcf)) frases.push(`O coraçãozinho bateu ${m.bcf} vezes por minuto, forte e no ritmo certo.`);
+  if (m.sexo === 'F') frases.push('É uma menina!');
+  if (m.sexo === 'M') frases.push('É um menino!');
+  return frases.join(' ');
+}
+
+function _mamaeSheetHtml(patient, m) {
+  const fotoHtml = m.foto ? `<div class="mamae-foto"><img src="${m.foto}" alt=""></div>` : '';
+  const res = _MAMAE_RESULTADO[m.resultado];
+  return `<div class="sheet-flow">${_relHeaderHtml(patient.nome || patient.cpf, 'Laudo da mamãe')}
+    <main class="body mamae-body">
+      ${fotoHtml}
+      <p class="mamae-p">${escapeHtml(_MAMAE_ABERTURA[m.tipo])}</p>
+      <p class="mamae-p">${escapeHtml(_mamaeMeioTxt(m))}</p>
+      <p class="mamae-p">${escapeHtml(res.texto)}</p>
+      <p class="mamae-p">${escapeHtml(_MAMAE_FECHAMENTO)}</p>
+    </main>
+    ${_relFooterHtml()}
+  </div>`;
+}
+
+let _mamae = null;
+
+function abrirLaudoMamae() {
+  const patient  = getPatientById(currentPatientId);
+  const gestacao = getGestacaoById(currentGestacaoId);
+  if (!patient || !gestacao) return;
+  const exame = _laudoMamaeExame(gestacao, getExamsByGestacao(gestacao.id));
+  if (!exame) { alert('O Laudo da mamãe é para gestação única, a partir do morfológico de 2º trimestre.'); return; }
+
+  const semanas = _mamaeSemanas(gestacao, exame);
+  const dias = (exame.ig_dias_manual ?? calcIgDays(gestacao, exame.data_exame)) % 7;
+  const efw = exame.efw ?? calcEFW(exame.dbp, exame.cc, exame.ca, exame.femur);
+  _mamae = {
+    patientId: patient.id, gestacaoId: gestacao.id,
+    igTxt: `${Math.floor(semanas)} e ${dias} dias`,
+    peso: efw ? Math.round(efw / 10) * 10 : null,
+    bcf: exame.fc ?? null,
+    tipo: _mamaeTipoPadrao(semanas),
+    resultado: 'tudo', sexo: '', foto: null
+  };
+
+  const body = document.getElementById('modal-laudo-mamae-body');
+  if (!body) return;
+  body.innerHTML = `<div class="mamae-form">
+      <label>Exame de hoje
+        <select onchange="_mamae.tipo=this.value;_mamaeAtualizar()">
+          ${Object.keys(_MAMAE_TIPO_LABEL).map(k => `<option value="${k}" ${k === _mamae.tipo ? 'selected' : ''}>${_MAMAE_TIPO_LABEL[k]}</option>`).join('')}
+        </select>
+      </label>
+      <fieldset><legend>Resultado</legend>
+        ${Object.keys(_MAMAE_RESULTADO).map(k => `<label style="margin-right:16px;"><input type="radio" name="mamae-resultado" value="${k}" ${k === 'tudo' ? 'checked' : ''} onchange="_mamae.resultado=this.value;_mamaeAtualizar()"> ${_MAMAE_RESULTADO[k].rotulo}</label>`).join('')}
+      </fieldset>
+      <fieldset><legend>Sexo (só se ela quiser saber)</legend>
+        <label style="margin-right:16px;"><input type="radio" name="mamae-sexo" value="" checked onchange="_mamae.sexo=this.value;_mamaeAtualizar()"> Não informar</label>
+        <label style="margin-right:16px;"><input type="radio" name="mamae-sexo" value="F" onchange="_mamae.sexo=this.value;_mamaeAtualizar()"> Menina</label>
+        <label><input type="radio" name="mamae-sexo" value="M" onchange="_mamae.sexo=this.value;_mamaeAtualizar()"> Menino</label>
+      </fieldset>
+      <label>Foto do rostinho (opcional, não fica guardada)
+        <input type="file" accept="image/*" onchange="_mamaeLerFoto(this)">
+      </label>
+    </div>
+    <div id="mamae-preview"></div>`;
+  openModal('modal-laudo-mamae');
+  _mamaeAtualizar();
+}
+
+function _mamaeAtualizar() {
+  if (!_mamae) return;
+  const preview = document.getElementById('mamae-preview');
+  const btn = document.getElementById('btn-mamae-gerar');
+  const bloqueado = _mamae.resultado === 'alteracao';
+  if (btn) btn.disabled = bloqueado;
+  if (!preview) return;
+  if (bloqueado) {
+    preview.innerHTML = `<div class="mamae-bloqueado">Alteração identificada: neste caso o Laudo da mamãe não é emitido. Converse com a gestante antes de entregar qualquer papel.</div>`;
+    return;
+  }
+  const patient = getPatientById(_mamae.patientId);
+  if (!patient) return;
+  preview.innerHTML = `<div class="rel-preview" style="flex-direction:column;gap:0;align-items:center;">`
+    + `<div class="sheet-preview rel-page-gap">${_mamaeSheetHtml(patient, _mamae)}</div></div>`
+    + `<style>${_relPrintStyleBlock()}${_MAMAE_CSS}</style>`;
+}
+
+// A foto vira um quadrado de 600 px em JPEG só para caber no papel; não é gravada.
+function _mamaeLerFoto(input) {
+  const file = input.files && input.files[0];
+  if (!file || !_mamae) { if (_mamae) _mamae.foto = null; _mamaeAtualizar(); return; }
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const lado = Math.min(img.width, img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 600;
+      canvas.getContext('2d').drawImage(img, (img.width - lado) / 2, (img.height - lado) / 2, lado, lado, 0, 0, 600, 600);
+      _mamae.foto = canvas.toDataURL('image/jpeg', 0.85);
+      _mamaeAtualizar();
+    };
+    img.src = leitor.result;
+  };
+  leitor.readAsDataURL(file);
+}
+
+function confirmarGerarLaudoMamae() {
+  if (!_mamae || _mamae.resultado === 'alteracao') return;
+  const patient  = getPatientById(_mamae.patientId);
+  const gestacao = getGestacaoById(_mamae.gestacaoId);
+  if (!patient || !gestacao) return;
+
+  const printHTML = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<title>Laudo da mamãe — ${escapeHtml(patient.nome || patient.cpf)}</title>
+<style>${_relPrintStyleBlock()}${_MAMAE_CSS}</style></head>
+<body onload="window.print()">
+
+<div class="rel-reminder no-print">⚠ Revise antes de entregar à gestante · Frases fixas aprovadas pela Dra. Morgana Kummer</div>
+
+${_mamaeSheetHtml(patient, _mamae)}
+
+<button class="print-btn no-print" onclick="window.print()">⬇ Salvar como PDF</button>
+</body></html>`;
+
+  // Sem arquivo no Storage de propósito: a foto não pode ficar guardada.
+  _abrirJanelaImpressao(gestacao, printHTML, () => {});
 }
 
 // Rascunho da Conclusão do laudo de 1º trimestre — mesmo padrão das outras

@@ -1868,6 +1868,11 @@ pagamento pode ser parcial. O estado é explícito.
   devolução feita" ou depois, no bloco de encerramento. Arquivo em `{dono}/{gestacao}/devolucao-…` (mesmo
   bucket), referência em `encerramento.devolucao.comprovante`. `recepcao_devolucao` ganhou
   `p_comprovante` (opcional; omitido mantém o anterior).
+- **Devolução parada (2026-10-17)**: devolução `pendente` ou `escolha` há mais de 7 dias
+  (`_RC_DEV_PRAZO_DIAS`) ganha etiqueta vermelha na lista ("… há N dias"), aviso no bloco de encerramento
+  e um KPI "Devolução parada há mais de 7 dias" (só aparece com alguma; filtro `devparada`, mais antigas
+  primeiro). Conta desde `devolucao.em` (gravado por `recepcao_devolucao` a cada mudança de status); a
+  `escolha` criada no encerramento não tem `em` e conta de `encerramento.gravado_em`. Sem migração.
 
 ## Conclusão do laudo guardada no exame (2026-10-12, migração 028)
 

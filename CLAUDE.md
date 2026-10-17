@@ -2041,15 +2041,18 @@ Mudar o critério = mudar nos dois lugares (`_rcAgendaPendencias` e `_agenda_lib
 
 Decisão da Morgana: contrato e pagamento são feitos **pessoalmente na clínica**, logo após o ultrassom inicial com ela, ou, se a gestante levar o link dos planos para casa, **até 7 dias antes do primeiro exame do acompanhamento**. Nunca "no dia do primeiro exame". Está no item 3 do contrato (`_contratoHtml`, "Onde e quando"; espelhado no .docx/PDF de `/mnt/project-files/contratos/`), nos textos `de=casa` da `vitrine.html` (formulário, aceite, nota na tela de planos, tela final) e na mensagem do "Enviar link de adesão" (`recepcaoVitrineLinks`). O app não cobra o prazo: é só orientação.
 
-## Prioridade e 20% de desconto nos avulsos (2026-10-16)
+## Prioridade e desconto nos avulsos: Essencial 10%, Premium 20% (2026-10-16, revisto 2026-10-17)
 
 Decisão da Morgana: a gestante do acompanhamento tem prioridade na agenda em todos os ultrassons e paga
-exames feitos à parte (fora da modalidade, além dos extras, fora da janela, urgência) com 20% de desconto,
-arredondado para a dezena: 500→400, 295→240, 270→220, 250→200, 230→180 (gemelar em dobro). Está no item 5
-do contrato ("Prioridade e desconto"), na 3ª coluna do Anexo II (`avulsos` em `_contratoHtml`) e na
-vitrine (tabela comparativa e legenda da jornada). **Os cálculos de saldo (desistência, perda, parto, troca)
-continuam no valor avulso cheio** (`_ADESAO_PESO`, `_EXTRA_AVULSO`): o desconto é só para o que ela paga.
-O módulo de vigilância de CIUR (R$ 230/semana) não muda. Mudou um preço avulso? Atualize as duas colunas.
+exames feitos à parte (fora da modalidade, além dos extras, fora da janela, urgência) com desconto: **10% no
+Essencial e no Gemelar Essencial, 20% no Premium e no Gemelar Premium** (até 2026-10-17 era 20% para todas).
+Valores com desconto (gemelar em dobro): Essencial 500→450, 295→265, 270→245, 250→225, 230→205; Premium
+500→400, 295→240, 270→220, 250→200, 230→180. Está no item 5 do contrato (diz o % da modalidade contratada),
+no Anexo II (colunas "Essencial (10%)" e "Premium (20%)", a da modalidade destacada; `avulsos`/`descPct` em
+`_contratoHtml`) e na vitrine (tabela comparativa e legenda da jornada). **Os cálculos de saldo (desistência,
+perda, parto, troca) continuam no valor avulso cheio** (`_ADESAO_PESO`, `_EXTRA_AVULSO`): o desconto é só para
+o que ela paga. O módulo de vigilância de CIUR (R$ 230/semana) não muda. Mudou um preço avulso? Atualize as
+três colunas.
 
 ## Módulo de vigilância de CIUR: sempre com pedido do obstetra (2026-10-16)
 

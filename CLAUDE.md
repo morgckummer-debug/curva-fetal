@@ -2136,3 +2136,11 @@ peso (0 com peso, 5 sem, 8 com). Vale para exame externo e para exame com biomet
 - Gráficos de biometria/peso não plotam o exame sem peso (as uterinas sim). Selos "Atual" e o alerta da tela usam
   `_exameComPeso()`. Histórico do PDF, Revisão e lista de exames mostram "sem peso (biometria corresponde...)".
 - O laudo obstétrico do editor (`laudos-dramorgana`) **não** tem essa regra: ele não vê exames anteriores.
+
+## WhatsApp: abre sempre na conversa da gestante (2026-10-17)
+
+Todo `wa.me` passa por `_waTel(raw)`: só dígitos, sem zero de discagem, `55` + DDD + número (10 ou 11 dígitos
+depois do 55), ou `''` se não fecha. "Enviar cópia à gestante" só usa o menu de compartilhar
+(`navigator.share`) em tela de toque (`pointer: coarse`, iPad/celular): no computador o Chrome também
+oferece esse menu, mas o WhatsApp Desktop recebe o arquivo sem conversa escolhida. Lá o arquivo é baixado
+e o `wa.me` abre na conversa dela, para anexar.

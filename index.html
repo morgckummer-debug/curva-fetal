@@ -3308,14 +3308,21 @@ function _rcConfRefazer() {
   if (el._url && itens.length) document.getElementById('rc-conf-txt').value += `\n\n👉 Confirme seus horários neste link. Lá também está o guia de cada exame, com o que vamos avaliar e como se preparar:\n${el._url}`;
 }
 
+// Celular para o wa.me: só dígitos, 55 + DDD + número (sem zero de operadora/discagem na frente).
+// Devolve '' quando não dá um celular válido; aí o wa.me abre sem conversa escolhida.
+function _waTel(raw) {
+  let d = String(raw || '').replace(/\D/g, '').replace(/^0+/, '');
+  if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+  return (d.length === 10 || d.length === 11) ? '55' + d : '';
+}
+
 function _rcConfWhats() {
-  let d = (document.getElementById('rc-conf-tel').value || '').replace(/\D/g, '');
+  const d = _waTel(document.getElementById('rc-conf-tel').value);
   const txt = document.getElementById('rc-conf-txt').value;
   if (!txt.trim()) { alert('Preencha a data de pelo menos um exame.'); return; }
-  if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
+  if (!d) { alert('Digite o celular com DDD.'); return; }
   const elc = document.getElementById('rc-conf-modal');
   if (elc && [...elc.querySelectorAll('.rc-conf-d')].some(x => x.value && !elc.querySelector(`.rc-conf-h[data-k="${x.dataset.k}"]`).value) && !confirm('Algum exame está sem horário. Enviar assim mesmo?')) return;
-  if (!d.startsWith('55')) d = '55' + d;
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(txt), '_blank');
   // só conta como agendado o exame que teve data digitada
   const el = document.getElementById('rc-conf-modal'), rr = _recepcaoDados.find(x => x.gestacao_id === _rcSel), ii = rr && _rcInfo(rr);
@@ -3340,9 +3347,8 @@ function _rcAgRegistrar(estado, keys, depois) {
 }
 
 function _rcDatWhats() {
-  let d = (document.getElementById('rc-dat-tel').value || '').replace(/\D/g, '');
-  if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
-  if (!d.startsWith('55')) d = '55' + d;
+  const d = _waTel(document.getElementById('rc-dat-tel').value);
+  if (!d) { alert('Digite o celular com DDD.'); return; }
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(document.getElementById('rc-dat-txt').value), '_blank');
   _rcAgRegistrar('aguardando');
 }
@@ -4120,7 +4126,10 @@ async function recepcaoContratoCopia(gid, i, btn) {
       file = _copiaCache[c.path] = new File([corpo], nomeArq, { type: c.tipo || data.type });
       btn.disabled = false; btn.textContent = rotulo;
     }
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Só em tela de toque (iPad/celular). No computador o Chrome também oferece o menu de compartilhar,
+    // mas o WhatsApp Desktop recebe o arquivo sem conversa escolhida: lá vai o wa.me com o número dela.
+    const toque = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    if (toque && navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: file.name, text: texto }); }
       catch (e) {
         if (e && e.name === 'NotAllowedError') { btn.textContent = '📤 Toque de novo para enviar'; return; }
@@ -4133,9 +4142,9 @@ async function recepcaoContratoCopia(gid, i, btn) {
     // Computador: baixa o arquivo e abre a conversa no WhatsApp para anexá-lo.
     const a = document.createElement('a');
     a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
-    let tel = ((r.pagamento && r.pagamento.celular) || '').replace(/\D/g, '');
-    if (tel.length >= 10) { if (!tel.startsWith('55')) tel = '55' + tel; window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texto), '_blank'); }
-    alert('O arquivo foi baixado. ' + (tel.length >= 10 ? 'Anexe-o na conversa do WhatsApp que abriu.' : 'Anexe-o no WhatsApp ou e-mail da gestante (o celular dela não está na ficha).'));
+    const tel = _waTel(r.pagamento && r.pagamento.celular);
+    if (tel) window.open('https://wa.me/' + tel + '?text=' + encodeURIComponent(texto), '_blank');
+    alert('O arquivo foi baixado. ' + (tel ? 'Anexe-o na conversa do WhatsApp que abriu.' : 'Anexe-o no WhatsApp ou e-mail da gestante (o celular dela não está na ficha).'));
   } catch (err) {
     btn.disabled = false; btn.textContent = rotulo;
     console.error('[CurvaFetal] cópia do contrato:', err);
@@ -4701,9 +4710,8 @@ function _encRefazer() {
 }
 
 function _encWhats() {
-  let d = (document.getElementById('rc-enc-tel').value || '').replace(/\D/g, '');
-  if (d.length < 10) { alert('Digite o celular com DDD.'); return; }
-  if (!d.startsWith('55')) d = '55' + d;
+  const d = _waTel(document.getElementById('rc-enc-tel').value);
+  if (!d) { alert('Digite o celular com DDD.'); return; }
   window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(document.getElementById('rc-enc-txt').value), '_blank');
 }
 
@@ -5285,10 +5293,8 @@ async function recepcaoVitrineLinks(modo) {
   // Celular da paciente: o link do WhatsApp vai direto para a conversa dela (wa.me/55DDDNÚMERO).
   const tel = document.getElementById('rc-links-tel'), wa = document.getElementById('rc-links-wa'), av = document.getElementById('rc-links-tel-aviso');
   tel.oninput = function () {
-    let d = tel.value.replace(/\D/g, '');
-    if (d.length > 11 && d.startsWith('55')) d = d.slice(2);
-    const ok = d.length === 10 || d.length === 11;
-    wa.href = 'https://wa.me/' + (ok ? '55' + d : '') + '?text=' + encodeURIComponent(msgCasa);
+    const d = tel.value.replace(/\D/g, ''), w = _waTel(d), ok = !!w;
+    wa.href = 'https://wa.me/' + w + '?text=' + encodeURIComponent(msgCasa);
     av.textContent = !d ? 'Com o número, o WhatsApp abre direto na conversa dela.' : ok ? 'O WhatsApp vai abrir na conversa deste número.' : 'Confira o número: DDD + celular.';
     av.style.color = d && !ok ? '#b3261e' : '';
   };

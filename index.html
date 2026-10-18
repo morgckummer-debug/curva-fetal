@@ -4249,7 +4249,7 @@ function _histFrases(h) {
       const out = [];
       if (!a || a.motivo !== d.motivo) out.push({ txt: `Encerramento registrado: ${_ENC_MOTIVO[d.motivo] || v(d.motivo)}${d.pago != null ? ' · pago ' + _brl(d.pago) : ''}` });
       const da = a && a.devolucao, dd = d.devolucao;
-      if (dd && (!da || da.status !== dd.status)) out.push({ txt: `Devolução: ${(_DEV_ROT[dd.status] || [, dd.status])[1]}${dd.valor != null ? ' · ' + _brl(dd.valor) : ''}${dd.forma ? ' · ' + (_DEV_FORMA[dd.forma] || dd.forma) : ''}`, arq: dd.comprovante || null });
+      if (dd && (!da || da.status !== dd.status)) out.push({ txt: `Devolução: ${(_DEV_ROT[dd.status] || [, dd.status])[1]}${dd.valor != null ? ' · ' + _brl(dd.valor) : ''}${dd.forma ? ' · ' + (_DEV_FORMA[dd.forma] || dd.forma) : ''}${dd.via === 'link' && (!da || da.via !== 'link') ? ' · escolha da gestante pelo link' : ''}`, arq: dd.comprovante || null });
       return out.length ? out : [{ txt: 'Extrato de encerramento atualizado' }];
     }
     case 'faltas': {
@@ -4364,19 +4364,21 @@ function _rcEncerramentoHtml(r, i) {
   const li = (t, v) => v == null || v === '' ? '' : `<tr><td style="padding:2px 14px 2px 0;color:var(--text-muted);">${t}</td><td><b>${v}</b></td></tr>`;
   let sit;
   if (d.status === 'devolvido') sit = `Devolvido em ${formatDateBR(d.data)} — ${_brl(d.valor || 0)}${d.forma ? ' (' + escapeHtml(_DEV_FORMA[d.forma] || d.forma) + ')' : ''}`;
-  else if (d.status === 'pendente') sit = `A devolver: ${_brl(d.valor || 0)} em dinheiro`;
+  else if (d.status === 'pendente') sit = `A devolver: ${_brl(d.valor || 0)} por Pix`;
   else if (d.status === 'credito') sit = e.credito_nova_gestacao
     ? `Crédito de ${_brl(d.valor || 0)} para nova gestação${e.validade ? ' (tabela do contrato até ' + formatDateBR(e.validade) + '; depois, paga a diferença)' : ''}`
     : `Crédito de ${_brl(d.valor || 0)}${e.validade ? ', válido até ' + formatDateBR(e.validade) : ''}`;
   if (ce && ce.usado > 0) sit += ` · usado ${_brl(ce.usado)} · <b>disponível ${_brl(ce.disponivel)}</b>`;
   if (ce && ce.vencido) sit += ` · <b style="color:var(--danger);">VENCIDO em ${formatDateBR(ce.validade)}</b>`;
-  if (d.status === 'escolha') sit = `Devolução em dinheiro: ${_brl(e.estorno || 0)} · ou crédito: ${_brl(e.credito || 0)}`;
+  if (d.status === 'escolha') sit = `Devolução por Pix: ${_brl(e.estorno || 0)} · ou crédito: ${_brl(e.credito || 0)}`;
+  if (d.via === 'link' && d.status !== 'escolha') sit += ` · <b>escolha da gestante pelo link</b>`;
   else if (!['devolvido', 'pendente', 'credito'].includes(d.status)) sit = 'Nenhum valor a devolver';
   const btn = (t, js, cls) => `<button type="button" class="${cls || 'rc-btn-claro'}" onclick="${js}">${t}</button>`;
   let acoes = '';
   if (d.status === 'escolha') {
     acoes = (e.estorno > 0 ? btn(`Escolheu devolução (${_brl(e.estorno)})`, `recepcaoDevolucaoDefinir(${gid}, 'pendente', 'dinheiro', ${e.estorno})`, 'rc-btn-dark') : '')
-          + (e.credito > 0 ? btn(`Escolheu crédito (${_brl(e.credito)})`, `recepcaoDevolucaoDefinir(${gid}, 'credito', 'credito', ${e.credito})`) : '');
+          + (e.credito > 0 ? btn(`Escolheu crédito (${_brl(e.credito)})`, `recepcaoDevolucaoDefinir(${gid}, 'credito', 'credito', ${e.credito})`) : '')
+          + btn('📲 Enviar link para ela escolher', `recepcaoEncLinkEnviar(${gid})`);
   } else if (d.status === 'pendente') {
     acoes = btn('Registrar devolução feita', `recepcaoDevolucaoFeita(${gid})`, 'rc-btn-dark');
   } else if (d.status === 'devolvido') {
@@ -4390,12 +4392,13 @@ function _rcEncerramentoHtml(r, i) {
   acoes += btn('Refazer registro', `recepcaoEncerrarAbrir(${gid}, true)`);
   return `<div class="rc-pag" style="margin-top:0;margin-bottom:14px;border-color:#c0392b;background:#fff7f7;">
     <div class="rc-pag-top"><div class="rc-sec-t" style="margin:0;">Encerramento e devolução</div><span class="rc-pill ${rot[0]}">${rot[1]}</span></div>
-    ${i.devParada ? `<div style="border-left:4px solid #c0392b;background:#fdecea;border-radius:10px;padding:8px 12px;margin:8px 0 10px;font-size:13.5px;color:#a02a1e;"><b>⚠ ${d.status === 'escolha' ? 'Aguardando a escolha da paciente' : 'Devolução ainda não feita'} há ${i.devDias} dias.</b> ${d.status === 'escolha' ? 'Entre em contato para ela escolher entre devolução e crédito.' : 'Faça a devolução e registre aqui.'}</div>` : ''}
+    ${i.devParada ? `<div style="border-left:4px solid #c0392b;background:#fdecea;border-radius:10px;padding:8px 12px;margin:8px 0 10px;font-size:13.5px;color:#a02a1e;"><b>⚠ ${d.status === 'escolha' ? 'Aguardando a escolha da paciente' : 'Devolução ainda não feita'} há ${i.devDias} dias.</b> ${d.status === 'escolha' ? 'Reenvie o link ou entre em contato para ela escolher entre Pix e crédito.' : 'Faça a devolução e registre aqui.'}</div>` : ''}
     <table style="font-size:13.5px;border-collapse:collapse;margin-bottom:10px;"><tbody>
       ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
       ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}
       ${li(e.credito_nova_gestacao ? 'Retenção (15%, só na devolução)' : 'Retenção', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}${li('Imposto da nota (só na devolução)', e.imposto_val ? _brl(e.imposto_val) : '')}
       ${li('Situação', sit)}${li('Crédito por falta (item 7d)', e.credito_falta ? _brl(e.credito_falta) + (e.credito_falta_validade ? ', válido até ' + formatDateBR(e.credito_falta_validade) : '') : '')}
+      ${d.pix ? li('Chave Pix', escapeHtml(d.pix.chave || '') + (d.pix.titular ? ' · titular: ' + escapeHtml(d.pix.titular) : '')) : ''}
       ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
       ${li('Registrado por', escapeHtml(e.por || '') + (e.gravado_em ? ', ' + _rcDataHora(e.gravado_em) : ''))}</tbody></table>
     ${usosEnc}<div style="display:flex;gap:8px;flex-wrap:wrap;">${acoes}</div>
@@ -4611,7 +4614,7 @@ function _encTexto(r, sit, motivo, hoje, c) {
     if (c.retencao) desc.push(`15% do saldo, ${_brl(c.retencao)}`);
     if (c.taxaVal) desc.push(`taxa da operadora do cartão, ${_brl(c.taxaVal)}`);
     if (c.impostoVal) desc.push(`imposto da nota fiscal, ${_brl(c.impostoVal)}`);
-    L.push(`1) Devolução em dinheiro: *${_brl(c.estorno)}*${c.teto != null ? ` (limitada à parte do valor pago que corresponde aos exames que ainda faltavam)` : desc.length ? ` (saldo menos ${desc.length > 1 ? desc.slice(0, -1).join(', ') + ' e ' + desc[desc.length - 1] : desc[0]})` : ''}.`);
+    L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${c.teto != null ? ` (limitada à parte do valor pago que corresponde aos exames que ainda faltavam)` : desc.length ? ` (saldo menos ${desc.length > 1 ? desc.slice(0, -1).join(', ') + ' e ' + desc[desc.length - 1] : desc[0]})` : ''}.`);
     L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}*${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}. Com adesão em até 12 meses, vale a tabela de preços do seu contrato; depois disso, o crédito continua valendo e você paga a diferença para a tabela da época.`);
   } else {
     L.push('');
@@ -4623,7 +4626,7 @@ function _encTexto(r, sit, motivo, hoje, c) {
       L.push(`Valor dos exames não realizados (avulso): ${_brl(c.base)}`);
       L.push('');
       L.push('Você pode escolher:');
-      L.push(`1) Devolução em dinheiro: *${_brl(c.estorno)}*${desc.length ? ` (menos ${desc.join(' e ')})` : ''}.`);
+      L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${desc.length ? ` (menos ${desc.join(' e ')})` : ''}.`);
       L.push(`2) Crédito de *${_brl(c.credito)}*, válido até ${formatDateBR(vc.toISOString().slice(0, 10))}, para uso da mãe em qualquer serviço da clínica.`);
     } else L.push('Todos os exames do plano foram realizados: não há valor a devolver.');
   }
@@ -4663,7 +4666,7 @@ function _encTextoParto(L, hoje, c) {
       const desc = [];
       if (c.taxaVal) desc.push(`taxa da operadora do cartão, ${_brl(c.taxaVal)}`);
       if (c.impostoVal) desc.push(`imposto da nota fiscal, ${_brl(c.impostoVal)}`);
-      L.push(`1) ${_brl(c.estorno)} em dinheiro${desc.length ? ` (${_brl(c.base)} menos ${desc.join(' e ')})` : ''}${cf ? ` e ${_brl(cf)} em crédito, válido até ${validade}` : ''}.`);
+      L.push(`1) ${_brl(c.estorno)} por Pix${desc.length ? ` (${_brl(c.base)} menos ${desc.join(' e ')})` : ''}${cf ? ` e ${_brl(cf)} em crédito, válido até ${validade}` : ''}.`);
       L.push(`2) ${_brl(c.credito + cf)} em crédito, válido até ${validade}.`);
     } else {
       L.push(`${_brl(cf)} em crédito, válido até ${validade}.`);
@@ -4715,11 +4718,11 @@ function recepcaoEncerrarAbrir(gid, retro) {
     <div id="rc-enc-ad" style="font-size:12.5px;margin-bottom:8px;color:var(--text-muted);"></div>
     <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
     <textarea id="rc-enc-txt" rows="14" style="${inp}font-size:13px;" oninput="_encTxtManual=true"></textarea>
-    <div id="rc-enc-aviso" style="font-size:12px;color:var(--text-muted);margin:8px 0;">Confira o valor pago e o celular (vêm da ficha; se estiverem vazios ou errados, corrija aqui ou na conferência de pagamento). Quem entrou com o calendário em andamento paga menos que o plano.</div>
+    <div id="rc-enc-aviso" style="font-size:12px;color:var(--text-muted);margin:8px 0;">Confira o valor pago e o celular (vêm da ficha; se estiverem vazios ou errados, corrija aqui ou na conferência de pagamento). Quem entrou com o calendário em andamento paga menos que o plano. Quando houver escolha entre Pix e crédito, a mensagem vai com um link pessoal: a gestante escolhe por ele e a ficha atualiza sozinha.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
       <button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-enc-modal').remove()">Cancelar</button>
-      <button type="button" class="rc-btn-claro" onclick="_encWhats()">Abrir no WhatsApp</button>
-      <button type="button" class="rc-btn-dark" onclick="_encConfirmar('${motivo}')">${_encRetro ? 'Salvar registro' : 'Encerrar acompanhamento'}</button></div></div>`;
+      <button type="button" class="rc-btn-claro" onclick="_encConfirmar('${motivo}')">${_encRetro ? 'Salvar sem enviar' : 'Encerrar sem enviar'}</button>
+      <button type="button" class="rc-btn-dark" onclick="_encConfirmar('${motivo}', true)">${_encRetro ? 'Salvar e enviar pelo WhatsApp' : 'Encerrar e enviar pelo WhatsApp'}</button></div></div>`;
   document.body.appendChild(el);
   el.dataset.motivo = motivo;
   _encRefazer();
@@ -4742,10 +4745,38 @@ function _encRefazer() {
   document.getElementById('rc-enc-txt').value = _encTexto(r, sit, el.dataset.motivo, _hojeISO(), c);
 }
 
-function _encWhats() {
-  const d = _waTel(document.getElementById('rc-enc-tel').value);
-  if (!d) { alert('Digite o celular com DDD.'); return; }
-  window.open('https://wa.me/' + d + '?text=' + encodeURIComponent(document.getElementById('rc-enc-txt').value), '_blank');
+// Link pessoal da escolha entre Pix e crédito (encerramento.html, migração 043). Sem a 043, devolve ''.
+async function _encLink(gid) {
+  const { data, error } = await supabaseClient.rpc('recepcao_encerramento_link', { p_gestacao_id: gid });
+  if (error) { console.error('[CurvaFetal] recepcao_encerramento_link:', error); return ''; }
+  return data ? new URL('encerramento.html?t=' + data, location.href).href : '';
+}
+function _encMsgComLink(txt, link) {
+  if (!link) return txt;
+  const linha = `Para nos dizer a sua escolha (Pix ou crédito), toque no link:\n${link}`;
+  const fim = '\n\nQualquer dúvida, estamos à disposição.';
+  return txt.endsWith(fim) ? txt.slice(0, -fim.length) + '\n\n' + linha + fim : txt + '\n\n' + linha;
+}
+// w: aba aberta no toque, antes de qualquer await (aberta depois, o celular bloqueia como pop-up).
+function _encAbrirWhats(w, tel, msg) {
+  const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(msg);
+  if (w && !w.closed) w.location.href = url;
+  else if (!window.open(url, '_blank')) prompt('O navegador bloqueou a abertura do WhatsApp. Copie a mensagem:', msg);
+}
+
+// Ficha: reenviar a mensagem do encerramento com o link de escolha (devolução ainda em 'escolha').
+async function recepcaoEncLinkEnviar(gid) {
+  const r = (_recepcaoDados || []).find(x => x.gestacao_id === gid);
+  const e = r && r.pagamento && r.pagamento.encerramento;
+  if (!e) return;
+  const tel = _waTel(e.celular || (r.pagamento && r.pagamento.celular));
+  const w = tel ? window.open('', '_blank') : null;
+  const link = await _encLink(gid);
+  if (!link) { if (w) w.close(); alert('Não consegui gerar o link. A migração 043 foi aplicada no Supabase?'); return; }
+  const primeiro = (r.nome || '').trim().split(/\s+/)[0] || '';
+  const msg = `Olá, ${primeiro}! Para nos dizer como prefere receber o saldo do seu Acompanhamento Fetal MK (Pix ou crédito), é só tocar no link:\n${link}\n\nQualquer dúvida, estamos à disposição. 💜`;
+  if (!tel) { prompt('O celular dela não está na ficha. Copie a mensagem e mande pelo WhatsApp:', msg); return; }
+  _encAbrirWhats(w, tel, msg);
 }
 
 // Foto do encerramento que fica na ficha (migração 026): valores, exames feitos, mensagem e o status da devolução.
@@ -4777,22 +4808,29 @@ function _encExtrato(r, sit, motivo) {
   // Refazer o registro não pode apagar uma devolução já resolvida.
   const antigo = _encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.devolucao;
   if (antigo && antigo.status === 'devolvido') ex.devolucao = antigo;
+  else if (antigo && antigo.pix) ex.devolucao.pix = antigo.pix;
   return ex;
 }
 
-async function _encConfirmar(motivo) {
+async function _encConfirmar(motivo, enviar) {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === _encGid);
   if (!r) return;
   const sit = _acompSituacao(r, r.exames || []);
   const extrato = _encExtrato(r, sit, motivo);
   const nome = r.nome || 'esta paciente';
+  const gid = _encGid;
+  const tel = enviar ? _waTel(document.getElementById('rc-enc-tel').value) : '';
+  if (enviar && !tel) { alert('Digite o celular com DDD.'); return; }
+  let w = null;
   try {
     if (_encRetro) {
       if (!confirm('Salvar o registro do encerramento de ' + nome + '?')) return;
+      if (enviar) w = window.open('', '_blank');
       const { error } = await supabaseClient.rpc('recepcao_extrato_salvar', { p_gestacao_id: _encGid, p_extrato: extrato });
       if (error) throw error;
     } else {
       if (!confirm('Encerrar o acompanhamento de ' + nome + '?\n\nEla continua na lista, marcada como encerrada, com o extrato e o status da devolução guardados na ficha. A Dra. Morgana pode reabrir pela ficha.')) return;
+      if (enviar) w = window.open('', '_blank');
       let { error } = await supabaseClient.rpc('recepcao_encerrar', { p_gestacao_id: _encGid, p_motivo: motivo, p_extrato: extrato });
       if (error && (error.code === 'PGRST202' || /Could not find the function|schema cache/i.test(error.message || ''))) {
         // migração 026 ainda não aplicada: encerra como antes, mas avisa que o extrato não foi guardado
@@ -4801,10 +4839,15 @@ async function _encConfirmar(motivo) {
       }
       if (error) throw error;
     }
+    if (enviar) {
+      const temEscolha = extrato.devolucao && extrato.devolucao.status === 'escolha';
+      const link = temEscolha ? await _encLink(gid) : '';
+      _encAbrirWhats(w, tel, _encMsgComLink(extrato.mensagem, link));
+    }
     const m = document.getElementById('rc-enc-modal'); if (m) m.remove();
     if (!_encRetro) _rcSel = null;
     await recepcaoAtualizar();
-  } catch (err) { console.error(err); alert('Não consegui salvar: ' + (err.message || err)); }
+  } catch (err) { if (w && !w.closed) w.close(); console.error(err); alert('Não consegui salvar: ' + (err.message || err)); }
 }
 
 // ── Troca de modalidade (contrato item 9; migração 029) ──────────────────

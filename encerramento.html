@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src https://ulcqnqwxguydrpoaplcv.supabase.co; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none';">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Acompanhamento Fetal MK">
+<meta property="og:title" content="Acompanhamento Fetal MK">
+<meta property="og:description" content="Resumo do seu acompanhamento · Dra. Morgana Kummer">
+<meta property="og:image" content="https://morgckummer-debug.github.io/curva-fetal/hero-logo.png">
+<meta property="og:image:width" content="400">
+<meta property="og:image:height" content="400">
+<meta property="og:url" content="https://morgckummer-debug.github.io/curva-fetal/encerramento.html">
+<meta name="description" content="Resumo do seu acompanhamento · Dra. Morgana Kummer">
+<title>Acompanhamento Fetal MK</title>
+<link rel="icon" href="favicon-32.png">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f4eef7;color:#2b2233;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.45}
+.w{max-width:560px;margin:0 auto;padding:20px 16px 40px}
+.top{text-align:center;padding:10px 0 18px}
+.top b{display:block;font-size:19px;color:#4b2a6b}
+.top span{font-size:13px;color:#7a6a88}
+.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(75,42,107,.08)}
+h1{font-size:21px;margin:0 0 6px;color:#4b2a6b}
+h2{font-size:17px;margin:0 0 2px;color:#4b2a6b}
+.jan{font-size:14px;color:#7a6a88;margin-bottom:10px}
+.lin{display:flex;gap:8px;margin-bottom:8px}
+.lin select,textarea{font:inherit;padding:11px 10px;border:1px solid #cdbfd8;border-radius:10px;background:#fff;color:inherit;min-width:0}
+.lin select{flex:1}.lin select:first-child{flex:1.6}
+textarea{width:100%;resize:vertical}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:14px;width:100%;background:#4b2a6b;color:#fff;cursor:pointer}
+button:disabled{opacity:.5}
+.err{color:#b3261e;font-size:14px;margin:8px 0}
+.ok{text-align:center;padding:10px 0}
+.ok .t{font-size:40px}
+.res{font-size:15px;margin:6px 0}
+.ag .res{margin:0;padding:14px 0;border-top:1px solid #eee5f3}
+.ag .res:first-of-type{border-top:0;padding-top:6px}
+.ag .res b{display:block;margin-bottom:3px}
+.sec{background:none;color:#4b2a6b;border:1px solid #4b2a6b;margin-top:10px}
+small{color:#7a6a88}
+.op{display:block;width:100%;text-align:left;background:#fff;color:#2b2233;border:2px solid #cdbfd8;border-radius:14px;padding:14px;margin-bottom:10px;font-weight:400}
+.op b{display:block;font-size:17px;color:#4b2a6b;margin-bottom:2px}
+.op .v{font-size:22px;font-weight:700;color:#4b2a6b}
+.op.sel{border-color:#4b2a6b;background:#f7f1fb}
+label{display:block;font-size:14px;color:#7a6a88;margin:10px 0 4px}
+input{font:inherit;width:100%;padding:11px 10px;border:1px solid #cdbfd8;border-radius:10px}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="top"><b>Acompanhamento Fetal MK</b><span>Dra. Morgana Kummer</span></div>
+  <div id="app"><div class="card">Carregando…</div></div>
+</div>
+<script>
+(function () {
+  var URL_ = 'https://ulcqnqwxguydrpoaplcv.supabase.co';
+  var KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsY3FucXd4Z3V5ZHJwb2FwbGN2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0Njk2NjcsImV4cCI6MjEwMTA0NTY2N30.hNrszyJvaBzP08Oild4wivMrTvXnDoGfgL6My1bbtVU';
+  var app = document.getElementById('app');
+  var tok = (new URLSearchParams(location.search).get('t') || '').trim();
+
+  function rpc(fn, body) {
+    return fetch(URL_ + '/rest/v1/rpc/' + fn, {
+      method: 'POST',
+      headers: { 'apikey': KEY, 'Authorization': 'Bearer ' + KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.message || 'erro'); return j; }); });
+  }
+  function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
+  function limpa() { while (app.firstChild) app.removeChild(app.firstChild); }
+  function brl(v) { return 'R$ ' + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function dt(iso) { return iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; }
+  function msg(titulo, texto) {
+    limpa(); var c = el('div', 'card');
+    c.appendChild(el('h1', null, titulo)); c.appendChild(el('p', null, texto)); app.appendChild(c);
+  }
+  function invalido() { msg('Link não encontrado', 'Este link não é mais válido. Fale com a nossa equipe pelo WhatsApp 💜'); }
+
+  // Texto de cada opção, igual ao da mensagem do WhatsApp (os valores vêm do extrato guardado na ficha).
+  function opcoes(d) {
+    var parto = d.motivo === 'parto', cf = d.credito_falta > 0 ? d.credito_falta : 0;
+    var out = [];
+    if (d.estorno > 0) out.push({ k: 'pix', t: 'Devolução por Pix', v: d.estorno,
+      s: parto && cf ? 'e mais ' + brl(cf) + ' em crédito, válido até ' + dt(d.credito_falta_validade) + '.' : 'Depositado na chave Pix que você informar.' });
+    if (d.credito > 0) out.push({ k: 'credito', t: 'Crédito', v: parto ? d.credito + cf : d.credito,
+      s: d.credito_nova_gestacao
+        ? 'Para um novo Acompanhamento Fetal MK, em uma nova gestação. Com adesão até ' + dt(d.validade) + ', vale a tabela de preços do seu contrato; depois, o crédito continua valendo e você paga a diferença.'
+        : 'Válido até ' + dt(d.validade) + ', para uso da mãe em qualquer serviço da clínica, com qualquer médico da equipe.' });
+    return out;
+  }
+
+  function feito(d) {
+    limpa(); var c = el('div', 'card');
+    c.appendChild(el('h1', null, 'Recebemos sua escolha 💜'));
+    if (d.status === 'credito') c.appendChild(el('p', null, 'Você escolheu o crédito. Ele já está registrado na sua ficha.'));
+    else if (d.status === 'pendente') c.appendChild(el('p', null, 'Você escolheu a devolução por Pix. Nossa equipe vai fazer o depósito e enviar o comprovante pelo WhatsApp.'));
+    else if (d.status === 'devolvido') c.appendChild(el('p', null, 'A devolução por Pix já foi feita. Qualquer dúvida, fale com a nossa equipe pelo WhatsApp.'));
+    else c.appendChild(el('p', null, 'Sua escolha já está registrada. Qualquer dúvida, fale com a nossa equipe pelo WhatsApp.'));
+    if (d.credito_falta > 0 && d.motivo !== 'parto') c.appendChild(el('p', 'res', 'Lembrando: você também tem ' + brl(d.credito_falta) + ' de crédito pelos exames em que não compareceu, válido até ' + dt(d.credito_falta_validade) + '.'));
+    app.appendChild(c);
+  }
+
+  function form(d) {
+    limpa();
+    var parto = d.motivo === 'parto';
+    var c = el('div', 'card');
+    c.appendChild(el('h1', null, 'Olá' + (d.nome ? ', ' + d.nome : '') + '!'));
+    c.appendChild(el('p', null, parto
+      ? 'Parabéns pela chegada do bebê 💜 Como alguns exames do seu plano não chegaram a ser feitos, você tem um valor a receber. Escolha como prefere:'
+      : 'Escolha como prefere receber o saldo do seu Acompanhamento Fetal MK:'));
+    var ops = opcoes(d), escolha = null, botoes = [];
+    var pix = el('div'); pix.style.display = 'none';
+    pix.appendChild(el('label', null, 'Chave Pix (CPF, celular, e-mail ou chave aleatória)'));
+    var ch = document.createElement('input'); ch.maxLength = 120; ch.autocomplete = 'off'; pix.appendChild(ch);
+    pix.appendChild(el('label', null, 'Nome completo do titular da conta'));
+    var ti = document.createElement('input'); ti.maxLength = 120; ti.autocomplete = 'name'; pix.appendChild(ti);
+    ops.forEach(function (o) {
+      var b = el('button', 'op'); b.type = 'button';
+      b.appendChild(el('b', null, o.t)); b.appendChild(el('div', 'v', brl(o.v))); b.appendChild(el('div', null, o.s));
+      b.onclick = function () {
+        escolha = o.k; botoes.forEach(function (x) { x.classList.toggle('sel', x === b); });
+        pix.style.display = o.k === 'pix' ? 'block' : 'none'; er.textContent = '';
+      };
+      botoes.push(b); c.appendChild(b);
+    });
+    c.appendChild(pix);
+    if (!parto && d.credito_falta > 0) c.appendChild(el('p', 'res', 'Além disso, você tem ' + brl(d.credito_falta) + ' de crédito pelos exames em que não compareceu, válido até ' + dt(d.credito_falta_validade) + ', para qualquer serviço da clínica.'));
+    var er = el('div', 'err'); c.appendChild(er);
+    var bt = el('button', null, 'Confirmar minha escolha');
+    bt.style.marginTop = '8px';
+    bt.onclick = function () {
+      er.textContent = '';
+      if (!escolha) { er.textContent = 'Toque em uma das opções.'; return; }
+      if (escolha === 'pix' && (ch.value.trim().length < 4 || ti.value.trim().length < 3)) { er.textContent = 'Informe a chave Pix e o nome do titular.'; return; }
+      bt.disabled = true; bt.textContent = 'Enviando…';
+      rpc('encerramento_escolher', { p_token: tok, p_opcao: escolha, p_pix_chave: ch.value, p_pix_titular: ti.value }).then(function () {
+        return rpc('encerramento_publico', { p_token: tok }).then(feito);
+      }).catch(function (e) {
+        if (/já registrada/.test(e.message || '')) return rpc('encerramento_publico', { p_token: tok }).then(feito);
+        bt.disabled = false; bt.textContent = 'Confirmar minha escolha';
+        er.textContent = 'Não consegui enviar agora. Confira sua internet e tente de novo, ou responda pelo WhatsApp.';
+      });
+    };
+    c.appendChild(bt);
+    c.appendChild(el('small', null, 'Depois de confirmar, a escolha fica registrada. Se precisar mudar, fale com a nossa equipe pelo WhatsApp.'));
+    app.appendChild(c);
+  }
+
+  if (tok.length < 40) { invalido(); return; }
+  rpc('encerramento_publico', { p_token: tok }).then(function (d) {
+    if (!d) return invalido();
+    if (!d.pronto) return msg('Olá' + (d.nome ? ', ' + d.nome : '') + '!', 'Seu resumo ainda está sendo finalizado pela nossa equipe. Abra este link de novo em alguns minutos 💜');
+    if (d.status === 'escolha') return form(d);
+    if (d.status === 'nada') return msg('Olá' + (d.nome ? ', ' + d.nome : '') + '!', 'Não há valor a receber neste encerramento. Qualquer dúvida, fale com a nossa equipe pelo WhatsApp 💜');
+    feito(d);
+  }).catch(function () { msg('Ops', 'Não consegui carregar agora. Tente de novo em instantes.'); });
+})();
+</script>
+</body>
+</html>

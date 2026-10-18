@@ -2156,3 +2156,17 @@ baixar o arquivo e abrir a conversa.
 ## IG em destaque: "10s4d" em fonte sem serifa (2026-10-18)
 
 A Morgana achou o "10s4d" em Playfair grande difícil de ler e pediu para deixar mais legível. Ela decidiu manter o formato "10s4d", só com fonte sem serifa. Continua `_acompSemDia`, só que `.rc-ig-hoje b` usa `--font-sans` com algarismos alinhados (na Playfair o "1" e o "0" pareciam letras). Na Nova adesão (`#rc-ad-ig-hoje`) sai no tamanho do texto.
+
+## A gestante escolhe Pix ou crédito por um link (2026-10-18, migração 043)
+
+No encerramento com saldo, o modal "Encerrar acompanhamento" tem **"Encerrar e enviar pelo WhatsApp"** (grava o
+extrato e abre a conversa) e "Encerrar sem enviar". Com a devolução em `escolha`, a mensagem leva um link pessoal
+(`encerramento.html?t=<token>`, tabela `encerramento_links`, um token por gestação, reaproveitado). A página sem
+login mostra só o primeiro nome e os dois valores **já gravados** no extrato (`estorno`/`credito`; nada é recalculado
+no servidor), e a gestante escolhe uma vez (`encerramento_escolher`): Pix (com chave e titular, em
+`devolucao.pix`) vira `pendente`, crédito vira `credito`, com `via: 'link'` e `por: 'Gestante'`. Mudar depois é pela
+ficha. Na ficha: "📲 Enviar link para ela escolher" enquanto está em `escolha`, chave Pix exibida, e o Histórico diz
+"escolha da gestante pelo link". A 043 recria `recepcao_devolucao` guardando `pix`/`via` (antes reescrevia a
+devolução inteira) e "Refazer registro" preserva a chave Pix. Não existe devolução em dinheiro: os textos dizem
+"por Pix". **Aplicada no Supabase por Claude em 2026-10-18.** Os botões "Escolheu devolução/crédito" continuam
+para quem responder pelo WhatsApp.

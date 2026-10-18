@@ -4384,6 +4384,8 @@ function _rcEncerramentoHtml(r, i) {
   } else if (d.status === 'devolvido') {
     acoes = btn('Reabrir (voltar a pendente)', `recepcaoDevolucaoDefinir(${gid}, 'pendente', 'dinheiro', ${d.valor || 0})`);
   }
+  // Trocar a escolha da gestante (ela escolhe uma vez, pelo link): a recepção volta a devolução para 'escolha' pelo desktop.
+  if (d.status === 'pendente' || d.status === 'credito') acoes += btn('Trocar escolha', `recepcaoDevolucaoTrocarEscolha(${gid})`);
   if (d.comprovante) acoes += btn('Ver comprovante da devolução', `recepcaoDevolucaoComprovanteVer(${gid})`);
   if (d.status === 'devolvido') acoes += `<label class="rc-btn-claro" style="display:inline-block;">📎 ${d.comprovante ? 'Trocar' : 'Anexar'} comprovante da devolução<input type="file" accept="image/*,application/pdf" style="display:none;" onchange="recepcaoDevolucaoComprovanteEnviar(${gid}, this)"></label>`;
   if (ce && ce.disponivel > 0) acoes = btn('Registrar uso do crédito', `recepcaoCreditoUsar('enc')`, 'rc-btn-dark') + acoes;
@@ -4423,6 +4425,11 @@ async function recepcaoDevolucaoDefinir(gid, status, opcao, valor, data, forma, 
   } catch (err) {
     alert('Não consegui salvar: ' + (err.message || err) + (comprovante && /function|schema cache/i.test(err.message || '') ? '\n\nA migração 027 foi aplicada no Supabase?' : ''));
   }
+}
+
+function recepcaoDevolucaoTrocarEscolha(gid) {
+  if (!confirm('Voltar a devolução para "aguardando escolha"? A gestante poderá escolher de novo pelo link de encerramento.')) return;
+  recepcaoDevolucaoDefinir(gid, 'escolha', null, null);
 }
 
 function recepcaoDevolucaoFeita(gid) {

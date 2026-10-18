@@ -4615,8 +4615,8 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push(`Saldo: ${_brl(c.base)}`);
     L.push('');
     L.push('Você pode escolher:');
-    L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${c.teto != null ? ` (limitada à parte do valor pago que corresponde aos exames que ainda faltavam)` : c.retencao ? ` (saldo menos 20%, ${_brl(c.retencao)})` : ''}.`);
-    L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}* (saldo integral, sem desconto). Com adesão em até 12 meses, vale a tabela de preços do seu contrato; depois disso, o crédito continua valendo e você paga a diferença para a tabela da época.`);
+    L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${c.retencao ? ` (saldo menos 20%, ${_brl(c.retencao)}, dos custos operacionais)` : ''}${c.teto != null ? ' e limitada à parte do valor pago que corresponde aos exames que ainda faltavam' : ''}.`);
+    L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}* (saldo integral). Com adesão em até 12 meses. Depois disso, o crédito continua valendo e você paga a diferença para a tabela atualizada.`);
   } else {
     L.push('');
     const vc = new Date(hoje + 'T12:00:00Z'); vc.setUTCMonth(vc.getUTCMonth() + 12);

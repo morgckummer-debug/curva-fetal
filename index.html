@@ -7689,17 +7689,18 @@ function _contratoHtml(d) {
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none';">
 <title>Contrato — ${E(d.nome)}</title>
 <style>
-@page{size:A4;margin:18mm 18mm 20mm;}
-body{font-family:Georgia,'Times New Roman',serif;font-size:10.8pt;line-height:1.42;color:#1d1626;margin:0;}
-h1{font-size:17pt;text-align:center;margin:0;letter-spacing:.5px;color:#3d2352;}
-.sub{text-align:center;color:#6b5a78;font-size:10pt;margin:2px 0 14px;}
-h2{font-size:11.5pt;margin:14px 0 4px;color:#3d2352;border-bottom:1px solid #d9cce3;padding-bottom:2px;page-break-after:avoid;}
-p{margin:4px 0;text-align:justify;} ul{margin:3px 0 3px 18px;padding:0;} li{margin:2px 0;}
-table{border-collapse:collapse;width:100%;font-size:9.4pt;margin:6px 0;} th,td{border:1px solid #bfb0cb;padding:4px 6px;text-align:left;vertical-align:top;}
+@page{size:A4;margin:11mm 13mm 12mm;}
+body{font-family:Georgia,'Times New Roman',serif;font-size:10pt;line-height:1.25;color:#1d1626;margin:0;}
+h1{font-size:15pt;text-align:center;margin:0;letter-spacing:.5px;color:#3d2352;}
+.sub{text-align:center;color:#6b5a78;font-size:9.5pt;margin:2px 0 8px;}
+h2{font-size:10.8pt;margin:8px 0 3px;color:#3d2352;border-bottom:1px solid #d9cce3;padding-bottom:2px;page-break-after:avoid;}
+p{margin:3px 0;text-align:justify;} ul{margin:2px 0 2px 18px;padding:0;} li{margin:1px 0;}
+table{border-collapse:collapse;width:100%;font-size:9pt;margin:4px 0;} th,td{border:1px solid #bfb0cb;padding:3px 5px;text-align:left;vertical-align:top;}
 table.mod th,table.mod td{text-align:center;vertical-align:middle;} .ck{color:#1f8a3b;font-weight:bold;}
 th{background:#efe8f4;} td.sel,th.sel{background:#f6ecd0;font-weight:bold;}
 .ass{display:flex;gap:40px;margin-top:90px;page-break-inside:avoid;} .ass div{flex:1;text-align:center;border-top:1px solid #1d1626;padding-top:4px;font-size:10pt;}
-.novapag{page-break-before:always;}
+.novapag{height:14px;}
+table{page-break-inside:avoid;}
 .barra-imp{position:sticky;top:0;background:#3d2352;padding:10px;text-align:center;margin:0 0 10px;}
 .barra-imp button{font:inherit;font-size:15px;font-weight:700;padding:10px 22px;border:0;border-radius:10px;background:#f6ecd0;color:#3d2352;cursor:pointer;}
 @media print{.barra-imp{display:none;}}
@@ -7726,7 +7727,7 @@ ${parcial ? `<p><b>Adesão com o calendário em andamento.</b> Na data da adesã
 <p><b>Ultrassons extras.</b> A modalidade inclui o número de ultrassons extras indicado no Anexo I (exame obstétrico de cerca de 30 minutos), que podem ser usados livremente, mediante agendamento, ou em caso de intercorrência, mediante pedido médico (ver item 6). Os extras valem até o parto; os não utilizados não são convertidos em dinheiro nem em crédito.</p>
 <p><b>Canal direto (somente modalidades Premium e Gemelar Premium).</b> A gestante terá um canal de mensagens com a Dra. Morgana Kummer pelo Telegram, para dúvidas sobre os exames do acompanhamento, respondido em dias úteis e horário comercial, até o parto. Esse canal não é de urgência e não substitui consulta com o obstetra assistente nem atendimento na maternidade.${telCanal ? '' : ' <i>(Não incluído na modalidade escolhida.)</i>'}</p>
 ${telCanal ? (d.telegramCodigo
-  ? `<div style="display:flex;gap:16px;align-items:center;margin:8px 0;page-break-inside:avoid"><div style="width:130px;height:130px;flex:none">${_telegramQrSvg(d.telegramCodigo)}</div><p style="margin:0"><b>Ative o canal direto:</b> aponte a câmera do celular para o QR code ao lado e toque em "Iniciar" no Telegram. O código é pessoal e de uso único: só vale para o primeiro aparelho que o ativar. O canal se encerra com o acompanhamento.</p></div>`
+  ? `<div style="display:flex;gap:16px;align-items:center;margin:8px 0;page-break-inside:avoid"><div style="width:100px;height:100px;flex:none">${_telegramQrSvg(d.telegramCodigo)}</div><p style="margin:0"><b>Ative o canal direto:</b> aponte a câmera do celular para o QR code ao lado e toque em "Iniciar" no Telegram. O código é pessoal e de uso único: só vale para o primeiro aparelho que o ativar. O canal se encerra com o acompanhamento.</p></div>`
   : (d.telegramErro ? '<p><i>(QR code de ativação indisponível no momento; solicite à clínica a emissão de um novo.)</i></p>' : '')) : ''}
 <h2>5) Agendamento</h2>
 <p>No ato da adesão, a clínica organiza e agenda todos os ultrassons da modalidade, respeitando as janelas gestacionais. A adesão garante a reserva antecipada de agenda em todas essas janelas. Ajustes de data podem ocorrer por organização de agenda ou por correção da idade gestacional (por exemplo, datação pelo CCN), sempre dentro das janelas indicadas.</p>

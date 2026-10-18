@@ -4396,7 +4396,7 @@ function _rcEncerramentoHtml(r, i) {
     <table style="font-size:13.5px;border-collapse:collapse;margin-bottom:10px;"><tbody>
       ${li('Motivo', escapeHtml(_ENC_MOTIVO[e.motivo] || e.motivo || ''))}${li('Encerrado em', e.em ? formatDateBR(e.em) : '')}
       ${li('Valor pago', e.pago != null ? _brl(e.pago) : '')}${li('Exames realizados (avulso)', e.valor_feitos != null ? _brl(e.valor_feitos) : '')}
-      ${li(e.credito_nova_gestacao ? 'Retenção (15%, só na devolução)' : 'Retenção', e.retencao ? _brl(e.retencao) : '')}${li('Taxa da operadora', e.taxa_val ? _brl(e.taxa_val) : '')}${li('Imposto da nota (só na devolução)', e.imposto_val ? _brl(e.imposto_val) : '')}
+      ${li('Retenção (20%, só na devolução por Pix)', e.retencao ? _brl(e.retencao) : '')}
       ${li('Situação', sit)}${li('Crédito por falta (item 7d)', e.credito_falta ? _brl(e.credito_falta) + (e.credito_falta_validade ? ', válido até ' + formatDateBR(e.credito_falta_validade) : '') : '')}
       ${d.pix ? li('Chave Pix', escapeHtml(d.pix.chave || '') + (d.pix.titular ? ' · titular: ' + escapeHtml(d.pix.titular) : '')) : ''}
       ${d.status === 'devolvido' && d.obs ? li('Observação', escapeHtml(d.obs)) : ''}
@@ -4511,10 +4511,11 @@ function recepcaoEncMsgVer(gid) {
 // ── Encerramento com extrato (2026-10-10) ──
 // Taxa da maquininha fixa por enquanto (decisão da médica); ajustável no próprio extrato.
 const _TAXA_MAQUININHA_PCT = 10;
-// Imposto sobre a nota fiscal, descontado da devolução em dinheiro quando a nota foi emitida (5% "por enquanto", Morgana 2026-10-15).
-const _IMPOSTO_NF_PCT = 5;
 // Desistência com devolução em dinheiro: retenção de 15% do SALDO (Morgana 2026-10-16; antes 15% do total do plano).
 const _RETENCAO_DESISTENCIA = 0.15;
+// Encerramento (desistência, perda, óbito, parto): devolução em dinheiro por Pix = saldo menos 20% fixo, que cobre
+// a operação e o imposto da nota. Sem linhas de taxa da maquininha nem de imposto (Morgana 2026-10-18). Crédito = saldo integral.
+const _RETENCAO_ENCERRAMENTO = 0.20;
 const _EXTRA_AVULSO = 230;
 const _ENC_MOTIVO = { parto: 'Parto realizado', perda: 'Perda gestacional', obito: 'Óbito fetal', desistencia: 'Desistência da paciente' };
 let _encGid = null, _encTxtManual = false, _encRetro = false;
@@ -4534,7 +4535,7 @@ function _encDataAdesao(r) {
   return em ? String(em).slice(0, 10) : null;
 }
 
-function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
+function _encCalc(r, sit, motivo, pago, hoje) {
   const key = r.acompanhamento, mult = key.startsWith('gemelar') ? 2 : 1;
   const total = (_ADESAO_PRECO[key] || {}).total || 0;
   const peso = s => _ADESAO_PESO[s.key] * mult;
@@ -4546,10 +4547,8 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
   const vFeitos = vFeitosPlano + sit.extras.length * _EXTRA_AVULSO * mult;
   const vNaoFeitos = naoFeitos.reduce((a, x) => a + peso(x.s), 0);
   const saldo = Math.max(0, pago - vFeitos - vFaltas);
-  const taxa = cartao ? taxaPct / 100 : 0, imp = nf ? (impostoPct || 0) / 100 : 0;
   const cf = sit.creditoFalta || { itens: [], disponivel: 0 };
-  const out = { total, pago, vFeitos, saldo, feitos, taxaPct: cartao ? taxaPct : 0, nf: !!nf, impostoPct: nf ? (impostoPct || 0) : 0,
-    faltas: cf.itens, creditoFalta: Math.min(cf.disponivel, Math.max(0, pago - vFeitosPlano)), creditoFaltaValidade: cf.validade };
+  const out = { total, pago, vFeitos, saldo, feitos, faltas: cf.itens, creditoFalta: Math.min(cf.disponivel, Math.max(0, pago - vFeitosPlano)), creditoFaltaValidade: cf.validade };
   // Uma data só para todo crédito depois do encerramento: 12 meses a partir dele (ou a do item 7d, se for mais tarde).
   { const v = new Date(hoje + 'T12:00:00Z'); v.setUTCMonth(v.getUTCMonth() + 12); out.validade12 = v.toISOString().slice(0, 10); }
   if (cf.itens.length && (!out.creditoFaltaValidade || out.creditoFaltaValidade < out.validade12)) out.creditoFaltaValidade = out.validade12;
@@ -4560,21 +4559,20 @@ function _encCalc(r, sit, motivo, pago, taxaPct, cartao, nf, impostoPct, hoje) {
     out.base = base; out.saldo = base;
     out.adesao = _encDataAdesao(r);
     // 15% do saldo só na devolução em dinheiro, nos três motivos (perda/óbito desde 2026-10-16, Morgana); o crédito não retém.
-    out.retencao = base * _RETENCAO_DESISTENCIA;
-    out.taxaVal = base * taxa; out.impostoVal = base * imp;
-    out.estorno = Math.max(0, base - out.retencao - out.taxaVal - out.impostoVal);
+    out.retencao = base * _RETENCAO_ENCERRAMENTO;
+    out.estorno = Math.max(0, base - out.retencao);
     // Item 7b: na desistência, a devolução em dinheiro nunca passa da parte do valor pago que corresponde aos
     // exames ainda não feitos, na proporção dos avulsos (fecha a brecha de "desistir" com tudo feito; 2026-10-16).
     // O exame perdido por falta entra no denominador: a parte dele já virou crédito (7d), e faltar não pode render mais dinheiro que comparecer.
     const teto = vNaoFeitos + vFeitosPlano + vFaltas > 0 ? pago * vNaoFeitos / (vNaoFeitos + vFeitosPlano + vFaltas) : 0;
     if (motivo === 'desistencia' && out.estorno > teto) { out.estorno = teto; out.teto = teto; }
-    out.credito = Math.max(0, base - out.taxaVal);
+    out.credito = base;
   } else {
     // Parto (item 8b): o avulso dos exames não feitos, em dinheiro (menos taxa e imposto) ou crédito de 12 meses.
     out.base = Math.min(saldo, vNaoFeitos);
     out.naoFeitos = naoFeitos.map(x => ({ n: x.s.def.n + (/^d\d+$/.test(x.s.key) ? ` de ${x.s.key.slice(1)} semanas` : ''), valor: peso(x.s) }));
-    out.taxaVal = out.base * taxa; out.impostoVal = out.base * imp;
-    out.estorno = Math.max(0, out.base - out.taxaVal - out.impostoVal);
+    out.retencao = out.base * _RETENCAO_ENCERRAMENTO;
+    out.estorno = Math.max(0, out.base - out.retencao);
     out.credito = out.base;
   }
   return out;
@@ -4610,23 +4608,16 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push(`Saldo: ${_brl(c.base)}`);
     L.push('');
     L.push('Você pode escolher:');
-    const desc = [];
-    if (c.retencao) desc.push(`15% do saldo, ${_brl(c.retencao)}`);
-    if (c.taxaVal) desc.push(`taxa da operadora do cartão, ${_brl(c.taxaVal)}`);
-    if (c.impostoVal) desc.push(`imposto da nota fiscal, ${_brl(c.impostoVal)}`);
-    L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${c.teto != null ? ` (limitada à parte do valor pago que corresponde aos exames que ainda faltavam)` : desc.length ? ` (saldo menos ${desc.length > 1 ? desc.slice(0, -1).join(', ') + ' e ' + desc[desc.length - 1] : desc[0]})` : ''}.`);
-    L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}*${c.taxaVal ? ` (saldo menos taxa da operadora do cartão, ${_brl(c.taxaVal)})` : ''}. Com adesão em até 12 meses, vale a tabela de preços do seu contrato; depois disso, o crédito continua valendo e você paga a diferença para a tabela da época.`);
+    L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${c.teto != null ? ` (limitada à parte do valor pago que corresponde aos exames que ainda faltavam)` : c.retencao ? ` (saldo menos 20%, ${_brl(c.retencao)})` : ''}.`);
+    L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}* (saldo integral, sem desconto). Com adesão em até 12 meses, vale a tabela de preços do seu contrato; depois disso, o crédito continua valendo e você paga a diferença para a tabela da época.`);
   } else {
     L.push('');
     const vc = new Date(hoje + 'T12:00:00Z'); vc.setUTCMonth(vc.getUTCMonth() + 12);
     if (c.credito > 0) {
-      const desc = [];
-      if (c.taxaVal) desc.push(`taxa da operadora do cartão, ${_brl(c.taxaVal)}`);
-      if (c.impostoVal) desc.push(`imposto da nota fiscal, ${_brl(c.impostoVal)}`);
       L.push(`Valor dos exames não realizados (avulso): ${_brl(c.base)}`);
       L.push('');
       L.push('Você pode escolher:');
-      L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${desc.length ? ` (menos ${desc.join(' e ')})` : ''}.`);
+      L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*${c.retencao ? ` (saldo menos 20%, ${_brl(c.retencao)})` : ''}.`);
       L.push(`2) Crédito de *${_brl(c.credito)}*, válido até ${formatDateBR(vc.toISOString().slice(0, 10))}, para uso da mãe em qualquer serviço da clínica.`);
     } else L.push('Todos os exames do plano foram realizados: não há valor a devolver.');
   }
@@ -4663,10 +4654,7 @@ function _encTextoParto(L, hoje, c) {
     L.push('');
     L.push('*Suas opções:*');
     if (c.base > 0) {
-      const desc = [];
-      if (c.taxaVal) desc.push(`taxa da operadora do cartão, ${_brl(c.taxaVal)}`);
-      if (c.impostoVal) desc.push(`imposto da nota fiscal, ${_brl(c.impostoVal)}`);
-      L.push(`1) ${_brl(c.estorno)} por Pix${desc.length ? ` (${_brl(c.base)} menos ${desc.join(' e ')})` : ''}${cf ? ` e ${_brl(cf)} em crédito, válido até ${validade}` : ''}.`);
+      L.push(`1) ${_brl(c.estorno)} por Pix${c.retencao ? ` (${_brl(c.base)} menos 20%, ${_brl(c.retencao)})` : ''}${cf ? ` e ${_brl(cf)} em crédito, válido até ${validade}` : ''}.`);
       L.push(`2) ${_brl(c.credito + cf)} em crédito, válido até ${validade}.`);
     } else {
       L.push(`${_brl(cf)} em crédito, válido até ${validade}.`);
@@ -4695,7 +4683,6 @@ function recepcaoEncerrarAbrir(gid, retro) {
   const total = (_ADESAO_PRECO[r.acompanhamento] || {}).total || 0;
   const pagoIni = pg.valor_pago != null ? pg.valor_pago : (pg.status === 'quitado' ? total : 0);
   const encAnt = retro && pg.encerramento;
-  const nfIni = !!(encAnt && encAnt.nf), impIni = encAnt && encAnt.imposto_pct ? encAnt.imposto_pct : _IMPOSTO_NF_PCT;
   let el = document.getElementById('rc-enc-modal');
   if (el) el.remove();
   el = document.createElement('div');
@@ -4705,15 +4692,7 @@ function recepcaoEncerrarAbrir(gid, retro) {
   el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
     <h3 style="margin:0 0 4px;">${_encRetro ? 'Registrar encerramento' : 'Encerrar acompanhamento'}</h3>
     <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · ${escapeHtml(_ENC_MOTIVO[motivo])}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div><label style="font-size:12px;">Valor pago (R$)</label><input id="rc-enc-pago" type="number" step="0.01" min="0" value="${pagoIni}" style="${inp}" oninput="_encRefazer()"></div>
-      <div><label style="font-size:12px;">Pagou parcelado no cartão?</label><select id="rc-enc-cartao" style="${inp}" onchange="_encRefazer()"><option value="1" ${pg.forma === 'cartao' || !pg.forma ? 'selected' : ''}>Sim</option><option value="0" ${pg.forma && pg.forma !== 'cartao' ? 'selected' : ''}>Não</option></select></div>
-      <div><label style="font-size:12px;">Taxa maquininha (%)</label><input id="rc-enc-taxa" type="number" step="0.1" min="0" value="${_TAXA_MAQUININHA_PCT}" style="${inp}" oninput="_encRefazer()"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div><label style="font-size:12px;">Emitiu nota fiscal?</label><select id="rc-enc-nf" style="${inp}" onchange="_encRefazer()"><option value="0" ${!nfIni ? 'selected' : ''}>Não</option><option value="1" ${nfIni ? 'selected' : ''}>Sim</option></select></div>
-      <div><label style="font-size:12px;">Imposto da nota (%)</label><input id="rc-enc-imp" type="number" step="0.1" min="0" value="${impIni}" style="${inp}" oninput="_encRefazer()"></div>
-    </div>
+    <div style="margin-bottom:10px;"><label style="font-size:12px;">Valor pago (R$)</label><input id="rc-enc-pago" type="number" step="0.01" min="0" value="${pagoIni}" style="${inp}" oninput="_encRefazer()"></div>
     <div style="margin-bottom:10px;"><label style="font-size:12px;">Celular da paciente (com DDD)</label><input id="rc-enc-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml(pg.celular || '')}" style="${inp}"></div>
     <div id="rc-enc-ad" style="font-size:12.5px;margin-bottom:8px;color:var(--text-muted);"></div>
     <label style="font-size:12px;">Mensagem (você pode editar antes de enviar)</label>
@@ -4734,12 +4713,8 @@ function _encRefazer() {
   const r = (_recepcaoDados || []).find(x => x.gestacao_id === _encGid);
   const sit = _acompSituacao(r, r.exames || []);
   const pago = parseFloat(document.getElementById('rc-enc-pago').value) || 0;
-  const taxa = parseFloat(document.getElementById('rc-enc-taxa').value) || 0;
-  const cartao = document.getElementById('rc-enc-cartao').value === '1';
-  const nf = document.getElementById('rc-enc-nf').value === '1';
-  const imp = parseFloat(document.getElementById('rc-enc-imp').value) || 0;
   const hoje = (_encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.em) || _hojeISO();
-  const c = _encCalc(r, sit, el.dataset.motivo, pago, taxa, cartao, nf, imp, hoje);
+  const c = _encCalc(r, sit, el.dataset.motivo, pago, hoje);
   const av = document.getElementById('rc-enc-ad');
   if (av) av.textContent = el.dataset.motivo === 'desistencia' && c.adesao ? `Adesão em ${formatDateBR(c.adesao)}.` : '';
   document.getElementById('rc-enc-txt').value = _encTexto(r, sit, el.dataset.motivo, _hojeISO(), c);
@@ -4782,16 +4757,12 @@ async function recepcaoEncLinkEnviar(gid) {
 // Foto do encerramento que fica na ficha (migração 026): valores, exames feitos, mensagem e o status da devolução.
 function _encExtrato(r, sit, motivo) {
   const pago = parseFloat(document.getElementById('rc-enc-pago').value) || 0;
-  const taxa = parseFloat(document.getElementById('rc-enc-taxa').value) || 0;
-  const cartao = document.getElementById('rc-enc-cartao').value === '1';
-  const nf = document.getElementById('rc-enc-nf').value === '1';
-  const imp = parseFloat(document.getElementById('rc-enc-imp').value) || 0;
   const hoje = (_encRetro && r.pagamento && r.pagamento.encerramento && r.pagamento.encerramento.em) || _hojeISO();
-  const c = _encCalc(r, sit, motivo, pago, taxa, cartao, nf, imp, hoje);
+  const c = _encCalc(r, sit, motivo, pago, hoje);
   const v = new Date(hoje + 'T12:00:00Z'); v.setUTCMonth(v.getUTCMonth() + 12);
   const ex = {
     motivo, em: hoje, plano: sit.plano.nome, total: c.total, pago: c.pago, valor_feitos: c.vFeitos,
-    taxa_pct: c.taxaPct, cartao, nf: c.nf, imposto_pct: c.impostoPct, celular: document.getElementById('rc-enc-tel').value.trim(),
+    celular: document.getElementById('rc-enc-tel').value.trim(),
     mensagem: document.getElementById('rc-enc-txt').value,
     exames: c.feitos.map(x => ({ n: x.s.def.n, data: x.s.hit.v.data_exame })).concat(sit.extras.map(x => ({ n: 'Ultrassom extra', data: x.v.data_exame }))),
     faltas: c.faltas.map(x => ({ n: x.n, valor: x.valor, data: x.data })),
@@ -4799,10 +4770,10 @@ function _encExtrato(r, sit, motivo) {
   };
   if (motivo === 'desistencia' || motivo === 'perda' || motivo === 'obito') {
     // validade aqui = fim da tabela de preços do contrato; o crédito para nova gestação não expira (2026-10-15).
-    Object.assign(ex, { saldo: c.base, retencao: c.retencao, estorno: c.estorno, credito: c.credito, taxa_val: c.taxaVal, imposto_val: c.impostoVal, credito_nova_gestacao: true, adesao: c.adesao, teto: c.teto, validade: v.toISOString().slice(0, 10) });
+    Object.assign(ex, { saldo: c.base, retencao: c.retencao, estorno: c.estorno, credito: c.credito, credito_nova_gestacao: true, adesao: c.adesao, teto: c.teto, validade: v.toISOString().slice(0, 10) });
     ex.devolucao = (c.estorno > 0 || c.credito > 0) ? { status: 'escolha' } : { status: 'nada' };
   } else {
-    Object.assign(ex, { saldo: c.base, estorno: c.estorno, credito: c.credito, taxa_val: c.taxaVal, imposto_val: c.impostoVal, validade: v.toISOString().slice(0, 10) });
+    Object.assign(ex, { saldo: c.base, estorno: c.estorno, credito: c.credito, validade: v.toISOString().slice(0, 10) });
     ex.devolucao = c.credito > 0 ? { status: 'escolha' } : { status: 'nada' };
   }
   // Refazer o registro não pode apagar uma devolução já resolvida.

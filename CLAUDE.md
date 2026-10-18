@@ -2152,3 +2152,7 @@ await** (`window.open('')`, depois `w.location.href`): aberta depois da espera d
 pop-up — foi o que quebrou o envio pelo celular na primeira versão. O menu de compartilhar com arquivo
 (`navigator.share`, só tela de toque) ficou só para PDF/foto ou falha do link; no computador esses caem em
 baixar o arquivo e abrir a conversa.
+
+## IG em destaque por extenso (2026-10-18)
+
+A pedido da Morgana ("10s4d" em Playfair grande era difícil de ler). Na ficha da recepção, a IG de hoje sai como "10 semanas e 4 dias" (`_acompSemDiaHtml`: número grande em serifa com algarismos alinhados, palavras menores em sans) e na Nova adesão como texto comum (`_acompSemDiaExt`). O formato curto `_acompSemDia` ("10s4d") continua nas tabelas, listas e mensagens.

@@ -2170,3 +2170,14 @@ ficha. Na ficha: "📲 Enviar link para ela escolher" enquanto está em `escolha
 devolução inteira) e "Refazer registro" preserva a chave Pix. Não existe devolução em dinheiro: os textos dizem
 "por Pix". **Aplicada no Supabase por Claude em 2026-10-18.** Os botões "Escolheu devolução/crédito" continuam
 para quem responder pelo WhatsApp.
+
+## Valor pago vem do contrato (2026-10-18)
+
+Pedido da Morgana: o campo "Valor pago" da conferência ficava em branco até a recepção marcar "Pago"
+e salvar, e mesmo assim vinha da tabela, não do contrato. `_rcValorContrato(r)` dá o valor devido: o do
+contrato gerado mais recente (o `valor` gravado em `contratos`, que já sai reduzido na entrada tardia);
+depois de uma troca de modalidade, a tabela do plano atual; sem contrato, a tabela. O campo mostra esse
+valor embaixo, e tocar em "Pago" o preenche se estiver vazio. Com "Aguardando pagamento" ele continua
+vazio de propósito: a ficha não pode dizer que alguém pagou sem a recepção conferir. Nada grava sem
+"Salvar conferência". O modal de encerramento e o de comprovante usam a mesma função como padrão.
+

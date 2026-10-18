@@ -3416,6 +3416,7 @@ function _rcDetalheHtml(i) {
     : 'Nenhuma conferência registrada ainda.';
   const opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
   const nComp = (pg.comprovantes || []).length;
+  const vContrato = _rcValorContrato(r);
   const pagCorpo = `<div style="margin-bottom:12px;"><button type="button" class="rc-btn-claro" onclick="recepcaoComprovanteAbrir(${r.gestacao_id})">Comprovante${nComp ? ' (' + nComp + ')' : ''}</button></div>
     <div class="rc-seg" id="rc-pg-seg">
       <button type="button" data-v="quitado" class="${st === 'quitado' ? 'rc-on' : ''}" onclick="recepcaoPagSeg('quitado')">Pago</button>
@@ -3427,7 +3428,7 @@ function _rcDetalheHtml(i) {
       <div id="rc-pg-parc-w"><label for="rc-pg-parc">Parcelas</label><select id="rc-pg-parc">
         ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${(pg.parcelas || 1) === n ? 'selected' : ''}>${n}x</option>`).join('')}</select></div>
       <div><label for="rc-pg-celular">Celular da paciente</label><input type="tel" id="rc-pg-celular" value="${escapeHtml(pg.celular || '')}" placeholder="(31) 9 9999-9999"></div>
-      <div><label for="rc-pg-pago">Valor pago (R$)</label><input type="number" id="rc-pg-pago" step="0.01" min="0" value="${pg.valor_pago != null ? pg.valor_pago : (st === 'quitado' ? ((_ADESAO_PRECO[r.acompanhamento] || {}).total || '') : '')}" placeholder="Ex.: 3400"></div>
+      <div><label for="rc-pg-pago">Valor pago (R$)</label><input type="number" id="rc-pg-pago" step="0.01" min="0" data-contrato="${vContrato || ''}" value="${pg.valor_pago != null ? pg.valor_pago : (st === 'quitado' ? (vContrato || '') : '')}" placeholder="${vContrato ? 'Contrato: ' + vContrato : 'Ex.: 3400'}">${vContrato ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Valor do contrato: ${_brl(vContrato)}. Entra sozinho ao marcar "Pago"; se pagou só uma parte, corrija aqui.</div>` : ''}</div>
       <label class="rc-chk"><input type="checkbox" id="rc-pg-contrato" ${pg.contrato_assinado ? 'checked' : ''}> Contrato assinado</label>
       <div class="rc-col2" style="grid-column:1/-1;"><label for="rc-pg-obs">Observação (opcional)</label><input type="text" id="rc-pg-obs" maxlength="500" value="${escapeHtml(pg.observacao || '')}" placeholder="Ex.: entrada no Pix, restante em 5x no cartão"></div>
     </div>
@@ -3574,6 +3575,16 @@ function _rcRespostaHtml(i) {
     <div style="margin-top:6px;color:var(--text-muted);font-size:12.5px;">Marque na Feegow e use "Confirmar agendamento" para avisá-la.</div></div>`;
 }
 function _rcDataHora(iso) { return iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
+// Valor que a gestante deve pagar: o do contrato gerado mais recente (entrada tardia tem valor menor
+// que a tabela). Depois de uma troca de modalidade, vale a tabela do plano atual.
+function _rcValorContrato(r) {
+  const pg = r.pagamento || {};
+  const tabela = (_ADESAO_PRECO[r.acompanhamento] || {}).total || 0;
+  if ((pg.trocas || []).length) return tabela;
+  const ger = (pg.contratos || []).filter(x => x.kind === 'gerado' && !/^Termo aditivo/.test(x.nome || '') && x.valor != null && x.valor !== '');
+  const v = ger.length ? +ger[ger.length - 1].valor : NaN;
+  return v > 0 ? v : tabela;
+}
 function _rcContratoEstado(pg) {
   const lista = pg.contratos || [];
   const gerados = lista.filter(c => c.kind === 'gerado'), assinados = lista.filter(c => c.kind === 'assinado');
@@ -4688,7 +4699,7 @@ function recepcaoEncerrarAbrir(gid, retro) {
   _encGid = gid; _encTxtManual = false;
   const pg = r.pagamento || {};
   const total = (_ADESAO_PRECO[r.acompanhamento] || {}).total || 0;
-  const pagoIni = pg.valor_pago != null ? pg.valor_pago : (pg.status === 'quitado' ? total : 0);
+  const pagoIni = pg.valor_pago != null ? pg.valor_pago : (pg.status === 'quitado' ? _rcValorContrato(r) : 0);
   const encAnt = retro && pg.encerramento;
   let el = document.getElementById('rc-enc-modal');
   if (el) el.remove();
@@ -7802,6 +7813,8 @@ ${telCanal ? (d.telegramCodigo
 // Segmento "pago / aguardando pagamento": guarda a escolha no próprio botão até salvar.
 function recepcaoPagSeg(v) {
   document.querySelectorAll('#rc-pg-seg button').forEach(b => b.classList.toggle('rc-on', b.dataset.v === v));
+  const campo = document.getElementById('rc-pg-pago');
+  if (v === 'quitado' && campo && campo.value === '' && campo.dataset.contrato) campo.value = campo.dataset.contrato;
   _rcPagSujo();
 }
 // Nada do quadro de pagamento é gravado sozinho: avisa que falta tocar em "Salvar conferência".
@@ -7866,7 +7879,7 @@ function recepcaoComprovanteAbrir(gid) {
   const st = pg.status || 'pendente';
   const total = (_ADESAO_PRECO[r.acompanhamento] || {}).total || 0;
   const rot = _RC_PAG[st] || _RC_PAG.pendente;
-  const pago = pg.valor_pago != null ? pg.valor_pago : (st === 'quitado' ? total : null);
+  const pago = pg.valor_pago != null ? pg.valor_pago : (st === 'quitado' ? _rcValorContrato(r) : null);
   const lista = pg.comprovantes || [];
   let el = document.getElementById('rc-comp-modal');
   if (el) el.remove();

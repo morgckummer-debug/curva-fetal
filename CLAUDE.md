@@ -2181,3 +2181,15 @@ valor embaixo, e tocar em "Pago" o preenche se estiver vazio. Com "Aguardando pa
 vazio de propósito: a ficha não pode dizer que alguém pagou sem a recepção conferir. Nada grava sem
 "Salvar conferência". O modal de encerramento e o de comprovante usam a mesma função como padrão.
 
+
+## Desistência: crédito pessoal para exames, e retenção de volta a 15% (2026-10-20)
+
+Pedido da Morgana: quem desiste no início da gestação não vai ter outra gestação em 12 meses, então o crédito
+"para nova gestação" não servia. Na **desistência** (item 7b) a 2ª opção virou **crédito pessoal do saldo, sem
+desconto, para exames na clínica, com qualquer profissional da equipe, válido por 12 meses do encerramento**
+(regras do 7c: abatido pelo valor avulso cheio), saldo integral; o teto continua só na devolução por Pix. No extrato,
+`credito_nova_gestacao` agora é `false` na desistência, então `_rcCreditoEnc` (uso/vencimento) e o
+`encerramento.html` tratam como o crédito do parto. **Perda/óbito continuam com crédito para nova gestação (8a/8d).**
+A retenção da devolução por Pix (`_RETENCAO_ENCERRAMENTO`) voltou de 20% para **15%** nos três casos que a usam
+(desistência, perda/óbito, parto); textos usam `_RETENCAO_ENC_PCT`. Contrato (7b, 8a, 8b, 8d) e .docx/PDF em
+`/mnt/project-files/contratos/` atualizados juntos.

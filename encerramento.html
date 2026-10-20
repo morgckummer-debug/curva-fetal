@@ -88,7 +88,9 @@ input{font:inherit;width:100%;padding:11px 10px;border:1px solid #cdbfd8;border-
     if (d.credito > 0) out.push({ k: 'credito', t: 'Crédito', v: parto ? d.credito + cf : d.credito,
       s: d.credito_nova_gestacao
         ? 'Para um novo Acompanhamento Fetal MK, em uma nova gestação. Com adesão até ' + dt(d.validade) + ', vale a tabela de preços do seu contrato; depois, o crédito continua valendo e você paga a diferença.'
-        : 'Válido até ' + dt(d.validade) + ', para uso da mãe em qualquer serviço da clínica, com qualquer médico da equipe.' });
+        : d.motivo === 'desistencia'
+          ? 'Crédito pessoal para exames na clínica, com qualquer profissional da equipe, válido até ' + dt(d.validade) + '.'
+          : 'Válido até ' + dt(d.validade) + ', para uso da mãe em qualquer serviço da clínica, com qualquer médico da equipe.' });
     return out;
   }
 

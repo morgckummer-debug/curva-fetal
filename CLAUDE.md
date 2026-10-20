@@ -2187,7 +2187,10 @@ vazio de propósito: a ficha não pode dizer que alguém pagou sem a recepção 
 Pedido da Morgana: quem desiste no início da gestação não vai ter outra gestação em 12 meses, então o crédito
 "para nova gestação" não servia. Na **desistência** (item 7b) a 2ª opção virou **crédito pessoal do saldo, sem
 desconto, para exames na clínica, com qualquer profissional da equipe, válido por 12 meses do encerramento**
-(regras do 7c: abatido pelo valor avulso cheio), saldo integral; o teto continua só na devolução por Pix. No extrato,
+(regras do 7c: abatido pelo valor avulso cheio). Como passou a ser usável já, o crédito ganhou limite no
+mesmo dia (Morgana): **teto da devolução × 1,15** (`tetoCredito`). Pix = min(saldo × 0,85, teto), sem mudança.
+Desistência cedo: crédito = saldo integral; perto do fim (simulação): Pix R$ 939, crédito R$ 1.080, em vez de
+R$ 1.855. Não aplicar os 15% depois do teto: isso baixaria o Pix até de quem desiste cedo. No extrato,
 `credito_nova_gestacao` agora é `false` na desistência, então `_rcCreditoEnc` (uso/vencimento) e o
 `encerramento.html` tratam como o crédito do parto. **Perda/óbito continuam com crédito para nova gestação (8a/8d).**
 A retenção da devolução por Pix (`_RETENCAO_ENCERRAMENTO`) voltou de 20% para **15%** nos três casos que a usam

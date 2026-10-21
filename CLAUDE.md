@@ -2210,3 +2210,11 @@ A etiqueta "Reagendado" fica na linha do exame até ele ser feito (exame feito n
 Recusa domingo, sábado depois de 12h, data passada e ausência da médica; fora do período do exame só avisa.
 "Alterar horários" descarta reagendamento pendente e mantém o `r` de quem não mudou de dia/hora. Sem `agendados`
 (agenda antiga) o botão cai no "Combinar datas". **Aplicada no Supabase por Claude em 2026-10-21.**
+
+## Desistência: retenção de 10%, tudo incluído (2026-10-21)
+
+Pedido da Morgana. Na desistência (item 7b) a devolução por Pix é o saldo menos **10%** (`_RETENCAO_DESISTENCIA`),
+percentual que já inclui taxa de cartão e imposto da nota, "sem nenhum outro desconto" (texto do contrato). O teto
+da devolução não mudou. O limite do crédito pessoal continua teto + 15% (`_CREDITO_DESIST_ACRESCIMO`, constante
+própria: não é a retenção). **Perda/óbito (8a) e parto (8b) seguem com 15%** (`_RETENCAO_ENCERRAMENTO`) até ela
+decidir. Contratos já assinados não mudam; o advogado da clínica ainda vai revisar a cláusula.

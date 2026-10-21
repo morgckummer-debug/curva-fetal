@@ -4692,8 +4692,12 @@ function recepcaoEncMsgVer(gid) {
 // ── Encerramento com extrato (2026-10-10) ──
 // Taxa da maquininha fixa por enquanto (decisão da médica); ajustável no próprio extrato.
 const _TAXA_MAQUININHA_PCT = 10;
-// Desistência com devolução em dinheiro: retenção de 15% do SALDO (Morgana 2026-10-16; antes 15% do total do plano).
-const _RETENCAO_DESISTENCIA = 0.15;
+// Desistência com devolução em dinheiro: retenção de 10% do SALDO, tudo incluído (taxa de cartão, imposto da nota),
+// sem nenhum outro desconto (Morgana 2026-10-21; era 15%). Perda/óbito/parto continuam em _RETENCAO_ENCERRAMENTO.
+const _RETENCAO_DESISTENCIA = 0.10;
+const _RETENCAO_DESIST_PCT = Math.round(_RETENCAO_DESISTENCIA * 100);
+// Limite do crédito pessoal da desistência: teto da devolução acrescido de 15% (Morgana 2026-10-20). Não é a retenção.
+const _CREDITO_DESIST_ACRESCIMO = 0.15;
 // Encerramento (desistência, perda, óbito, parto): devolução em dinheiro por Pix = saldo menos uma retenção fixa, que cobre
 // a operação e o imposto da nota. Sem linhas de taxa da maquininha nem de imposto (Morgana 2026-10-18). 20% de
 // 2026-10-18 a 2026-10-20; voltou a 15% (Morgana 2026-10-20). Crédito = sem retenção.
@@ -4750,12 +4754,12 @@ function _encCalc(r, sit, motivo, pago, hoje) {
     // quem desiste cedo continua com o saldo integral em crédito e o Pix não muda em caso nenhum.
     const teto = vNaoFeitos + vFeitosPlano + vFaltas > 0 ? pago * vNaoFeitos / (vNaoFeitos + vFeitosPlano + vFaltas) : 0;
     // 15% só na devolução por Pix, nos três motivos (perda/óbito desde 2026-10-16); o crédito não retém.
-    out.retencao = base * _RETENCAO_ENCERRAMENTO;
+    out.retencao = base * (motivo === 'desistencia' ? _RETENCAO_DESISTENCIA : _RETENCAO_ENCERRAMENTO);
     out.estorno = Math.max(0, base - out.retencao);
     out.credito = base;
     if (motivo === 'desistencia') {
       if (out.estorno > teto) { out.estorno = teto; out.teto = teto; }
-      const tetoCred = teto * (1 + _RETENCAO_ENCERRAMENTO);
+      const tetoCred = teto * (1 + _CREDITO_DESIST_ACRESCIMO);
       if (out.credito > tetoCred) { out.credito = tetoCred; out.tetoCredito = tetoCred; }
     }
   } else {
@@ -4801,10 +4805,10 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push('Você pode escolher:');
     L.push(c.teto != null
       ? `1) Devolução por Pix: *${_brl(c.estorno)}* (parte do valor pago que corresponde aos exames que ainda faltavam).`
-      : `1) Devolução por Pix: *${_brl(c.estorno)}*${c.retencao ? ` (saldo menos ${_RETENCAO_ENC_PCT}%, ${_brl(c.retencao)}, dos custos operacionais)` : ''}.`);
+      : `1) Devolução por Pix: *${_brl(c.estorno)}*${c.retencao ? ` (saldo menos ${motivo === 'desistencia' ? _RETENCAO_DESIST_PCT : _RETENCAO_ENC_PCT}%, ${_brl(c.retencao)}, dos custos operacionais)` : ''}.`);
     if (motivo === 'desistencia') {
       const vc = new Date(hoje + 'T12:00:00Z'); vc.setUTCMonth(vc.getUTCMonth() + 12);
-      L.push(`2) Crédito pessoal de *${_brl(c.credito)}*${c.tetoCredito != null ? ` (valor da devolução por Pix acrescido de ${_RETENCAO_ENC_PCT}%)` : ' (saldo integral)'}, para exames na clínica, com qualquer profissional da equipe, válido até ${formatDateBR(vc.toISOString().slice(0, 10))}.`);
+      L.push(`2) Crédito pessoal de *${_brl(c.credito)}*${c.tetoCredito != null ? ` (valor da devolução por Pix acrescido de ${Math.round(_CREDITO_DESIST_ACRESCIMO * 100)}%)` : ' (saldo integral)'}, para exames na clínica, com qualquer profissional da equipe, válido até ${formatDateBR(vc.toISOString().slice(0, 10))}.`);
     } else {
       L.push(`2) Crédito para um novo Acompanhamento Fetal MK, em uma nova gestação: *${_brl(c.credito)}* (saldo integral). Com adesão em até 12 meses. Depois disso, o crédito continua valendo e você paga a diferença para a tabela atualizada.`);
     }
@@ -7958,7 +7962,7 @@ ${telCanal ? (d.telegramCodigo
 <p>Em caso de desistência do acompanhamento, aplicam-se as regras abaixo.</p>
 <p><b>a) Contratação presencial.</b> Este contrato é assinado e pago pessoalmente, no estabelecimento da clínica (item 3). Por isso não se aplica o direito de arrependimento do art. 49 do Código de Defesa do Consumidor, previsto para contratações feitas fora do estabelecimento comercial. A desistência, a qualquer tempo, segue o item (b).</p>
 <p><b>b) Cálculo da devolução.</b> Calcula-se o saldo: o valor pago menos os exames já realizados, inclusive os ultrassons extras utilizados, cada um cobrado pelo valor avulso da tabela do Anexo II. A gestante escolhe entre:</p>
-<ul><li>devolução em dinheiro, por Pix, do saldo descontados 15% (quinze por cento) do próprio saldo, percentual que cobre os custos da operação, inclusive taxas de cartão e impostos sobre a nota fiscal. A devolução em dinheiro nunca é maior que a parte do valor pago que corresponde aos exames da modalidade ainda não realizados, na proporção dos valores avulsos do Anexo II; ou</li><li>crédito pessoal do saldo, sem desconto, para exames na clínica, com qualquer profissional da equipe, válido por 12 (doze) meses a partir do encerramento, nas regras do item (c). O crédito nunca é maior que o limite da devolução em dinheiro, previsto acima, acrescido de 15% (quinze por cento).</li></ul>
+<ul><li>devolução em dinheiro, por Pix, do saldo descontados 10% (dez por cento) do próprio saldo, a título de custos da operação, percentual que já inclui as taxas de cartão e os impostos sobre a nota fiscal, sem nenhum outro desconto. A devolução em dinheiro nunca é maior que a parte do valor pago que corresponde aos exames da modalidade ainda não realizados, na proporção dos valores avulsos do Anexo II; ou</li><li>crédito pessoal do saldo, sem desconto, para exames na clínica, com qualquer profissional da equipe, válido por 12 (doze) meses a partir do encerramento, nas regras do item (c). O crédito nunca é maior que o limite da devolução em dinheiro, previsto acima, acrescido de 15% (quinze por cento).</li></ul>
 <p><b>c) Validade do crédito.</b> O crédito é pessoal e intransferível: pode ser usado somente pela própria gestante, em qualquer serviço da clínica, em até 12 (doze) meses. Com o encerramento do acompanhamento, todo crédito ainda disponível passa a valer até 12 (doze) meses após a data do encerramento, quando esse prazo for mais longo. Após o prazo, expira. Cada exame pago com crédito é abatido pelo valor avulso da tabela da clínica e pode ser realizado por qualquer médico da equipe.</p>
 <p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
 <h2>8) Imprevistos na gestação</h2>

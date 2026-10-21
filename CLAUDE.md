@@ -2216,5 +2216,5 @@ Recusa domingo, sábado depois de 12h, data passada e ausência da médica; fora
 Pedido da Morgana. Na desistência (item 7b) a devolução por Pix é o saldo menos **10%** (`_RETENCAO_DESISTENCIA`),
 percentual que já inclui taxa de cartão e imposto da nota, "sem nenhum outro desconto" (texto do contrato). O teto
 da devolução não mudou. O limite do crédito pessoal continua teto + 15% (`_CREDITO_DESIST_ACRESCIMO`, constante
-própria: não é a retenção). **Perda/óbito (8a) e parto (8b) seguem com 15%** (`_RETENCAO_ENCERRAMENTO`) até ela
-decidir. Contratos já assinados não mudam; o advogado da clínica ainda vai revisar a cláusula.
+própria: não é a retenção). **Perda/óbito (8a) e parto (8b) também passaram a 10%** (`_RETENCAO_ENCERRAMENTO`), no mesmo
+dia, decisão dela: a perda não pode reter mais que a desistência voluntária. Contratos já assinados não mudam; o advogado da clínica ainda vai revisar a cláusula.

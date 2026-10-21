@@ -4693,15 +4693,15 @@ function recepcaoEncMsgVer(gid) {
 // Taxa da maquininha fixa por enquanto (decisão da médica); ajustável no próprio extrato.
 const _TAXA_MAQUININHA_PCT = 10;
 // Desistência com devolução em dinheiro: retenção de 10% do SALDO, tudo incluído (taxa de cartão, imposto da nota),
-// sem nenhum outro desconto (Morgana 2026-10-21; era 15%). Perda/óbito/parto continuam em _RETENCAO_ENCERRAMENTO.
+// sem nenhum outro desconto (Morgana 2026-10-21; era 15%). Perda/óbito/parto usam _RETENCAO_ENCERRAMENTO, também 10%.
 const _RETENCAO_DESISTENCIA = 0.10;
 const _RETENCAO_DESIST_PCT = Math.round(_RETENCAO_DESISTENCIA * 100);
 // Limite do crédito pessoal da desistência: teto da devolução acrescido de 15% (Morgana 2026-10-20). Não é a retenção.
 const _CREDITO_DESIST_ACRESCIMO = 0.15;
 // Encerramento (desistência, perda, óbito, parto): devolução em dinheiro por Pix = saldo menos uma retenção fixa, que cobre
 // a operação e o imposto da nota. Sem linhas de taxa da maquininha nem de imposto (Morgana 2026-10-18). 20% de
-// 2026-10-18 a 2026-10-20; voltou a 15% (Morgana 2026-10-20). Crédito = sem retenção.
-const _RETENCAO_ENCERRAMENTO = 0.15;
+// 2026-10-18 a 2026-10-20; 15% até 2026-10-21; 10% desde então, igual à desistência (Morgana 2026-10-21). Crédito = sem retenção.
+const _RETENCAO_ENCERRAMENTO = 0.10;
 const _RETENCAO_ENC_PCT = Math.round(_RETENCAO_ENCERRAMENTO * 100);
 const _EXTRA_AVULSO = 230;
 const _ENC_MOTIVO = { parto: 'Parto realizado', perda: 'Perda gestacional', obito: 'Óbito fetal', desistencia: 'Desistência da paciente' };
@@ -7967,9 +7967,9 @@ ${telCanal ? (d.telegramCodigo
 <p><b>d) Não comparecimento.</b> Se a gestante faltar a um exame sem remarcar com 48 horas de antecedência e a janela gestacional se perder, o valor avulso daquele exame é convertido em crédito, nas regras do item (c). O acompanhamento segue normalmente para o próximo exame.</p>
 <h2>8) Imprevistos na gestação</h2>
 <p><b>a) Perda gestacional ou óbito fetal.</b> A clínica entrará em contato com cuidado e sem pressa. Calcula-se o saldo: o valor pago menos os exames já realizados, cada um cobrado pelo valor avulso da tabela do Anexo II; o ultrassom extra já utilizado não é descontado. A gestante escolhe entre:</p>
-<ul><li>devolução em dinheiro, por Pix, do saldo descontados 15% (quinze por cento) do próprio saldo, percentual que cobre os custos da operação, inclusive taxas de cartão e impostos; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, integral e sem desconto.</li></ul>
+<ul><li>devolução em dinheiro, por Pix, do saldo descontados 10% (dez por cento) do próprio saldo, a título de custos da operação, percentual que já inclui as taxas de cartão e os impostos sobre a nota fiscal, sem nenhum outro desconto; ou</li><li>crédito do saldo para uma nova gestação, nas regras do item 8d, integral e sem desconto.</li></ul>
 <p><b>b) Parto antes do fim do cronograma.</b> Se o parto ocorrer antes da realização de todos os exames previstos, calcula-se o valor avulso, pela tabela do Anexo II, dos exames não realizados. A gestante escolhe entre:</p>
-<ul><li>devolução desse valor por Pix, descontados 15% (quinze por cento), percentual que cobre os custos da operação, inclusive taxas de cartão e impostos; ou</li><li>crédito desse valor, válido por 12 (doze) meses, nas regras do item 7c, que pode ser usado somente pela mãe, não pelo recém-nascido.</li></ul>
+<ul><li>devolução desse valor por Pix, descontados 10% (dez por cento), a título de custos da operação, percentual que já inclui as taxas de cartão e os impostos sobre a nota fiscal, sem nenhum outro desconto; ou</li><li>crédito desse valor, válido por 12 (doze) meses, nas regras do item 7c, que pode ser usado somente pela mãe, não pelo recém-nascido.</li></ul>
 <p>Os ultrassons extras não utilizados não geram devolução nem crédito.</p>
 <p><b>c) Perda de um dos fetos em gestação gemelar.</b> O plano é reajustado para a modalidade de feto único correspondente (Essencial ou Premium). A diferença de valor, sem retenção e descontadas as taxas efetivamente cobradas pela operadora do cartão, no caso de pagamento parcelado, é, à escolha da gestante, devolvida em dinheiro, mantida como crédito nas regras do item 7c ou convertida em ultrassons extras, pelo valor avulso do ultrassom extra do Anexo II.</p>
 <p><b>d) Crédito para nova gestação.</b> O crédito do item 8a é pessoal e intransferível e é abatido do valor de um novo Acompanhamento Fetal MK, em uma nova gestação da própria gestante. Se a nova adesão ocorrer em até 12 (doze) meses do encerramento, vale a tabela de preços deste contrato. Depois desse prazo, o crédito continua válido, mas a modalidade escolhida segue a tabela de preços vigente na nova adesão, e a gestante paga a diferença.</p>

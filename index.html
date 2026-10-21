@@ -4912,6 +4912,10 @@ function recepcaoEncerrarAbrir(gid, retro) {
   document.body.appendChild(el);
   el.dataset.motivo = motivo;
   _encRefazer();
+  // O link pessoal da escolha já entra na mensagem que a recepção vê (Morgana 2026-10-21): antes só era
+  // acrescentado no envio, e quem copiava o texto do quadro mandava as opções sem o link para responder.
+  const gidLink = _encGid;
+  _encLink(gidLink).then(l => { if (_encGid === gidLink && el.isConnected) { el.dataset.link = l || ''; _encRefazer(); } });
 }
 
 function _encRefazer() {
@@ -4924,7 +4928,9 @@ function _encRefazer() {
   const c = _encCalc(r, sit, el.dataset.motivo, pago, hoje);
   const av = document.getElementById('rc-enc-ad');
   if (av) av.textContent = el.dataset.motivo === 'desistencia' && c.adesao ? `Adesão em ${formatDateBR(c.adesao)}.` : '';
-  document.getElementById('rc-enc-txt').value = _encTexto(r, sit, el.dataset.motivo, _hojeISO(), c);
+  const txt = _encTexto(r, sit, el.dataset.motivo, _hojeISO(), c);
+  const temEscolha = el.dataset.motivo === 'parto' ? c.credito > 0 : (c.estorno > 0 || c.credito > 0);
+  document.getElementById('rc-enc-txt').value = temEscolha ? _encMsgComLink(txt, el.dataset.link || '') : txt;
 }
 
 // Link pessoal da escolha entre Pix e crédito (encerramento.html, migração 043). Sem a 043, devolve ''.
@@ -5021,7 +5027,8 @@ async function _encConfirmar(motivo, enviar) {
     if (enviar) {
       const temEscolha = extrato.devolucao && extrato.devolucao.status === 'escolha';
       const link = temEscolha ? await _encLink(gid) : '';
-      _encAbrirWhats(w, tel, _encMsgComLink(extrato.mensagem, link));
+      if (temEscolha && !link) alert('Atenção: não consegui gerar o link para ela escolher entre Pix e crédito. A mensagem vai sem o link; depois use "Enviar link para ela escolher" na ficha.');
+      _encAbrirWhats(w, tel, link && extrato.mensagem.includes(link) ? extrato.mensagem : _encMsgComLink(extrato.mensagem, link));
     }
     const m = document.getElementById('rc-enc-modal'); if (m) m.remove();
     if (!_encRetro) _rcSel = null;

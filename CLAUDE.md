@@ -2170,6 +2170,9 @@ ficha. Na ficha: "📲 Enviar link para ela escolher" enquanto está em `escolha
 devolução inteira) e "Refazer registro" preserva a chave Pix. Não existe devolução em dinheiro: os textos dizem
 "por Pix". **Aplicada no Supabase por Claude em 2026-10-18.** Os botões "Escolheu devolução/crédito" continuam
 para quem responder pelo WhatsApp.
+**O link já aparece no quadro da mensagem (2026-10-21):** antes só entrava na hora do envio, e quem copiava o texto
+do quadro mandava as opções sem o link. O modal gera o token ao abrir (`_encLink`) e `_encRefazer` o põe no texto;
+o envio não duplica. Se o link falhar, a recepção é avisada para usar "Enviar link para ela escolher".
 
 ## Valor pago vem do contrato (2026-10-18)
 

@@ -4803,9 +4803,14 @@ function _encTexto(r, sit, motivo, hoje, c) {
     L.push(`Saldo: ${_brl(c.base)}`);
     L.push('');
     L.push('Você pode escolher:');
-    L.push(c.teto != null
-      ? `1) Devolução por Pix: *${_brl(c.estorno)}* (parte do valor pago que corresponde aos exames que ainda faltavam).`
-      : `1) Devolução por Pix: *${_brl(c.estorno)}*${c.retencao ? ` (saldo menos ${motivo === 'desistencia' ? _RETENCAO_DESIST_PCT : _RETENCAO_ENC_PCT}%, ${_brl(c.retencao)}, dos custos operacionais)` : ''}.`);
+    // A conta do Pix por extenso, com a retenção em reais (Morgana 2026-10-21: "a paciente não pode ter dúvidas").
+    const pct = motivo === 'desistencia' ? _RETENCAO_DESIST_PCT : _RETENCAO_ENC_PCT;
+    L.push(`1) Devolução por Pix: *${_brl(c.estorno)}*`);
+    if (c.retencao) {
+      L.push(`   Retenção de ${pct}% dos custos operacionais (já incluídas taxas de cartão e impostos, sem nenhum outro desconto): − ${_brl(c.retencao)}`);
+      L.push(`   Saldo menos ${pct}%: ${_brl(c.base - c.retencao)}`);
+    }
+    if (c.teto != null) L.push(`   Como o valor do plano é menor que a soma dos exames avulsos, a devolução fica limitada à parte do valor pago que corresponde aos exames que ainda faltavam: ${_brl(c.estorno)} (contrato, item 7b).`);
     if (motivo === 'desistencia') {
       const vc = new Date(hoje + 'T12:00:00Z'); vc.setUTCMonth(vc.getUTCMonth() + 12);
       L.push(`2) Crédito pessoal de *${_brl(c.credito)}*${c.tetoCredito != null ? ` (valor da devolução por Pix acrescido de ${Math.round(_CREDITO_DESIST_ACRESCIMO * 100)}%)` : ' (saldo integral)'}, para exames na clínica, com qualquer profissional da equipe, válido até ${formatDateBR(vc.toISOString().slice(0, 10))}.`);

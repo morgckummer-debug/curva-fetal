@@ -129,8 +129,10 @@ small{color:#7a6a88}
     limpa(); app.appendChild(c);
   }
 
-  function agendados(d) {
-    limpa(); var c = el('div', 'card');
+  function agendados(d, reagOk) {
+    limpa();
+    if (reagOk) { var ok = el('div', 'card'); ok.appendChild(el('h1', null, 'Novo horário confirmado 💜')); ok.appendChild(el('p', null, 'Obrigada! Já atualizamos a sua agenda. Até breve!')); app.appendChild(ok); }
+    var c = el('div', 'card');
     var lista = d.agendados && d.agendados.length ? d.agendados : null;
     var nm = d.nome ? ', ' + d.nome : '';
     c.appendChild(el('h1', null, lista ? (d.confirmada ? 'Presença confirmada' + nm + ' 💜' : 'Confira seus horários' + nm) : 'Seus ultrassons já estão agendados' + nm + ' 💜'));
@@ -138,7 +140,7 @@ small{color:#7a6a88}
     c.classList.add('ag');
     lista.forEach(function (x) {
       var r = el('div', 'res');
-      r.appendChild(el('b', null, x.n));
+      r.appendChild(el('b', null, x.n + (x.r ? ' · reagendado' : '')));
       r.appendChild(el('div', null, fmtDia(x.d) + (x.h ? ' · às ' + x.h.slice(0, 2) + 'h' + (x.h.slice(3, 5) !== '00' ? x.h.slice(3, 5) : '') : '')));
       if (d.confirmada) { var gl = guia(x.key); if (gl) r.appendChild(gl); }
       c.appendChild(r);
@@ -158,6 +160,30 @@ small{color:#7a6a88}
       };
       c.appendChild(b); c.appendChild(er);
     }
+    app.appendChild(c);
+  }
+
+  // Reagendamento de um exame pedido pela gestante (migração 044): ela confirma e só então a data muda.
+  function hora(h) { return h ? ' às ' + h.slice(0, 5) + 'h' : ''; }
+  function reagendado(d) {
+    limpa(); var c = el('div', 'card ag'), rg = d.reagendamento;
+    c.appendChild(el('h1', null, 'Oi' + (d.nome ? ', ' + d.nome : '') + '! 💜'));
+    c.appendChild(el('p', null, 'Como você pediu, seu exame foi reagendado:'));
+    var r = el('div', 'res');
+    r.appendChild(el('b', null, rg.n || 'Ultrassom'));
+    r.appendChild(el('div', null, fmtDia(rg.d) + hora(rg.h)));
+    if (rg.de) r.appendChild(el('small', null, 'Antes: ' + fmtLongo(rg.de) + hora(rg.deh)));
+    c.appendChild(r);
+    var er = el('p', 'res', '');
+    var b = el('button', null, 'Confirmo o novo horário');
+    b.onclick = function () {
+      b.disabled = true; b.textContent = 'Enviando…';
+      rpc('agenda_confirmar', { p_token: tok }).then(function (ok) {
+        if (!ok) throw new Error('x');
+        return rpc('agenda_publica', { p_token: tok }).then(function (n) { agendados(n, true); });
+      }).catch(function () { b.disabled = false; b.textContent = 'Confirmo o novo horário'; er.textContent = 'Não consegui enviar agora. Tente de novo ou responda pelo WhatsApp.'; });
+    };
+    c.appendChild(b); c.appendChild(er);
     app.appendChild(c);
   }
 
@@ -247,6 +273,7 @@ small{color:#7a6a88}
     if (!d) return invalido();
     if (d.liberado === false) return naoLiberado(d);
     dados = d;
+    if (d.agendado && d.reagendamento) { reagendado(d); return; }
     if (d.agendado && !d.resposta) { agendados(d); return; }
     if (d.resposta) resumo(d.resposta); else form();
   }).catch(function () {

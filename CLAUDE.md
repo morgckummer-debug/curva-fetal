@@ -2196,3 +2196,17 @@ R$ 1.855. Não aplicar os 15% depois do teto: isso baixaria o Pix até de quem d
 A retenção da devolução por Pix (`_RETENCAO_ENCERRAMENTO`) voltou de 20% para **15%** nos três casos que a usam
 (desistência, perda/óbito, parto); textos usam `_RETENCAO_ENC_PCT`. Contrato (7b, 8a, 8b, 8d) e .docx/PDF em
 `/mnt/project-files/contratos/` atualizados juntos.
+
+## Reagendar um exame por vez (2026-10-21, migração 044)
+
+Com a ficha em "Agendado", o botão "Reagendar" (`recepcaoReagendar`) não reenvia mais a mensagem de todas as datas:
+lista os exames pendentes que já têm dia e hora em `agendamento.agendados`, a recepção marca UM (rádio), digita a nova
+data e hora (já trocadas na Feegow) e toca em "Enviar confirmação pelo WhatsApp". `recepcao_reagendar` guarda
+`agendamento.reagendamento` (`{key,n,d,h,de,deh,em,por}`) e devolve o token do link pessoal de sempre (`agendar.html`).
+**A data do app só muda quando a gestante toca em "Confirmo o novo horário"**: `agenda_confirmar`, com reagendamento
+pendente, troca `d`/`h` do item e grava `r` (quando foi reagendado), apagando o pendente. Sem confirmação a data antiga
+continua valendo e a ficha mostra "reagendamento para X aguardando confirmação da paciente"; reenviar sobrescreve.
+A etiqueta "Reagendado" fica na linha do exame até ele ser feito (exame feito não mostra mais a linha de agendado).
+Recusa domingo, sábado depois de 12h, data passada e ausência da médica; fora do período do exame só avisa.
+"Alterar horários" descarta reagendamento pendente e mantém o `r` de quem não mudou de dia/hora. Sem `agendados`
+(agenda antiga) o botão cai no "Combinar datas". **Aplicada no Supabase por Claude em 2026-10-21.**

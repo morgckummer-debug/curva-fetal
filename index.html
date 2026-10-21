@@ -3330,10 +3330,135 @@ function _rcConfWhats() {
   const el = document.getElementById('rc-conf-modal'), rr = _recepcaoDados.find(x => x.gestacao_id === _rcSel), ii = rr && _rcInfo(rr);
   const feitos = ii && el ? el._keys.filter((key, k) => el.querySelector(`.rc-conf-d[data-k="${k}"]`).value) : null;
   const itens = ii && el ? el._pend.map((sl, k) => ({ sl, k, d: el.querySelector(`.rc-conf-d[data-k="${k}"]`).value, h: el.querySelector(`.rc-conf-h[data-k="${k}"]`).value })).filter(x => x.d).map(x => ({
-    key: el._keys[x.k], n: x.sl.def.n + (x.sl.def.sub ? ' (' + x.sl.def.sub + ')' : ''), d: x.d, h: x.h || '' })) : [];
+    key: el._keys[x.k], n: x.sl.def.n + (x.sl.def.sub ? ' (' + x.sl.def.sub + ')' : ''), d: x.d, h: x.h || '' })).map(it => {
+    const ant = ((rr.agendamento && rr.agendamento.agendados) || []).find(y => y.key === it.key && y.d === it.d && (y.h || '') === it.h);
+    return ant && ant.r ? Object.assign(it, { r: ant.r }) : it;
+  }) : [];
   const nome = String(rr && rr.nome || '').trim().split(/\s+/)[0];
   // guarda dia e hora para a paciente confirmar pelo link (migração 032); sem ela, segue só com "Agendado"
   _rcAgRegistrar('agendado', feitos, () => itens.length ? supabaseClient.rpc('recepcao_agendamento_horarios', { p_gestacao_id: rr.gestacao_id, p_nome: nome, p_itens: itens }).then(({ error }) => { if (error) { console.error('[CurvaFetal] recepcao_agendamento_horarios:', error); alert('Os horários não foram guardados para a paciente confirmar pelo link: ' + (error.message || error)); } }) : null);
+}
+
+// ── Reagendar UM exame (Morgana, 2026-10-21; migração 044) ──
+// A gestante pede pelo WhatsApp, a recepção troca na Feegow e aqui escolhe o exame, digita a nova data e hora e
+// manda o link pessoal. A data do app só muda quando ela toca em "Confirmo" no link (agenda_confirmar).
+function _rcHoraTxt(h) { return h ? h.slice(0, 5) + 'h' : ''; }
+function _rcDataLonga(iso) { return iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : ''; }
+function _rcReagCandidatos(r, i) {
+  const ag = r.agendamento;
+  if (!ag || ag.estado !== 'agendado') return [];
+  return i.sit.slots.filter(s => s.status === 'falta' || s.status === 'tolerancia').map(s => {
+    const ja = (ag.agendados || []).find(x => x.key === s.key);
+    return ja && /^\d{4}-\d{2}-\d{2}$/.test(ja.d) ? { s, ja } : null;
+  }).filter(Boolean);
+}
+
+function recepcaoReagendar() {
+  const r = _recepcaoDados.find(x => x.gestacao_id === _rcSel);
+  const i = r && _rcInfo(r);
+  if (!i || _rcAgendaBloqueada(r)) return;
+  const cand = _rcReagCandidatos(r, i);
+  if (!cand.length) { recepcaoCombinarDatas(); return; } // agenda antiga, sem dia e hora guardados por exame
+  const old = document.getElementById('rc-reag-modal'); if (old) old.remove();
+  const el = document.createElement('div');
+  el.id = 'rc-reag-modal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+  const inp = 'width:100%;box-sizing:border-box;padding:8px;border:1px solid #ccc;border-radius:8px;';
+  const pend = r.agendamento.reagendamento;
+  el.innerHTML = `<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:92vh;overflow:auto;padding:20px;">
+    <h3 style="margin:0 0 4px;">Reagendar exame</h3>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">${escapeHtml(r.nome)} · marque o exame que ela pediu para remarcar</div>
+    ${cand.map(({ s, ja }, k) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid #e3dbe9;border-radius:10px;margin-bottom:6px;cursor:pointer;">
+      <input type="radio" name="rc-reag-ex" value="${k}" style="margin-top:3px;width:18px;height:18px;" onchange="_rcReagEscolher(${k})">
+      <span><b>${escapeHtml(s.def.n)}${s.def.sub ? ' (' + escapeHtml(s.def.sub) + ')' : ''}</b><br><span style="font-size:13px;color:var(--text-muted);">Agendado: ${_RC_DIAS_SEM[new Date(ja.d + 'T12:00:00Z').getUTCDay()]}, ${_rcDataLonga(ja.d)}${ja.h ? ' às ' + _rcHoraTxt(ja.h) : ''}${pend && pend.key === s.key ? ` · <b style="color:#a06a00;">reagendamento para ${_rcDataLonga(pend.d)} aguardando confirmação</b>` : ''}</span></span></label>`).join('')}
+    <div id="rc-reag-bloco" style="display:none;margin-top:12px;padding:14px;background:#f7f2fa;border-radius:12px;">
+      <div style="font-weight:700;margin-bottom:8px;">Reagendar esse exame para…</div>
+      <div style="display:flex;gap:8px;"><input id="rc-reag-d" type="date" style="${inp}" oninput="_rcReagRefazer()"><input id="rc-reag-h" type="time" style="${inp}max-width:130px;" oninput="_rcReagRefazer()"></div>
+      <div id="rc-reag-aviso" style="font-size:12.5px;margin-top:6px;color:var(--text-muted);"></div>
+      <label style="font-size:12px;display:block;margin-top:10px;">Celular da paciente (com DDD)</label>
+      <input id="rc-reag-tel" type="tel" placeholder="(31) 9 9999-9999" value="${escapeHtml((r.pagamento && r.pagamento.celular) || '')}" style="${inp}">
+      <div style="font-size:12px;margin-top:10px;">Mensagem</div>
+      <div id="rc-reag-msg" style="white-space:pre-wrap;font-size:13px;background:#fff;border:1px solid #e3dbe9;border-radius:8px;padding:10px;margin-top:4px;"></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">A data muda aqui quando ela confirmar pelo link. Até lá vale a data antiga.</div>
+      <button type="button" class="rc-btn-dark" style="width:100%;margin-top:12px;" onclick="_rcReagEnviar()">Enviar confirmação pelo WhatsApp</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px;"><button type="button" class="rc-btn-claro" onclick="document.getElementById('rc-reag-modal').remove()">Cancelar</button></div></div>`;
+  document.body.appendChild(el);
+  el._cand = cand; el._r = r; el._nome = String(r.nome || '').trim().split(/\s+/)[0];
+  if (cand.length === 1) { el.querySelector('input[name="rc-reag-ex"]').checked = true; _rcReagEscolher(0); }
+}
+
+function _rcReagEscolher(k) {
+  const el = document.getElementById('rc-reag-modal');
+  if (!el) return;
+  el._k = k;
+  const { ja } = el._cand[k], pend = el._r.agendamento.reagendamento;
+  const doPend = pend && pend.key === ja.key;
+  document.getElementById('rc-reag-d').value = doPend ? pend.d : '';
+  document.getElementById('rc-reag-h').value = doPend ? pend.h : '';
+  document.getElementById('rc-reag-bloco').style.display = '';
+  _rcReagRefazer();
+}
+
+// Devolve o problema da data/hora digitada ('' = ok). Fora do período do exame só avisa.
+function _rcReagProblema(s, d, h) {
+  if (!d || !h) return { erro: 'Preencha a nova data e o horário.' };
+  const dow = new Date(d + 'T12:00:00Z').getUTCDay();
+  if (dow === 0) return { erro: 'Domingo a clínica não abre.' };
+  if (dow === 6 && h > '12:00') return { erro: 'Sábado a clínica atende só até 12h.' };
+  if (d < _hojeISO()) return { erro: 'Essa data já passou.' };
+  const fim = s.ateTol || s.ate;
+  if ((s.de && d < s.de) || (fim && d > fim)) return { aviso: `Fora do período do exame (${_acompDataCurta(s.de)} a ${_acompDataCurta(fim)}).` };
+  return {};
+}
+
+function _rcReagRefazer() {
+  const el = document.getElementById('rc-reag-modal');
+  if (!el || el._k == null) return;
+  const { s } = el._cand[el._k];
+  const d = document.getElementById('rc-reag-d').value, h = document.getElementById('rc-reag-h').value;
+  const p = _rcReagProblema(s, d, h);
+  const av = document.getElementById('rc-reag-aviso');
+  av.textContent = d && h ? (p.erro || p.aviso || '') : (d && new Date(d + 'T12:00:00Z').getUTCDay() === 6 ? 'Sábado só até 12h.' : '');
+  av.style.color = p.erro || p.aviso ? '#a02a1e' : 'var(--text-muted)';
+  document.getElementById('rc-reag-msg').textContent = d && h ? _rcReagMsg(el, s, d, h, '[link pessoal dela]') : 'Preencha a data e o horário para ver a mensagem.';
+}
+
+function _rcReagMsg(el, s, d, h, url) {
+  const n = s.def.n.charAt(0).toLowerCase() + s.def.n.slice(1) + (s.def.sub ? ' (' + s.def.sub + ')' : '');
+  return `Oi, ${el._nome}! Como você pediu, seu ${n} foi reagendado para: ${_RC_DIAS_SEM[new Date(d + 'T12:00:00Z').getUTCDay()]}, ${_rcDataLonga(d)} às ${_rcHoraTxt(h)} 🥰\n\n👉 Toque no link abaixo para confirmar:\n${url}\n\nQualquer dúvida, estamos à disposição 💜`;
+}
+
+async function _rcReagEnviar() {
+  const el = document.getElementById('rc-reag-modal');
+  if (!el || el._k == null) { alert('Marque o exame que vai ser reagendado.'); return; }
+  const { s } = el._cand[el._k], r = el._r;
+  const d = document.getElementById('rc-reag-d').value, h = document.getElementById('rc-reag-h').value;
+  const p = _rcReagProblema(s, d, h);
+  if (p.erro) { alert(p.erro); return; }
+  if (p.aviso && !confirm(p.aviso + '\n\nReagendar assim mesmo?')) return;
+  const tel = _waTel(document.getElementById('rc-reag-tel').value);
+  if (!tel) { alert('Digite o celular com DDD.'); return; }
+  const w = window.open('', '_blank'); // aberta no toque: depois da espera o celular bloqueia como pop-up
+  const { data, error } = await supabaseClient.rpc('recepcao_reagendar', { p_gestacao_id: r.gestacao_id, p_key: s.key, p_d: d, p_h: h });
+  if (error || !data) {
+    if (w) w.close();
+    console.error('[CurvaFetal] recepcao_reagendar:', error);
+    alert('Não consegui guardar o reagendamento: ' + ((error && error.message) || 'erro') + (error && /recepcao_reagendar/.test(error.message || '') ? '\n\nA migração 044 foi aplicada no Supabase?' : ''));
+    return;
+  }
+  const url = new URL('agendar.html?t=' + encodeURIComponent(data), location.href).href;
+  _encAbrirWhats(w, tel, _rcReagMsg(el, s, d, h, url));
+  el.remove();
+  recepcaoAtualizar();
+}
+
+// Texto de situação de um exame agendado na ficha: confirmação, etiqueta "Reagendado" e reagendamento pendente.
+function _rcAgSituacaoHtml(ag, ja) {
+  const rg = ag.reagendamento && ag.reagendamento.key === ja.key ? ag.reagendamento : null;
+  return (ja.r ? '<span class="rc-tag-extra" style="background:#e4ecfb;color:#1f4f9a;">Reagendado</span> ' : '') +
+    (ja.r ? 'paciente confirmou' : ag.confirmada ? 'paciente confirmou' : 'aguardando confirmação') +
+    (rg ? ` · <b style="color:#a06a00;">reagendamento para ${_rcDataLonga(rg.d)} às ${_rcHoraTxt(rg.h)} aguardando confirmação da paciente</b>` : '');
 }
 
 function _rcAgRegistrar(estado, keys, depois) {
@@ -3367,7 +3492,7 @@ function _rcDetalheHtml(i) {
   const prox = jaOk
     // já agendado: só o exame e a data marcada, sem período
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
-        <div class="rc-prox-per">Agendado: <b>${_RC_DIAS_SEM[new Date(jaP.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(jaP.d)}${hhP}</b> <span>· ${agP.confirmada ? 'paciente confirmou' : 'aguardando confirmação'}</span></div></div></div>`
+        <div class="rc-prox-per">Agendado: <b>${_RC_DIAS_SEM[new Date(jaP.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(jaP.d)}${hhP}</b> <span>· ${_rcAgSituacaoHtml(agP, jaP)}</span></div></div></div>`
     : p
     ? `<div class="rc-prox"><div><small>Próximo exame</small><b>${escapeHtml(p.def.n)}${p.def.sub ? ' <span>— ' + escapeHtml(p.def.sub) + '</span>' : ''}</b>
         <span>${_acompSemDia(p.def.ini)}${p.def.fim !== p.def.ini ? ' a ' + _acompSemDia(p.def.fim) : ''}</span>
@@ -3394,7 +3519,7 @@ function _rcDetalheHtml(i) {
     const ag = r.agendamento, ja = ag && ag.estado === 'agendado' && (ag.agendados || []).find(x => x.key === s.key);
     if (s.status !== 'feito' && ja && /^\d{4}-\d{2}-\d{2}$/.test(ja.d)) {
       const hh = ja.h ? ' às ' + ja.h.slice(0, 2) + 'h' + (ja.h.slice(3, 5) !== '00' ? ja.h.slice(3, 5) : '') : '';
-      st = `<b class="rc-feito-t">Agendado: ${_RC_DIAS_SEM[new Date(ja.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(ja.d)}${hh}</b><span class="rc-ex-s">${ag.confirmada ? 'paciente confirmou' : 'aguardando confirmação'}</span>`;
+      st = `<b class="rc-feito-t">Agendado: ${_RC_DIAS_SEM[new Date(ja.d + 'T12:00:00Z').getUTCDay()]}, ${_acompDataCurta(ja.d)}${hh}</b><span class="rc-ex-s">${_rcAgSituacaoHtml(ag, ja)}</span>`;
     }
     const janela = s.de && s.ate ? `${_acompDataCurta(s.de)} a ${_acompDataCurta(s.ate)}` : '';
     return antes + `<tr><td class="rc-ic">${ic}</td>
@@ -3444,7 +3569,7 @@ function _rcDetalheHtml(i) {
         ${r.cpf ? `<span>CPF ${escapeHtml(r.cpf)}</span>` : ''}</div>
       ${_rcRespostaHtml(i)}
       <div style="display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap;"><div class="rc-ig-hoje"${i.enc ? ' style="opacity:.35;text-decoration:line-through;"' : ''}><small>Idade gestacional hoje</small>${sit.igHoje != null ? `<b>${_acompSemDia(sit.igHoje)}</b>` : '<span>sem data de referência</span>'}</div>
-        <button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="var e=document.getElementById('rc-contrato-card');if(e){e.open=true;e.scrollIntoView({behavior:'smooth',block:'center'})}" title="Vai até o bloco Contrato, mais abaixo na ficha">📄 Contrato</button>${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="recepcaoCombinarDatas()" title="Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames">${i.agEstado === 'agendado' ? 'Reagendar' : 'Combinar datas'}</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">${i.agEstado === 'agendado' ? 'Alterar horários' : 'Confirmar agendamento'}</button>` : ''}</div></div>
+        <button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="var e=document.getElementById('rc-contrato-card');if(e){e.open=true;e.scrollIntoView({behavior:'smooth',block:'center'})}" title="Vai até o bloco Contrato, mais abaixo na ficha">📄 Contrato</button>${!i.enc && sit.slots.some(s => s.status === 'falta' || s.status === 'tolerancia') ? `<button type="button" class="rc-btn-dark" style="margin-bottom:4px;" onclick="${i.agEstado === 'agendado' ? 'recepcaoReagendar()' : 'recepcaoCombinarDatas()'}" title="${i.agEstado === 'agendado' ? 'Escolhe o exame que ela pediu para remarcar e manda a nova data para ela confirmar' : 'Abre o WhatsApp com a mensagem para a paciente escolher as datas de todos os exames'}">${i.agEstado === 'agendado' ? 'Reagendar' : 'Combinar datas'}</button><button type="button" class="rc-btn-claro" style="margin-bottom:4px;" onclick="recepcaoConfirmarAgenda()" title="Mensagem com dia, horário e regras, depois de tudo marcado na Feegow">${i.agEstado === 'agendado' ? 'Alterar horários' : 'Confirmar agendamento'}</button>` : ''}</div></div>
       <div class="rc-ring"><b>${sit.feitos}/${sit.slots.length}</b><span>exames feitos</span></div></div>
     ${_rcEncerramentoHtml(r, i)}
     ${prox}
@@ -4283,6 +4408,9 @@ function _histFrases(h) {
       const e = d && d.estado, ea = a && a.estado;
       if (!d) return [{ txt: 'Agendamento limpo' }];
       if (e === ea) {
+        const rd = d.reagendamento, ra = a && a.reagendamento;
+        if (rd && JSON.stringify(rd) !== JSON.stringify(ra || null)) return [{ txt: `Reagendamento enviado à gestante: ${rd.n || 'exame'} para ${formatDateBR(rd.d)} às ${_rcHoraTxt(rd.h)}` }];
+        if (ra && !rd) { const it = (d.agendados || []).find(x => x.key === ra.key); return [{ txt: it && it.r ? `Gestante confirmou o reagendamento pelo link: ${ra.n || 'exame'} em ${formatDateBR(ra.d)} às ${_rcHoraTxt(ra.h)}` : 'Reagendamento pendente descartado' }]; }
         if (d.confirmada && !(a && a.confirmada)) return [{ txt: 'Gestante confirmou os horários pelo link' }];
         if (JSON.stringify(d.agendados || null) !== JSON.stringify((a && a.agendados) || null)) return [{ txt: 'Horários alterados e enviados à gestante' }];
         return [];

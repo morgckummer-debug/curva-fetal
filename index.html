@@ -1627,7 +1627,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
           <div class="chart-card-header">
             <div class="chart-card-left">
               <div class="chart-card-title">Peso Fetal Estimado — Hadlock (EFW)</div>
-              <div class="chart-card-subtitle" id="sub-efw">Fórmula Hadlock 1985 · Percentis Hadlock 1991 + INTERGROWTH-21st</div>
+              <div class="chart-card-subtitle" id="sub-efw">Fórmula Hadlock 1985 · Percentis Hadlock 1991</div>
             </div>
             <span class="chart-card-pct" id="pct-efw" style="display:none"></span>
           </div>
@@ -2572,7 +2572,7 @@ Resources:`;for(let t of c){if(!t||typeof t!=`string`)throw Error(`@supabase/aut
 // ═══════════════════════════════════════════════════════════
 // CURVA FETAL — Script Principal
 // Arquitetura: PACIENTE → GESTAÇÃO → EXAME
-// Tabelas de Referência: Hadlock 1984 / Hadlock 1991 + INTERGROWTH-21st (peso) / FMF / ISUOG
+// Tabelas de Referência: Hadlock 1984 / Hadlock 1991 (peso) / FMF / ISUOG
 // ═══════════════════════════════════════════════════════════
 
 // ── Captura de erro global — primeiro código a rodar, para pegar até erro na
@@ -8720,12 +8720,7 @@ function _obsBiometriaRefLinha(refData) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PESO FETAL ESTIMADO (PFE) — percentil combinado Hadlock + INTERGROWTH-21st
-// Abaixo de 30 sem: Hadlock (1991) puro. A partir de 35 sem: INTERGROWTH-21st
-// puro — mais fiel perto do termo (a desaceleração do crescimento no fim da
-// gestação é modelada de forma diferente entre as referências). Entre 30 e
-// 35 sem, as duas tabelas são misturadas linearmente (por semana) para
-// evitar um salto no percentil bem em cima da fronteira.
+// PESO FETAL ESTIMADO (PFE) — percentil pela tabela de Hadlock (1991).
 // ═══════════════════════════════════════════════════════════
 const TABELA_PESO_HADLOCK = {
   10: { p3: 26,   p10: 29,   p50: 35,   p90: 41   },
@@ -8763,24 +8758,6 @@ const TABELA_PESO_HADLOCK = {
 const PESO_HADLOCK_MIN_SEMANA = 10;
 const PESO_HADLOCK_MAX_SEMANA = 40;
 
-const TABELA_PESO_INTERGROWTH = {
-  30: { p3: 967,  p10: 1089, p50: 1396, p90: 1813 },
-  31: { p3: 1062, p10: 1207, p50: 1568, p90: 2050 },
-  32: { p3: 1162, p10: 1334, p50: 1755, p90: 2304 },
-  33: { p3: 1269, p10: 1469, p50: 1954, p90: 2570 },
-  34: { p3: 1380, p10: 1612, p50: 2162, p90: 2843 },
-  35: { p3: 1494, p10: 1761, p50: 2378, p90: 3116 },
-  36: { p3: 1612, p10: 1913, p50: 2594, p90: 3381 },
-  37: { p3: 1731, p10: 2068, p50: 2806, p90: 3629 },
-  38: { p3: 1851, p10: 2221, p50: 3006, p90: 3850 },
-  39: { p3: 1969, p10: 2368, p50: 3186, p90: 4034 },
-  40: { p3: 2085, p10: 2505, p50: 3338, p90: 4171 },
-};
-const PESO_INTERGROWTH_MIN_SEMANA = 30;
-const PESO_INTERGROWTH_MAX_SEMANA = 40;
-
-const PESO_TRANSICAO_INICIO = 30;
-const PESO_TRANSICAO_FIM = 35;
 const PESO_GA_MIN_SEMANAS = PESO_HADLOCK_MIN_SEMANA;
 const PESO_GA_MAX_SEMANAS = PESO_HADLOCK_MAX_SEMANA;
 
@@ -8797,22 +8774,10 @@ function _linhaTabelaPeso(tabela, semanaMin, semanaMax, gaSemanasDecimais) {
   return { p3: interp('p3'), p10: interp('p10'), p50: interp('p50'), p90: interp('p90') };
 }
 
-// Idade gestacional fracionária → linha {p3,p10,p50,p90} combinada.
+// Idade gestacional fracionária → linha {p3,p10,p50,p90} de Hadlock.
 function _linhaPesoInterpolada(gaSemanasDecimais) {
   const ga = Math.min(PESO_GA_MAX_SEMANAS, Math.max(PESO_GA_MIN_SEMANAS, gaSemanasDecimais));
-
-  if (ga < PESO_TRANSICAO_INICIO) {
-    return _linhaTabelaPeso(TABELA_PESO_HADLOCK, PESO_HADLOCK_MIN_SEMANA, PESO_HADLOCK_MAX_SEMANA, ga);
-  }
-  if (ga >= PESO_TRANSICAO_FIM) {
-    return _linhaTabelaPeso(TABELA_PESO_INTERGROWTH, PESO_INTERGROWTH_MIN_SEMANA, PESO_INTERGROWTH_MAX_SEMANA, ga);
-  }
-
-  const t = (ga - PESO_TRANSICAO_INICIO) / (PESO_TRANSICAO_FIM - PESO_TRANSICAO_INICIO);
-  const hadlock = _linhaTabelaPeso(TABELA_PESO_HADLOCK, PESO_HADLOCK_MIN_SEMANA, PESO_HADLOCK_MAX_SEMANA, ga);
-  const intergrowth = _linhaTabelaPeso(TABELA_PESO_INTERGROWTH, PESO_INTERGROWTH_MIN_SEMANA, PESO_INTERGROWTH_MAX_SEMANA, ga);
-  const misturar = chave => hadlock[chave] + (intergrowth[chave] - hadlock[chave]) * t;
-  return { p3: misturar('p3'), p10: misturar('p10'), p50: misturar('p50'), p90: misturar('p90') };
+  return _linhaTabelaPeso(TABELA_PESO_HADLOCK, PESO_HADLOCK_MIN_SEMANA, PESO_HADLOCK_MAX_SEMANA, ga);
 }
 
 // Percentil de um peso informado por interpolação linear no espaço
@@ -13825,12 +13790,12 @@ function _buildSummaryHtml(gestacao, exams, feto) {
     </div>
     ${feto ? `<div style="font-size:11px;color:var(--text-muted);margin:-14px 0 18px;">Critérios de restrição seletiva ainda não implementados — esta análise usa os critérios de gestação única aplicados a este feto isoladamente.</div>` : ''}
     ${block('1 · Biometria fetal — último exame', bioHtml)}
-    ${block('2 · Peso fetal estimado (Hadlock 1985 · percentil Hadlock 1991 + INTERGROWTH-21st)', pesoHtml)}
+    ${block('2 · Peso fetal estimado (Hadlock 1985 · percentil Hadlock 1991)', pesoHtml)}
     ${n >= 2 ? block('3 · Tendência evolutiva', tendHtml) : ''}
     ${block('4 · Velocimetria Doppler', dopplerHtml)}
     ${block('5 · Impressão diagnóstica', dxBox + peBox + coloBox + tapsBox)}
     <p style="font-size:11px;color:var(--text-muted);margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
-      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
+      ⚠ Análise gerada automaticamente · Critérios diagnósticos: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 (sem CTG) · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 · Doppler: FMF/ISUOG · Revise sempre antes de incluir em laudos.
     </p>`;
 }
 
@@ -16743,7 +16708,7 @@ const _REL_CHART_TITLE = {
 // mm ou cm (a tabela do histórico logo abaixo mostra em cm).
 const _REL_CHART_SUB = {
   cc: 'Referência Hadlock 1984 · mm', ca: 'Referência Hadlock 1984 · mm', fl: 'Referência Hadlock 1984 · mm',
-  efw: 'Hadlock 1985/1991 + INTERGROWTH-21st', uta: 'Referência Gómez et al. (2008)',
+  efw: 'Hadlock 1985/1991', uta: 'Referência Gómez et al. (2008)',
 };
 
 function _relRefRow(paramKey, w) {
@@ -17369,7 +17334,7 @@ function _buildRelSheetHtml(patient, gestacao, exams, opts) {
         <div class="feto-card-t">${_REL_CHART_TITLE.efw}</div>
         <span class="feto-badge feto-badge--unica">${efwC?.percentil != null ? 'P' + efwC.percentil : '—'}</span>
       </div>
-      <div class="feto-card-sub">Hadlock 1985/1991 + INTERGROWTH-21st</div>
+      <div class="feto-card-sub">Hadlock 1985/1991</div>
       ${efwSvg}
     </div>`);
   }
@@ -19141,7 +19106,7 @@ function confirmarGerarPDF() {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 · Doppler: FMF/ISUOG</div>
 
 <div class="sheet-flow">
 ${sheetHtml}
@@ -19191,7 +19156,7 @@ function _confirmarGerarPDFMultiplo(patient, gestacao) {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 + INTERGROWTH-21st · Doppler: FMF/ISUOG</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Critérios: Delphi 2016 + Barcelona (Figueras &amp; Gratacós) · Deterioração Doppler (AU/DV): TRUFFLE/ISUOG 2020 · Biometria: Hadlock 1984 · Peso: Hadlock 1985/1991 · Doppler: FMF/ISUOG</div>
 
 ${chartSheets}
 ${assessmentSheet}

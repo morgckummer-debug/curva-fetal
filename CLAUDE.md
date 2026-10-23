@@ -2221,3 +2221,14 @@ percentual que já inclui taxa de cartão e imposto da nota, "sem nenhum outro d
 da devolução não mudou. O limite do crédito pessoal continua teto + 15% (`_CREDITO_DESIST_ACRESCIMO`, constante
 própria: não é a retenção). **Perda/óbito (8a) e parto (8b) também passaram a 10%** (`_RETENCAO_ENCERRAMENTO`), no mesmo
 dia, decisão dela: a perda não pode reter mais que a desistência voluntária. Contratos já assinados não mudam; o advogado da clínica ainda vai revisar a cláusula.
+
+## Peso fetal (PFE): só Hadlock, sem INTERGROWTH-21st (2026-10-23)
+
+Decisão da Dra. Morgana: o percentil de peso usa só a tabela de Hadlock (1991),
+de 10 a 40 semanas. A mistura com INTERGROWTH-21st (entre 30 e 35 semanas) saiu:
+ela empurrava o percentil para cima nessa faixa, e o P2 esperado virava P15 em
+33 semanas e 5 dias. Com 1.731 g nessa idade gestacional, a tabela dá P3 (2,8%,
+arredondado). `TABELA_PESO_INTERGROWTH` e a transição foram removidos.
+
+A calculadora do site (`clinicadramorgana`, `src/features/calculadora/calcPeso.ts`)
+ficou com a mesma regra. Mudou uma aqui, mude lá.

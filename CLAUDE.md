@@ -2232,3 +2232,14 @@ arredondado). `TABELA_PESO_INTERGROWTH` e a transição foram removidos.
 
 A calculadora do site (`clinicadramorgana`, `src/features/calculadora/calcPeso.ts`)
 ficou com a mesma regra. Mudou uma aqui, mude lá.
+
+## Recepção com a mesma pele do Curvas (2026-10-25)
+
+A tela da recepção tinha paleta própria (bege/off-white/dourado, cartões com borda colorida à
+esquerda, avatar roxo com letra dourada). Pedido da Morgana: uniformizar com o Curvas. O bloco
+"Recepção: mesma pele do Curvas", no fim do `<style>`, substituiu o da paleta bege e usa só os
+tokens do app (`--clay-*`, `--sh*`, `--sage*`, `--font-mono`): cartões em relevo suave, rótulos em
+maiúsculas espaçadas em lilás, números de KPI e "exames feitos" em DM Mono, avatar com o degradê do
+`.patient-chip-avatar`. A barra roxo-escura ficou como marca. **Não mudam:** as cores de plano
+(`.rc-plano--*`, escolhidas por ela) e de situação (`.rc-pill--*`), e a IG de hoje continua sem
+serifa (decisão de 2026-10-18). Só CSS; nenhum texto, dado ou comportamento.

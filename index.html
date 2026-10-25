@@ -1291,6 +1291,10 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
 #recepcao-screen .rc-tl td{border-bottom-color:var(--border-soft);}
 #recepcao-screen .rc-tl td.rc-ex-dt{font-variant-numeric:tabular-nums;}
 #recepcao-screen .rc-dot{background:var(--clay-surf);}
+/* Estados do exame: a regra acima teria apagado o verde/vermelho/dourado destes (mesma especificidade). */
+#recepcao-screen .rc-dot--feito{background:#dcefe3;color:#1f6b3a;}
+#recepcao-screen .rc-dot--atrasado{background:var(--danger);color:#fff;}
+#recepcao-screen .rc-dot--prox{background:var(--peach-warm);color:#fff;}
 #recepcao-screen .rc-pag{background:var(--clay-raised);border:none;border-radius:var(--radius-sm);box-shadow:var(--sh-sm);}
 #recepcao-screen .rc-dobra-s .rc-sec-t,#recepcao-screen .rc-dobra-s{color:var(--sage);}
 #recepcao-screen .rc-seg button{background:var(--clay-raised);}

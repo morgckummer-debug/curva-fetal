@@ -2243,3 +2243,18 @@ maiúsculas espaçadas em lilás, números de KPI e "exames feitos" em DM Mono, 
 `.patient-chip-avatar`. A barra roxo-escura ficou como marca. **Não mudam:** as cores de plano
 (`.rc-plano--*`, escolhidas por ela) e de situação (`.rc-pill--*`), e a IG de hoje continua sem
 serifa (decisão de 2026-10-18). Só CSS; nenhum texto, dado ou comportamento.
+
+## Ducto venoso do 1º trimestre: P95 por semana, definido pela médica (2026-11-04)
+
+O P95 do IP do DV nos gráficos de 1º trimestre (tela `buildChart1TriDV` e PDF
+`_rel1TriChartDvSvg`) não sai mais da coluna P95 do `DV_TABLE` (Pruksanusak, por
+CCN), e sim de `DV_P95_1TRI`/`_dvP95_1Tri(w)`: 11s 1,46; 12s 1,33; 13s 1,32;
+14s 1,39, interpolação linear entre semanas, borda fora de 11–14. P5 e P50
+continuam do `DV_TABLE`. O antigo dava 1,22/1,26/1,26/1,20. Não mexe no
+`_dvP95` de 24–39 semanas (Kessler). O editor de laudos tem o mesmo gráfico com
+o `DV_TABLE` antigo e precisa do mesmo ajuste.
+
+Mesmo dia, a pedido dela: o nome "Pruksanusak" saiu de tudo que aparece na tela e no papel (subtítulo do
+gráfico de DV na aba Gráficos e no Laudo 1º Trimestre, agora "IP × idade gestacional", e a linha de
+referências do preview). Só os comentários do código ainda citam a origem do P5/P50 do `DV_TABLE`.
+Não recolocar o nome.

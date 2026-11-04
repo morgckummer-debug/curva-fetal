@@ -1563,7 +1563,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <div class="chart-card-header">
               <div class="chart-card-left">
                 <div class="chart-card-title">Ducto Venoso (IP)</div>
-                <div class="chart-card-subtitle">Aproximação Pruksanusak et al. (2014)</div>
+                <div class="chart-card-subtitle">IP × idade gestacional</div>
               </div>
             </div>
             <div class="chart-wrapper"><canvas id="chart-1tri-dv"></canvas></div>
@@ -8547,6 +8547,20 @@ const DV_TABLE = [
   [60,0.76,1.02,1.28],[64,0.75,1.01,1.27],[68,0.74,1.00,1.26],[72,0.73,0.99,1.24],
   [76,0.72,0.97,1.22],[80,0.72,0.95,1.20],[84,0.72,0.93,1.18],
 ];
+// P95 do IP do ducto venoso no 1º trimestre, por semana de idade gestacional —
+// valores adotados pela Dra. Morgana em 2026-11-04 (11s 1,46; 12s 1,33;
+// 13s 1,32; 14s 1,39). Substituem só a coluna P95 do DV_TABLE (Pruksanusak),
+// que dava 1,22/1,26/1,26/1,20 nessas semanas; P5 e P50 continuam do
+// DV_TABLE. Interpolação linear entre semanas; fora de 11–14 mantém a borda.
+const DV_P95_1TRI = [[11, 1.46], [12, 1.33], [13, 1.32], [14, 1.39]];
+function _dvP95_1Tri(w) {
+  const t = DV_P95_1TRI;
+  if (w <= t[0][0]) return t[0][1];
+  if (w >= t[t.length - 1][0]) return t[t.length - 1][1];
+  const i = Math.floor(w) - t[0][0];
+  const [x0, y0] = t[i], [x1, y1] = t[i + 1];
+  return y0 + (w - x0) / (x1 - x0) * (y1 - y0);
+}
 function interpTabelaRef(table, x) {
   if (x <= table[0][0]) return table[0];
   if (x >= table[table.length - 1][0]) return table[table.length - 1];
@@ -12432,7 +12446,8 @@ function buildChart1TriDV(canvasId, gestacao, exams) {
   const refData = { p10: [], p50: [], p90: [] };
   for (let w = 11; w <= 14; w += 0.1) {
     const ccn = crlFromGAdays_hadlock(w * 7);
-    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    const [, l, m] = interpTabelaRef(DV_TABLE, ccn);
+    const h = _dvP95_1Tri(w);
     refData.p10.push({ x: w, y: l });
     refData.p50.push({ x: w, y: m });
     refData.p90.push({ x: w, y: h });
@@ -12440,7 +12455,8 @@ function buildChart1TriDV(canvasId, gestacao, exams) {
   const patientPoints = _pointsForFeto1Tri(gestacao, exams, (e, w) => {
     if (e.dv_ip == null) return null;
     const ccn = crlFromGAdays_hadlock(w * 7);
-    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    const [, l, m] = interpTabelaRef(DV_TABLE, ccn);
+    const h = _dvP95_1Tri(w);
     return { x: w, y: e.dv_ip, p: _pctAprox(e.dv_ip, l, m, h) };
   });
   _drawChart(canvas, {
@@ -16242,7 +16258,7 @@ function confirmarGerarLaudo1TriPDF() {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Risco combinado (T21/T18/T13/pré-eclâmpsia): calculado pelo software oficial da FMF, apenas transcrito aqui · Referências: Hyett/Nicolaides 1996 (FC) · Hadlock 1992 (CCN) · Gómez et al. 2008 (uterinas) · Pruksanusak et al. 2014 (ducto venoso)</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Risco combinado (T21/T18/T13/pré-eclâmpsia): calculado pelo software oficial da FMF, apenas transcrito aqui · Referências: Hyett/Nicolaides 1996 (FC) · Hadlock 1992 (CCN) · Gómez et al. 2008 (uterinas)</div>
 
 <div class="sheet-flow">
 ${sheetHtml}
@@ -17893,13 +17909,15 @@ function _rel1TriChartDvSvg(gestacao, exams) {
   const ref = [];
   for (let w = 11; w <= 14; w += 0.2) {
     const ccn = crlFromGAdays_hadlock(w * 7);
-    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    const [, l, m] = interpTabelaRef(DV_TABLE, ccn);
+    const h = _dvP95_1Tri(w);
     ref.push({ x: w, p10: l, p50: m, p90: h });
   }
   const pts = _rel1TriPontosFeto(gestacao, exams, (e, w) => {
     if (e.dv_ip == null) return null;
     const ccn = crlFromGAdays_hadlock(w * 7);
-    const [, l, m, h] = interpTabelaRef(DV_TABLE, ccn);
+    const [, l, m] = interpTabelaRef(DV_TABLE, ccn);
+    const h = _dvP95_1Tri(w);
     return { x: w, y: e.dv_ip, p: _pctAprox(e.dv_ip, l, m, h) };
   });
   return _buildRel1TriChartSvg({ xMin: 11, xMax: 14, ref, pts, xTicks: [11, 12, 13, 14], yDecimais: 2 });
@@ -17914,7 +17932,7 @@ const _REL_1TRI_CHARTS = [
   { key: 'fc',  titulo: 'BCF',                sub: 'Referência Hyett/Nicolaides (1996)',      build: _rel1TriChartFcSvg },
   { key: 'ccn', titulo: 'CCN',                sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
   { key: 'tn',  titulo: 'Transl. Nucal',      sub: 'Referência FMF (Wright et al., 2008)',    build: _rel1TriChartTnSvg },
-  { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'Aproximação Pruksanusak et al. (2014)', build: _rel1TriChartDvSvg },
+  { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'IP × idade gestacional',             build: _rel1TriChartDvSvg },
 ];
 
 // Um card por gráfico "estreito", opcionalmente por feto (múltipla) — mesma

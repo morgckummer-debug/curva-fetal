@@ -2253,3 +2253,8 @@ CCN), e sim de `DV_P95_1TRI`/`_dvP95_1Tri(w)`: 11s 1,46; 12s 1,33; 13s 1,32;
 continuam do `DV_TABLE`. O antigo dava 1,22/1,26/1,26/1,20. Não mexe no
 `_dvP95` de 24–39 semanas (Kessler). O editor de laudos tem o mesmo gráfico com
 o `DV_TABLE` antigo e precisa do mesmo ajuste.
+
+Mesmo dia, a pedido dela: o nome "Pruksanusak" saiu de tudo que aparece na tela e no papel (subtítulo do
+gráfico de DV na aba Gráficos e no Laudo 1º Trimestre, agora "IP × idade gestacional", e a linha de
+referências do preview). Só os comentários do código ainda citam a origem do P5/P50 do `DV_TABLE`.
+Não recolocar o nome.

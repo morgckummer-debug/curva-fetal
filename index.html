@@ -1563,7 +1563,7 @@ details[open] .me-optional-toggle::before{transform:rotate(90deg);}
             <div class="chart-card-header">
               <div class="chart-card-left">
                 <div class="chart-card-title">Ducto Venoso (IP)</div>
-                <div class="chart-card-subtitle">Aproximação Pruksanusak et al. (2014)</div>
+                <div class="chart-card-subtitle">IP × idade gestacional</div>
               </div>
             </div>
             <div class="chart-wrapper"><canvas id="chart-1tri-dv"></canvas></div>
@@ -16258,7 +16258,7 @@ function confirmarGerarLaudo1TriPDF() {
 <style>${_relPrintStyleBlock()}</style></head>
 <body onload="window.print()">
 
-<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Risco combinado (T21/T18/T13/pré-eclâmpsia): calculado pelo software oficial da FMF, apenas transcrito aqui · Referências: Hyett/Nicolaides 1996 (FC) · Hadlock 1992 (CCN) · Gómez et al. 2008 (uterinas) · Pruksanusak et al. 2014 (ducto venoso)</div>
+<div class="rel-reminder no-print">⚠ Revise o conteúdo antes de imprimir · Risco combinado (T21/T18/T13/pré-eclâmpsia): calculado pelo software oficial da FMF, apenas transcrito aqui · Referências: Hyett/Nicolaides 1996 (FC) · Hadlock 1992 (CCN) · Gómez et al. 2008 (uterinas)</div>
 
 <div class="sheet-flow">
 ${sheetHtml}
@@ -17932,7 +17932,7 @@ const _REL_1TRI_CHARTS = [
   { key: 'fc',  titulo: 'BCF',                sub: 'Referência Hyett/Nicolaides (1996)',      build: _rel1TriChartFcSvg },
   { key: 'ccn', titulo: 'CCN',                sub: 'Referência Hadlock (1992)',               build: _rel1TriChartCcnSvg },
   { key: 'tn',  titulo: 'Transl. Nucal',      sub: 'Referência FMF (Wright et al., 2008)',    build: _rel1TriChartTnSvg },
-  { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'Aproximação Pruksanusak et al. (2014)', build: _rel1TriChartDvSvg },
+  { key: 'dv',  titulo: 'Ducto Venoso (IP)',  sub: 'IP × idade gestacional',             build: _rel1TriChartDvSvg },
 ];
 
 // Um card por gráfico "estreito", opcionalmente por feto (múltipla) — mesma

@@ -2258,3 +2258,7 @@ Mesmo dia, a pedido dela: o nome "Pruksanusak" saiu de tudo que aparece na tela 
 gráfico de DV na aba Gráficos e no Laudo 1º Trimestre, agora "IP × idade gestacional", e a linha de
 referências do preview). Só os comentários do código ainda citam a origem do P5/P50 do `DV_TABLE`.
 Não recolocar o nome.
+
+## Frases dos laudos no banco (2026-11-06, migração 045)
+
+O editor de laudos (`laudos-dramorgana`, `laudo-core.js`) guarda as frases personalizadas de cada médico em `laudo_frases` (chave = a do localStorage, ex. `tv-phrase-templates:paulo`). Quem grava é a digitadora logada (tabela `laudo_digitadoras`, ligada à Dra.; **separada de `recepcao_acessos`** de propósito: digitadora não abre o painel da recepção). `dono_laudos()` resolve a dona; escrita só por `laudo_frases_gravar/apagar`; `laudo_frases_historico` registra toda mudança. **A 045 precisa estar aplicada no Supabase do Curvas** (SQL Editor); sem ela o laudo continua funcionando só com o navegador. O Curvas não lê essas tabelas.
